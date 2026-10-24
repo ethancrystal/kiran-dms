@@ -358,7 +358,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | RESOLVED (L-0019: staging) |
 | B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
 | B-14 | How do reps get the plan list and taxonomies (visit outcomes, product groups, salon types)? Doc 06 §2 gives reps no access to "installment templates, credit rules, config" (verifier Q1) | P1-02 rep visit logging, P1-06 ordering | Reps see no config; Phase 1 RPCs return only what a given screen needs (e.g. allowed plans for one salon) | MJ | PENDING |
-| B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PENDING |
+| B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
 
 ---
 
@@ -692,6 +692,12 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or "temporarily" disabled (H-16)
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0029 · 2026-10-25 06:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P1-01, P0-06, P0-08, P0-09 (§7)    **Claim:** C-001
+**What / why:** MJ ruled: "A fresh subagent counts as a different agent for §7. Run the re-verification." B-15 part (b) resolved: a fresh subagent with no access to the builder's reasoning, signing with its own signature, may log VERIFIED. Part (a), the `KIRAN_SENSITIVE_TERMS` secret, is still open. A new verifier subagent is being started now. It is not the one that wrote L-0025. The builder does not touch the repository while it runs.
+**Rules touched:** §7
+**Next / needs:** Verifier's entry (L-0030).
 
 ---
 
