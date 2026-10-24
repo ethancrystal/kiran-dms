@@ -1,0 +1,208 @@
+# 03 — Requirements
+
+Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C** could have (Phase 3+), **W** won't have this year. Phase numbers refer to doc 11. Role abbreviations: **O** owner, **Mg** manager, **R** rep.
+
+## Functional requirements
+
+### SAL — Salons (customer master / CRM)
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| SAL-01 | Create a salon with: name, type (ladies' parlor / men's salon / unisex / bridal studio / barber / hair studio / spa or wellness centre offering hair services / home-based parlor / beauty academy or training institute / other), address, area, GPS pin, phone(s), owner/contact name, chairs (size), photo of frontage, notes, source (`map_pin` / `nearby_search` / `sweep` / `excel_import` / `referral` / `manual`). "Salon" means **any business anywhere in Karachi that offers hair care, hair treatment or hair beauty to end users** | M | 1 |
+| SAL-02 | Each salon belongs to exactly one territory; territory derives from area or is set manually by Mg | M | 1 |
+| SAL-03 | Salon has a pipeline stage (see doc 02) maintained by the system; Mg/O can override with a mandatory reason | M | 1 |
+| SAL-04 | Salon has a credit profile: plan eligibility (cash only / 2 / 4), credit limit (PKR), current exposure, overdue status | M | 1 |
+| SAL-05 | Salon timeline: every visit, order, delivery, payment, message, note and stage change in one chronological view | M | 1 |
+| SAL-06 | Duplicate detection on create (phone number, name + area fuzzy match) | S | 2 |
+| SAL-07 | Multiple contacts per salon (owner, manager, head stylist) with roles | S | 2 |
+| SAL-08 | Salon tags (e.g., "uses competitor X", "bridal season peak") | C | 3 |
+| SAL-09 | Rep can see and edit only salons in their assigned territories; cannot delete; cannot export | M | 1 |
+| SAL-10 | Bulk import from Excel with field mapping and dry-run preview | M | 1 |
+
+### PIP — Pipeline, territories, routes, visits
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| PIP-01 | Define territories as named sets of areas; assign one or more territories to a rep | M | 1 |
+| PIP-02 | Log a visit: salon, rep, arrival time, GPS at arrival, outcome code, optional notes/photo. Visits are append-only | M | 1 |
+| PIP-03 | Daily route for a rep: ordered list of stops with reason (reorder due, collection due, at-risk, prospect, delivery) | M | 1 (manual build) / S | 2 (auto-generated) |
+| PIP-04 | Route days per territory (which salons fall on which weekday) | S | 2 |
+| PIP-05 | Cycle estimation per salon × product group from order history; default cycles per product group configurable | S | 2 |
+| PIP-06 | Due-for-reorder tasks generated at due − 3 days; at-risk transition at due + 50% cycle | S | 2 |
+| PIP-07 | Prospect quick-add from the field (≤ 60 seconds, works offline) | M | 1 |
+| PIP-08 | Territory mapping sweep mode: fast sequential prospect capture with photo and pin; map-based capture and online discovery are specified in the MAP module below | S | 2 |
+| PIP-09 | Rep daily check-in / check-out gating: no orders without check-in; unreconciled handover blocks next day with Mg override | M | 1 |
+| PIP-10 | Visit outcome taxonomy editable by O/Mg | S | 2 |
+| PIP-11 | Geofence warning when "arrived" is tapped > 300 m from salon pin (logged, not blocking) | S | 2 |
+
+### MAP — Map prospecting and online discovery
+
+The rep's map is the primary prospecting tool. It shows the rep's territory with every known salon as a pin, lets the rep drop and annotate new pins in the field, and — with one tap — pulls every online-listed salon, parlor, barber, hair studio or beauty business within a radius of the rep's **live GPS position** so nothing in the area is missed.
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| MAP-01 | Territory map view for the rep: all salons in assigned territories as pins, colour-coded by stage (prospect / trial / active / at-risk / dormant / blocked), with the rep's live position. Tapping a pin opens the salon card (stage, last order, balance due, next cycle) | M | 1 |
+| MAP-02 | **Drop a pin**: long-press anywhere on the map to create a prospect at that location in ≤ 60 s — name (optional at first), type, photo, phone (optional), and a free-text **note ("chit")**. Works offline; geocoded to an area on sync | M | 1 |
+| MAP-03 | **Pin notes**: every pin carries a running list of dated notes (who was met, what they use, when to come back). Notes are append-only and appear on the salon timeline (SAL-05) | M | 1 |
+| MAP-04 | **Nearby discovery — one tap**: a "Find salons near me" button queries an online places provider for businesses offering hair care, hair treatment or hair beauty within a configurable radius (default 3 km ≈ 2 miles, max 6 km ≈ 4 miles) of the rep's **current GPS fix**. Results appear as grey "discovered" pins with name, address, rating, phone (if listed), and distance | S | 2 |
+| MAP-05 | Discovery covers the full category set: ladies' beauty parlors, men's salons, unisex salons, barbers, hair studios, bridal studios, spas and wellness centres with hair services, home-based parlors listed online, beauty academies/training institutes — across all of Karachi, not just the rep's territory. Search terms and categories are configurable by O/Mg and include Urdu/Roman-Urdu variants ("parlour", "parlor", "salon", "saloon", "beauty", "hair", "mehndi/bridal") | S | 2 |
+| MAP-06 | **Convert discovered → prospect** with one tap. Deduplication against existing salons by provider place id, phone, and name+distance (< 75 m) before creating; duplicates link to the existing record instead | S | 2 |
+| MAP-07 | Discovered or dropped pins **outside the rep's territories** are saved and assigned to the territory they fall in (and that territory's rep); the discovering rep is recorded as `discovered_by` for the new-salon bonus (CTL-13). Manager notified | S | 2 |
+| MAP-08 | **Pins → route**: the rep selects pins on the map (or "all due today" / "all prospects in this block") and the app orders them into an efficient walking/bike route from the rep's position; the route becomes today's route stops (PIP-03). The sequence is editable; the reason per stop is preserved | S | 2 |
+| MAP-09 | **Pin timeline**: a per-rep chronological view of pins created, visited and converted — "what I covered this week" — and a territory heat view for O/Mg showing covered vs. uncovered blocks | S | 2 |
+| MAP-10 | Discovery results are cached per area for 30 days to limit provider cost; a nightly job re-runs discovery for territories with reps and surfaces *new* listings as tasks ("3 new salons listed near your route") | C | 3 |
+| MAP-11 | Discovery uses the rep's live GPS fix only — never a typed location — so a discovery call is also proof of presence; the fix, time and result count are logged on `rep_day` | S | 2 |
+| MAP-12 | Map data (pins, phones) obeys the same RLS and masking rules as salon lists: reps see their territories' pins in full and other territories' pins as counts only; no export of pin sets | M | 1 |
+| MAP-13 | O/Mg map: all territories, all reps' live positions during a `rep_day`, today's visits as a trail, uncovered zones | S | 2 |
+
+### ORD — Orders, deliveries, invoices
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| ORD-01 | Create an order for a salon: lines (SKU, qty, unit price from active price list), discounts within rep's allowed % (default 0), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
+| ORD-02 | Credit check at order time: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. Hard stop for reps; Mg/O can override with reason | M | 1 |
+| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O | M | 1 |
+| ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
+| ORD-05 | Invoice/receipt PDF or image: Kiran branding, salon, lines, totals, payment plan schedule, receipt numbers. **Never** shows supplier or cost | M | 1 |
+| ORD-06 | Returns: full/partial return of delivered goods with reason; stock movement back to location; credit note | S | 2 |
+| ORD-07 | Price lists with effective dates; per-salon special pricing (Mg/O only) | S | 2 |
+| ORD-08 | Promotions / bundles (e.g., starter kit for new salons, buy-10-get-1) | C | 3 |
+| ORD-09 | Order history and "frequently bought" suggestions per salon shown to rep while ordering | S | 2 |
+| ORD-10 | Offline order creation; synced and credit-rechecked on reconnect; rep warned if the check fails | M | 1 |
+
+### PAY — Payments, installments, cash, bank
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| PAY-01 | Installment plan templates: CASH (100% on delivery), INST2, INST4 — percentages and day offsets configurable by O/Mg; each delivered order generates its installment schedule | M | 1 |
+| PAY-02 | Record a payment against one or more installments: method (cash / bank transfer), amount, date; bank transfer requires bank name and reference; optional photo of slip | M | 1 |
+| PAY-03 | Receipt with sequential number issued per payment; sent to salon on WhatsApp (and/or SMS) | M | 1 (generate) / S | 2 (auto-send) |
+| PAY-04 | Rep cash-in-hand ledger: increases on cash collected, decreases on handover; always visible to rep, Mg, O | M | 1 |
+| PAY-05 | Daily handover: Mg records counted cash; system computes variance; variance requires a reason and is logged to the rep's record; cannot be edited after save, only reversed with a new entry | M | 1 |
+| PAY-06 | Bank reconciliation: upload bank statement CSV; match transfers to recorded payments by amount/reference/date; flag unmatched | S | 2 |
+| PAY-07 | Receivables ageing report (per salon, per rep, per territory) | M | 1 |
+| PAY-08 | Overdue escalation ladder (doc 02 / doc 09): reminders, route flags, Mg tasks, auto-block | S | 2 (timers) — M | 1 (manual flags) |
+| PAY-09 | Credit limit rules: starting limits by salon type; automatic increase after N on-time cycles; automatic decrease on late payments; Mg/O manual override | S | 2 |
+| PAY-10 | Payments and handovers are append-only; corrections are reversing entries | M | 1 |
+| PAY-11 | Partial payments and early settlement supported; schedule recalculates | M | 1 |
+
+### INV — Inventory and restocking
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| INV-01 | SKU master: product line, product, variant (size, shade), unit, barcode (optional), selling price, active flag. Cost price lives in the vault (VLT), not here | M | 1 |
+| INV-02 | Stock locations: warehouse(s) and one virtual location per rep ("bag/van stock") | M | 1 |
+| INV-03 | Stock movements: receipt (from vault purchase), issue to rep, sale/delivery, return from salon, return to warehouse, damage/expiry write-off, adjustment (Mg/O, reason required). Movements are append-only | M | 1 |
+| INV-04 | Live stock by location and SKU; rep sees own bag stock and warehouse availability (quantities only) | M | 1 |
+| INV-05 | Daily stock close per rep (expected vs counted) with variance logging | M | 1 |
+| INV-06 | Reorder point per SKU (manual in Phase 1; computed from demand × lead time + safety in Phase 2); low-stock alerts | M | 1 / S | 2 |
+| INV-07 | Weekly restock suggestion: per SKU, suggested purchase qty with reasoning (sell-through, cover days, open orders) | S | 2 |
+| INV-08 | Batch and expiry tracking per receipt; FEFO suggestion on issue; expiry alerts | S | 2 |
+| INV-09 | Cycle counts and stock-take mode | S | 2 |
+| INV-10 | Stock valuation report at cost (O/Mg only; cost from vault) | S | 2 |
+
+### VLT — Supplier vault (classified supplier)
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| VLT-01 | Supplier records (identity, contacts, terms, documents) stored in a separate database schema with no direct API exposure; readable only via role-checked functions available to O/Mg | M | 1 |
+| VLT-02 | Purchase orders and goods receipts (cost prices, quantities, dates) stored in the vault; goods receipt creates the public stock movement without cost or supplier reference | M | 1 |
+| VLT-03 | Cost price and margin visible only to O/Mg, only on vault screens; never joined into any view, report or export a rep can reach | M | 1 |
+| VLT-04 | Every vault read is audit-logged with user, time, record, and purpose | M | 1 |
+| VLT-05 | Vault documents (supplier invoices, contracts) in a private storage bucket, signed URLs ≤ 5 minutes, O/Mg only | M | 1 |
+| VLT-06 | Vault access is a revocable grant per user (default on for O/Mg), not an implied property of the role | M | 1 |
+| VLT-07 | Sensitive fields encrypted at the column level with a key held outside the database (see doc 07) | S | 2 |
+
+### SEC — Users, roles, security
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| SEC-01 | Roles: owner, manager, rep. Manager = full operational access; owner = operational + governance (users, bank details, write-offs/credit notes, price lists, commission plans, vault grants, audit log, configuration). Permission matrix in doc 06 enforced by RLS and server-side checks | M | 1 |
+| SEC-02 | O/Mg login: email + password + TOTP MFA mandatory | M | 1 |
+| SEC-03 | Rep login: phone OTP; device binding — first device auto-registered, new device requires Mg approval | M | 1 |
+| SEC-04 | Sessions: rep 14 days with re-auth on sensitive actions; O/Mg 12 hours; immediate revoke by O/Mg | M | 1 |
+| SEC-05 | Append-only audit log of all writes to money, stock, salon, user and vault tables, plus all vault reads | M | 1 |
+| SEC-06 | No bulk export, copy-all, or list-download for reps; O/Mg exports watermarked with user + timestamp and logged | M | 1 |
+| SEC-07 | Rate limits on list endpoints; page size caps for reps | M | 1 |
+| SEC-08 | One-click offboarding: disable user, revoke sessions and devices, reassign territories, snapshot their bag stock and cash position | M | 1 |
+| SEC-09 | Honeytoken salons (fake records visible only to one rep each) to detect list leakage | C | 3 |
+| SEC-10 | Backups: PITR + weekly encrypted off-site export; restore drill quarterly | M | 1 |
+| SEC-11 | Maker-checker: the user who initiates an approval-gated action can never approve it; approvals are recorded with approver, time and reason | M | 1 |
+| SEC-12 | Audit log lives in a schema no application role can write to directly (populated by triggers), is hash-chained, and is mirrored nightly to write-only storage controlled by the owner | M | 1 |
+
+### CTL — Anti-fraud controls (detail and rationale in doc 13)
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| CTL-01 | Every payment generates a system receipt delivered to the salon's registered phone (WhatsApp, SMS fallback) within 60 s of recording; paper receipts are not valid and invoices say so | M | 1 |
+| CTL-02 | Payments must be recorded at the salon: GPS and server time captured; a payment recorded > 300 m from the salon pin or > 2 h after the visit's "arrived" tap is flagged for manager review | M | 1 |
+| CTL-03 | Daily handover is two-party: manager enters counted cash, rep acknowledges the figure in their own app before it is final; disagreement locks the handover for owner review | M | 1 |
+| CTL-04 | Cash in office is a tracked balance; every bank deposit is recorded with slip photo and matched to a bank statement line; cash in office older than 2 working days triggers an owner alert | M | 1 |
+| CTL-05 | Stock issued to a rep is capped by a per-rep bag value limit; bag stock is counted daily (close) and spot-checked randomly by the manager at least weekly, with the count recorded in-app | M | 1 |
+| CTL-06 | Stock adjustments and write-offs require a reason and photo; any adjustment, write-off, credit note or receivable write-off above a configurable threshold requires owner approval; all are in the daily digest | M | 1 |
+| CTL-07 | Rep discount authority defaults to 0%; any price below list requires in-app manager approval before the invoice is issued; price-list changes are owner-only | M | 1 |
+| CTL-08 | Credit limit overrides and salon unblocking by the manager are logged with reason, capped per salon per month, and listed in the daily digest | M | 1 |
+| CTL-09 | New salon verification: a salon is "verified" only after an OTP sent to the salon's phone is confirmed and a manager has spoken to the salon; unverified salons are cash-only and earn no new-salon bonus | M | 1 |
+| CTL-10 | Monthly statement to every salon with a balance, from the system, with a one-tap "this is wrong" reply that creates an owner-visible dispute | S | 2 |
+| CTL-11 | Weekly random balance-confirmation sample: the system picks N salons per rep; owner or manager calls and records the salon's stated balance; mismatches open a case | M | 1 (manual list) / S | 2 (automated WhatsApp confirm) |
+| CTL-12 | Returns go to a quarantine location, require photo and manager acceptance at the warehouse, and only then re-enter sellable stock | S | 2 |
+| CTL-13 | Commission is calculated on **collected and banked** cash, never on invoiced value; clawback on write-offs; new-salon bonus only after the salon's second paid order | S | 2 |
+| CTL-14 | Anomaly detection jobs (doc 13 §7) run nightly and feed the owner digest: location/time anomalies, burst-recording, round-number patterns, repeated variances, rep-change churn, duplicate devices, mock-location signals | S | 2 |
+| CTL-15 | Daily owner exception digest (in-app and WhatsApp): every override, adjustment, variance, discount, credit note, unblock, new device, failed sync, vault read, and anomaly flag from the last 24 h | M | 1 |
+| CTL-16 | Company bank account details used on invoices are owner-only to change, require MFA re-authentication, and trigger a notification to all owner contacts | M | 1 |
+| CTL-17 | Intraday cash cap: when a rep's cash in hand exceeds a configurable threshold (default Rs 50,000), the app blocks new orders until a handover or bank deposit is recorded; the manager is notified | M | 1 |
+| CTL-18 | Salon contact-phone changes require an OTP confirmed on the **new** number and send a notice to the **old** number ("reply NO if this wasn't you"); every change appears in the owner digest; the same phone on more than one salon is flagged | M | 1 |
+
+### FLD — Field team management
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| FLD-01 | Rep profile: name, phone, CNIC number (encrypted), photo, emergency contact, start date, territories, commission plan | M | 1 |
+| FLD-02 | Rep scorecard (doc 02 KPIs) daily/weekly/monthly | S | 2 |
+| FLD-03 | Commission plans: % of collected cash (not invoiced), with optional bonus for new salons; monthly commission statement | S | 2 |
+| FLD-04 | Rep onboarding checklist in-app (doc 08) | S | 2 |
+| FLD-05 | Live map of today's visits per rep (O/Mg) | S | 2 |
+
+### RPT — Reporting and dashboards
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| RPT-01 | Owner dashboard (mobile-first): today's sales, today's collections, cash in reps' hands, overdue total, low-stock count, reps checked in | M | 1 |
+| RPT-02 | Receivables ageing; sales by territory/product/salon type; stock by location | M | 1 |
+| RPT-03 | Pipeline funnel and stage movement | S | 2 |
+| RPT-04 | Margin reports (vault-gated) | S | 2 |
+| RPT-05 | Accountant export pack: sales register, receipts register, receivables, stock valuation (CSV/XLSX) | S | 2 |
+
+### MSG — Messaging
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| MSG-01 | Send receipt to salon on WhatsApp (template message) with SMS fallback | S | 2 |
+| MSG-02 | Pre-due installment reminders and reorder nudges, opt-in per salon | S | 2 |
+| MSG-03 | Internal notifications to Mg/O: variance, overdue thresholds, new-device requests, failed syncs | M | 1 (in-app) / S | 2 (push/WhatsApp) |
+| MSG-04 | All outbound messages logged on the salon timeline | S | 2 |
+
+### ADM — Administration and configuration
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans | M/S | 1–2 |
+| ADM-02 | Company profile for documents (name, logo, address, phone) | M | 1 |
+| ADM-03 | Numbering sequences for invoices and receipts (gapless, per financial year starting 1 July) | M | 1 |
+
+## Non-functional requirements
+
+| ID | Requirement |
+|---|---|
+| NFR-01 | **Offline-first rep app.** Visits, orders, payments, prospects can be captured with no connectivity and sync within 60 s of reconnecting; conflicts resolved server-side with the rep notified of any rejection |
+| NFR-02 | **Performance on low-end Android.** First load ≤ 3 s on 3G after install; interactions ≤ 200 ms locally; bundle under 300 KB gzipped for the rep app shell |
+| NFR-03 | **Bilingual UI.** English and Urdu (Nastaliq-safe font) with Roman Urdu accepted in free-text fields |
+| NFR-04 | **Availability.** 99.5% monthly for the back office; rep app usable offline regardless |
+| NFR-05 | **Data integrity.** Money and stock tables append-only; all balances derivable by replaying movements; nightly integrity job compares derived vs. stored balances |
+| NFR-06 | **Auditability.** Any record can answer who/when/what-before/what-after |
+| NFR-07 | **Security baseline.** OWASP ASVS Level 2 as the target; RLS on every table; no service-role key in any client; secrets in environment/secret manager only |
+| NFR-08 | **Privacy.** Collect minimum personal data; CNIC encrypted; salon contact deletion on request with ledger retained in anonymised form |
+| NFR-09 | **Cost.** ≤ USD 60/month infrastructure at launch scale (≤ 10 reps, ≤ 3,000 salons) |
+| NFR-10 | **Recoverability.** RPO ≤ 24 h (PITR gives minutes), RTO ≤ 4 h |
+| NFR-11 | **Observability.** Error tracking, sync failure dashboard, audit log search |
+| NFR-12 | **Testability.** Automated tests for RLS policies (every role × every table), money arithmetic, and the stage machine |

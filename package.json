@@ -1,0 +1,24 @@
+{
+  "name": "kiran-dms",
+  "private": true,
+  "description": "Kiran DMS: distribution management for Kiran Company (docs/00-README.md)",
+  "packageManager": "pnpm@10.33.4",
+  "engines": { "node": ">=22" },
+  "type": "module",
+  "scripts": {
+    "db:test": "vitest run --config supabase/tests/vitest.config.ts",
+    "activity:check": "node scripts/activity-log-check.mjs",
+    "typecheck": "tsc -p supabase/tests/tsconfig.json --noEmit && pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "embedded-postgres": "17.9.0-beta.16",
+    "pg": "^8.16.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["embedded-postgres", "@embedded-postgres/windows-x64", "@embedded-postgres/linux-x64", "esbuild", "sharp", "@tailwindcss/oxide"]
+  }
+}
