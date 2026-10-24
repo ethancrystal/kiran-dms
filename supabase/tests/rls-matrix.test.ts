@@ -4,13 +4,16 @@
  * Every table appears here with an expectation for every persona. Adding a table in a
  * migration without adding it to MATRIX fails `every table is covered by the matrix`.
  *
+ * Reps on an unapproved device and suspended users see nothing (doc 04 invariant 7);
+ * the app reads their status through app.my_session() instead.
+ *
  * SELECT expectation: "denied" (no privilege) or a SQL predicate. The persona must see
  * exactly the rows the predicate selects (evaluated as postgres). Writes: every
  * application role (anon, authenticated personas, service_role) must be refused for
  * direct INSERT / UPDATE / DELETE — all writes go through app.* functions (H-08).
  */
 import { describe, expect, it } from "vitest";
-import { fx, run, sqlstate, type Who, OWNER, OWNER_AAL1, MANAGER, MANAGER_AAL1, REP_A, REP_B, SUSPENDED } from "./helpers/db";
+import { fx, run, sqlstate, type Who, OWNER, OWNER_AAL1, MANAGER, MANAGER_AAL1, REP_A, REP_A_WRONG_DEVICE, REP_B, SUSPENDED } from "./helpers/db";
 
 type Sel = "denied" | string;
 interface Row {
@@ -22,6 +25,7 @@ interface Row {
 const P: Record<string, Who> = {
   anon: "anon",
   repA: REP_A,
+  repAWrongDevice: REP_A_WRONG_DEVICE,
   repB: REP_B,
   manager: MANAGER,
   managerAal1: MANAGER_AAL1,
@@ -40,12 +44,13 @@ const MATRIX: Row[] = [
     select: {
       anon: "denied",
       repA: `id = ${me("repA")}`,
+      repAWrongDevice: "false",
       repB: `id = ${me("repB")}`,
       manager: "true",
       managerAal1: `id = ${me("manager")}`,
       owner: "true",
       ownerAal1: `id = ${me("owner")}`,
-      suspended: `id = ${me("suspendedRep")}`,
+      suspended: "false",
       service_role: "true",
     },
   },
@@ -55,12 +60,13 @@ const MATRIX: Row[] = [
     select: {
       anon: "denied",
       repA: `user_id = ${me("repA")}`,
+      repAWrongDevice: "false",
       repB: `user_id = ${me("repB")}`,
       manager: "true",
       managerAal1: `user_id = ${me("manager")}`,
       owner: "true",
       ownerAal1: `user_id = ${me("owner")}`,
-      suspended: `user_id = ${me("suspendedRep")}`,
+      suspended: "false",
       service_role: "true",
     },
   },
@@ -70,6 +76,7 @@ const MATRIX: Row[] = [
     select: {
       anon: "denied",
       repA: "rep_visible",
+      repAWrongDevice: "false",
       repB: "rep_visible",
       manager: "true",
       // Without MFA an office user is treated like any active user: rep-visible lists only,
@@ -87,12 +94,13 @@ const MATRIX: Row[] = [
     select: {
       anon: "denied",
       repA: `maker_id = ${me("repA")}`,
+      repAWrongDevice: "false",
       repB: `maker_id = ${me("repB")}`,
       manager: "true",
       managerAal1: `maker_id = ${me("manager")}`,
       owner: "true",
       ownerAal1: `maker_id = ${me("owner")}`,
-      suspended: `maker_id = ${me("suspendedRep")}`,
+      suspended: "false",
       service_role: "true",
     },
   },
@@ -102,6 +110,7 @@ const MATRIX: Row[] = [
     select: {
       anon: "denied",
       repA: "false",
+      repAWrongDevice: "false",
       repB: "false",
       manager: "false",
       managerAal1: "false",

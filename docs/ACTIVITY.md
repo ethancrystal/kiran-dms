@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | DONE (self-reported) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | DONE (self-reported) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0027/L-0028 after L-0025) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -269,7 +269,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
-| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | DONE (self-reported) | C-001 |
+| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | DONE (self-reported; redone in L-0027/L-0028 after L-0025) | C-001 |
 | P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | NOT STARTED | — |
@@ -357,6 +357,8 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-11 | **OQ-14** owner's willingness to run the daily digest/handover routine | Effectiveness of the control layer | Build all controls regardless | MJ | PENDING |
 | B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | RESOLVED (L-0019: staging) |
 | B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
+| B-14 | How do reps get the plan list and taxonomies (visit outcomes, product groups, salon types)? Doc 06 §2 gives reps no access to "installment templates, credit rules, config" (verifier Q1) | P1-02 rep visit logging, P1-06 ordering | Reps see no config; Phase 1 RPCs return only what a given screen needs (e.g. allowed plans for one salon) | MJ | PENDING |
+| B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PENDING |
 
 ---
 
@@ -609,6 +611,82 @@ Security checklist (tick honestly):
 [x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — owner edits via app.owner_set_config
 [x] Audit trigger present; hash chain verifies (H-17)
 [x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no cost data; product names not added
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0025 · 2026-10-25 05:00 PKT · Claude · Opus 5.5 · verifier subagent · branch feat/p0-foundation (K repo) · CORRECTION
+**Task:** P1-01, P0-06, P0-08, P0-09    **Claim:** —
+**What / why:** Independent §7 verification of L-0011 (P1-01), L-0012 (P0-06), L-0013 (P0-09) and L-0024 (P0-08). Result: **not VERIFIED**. Two defects, below; they correct L-0011 and L-0013, and L-0012's matrix let defect 1 through. Disclosure: this verifier is a fresh-context subagent launched from session ee095e06, which is the builder's session. MJ should decide whether that counts as "a different agent" (§7). The attack tests are in `supabase/tests/verifier-attacks.test.ts` (new, uncommitted). Its 3 failing tests are left in place on purpose (H-23).
+Defect 1 (corrects L-0011; SEC-03, doc 04 invariant 7): anyone holding a rep's session can bypass device binding. The only proof of device is the `x-kiran-device` header, which is a `web-<uuid>` kept in localStorage (`apps/web/lib/supabase/browser.ts`). Policy `device_select` (`user_id = auth.uid() or app.is_office()`) lets the rep read the approved device's `device_fingerprint` from any phone, including an unapproved one. The session can copy that value into the header, and every write then passes `app.rep_device_ok()`. Separately, no read policy checks the device at all: a rep session on an unapproved phone still reads its own profile, its devices, its approval requests and the 5 rep-visible config rows, while invariant 7 says such sessions are rejected. The RLS matrix (L-0012) has no wrong-device persona and compares only row counts, so the suite could not catch this. Reproduce: `pnpm vitest run --config supabase/tests/vitest.config.ts verifier-attacks -t "device"`. Real output: (a) "AssertionError: expected [ Array(1) ] to not include 'dev-d6d43eab-…'": `select device_fingerprint from public.device where status = 'approved'` as REP_A_WRONG_DEVICE returns rep A's approved fingerprint. (b) "expected 'SUCCEEDED: request_approval accepted with the leaked fingerprint' to match /device is not approved/": `app.request_approval` succeeded once the header carried the leaked value. (c) "expected { user_profile: 1, device: 1, app_config: 5 } to deeply equal { user_profile: 0, device: 0, app_config: 0 }".
+Defect 2 (corrects L-0013; Appendix C rules 2, 4, 5). Reproduced in a throwaway clone under the scratchpad with `node scripts/activity-log-check.mjs 34a1df7 HEAD`. (B) Inserting a new line inside L-0011 ("**Evidence (amended):** CI green on first push; VERIFIED by MJ.") → "activity-log-check OK (0 new log entries, 1 changed files)", exit 0. The same insertion together with a code change and a valid new entry is also OK. Rule 2 only checks that old lines survive in order, so an existing entry can be extended after the fact. (F2) A VERIFIED entry signed exactly like L-0024's builder, with `**Task:** P1-01, P0-08` → OK, exit 0. The same entry with `**Task:** P0-08` alone fails as it should. Rule 4 reads only the first task ID. (G3) `DATABASE_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres` and `SUPABASE_JWT_SECRET=…` added to `apps/web/.env.example` → OK, exit 0. (G2) "-- supplier: Dummy Supplier Ltd, cost 120" added to a migration → OK, exit 0. Rule 5 has no `.env` or connection-string pattern and no supplier identifier list, although L-0013 says rules 1 to 5 are implemented. These cases held: editing an existing L-0011 line → FAILED "line removed or modified", exit 1; a code change with no new entry → FAILED, exit 1; the builder self-VERIFYING P0-08 alone → FAILED, exit 1; a `SUPABASE_SERVICE_ROLE_KEY=` value in the diff → FAILED, exit 1.
+Questions for MJ, not counted as defects. (Q1, L-0024) `plan.templates` is `rep_visible = true`, but doc 06 §2's row "Installment templates, credit rules, config" gives Rep "—". Reps may need to see plans to take orders, but no DEVIATION or ASSUMPTION was logged (H-25, H-26). L-0024 also changed the matrix expectation for owner/manager at AAL1 to `rep_visible` after that test flagged it; those rows hold no governance values. (Q2) `control.audit_row` stores the first value of `split_part(x-forwarded-for, ',', 1)`, which a client can set. This is from reading the code; I did not test it against a hosted stack. (Q3) Suspended reps can still SELECT their own profile, devices and approval requests, and the matrix expects this. Doc 06 §3 says revocation takes effect on the next request. (Q4) After `owner_set_status` returns a user to active, a device with the same fingerprint stays `revoked` for good: `register_device` hits `on conflict` and `approve_device` refuses revoked rows. This is an availability gap only.
+**Evidence:** §7 checks, all run locally on embedded Postgres 17 (no remote database touched):
+1. Suite: `pnpm db:test` before my file → "Test Files 3 passed (3) / Tests 294 passed (294)". With my file → "Test Files 1 failed | 3 passed (4) / Tests 3 failed | 327 passed (330)"; the 3 failures are defect 1. `tsc -p supabase/tests/tsconfig.json --noEmit` → exit 0. I did not check CI (no GitHub access, by instruction).
+2. Vault: `select count(*) from supplier_vault.anything` → 42501 for all 10 personas (anon, service_role, rep A, rep B, rep A on the wrong device, manager at AAL2 and AAL1, owner at AAL2 and AAL1, suspended rep). `vault_api` has 0 functions, so no vault data path exists to attack yet. `app.has_vault_grant()` is false for a rep, AAL1 office users, a suspended rep, and the manager right after an owner revoke in the same transaction. Manager self-grant or self-promote → "owner only"; owner at AAL1 → "AAL2". Held.
+3. Append-only and direct writes: UPDATE, DELETE and TRUNCATE on all 7 tables × 10 personas → 42501. service_role INSERT into `control.audit_event` and UPDATE of `control.audit_chain_head` → 42501. Direct INSERT into `control.approval_request` → 42501 for every persona. Held.
+4. Territory and list-dump: no salon or territory tables exist yet (P1-02), so this cannot be tested. Rep B reading rep A's approval request → 0 rows; reps see only their own rows. Held for the tables that exist.
+5. Approvals: self-approve and self-reject refused for the manager; self-approve refused for the owner. Office at AAL1 → "AAL2". A rep deciding → "owner or manager only". A manager deciding an owner-made write_off → "needs the owner's decision". Checker role 'rep' is lifted to 'manager'. As postgres: lowering `checker_role_required` from owner to manager, or changing `maker_id` → "identity is immutable"; flipping a decided row → "already decided". The maker cannot cancel a decided request; nobody else can cancel. Held.
+6. Replay: the same client_id from the same rep → one row; from rep B or the manager → 23505. A replayed `decide_approval` adds exactly 1 audit row in total; the opposite decision on replay → "already decided". `created_at` is server time (within 120 s). Backdated client timestamp: N/A, no function accepts one yet. Held.
+7. Diff and history: grep over `git log --all -p` found 0 hits for `eyJ…`, `BEGIN … PRIVATE KEY`, `AKIA…`, `+92 3xx`, `03xx-xxxxxxx`, CNIC `xxxxx-xxxxxxx-x`, or IBAN `PKxx…`. `sb_secret_` appears only in the check script's regex. The only `postgres://…:…@` value is the local CLI default `postgres:postgres@127.0.0.1:54322`, in `ci.yml`, `AGENTS.md` and `CLAUDE.md`. The only tracked env file is `apps/web/.env.example`, with placeholders. No supplier names appear outside the vault rules, and no weakened control is in the diff apart from the Q1 note. Also held: internal functions (`next_doc_number`, `bootstrap_owner`, `set_purpose`, `assert_*`, `raise_denied`, `fiscal_year`, `control.verify_audit_chain`, `control.audit_canonical`) → 42501 for all 10 personas. Every function in `app`, `control` and `vault_api` pins `search_path`. authenticated can execute exactly 19 documented helpers and RPCs; service_role can execute none. An `aal2` value in the request headers does not make an AAL1 owner pass `app.is_owner()`. An audit row forged and appended by postgres, with the head moved to match → `verify_audit_chain()` ok = false. The chain still verifies after all the attacks.
+**Rules touched:** H-12, H-13, H-15, H-16, H-17, H-23, H-24, H-25; SEC-03; Appendix C
+**Next / needs:** Builder, defect 1: stop returning `device_fingerprint` to rep sessions, or bind a server-issued device secret and store only its hash; add the device gate to rep read policies; add a wrong-device persona to the RLS matrix. Builder, defect 2: rule 2 must require the base log to be an exact prefix of the head log; rule 4 must check every task ID; rule 5 needs `.env` and connection-string patterns plus the supplier list. Set P1-01 and P0-09 back to IN PROGRESS on the board (I did not edit the board). Then a verifier from a session other than ee095e06 re-verifies. MJ: Q1 to Q4 and the disclosure above.
+
+### L-0026 · 2026-10-25 05:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P1-01, P0-09    **Claim:** C-001
+**What / why:** Accepting L-0025. P1-01 and P0-09 are set back to IN PROGRESS while I fix both defects. Before changing anything I reproduced defect 1 with the verifier's own tests: 3 failures, as reported. Q1–Q4 are handled as follows: Q2, Q3 and Q4 are fixed in migration 0004; Q1 is fixed the restrictive way (reps see no config) and raised to MJ as B-14. On the verifier's independence note: the verifier was a fresh subagent of this session, with no access to my reasoning, and it signed differently. Whether that meets §7's "different agent" is MJ's call (B-15); until MJ rules, P1-01 and P0-09 stay DONE (self-reported) at most, never VERIFIED.
+**Evidence:** `pnpm db:test` before fixing: "Tests 3 failed | 327 passed (330)". The failures were the three DEFECT CHECK tests in `supabase/tests/verifier-attacks.test.ts`.
+**Rules touched:** H-16, H-23
+**Next / needs:** L-0027, L-0028.
+
+### L-0027 · 2026-10-25 05:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P1-01 (SEC-03, doc 04 invariant 7)    **Claim:** C-001
+**What / why:** Fixes defect 1 of L-0025 with migration `supabase/migrations/20261024232225_device_hardening.sql`. (1) `device_fingerprint` stores sha256 hex (CHECK `device_fingerprint_is_hash`); `app.rep_device_ok()` hashes the `x-kiran-device` header, so a value read from the database cannot be replayed. (2) New `app.self_ok()`: an active profile and, for reps, the approved device. Every self-read policy (`user_profile`, `device`, `app_config`, `approval_request`) now requires it. A rep on an unapproved phone, and any suspended user, read zero rows (verifier Q3). (3) New `app.my_session()` (definer): name, role, account status and this device's status, so the rep app can show "waiting for approval" or "suspended" without table reads. `apps/web/app/app/page.tsx` uses it. (4) A revoked device that registers again returns to `pending` and needs a new office approval (Q4). (5) Audit `ip` comes from `cf-connecting-ip`, else the last `x-forwarded-for` hop; the audit `device_id` stores the hash, never the raw id (Q2). (6) All config is hidden from reps (Q1, B-14). The RLS matrix gains a wrong-device persona and stricter expectations for suspended users. The verifier's allow-list test gains exactly the two new functions, `my_session` and `self_ok`; nothing was removed from it.
+**Evidence:** `pnpm db:test` → "Tests  363 passed (363)", including the verifier's 3 DEFECT CHECK tests, which now pass unchanged, and 5 new tests: hashed storage, stored-hash replay refused, `my_session` for wrong-device / approved / suspended / anon, revoked → pending on re-register, hashed device id in the audit row. `pnpm typecheck` ok; `pnpm -C apps/web build` compiled. Staging: migration recorded as `20261024232225_device_hardening`; rep-visible config rows 0; `verify_audit_chain()` ok over 27 rows; `authenticated` cannot execute `app.fingerprint_hash`, can execute `app.my_session`; `anon` cannot. Security advisors: only the intentional INFO; performance: only "unused index" INFO.
+**Rules touched:** H-08, H-13, H-16, H-17
+**Next / needs:** Re-verification by a different agent (§7), and MJ's ruling on verifier independence (B-15).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0028 · 2026-10-25 05:45 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Fixes defect 2 of L-0025 in `scripts/activity-log-check.mjs`. Rule 2: the old log must be an exact prefix of the new one (blank and `---` lines ignored), so inserting a line inside an old entry now fails. Rule 4: every task id on a VERIFIED entry's Task line is checked against every DONE entry for that task. Rule 5 now scans only added lines and also catches:
+- any JWT;
+- connection strings with a password to a non-local host (`<…>` and `…` placeholders allowed);
+- KEY=value secrets (SECRET, PASSWORD, API_KEY, TOKEN, SERVICE_ROLE_KEY, PRIVATE_KEY) unless the value is a `<placeholder>`;
+- supplier or cost wording (`supplier:`, `supplier_id`, `unit_cost`, `cost price`, `landed cost`, `manufacturer`) outside vault paths and docs;
+- terms from the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, which CI now passes to the job.
+
+The two detector files that contain these patterns are exempt.
+**Evidence:** In a throwaway clone (since deleted), every case exits 1 with the matching message:
+- (A) a line inserted inside L-0011 → "not append-only at existing line 87";
+- (B) a VERIFIED entry for P1-01 and P0-08 signed like L-0024 → "VERIFIED by the same agent … that logged DONE (L-0024) for P0-08";
+- (C) a password connection string and `SUPABASE_JWT_SECRET=` in `.env.example` → both secret patterns;
+- (D) `-- supplier: Dummy Supplier Ltd, cost 120` in a migration → H-01 message;
+- (E) an owner-listed term via `KIRAN_SENSITIVE_TERMS` → "owner-listed sensitive term".
+
+A `<placeholder>` value passes rule 5. On this branch: `node scripts/activity-log-check.mjs main` → OK.
+**Rules touched:** H-01, H-20, H-23
+**Next / needs:** MJ adds the `KIRAN_SENSITIVE_TERMS` repository secret (B-15). Re-verification by a different agent.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
 [x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
 [x] Governance powers still owner-only + AAL2 (H-15)
 [x] No control weakened, skipped or "temporarily" disabled (H-16)

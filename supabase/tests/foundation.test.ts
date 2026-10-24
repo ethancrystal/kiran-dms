@@ -177,8 +177,10 @@ describe("device binding (SEC-03, SEC-04)", () => {
       select device_fingerprint, status from public.device where user_id = '${fx.repB.id}' order by created_at;
     `) as unknown as Array<{ rows: Array<{ device_fingerprint: string; status: string }> }>;
     const devices = r[r.length - 1].rows;
-    expect(devices.filter((d) => d.status === "approved").map((d) => d.device_fingerprint)).toEqual([fp]);
-    expect(devices.find((d) => d.device_fingerprint === fx.repB.device)?.status).toBe("revoked");
+    const h = async (raw: string) => (await run("postgres", "select app.fingerprint_hash($1) h", [raw])).rows[0].h as string;
+    const [newHash, oldHash] = [await h(fp), await h(fx.repB.device)];
+    expect(devices.filter((d) => d.status === "approved").map((d) => d.device_fingerprint)).toEqual([newHash]);
+    expect(devices.find((d) => d.device_fingerprint === oldHash)?.status).toBe("revoked");
   });
 
   it("registering the same device twice is idempotent", async () => {
@@ -290,9 +292,57 @@ describe("configuration defaults (P0-08, ADM-01)", () => {
     expect(rows.every((r) => Number(r.total) === 100)).toBe(true);
   });
 
-  it("reps see the operational lists but not credit rules or thresholds", async () => {
+  it("reps see no configuration at all", async () => {
+    // doc 06 §2: reps have no access to templates, credit rules or config (B-14).
     const { rows } = await run(REP_A, "select key from public.app_config order by key");
-    expect(rows.map((r) => r.key)).toEqual(
-      ["catalogue.product_groups", "map.discovery_radius_m", "plan.templates", "salon.types", "visit.outcomes"]);
+    expect(rows.map((r) => r.key)).toEqual([]);
+  });
+});
+
+describe("device hardening (L-0025 defect 1)", () => {
+  it("fingerprints are stored hashed; the raw device id is never in the table", async () => {
+    const { rows } = await run("postgres", "select device_fingerprint f from public.device where user_id = $1", [fx.repA.id]);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => /^[0-9a-f]{64}$/.test(r.f) && r.f !== fx.repA.device)).toBe(true);
+  });
+
+  it("the stored hash replayed as the header does not pass the device gate", async () => {
+    const { rows } = await run("postgres",
+      "select device_fingerprint f from public.device where user_id = $1 and status = 'approved'", [fx.repA.id]);
+    expect(await errorOf({ as: "repA", device: rows[0].f },
+      "select app.request_approval(gen_random_uuid(), 'discount', 'order', null, '{}', 'replayed hash')")).toMatch(/device is not approved/);
+  });
+
+  it("my_session tells an unapproved device and a suspended user their status without table reads", async () => {
+    const wrong = (await run(REP_A_WRONG_DEVICE, "select app.my_session() s")).rows[0].s;
+    expect(wrong).toMatchObject({ role: "rep", status: "active", device_status: null });
+    const ok = (await run(REP_A, "select app.my_session() s")).rows[0].s;
+    expect(ok).toMatchObject({ role: "rep", device_status: "approved" });
+    const susp = (await run(SUSPENDED, "select app.my_session() s")).rows[0].s;
+    expect(susp).toMatchObject({ status: "suspended" });
+    expect((await run("anon", "select 1")).rowCount).toBe(1);
+    expect(await sqlstate("anon", "select app.my_session()")).toBe("42501");
+  });
+
+  it("a revoked device that registers again goes back to pending, never straight to approved", async () => {
+    const fp = `dev-${randomUUID()}`;
+    const r = await run("postgres", `
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repB.id, role: "authenticated", aal: "aal1" })}', true);
+      set local role authenticated;
+      select (app.register_device('${fp}')).id as id;
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.manager.id, role: "authenticated", aal: "aal2" })}', true);
+      select (app.revoke_device((select id from public.device where user_id = '${fx.repB.id}' and status = 'pending' order by created_at desc limit 1), 'lost')).status as s1;
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repB.id, role: "authenticated", aal: "aal1" })}', true);
+      select (app.register_device('${fp}')).status as s2;
+    `) as unknown as Array<{ rows: Array<Record<string, string>> }>;
+    expect(r[4].rows[0].s1).toBe("revoked");
+    expect(r[6].rows[0].s2).toBe("pending");
+  });
+
+  it("the audit trail stores a hash of the device header, not the raw id", async () => {
+    await run(REP_A, "select app.register_device($1)", [fx.repA.device], { commit: true });
+    const { rows } = await run("postgres", "select device_id from control.audit_event order by seq desc limit 1");
+    expect(rows[0].device_id).toMatch(/^[0-9a-f]{64}$/);
+    expect(rows[0].device_id).not.toBe(fx.repA.device);
   });
 });

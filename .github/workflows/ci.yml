@@ -20,6 +20,10 @@ jobs:
         with:
           node-version: 22
       - name: Check ACTIVITY.md discipline
+        env:
+          # Owner-maintained, newline-separated list of supplier identifiers (Appendix C rule 5).
+          # Lives only in GitHub Actions secrets; never committed.
+          KIRAN_SENSITIVE_TERMS: ${{ secrets.KIRAN_SENSITIVE_TERMS }}
         run: node scripts/activity-log-check.mjs "${{ github.event.pull_request.base.sha || github.event.before }}" HEAD
 
   db-tests:

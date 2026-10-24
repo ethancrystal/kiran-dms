@@ -2,13 +2,22 @@
 import { useEffect, useState } from "react";
 import { deviceId, supabaseBrowser } from "@/lib/supabase/browser";
 
+type Session = {
+  full_name: string;
+  role: "owner" | "manager" | "rep";
+  status: "active" | "suspended" | "offboarded";
+  device_status: "pending" | "approved" | "revoked" | null;
+};
+
 type State =
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "ready"; name: string; deviceStatus: "pending" | "approved" | "revoked" };
+  | { kind: "ready"; session: Session };
 
-// Rep home. On first open it registers this phone (SEC-03); until an office user approves
-// it, the database refuses every rep action from it (app.rep_device_ok).
+// Rep home. On first open it registers this phone (SEC-03). Until an office user approves
+// it, the database shows this session no rows and refuses every action
+// (app.rep_device_ok); app.my_session() is the one call that still answers, so the rep
+// can see why.
 export default function RepHome() {
   const [state, setState] = useState<State>({ kind: "loading" });
 
@@ -17,17 +26,24 @@ export default function RepHome() {
       const sb = supabaseBrowser();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return setState({ kind: "error", message: "Not signed in." });
-      const { data: profile } = await sb.from("user_profile").select("full_name, role, status").eq("id", user.id).maybeSingle();
-      if (!profile || profile.status !== "active") {
+
+      const first = await sb.schema("app").rpc("my_session");
+      const s0 = first.data as Session | null;
+      if (first.error || !s0) return setState({ kind: "error", message: "Your account is not set up. Contact your manager." });
+      if (s0.status !== "active") {
         return setState({ kind: "error", message: "Your account is not active. Contact your manager." });
       }
-      const { data: device, error } = await sb.schema("app").rpc("register_device", {
-        p_fingerprint: deviceId(),
-        p_platform: navigator.userAgent.slice(0, 60),
-        p_label: null,
-      });
-      if (error || !device) return setState({ kind: "error", message: "Could not register this phone." });
-      setState({ kind: "ready", name: profile.full_name, deviceStatus: device.status });
+      if (!s0.device_status) {
+        const reg = await sb.schema("app").rpc("register_device", {
+          p_fingerprint: deviceId(),
+          p_platform: navigator.userAgent.slice(0, 60),
+          p_label: null,
+        });
+        if (reg.error) return setState({ kind: "error", message: "Could not register this phone." });
+      }
+      const again = await sb.schema("app").rpc("my_session");
+      if (again.error || !again.data) return setState({ kind: "error", message: "Could not load your session." });
+      setState({ kind: "ready", session: again.data as Session });
     })();
   }, []);
 
@@ -38,8 +54,8 @@ export default function RepHome() {
       {state.kind === "error" && <p className="error" role="alert">{state.message}</p>}
       {state.kind === "ready" && (
         <div className="card">
-          <p>Salaam, {state.name}.</p>
-          {state.deviceStatus === "approved" ? (
+          <p>Salaam, {state.session.full_name}.</p>
+          {state.session.device_status === "approved" ? (
             <p className="ok">This phone is approved.</p>
           ) : (
             <p className="error">
