@@ -23,19 +23,10 @@ jobs:
         run: node scripts/activity-log-check.mjs "${{ github.event.pull_request.base.sha || github.event.before }}" HEAD
 
   db-tests:
-    name: migrations + RLS matrix (shadow database)
+    name: migrations + RLS matrix (local Supabase stack)
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: supabase/postgres:17.6.1.054
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 54322:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 20
     env:
+      # Local CLI stack only: fixed, public development credentials, not a secret.
       KIRAN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +36,17 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      # Real Postgres + GoTrue (the auth schema, auth.uid(), auth.jwt()). `supabase start`
+      # applies supabase/migrations exactly as `supabase db push` would on a hosted project.
+      - name: Start Supabase (db + auth only)
+        run: supabase start -x realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - run: pnpm db:test
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup
 
   typecheck:
     name: typecheck + service-role scan

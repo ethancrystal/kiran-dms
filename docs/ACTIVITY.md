@@ -569,6 +569,13 @@ Security checklist (tick honestly):
 **Rules touched:** H-19, H-23, H-25
 **Next / needs:** CI re-run on this push. Then MJ: hosted-project settings (exposed schemas `app`, `vault_api`; signup off; TOTP on), owner bootstrap (`docs/runbooks/owner-bootstrap.md`), and one authenticated `app.*` RPC call to close P0-05.
 
+### L-0020 · 2026-10-25 04:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-06 (NFR-12)    **Claim:** C-001
+**What / why:** MJ: "CI is failing on the PR. Find out why, fix it, and push." Cause, from CI run 40139243705 (job `db-tests`, step `pnpm db:test`): "migration 20261024223304_foundation.sql failed: function auth.jwt() does not exist". The bare `supabase/postgres` image ships `auth.users` but not `auth.jwt()`, which GoTrue's own migrations create. The harness skipped its shim whenever `auth.users` existed. Fix: (1) CI now runs `supabase start` with only Postgres and GoTrue (CLI 2.113.0, same as local), so tests run against the real auth schema, and the CLI applies `supabase/migrations` the same way `supabase db push` reaches a hosted project; (2) the harness skips migrations already recorded in `supabase_migrations.schema_migrations` and applies only newer ones; (3) the shim now keys on `auth.jwt()` being absent. `activity-log-check` and `typecheck` were already green on that run.
+**Evidence:** Staging catalog checks for the non-superuser CI path: `control.audit_event` is owned by `postgres` (tamper test can disable its trigger); `postgres` is a member of `anon`, `authenticated`, `service_role`; `auth.users` NOT NULL columns without defaults: only `id`, so fixture inserts work. Local: `pnpm db:test` → "Tests  291 passed (291)"; `pnpm typecheck` ok. The CI result is pending this push.
+**Rules touched:** H-16, H-23
+**Next / needs:** Confirm the CI run on this push is green.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)

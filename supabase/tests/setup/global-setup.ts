@@ -1,10 +1,12 @@
 /**
  * Builds a throwaway database for the RLS / invariant suite (NFR-12, ACTIVITY P0-06):
- *   1. KIRAN_TEST_DATABASE_URL set (never the ambient DATABASE_URL) (CI: supabase/postgres service container, or `supabase start`)
- *      → use that database as is. It must be fresh.
+ *   1. KIRAN_TEST_DATABASE_URL set (never the ambient DATABASE_URL) → use that database.
+ *      CI points it at `supabase start` (real Postgres + GoTrue auth schema). The CLI has
+ *      already applied supabase/migrations there; versions recorded in
+ *      supabase_migrations.schema_migrations are skipped, anything newer is applied.
  *   2. otherwise → start an embedded Postgres 17 in a temp dir (no Docker, no install).
- * Then applies the Supabase shim (only if auth.users is missing), every migration in
- * filename order, and the shared persona fixtures.
+ * Then applies the Supabase shim (only if auth.jwt() is missing, i.e. not a Supabase
+ * database), every not-yet-applied migration in filename order, and the persona fixtures.
  */
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -48,11 +50,23 @@ export default async function setup(project: TestProject) {
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    const { rows } = await client.query<{ has: boolean }>("select to_regclass('auth.users') is not null as has");
+    // A real Supabase database has auth.jwt() (created by GoTrue's migrations); a plain
+    // Postgres does not. Partial auth schemas (e.g. the bare supabase/postgres image) get
+    // the shim too: every object in it is created only if missing.
+    const { rows } = await client.query<{ has: boolean }>("select to_regprocedure('auth.jwt()') is not null as has");
     if (!rows[0].has) await client.query(readFileSync(SHIM, "utf8"));
+
+    const applied = new Set<string>();
+    const { rows: hasLedger } = await client.query<{ has: boolean }>(
+      "select to_regclass('supabase_migrations.schema_migrations') is not null as has");
+    if (hasLedger[0].has) {
+      const { rows: done } = await client.query<{ version: string }>("select version from supabase_migrations.schema_migrations");
+      for (const r of done) applied.add(r.version);
+    }
 
     const files = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort();
     for (const f of files) {
+      if (applied.has(f.split("_")[0])) continue; // already applied by the Supabase CLI
       try {
         await client.query(readFileSync(join(MIGRATIONS, f), "utf8"));
       } catch (e) {
