@@ -356,7 +356,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-10 | **OQ-16** real product catalogue (names, sizes, weights, packs) | P1-04 data load | `[Dummy]` products only (H-04) | MJ | PENDING |
 | B-11 | **OQ-14** owner's willingness to run the daily digest/handover routine | Effectiveness of the control layer | Build all controls regardless | MJ | PENDING |
 | B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | PENDING |
-| B-13 | No GitHub remote yet: CI (`activity-log-check`, `db-tests`, `typecheck`) and branch protection cannot run | P0-04, P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
+| B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
 
 ---
 
@@ -554,6 +554,13 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` → "Tests  291 passed (291)"; `node scripts/activity-log-check.mjs` → OK (run after appending this entry).
 **Rules touched:** H-23
 **Next / needs:** As in L-0015 and L-0016.
+
+### L-0018 · 2026-10-25 03:55 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-04, P0-09    **Claim:** C-001
+**What / why:** MJ instructed: "Commit the work on feat/p0-foundation." and "create new repo". Committed, created the private GitHub repo `ethancrystal/kiran-dms` (the only account signed in to `gh` on this machine), created `main` as an empty root commit, and replayed the work onto it so pull requests into `main` carry the full diff and run CI. The commit author is set per repo to MJ (`git config user.*`), not the machine's global identity. B-13 partly resolved: the remote exists; branch protection is still MJ's action.
+**Evidence:** `gh repo create kiran-dms --private --source . --push` → https://github.com/ethancrystal/kiran-dms. `main` = c95cee5 "Initial commit"; work commit 1eb92ae on `feat/p0-foundation`. Pre-commit scan of the staged diff: no keys or connection strings; the only matches were the detection regexes in `scripts/activity-log-check.mjs`.
+**Rules touched:** H-20, H-23
+**Next / needs:** MJ: in GitHub Settings → Branches, protect `main` and require `activity-log-check`, `db-tests`, `typecheck`, plus one reviewer who is not the author.
 
 ---
 
