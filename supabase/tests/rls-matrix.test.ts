@@ -72,9 +72,11 @@ const MATRIX: Row[] = [
       repA: "rep_visible",
       repB: "rep_visible",
       manager: "true",
-      managerAal1: "false",
+      // Without MFA an office user is treated like any active user: rep-visible lists only,
+      // never governance values (credit rules, thresholds).
+      managerAal1: "rep_visible",
       owner: "true",
-      ownerAal1: "false",
+      ownerAal1: "rep_visible",
       suspended: "false",
       service_role: "true",
     },

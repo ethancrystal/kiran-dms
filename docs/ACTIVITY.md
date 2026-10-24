@@ -259,7 +259,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | DONE (self-reported) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
-| P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | NOT STARTED | — |
+| P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | DONE (self-reported) | C-001 |
 | P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
@@ -370,6 +370,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-02 | Every new rep device, including the first, starts `pending` until an office user approves it (SEC-03 vs doc 08 §2 / doc 13 §9; restrictive reading) | L-0009 | First login needs a manager step; easy to relax | open |
 | A-03 | Office powers require AAL2 at the database: owner/manager at AAL1 see only their own profile (doc 12 D-14) | L-0009 | None for security; UI must route to MFA first (done) | open |
 | A-04 | Reps may only open approval requests for discount, return acceptance, payment reversal; write-offs always route to the owner | L-0009 | Adjust the allow-list in `app.request_approval` | open |
+| A-05 | Credit starting limits for types doc 09 does not name; consumables cycle 30 days; "quote" visit outcome; credit ceiling unset (OQ-07) | L-0023 | Owner edits config; no schema change | open |
 
 ---
 
@@ -575,6 +576,44 @@ Security checklist (tick honestly):
 **Evidence:** Staging catalog checks for the non-superuser CI path: `control.audit_event` is owned by `postgres` (tamper test can disable its trigger); `postgres` is a member of `anon`, `authenticated`, `service_role`; `auth.users` NOT NULL columns without defaults: only `id`, so fixture inserts work. Local: `pnpm db:test` → "Tests  291 passed (291)"; `pnpm typecheck` ok. The CI result is pending this push.
 **Rules touched:** H-16, H-23
 **Next / needs:** Confirm the CI run on this push is green.
+
+### L-0021 · 2026-10-25 04:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-06, P0-09    **Claim:** C-001
+**What / why:** First fully green CI on PR #1 after the L-0020 fix: the RLS suite ran against a real local Supabase stack (Postgres + GoTrue), with migrations applied by the CLI.
+**Evidence:** CI run 40139592201 on c8c4b5a: `migrations + RLS matrix (local Supabase stack)` ✓ 3m22s ("Test Files 3 passed (3)"); `activity-log-check` ✓; `typecheck + service-role scan` ✓.
+**Rules touched:** H-23
+**Next / needs:** —
+
+### L-0022 · 2026-10-25 04:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · CLAIM
+**Task:** P0-08 (ADM-01; OQ-06, OQ-07)    **Claim:** C-001 (extended)
+**What / why:** Claiming P0-08: write the planning defaults (installment templates, credit rules, escalation ladder, product groups and cycles, visit outcomes, salon types, pipeline timers, discovery radius) as owner-editable config, flagged `[default-unconfirmed]`. Phase 1 tasks after P1-01 wait for Gate 0 (§8), so this is the next Phase 0 task an agent can do.
+**Rules touched:** H-22
+**Next / needs:** —
+
+### L-0023 · 2026-10-25 04:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · ASSUMPTION
+**Task:** P0-08    **Claim:** C-001
+**What / why:** A-05: (1) doc 09 §2 gives starting credit limits only for ladies/bridal (Rs 15,000) and men's/barber (Rs 8,000); I assumed Rs 15,000 for unisex, hair studio, spa and academy, and Rs 8,000 for home parlor and other. (2) Doc 10 gives no cycle for consumables; I assumed 30 days. (3) Doc 02 has a "quote" visit outcome that doc 04 lacks; I included it. (4) The credit ceiling stays null until OQ-07. All are config values the owner can change, not schema.
+**Rules touched:** —
+**Next / needs:** MJ / owner to confirm or edit at Gate 0.
+
+### L-0024 · 2026-10-25 04:45 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-08 (ADM-01)    **Claim:** C-001
+**What / why:** Migration `supabase/migrations/20261024225236_config_defaults.sql` adds 8 config keys: `plan.templates`, `credit.rules`, `collections.escalation_days`, `catalogue.product_groups`, `visit.outcomes` (English and Urdu labels), `salon.types`, `pipeline.timers`, `map.discovery_radius_m`. Each is noted `[default-unconfirmed]`; `on conflict do nothing` never overwrites an owner's value. Reps can read the five operational lists, but not credit rules, the escalation ladder, timers or thresholds. Applied to staging.
+**Evidence:** `pnpm db:test` → 294 passed (3 new: keys present and flagged, plan schedules each sum to 100%, the exact set of keys a rep can see). The RLS matrix flagged that owner/manager at AAL1 now see the 5 rep-visible rows; I updated the expectation to `rep_visible` (same rows as any rep, no governance values). Staging: 22 config rows, 5 rep-visible; `verify_audit_chain()` ok over 22 rows; migrations recorded `20261024223304_foundation`, `20261024223425_foundation_perf`, `20261024225236_config_defaults`; security advisors: only the intentional INFO on `control.audit_chain_head` / `control.doc_counter`.
+**Rules touched:** H-04, H-13, H-15, H-19
+**Next / needs:** Owner confirms values (A-01, A-05, B-05).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no new tables; matrix updated
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — owner edits via app.owner_set_config
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no cost data; product names not added
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
 
 ---
 

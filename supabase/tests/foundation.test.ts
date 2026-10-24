@@ -270,3 +270,29 @@ describe("gapless numbering per financial year (ADM-03, H-11)", () => {
     expect(await sqlstate(REP_A, "select app.next_doc_number('R')")).toBe("42501");
   });
 });
+
+describe("configuration defaults (P0-08, ADM-01)", () => {
+  const KEYS = ["plan.templates", "credit.rules", "collections.escalation_days", "catalogue.product_groups",
+    "visit.outcomes", "salon.types", "pipeline.timers", "map.discovery_radius_m"];
+
+  it("every default is present and flagged [default-unconfirmed]", async () => {
+    const { rows } = await run("postgres", "select key, note from public.app_config where key = any($1)", [KEYS]);
+    expect(rows.map((r) => r.key).sort()).toEqual([...KEYS].sort());
+    expect(rows.every((r) => String(r.note).startsWith("[default-unconfirmed]"))).toBe(true);
+  });
+
+  it("installment plan schedules each add up to 100%", async () => {
+    const { rows } = await run("postgres", `
+      select t->>'code' code, sum((s->>'pct')::numeric) total
+      from public.app_config, jsonb_array_elements(value) t, jsonb_array_elements(t->'schedule') s
+      where key = 'plan.templates' group by 1`);
+    expect(rows.length).toBe(3);
+    expect(rows.every((r) => Number(r.total) === 100)).toBe(true);
+  });
+
+  it("reps see the operational lists but not credit rules or thresholds", async () => {
+    const { rows } = await run(REP_A, "select key from public.app_config order by key");
+    expect(rows.map((r) => r.key)).toEqual(
+      ["catalogue.product_groups", "map.discovery_radius_m", "plan.templates", "salon.types", "visit.outcomes"]);
+  });
+});
