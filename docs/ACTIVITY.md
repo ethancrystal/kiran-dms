@@ -355,7 +355,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-09 | **OQ-13** pilot territory and pilot rep | P0-03, P1-13 | None — cannot pilot without it | MJ | PENDING |
 | B-10 | **OQ-16** real product catalogue (names, sizes, weights, packs) | P1-04 data load | `[Dummy]` products only (H-04) | MJ | PENDING |
 | B-11 | **OQ-14** owner's willingness to run the daily digest/handover routine | Effectiveness of the control layer | Build all controls regardless | MJ | PENDING |
-| B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | PENDING |
+| B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | RESOLVED (L-0019: staging) |
 | B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
 
 ---
@@ -561,6 +561,13 @@ Security checklist (tick honestly):
 **Evidence:** `gh repo create kiran-dms --private --source . --push` → https://github.com/ethancrystal/kiran-dms. `main` = c95cee5 "Initial commit"; work commit 1eb92ae on `feat/p0-foundation`. Pre-commit scan of the staged diff: no keys or connection strings; the only matches were the detection regexes in `scripts/activity-log-check.mjs`.
 **Rules touched:** H-20, H-23
 **Next / needs:** MJ: in GitHub Settings → Branches, protect `main` and require `activity-log-check`, `db-tests`, `typecheck`, plus one reviewer who is not the author.
+
+### L-0019 · 2026-10-25 04:05 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-04, P1-01    **Claim:** C-001
+**What / why:** MJ instructed: "Supabase Kiran is staging. Check it's empty, then apply the foundation migration and run the advisors." B-12 resolved: project `iurvazdyxzlspegygldo` ("Supabase Kiran") is **staging**. Before applying I checked it was empty. I applied migration 0001 verbatim from the committed file. The advisors then raised one WARN, `auth_rls_initplan` on three read policies, plus six unindexed foreign keys. I wrote migration 0002 (`foundation_perf`): policies wrap `auth.uid()` and the `app.*` helpers in scalar subqueries, and the six foreign keys get indexes. It passed the full local suite unchanged and was then applied. Local migration files were renamed to the versions Supabase recorded (`20261024223304_foundation.sql`, `20261024223425_foundation_perf.sql`), so `supabase db push` will not re-apply them; L-0011's filename `20261025100000_foundation.sql` refers to the first of these. Also fixed CI's first-run failure: `pnpm/action-setup` refused a pnpm version given both in the workflow and in `package.json`.
+**Evidence:** Pre-check on staging: Postgres 17.11, 0 migrations, 0 relations or functions in our schemas, 0 auth users, 0 buckets, `postgres` has BYPASSRLS. Post-apply: 7 tables all RLS enabled + forced; 34 functions in `app`/`control`; 0 functions executable by anon; 14 config rows; `control.verify_audit_chain()` → ok, 14 rows checked; authenticated has no usage on `supplier_vault` and no INSERT on `user_profile`; service_role has no INSERT on `audit_event`. Advisors after 0002: security, 1 INFO (`rls_enabled_no_policy` on `control.audit_chain_head` and `control.doc_counter`, intentional deny-all); performance, 1 INFO (7 indexes unused, expected on an empty database); no WARN or ERROR. Local `pnpm db:test` with 0002: 291 passed. `pnpm install --frozen-lockfile`: up to date. CI run 40138782261 failed only at the pnpm setup step of `db-tests` and `typecheck`; `activity-log-check` passed.
+**Rules touched:** H-19, H-23, H-25
+**Next / needs:** CI re-run on this push. Then MJ: hosted-project settings (exposed schemas `app`, `vault_api`; signup off; TOTP on), owner bootstrap (`docs/runbooks/owner-bootstrap.md`), and one authenticated `app.*` RPC call to close P0-05.
 
 ---
 

@@ -39,9 +39,7 @@ jobs:
       KIRAN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -54,9 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
