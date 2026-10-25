@@ -9,6 +9,7 @@ Who: **MJ or the owner, never an agent.** Where: the Supabase dashboard of the K
 1. **Settings → API → Exposed schemas:** add `app` and `vault_api` next to `public`. Without this, every `app.*` RPC (for example `register_device`) returns 404.
 2. **Authentication → Sign In / Providers:** turn **off** "Allow new users to sign up" (email and phone). The owner creates every account.
 3. **Authentication → Multi-Factor:** enable TOTP enrolment and verification. Check that the project's plan includes it.
+   **Authentication → Passwords:** minimum length 12 and leaked-password protection on (doc 06 §3).
 4. **Authentication → Phone:** connect the SMS provider for rep OTPs once the sender ID is registered (B-08). Until then, use test phone numbers with fixed OTPs for the pilot rep only.
 5. After the migration is applied, make one authenticated call to an `app.*` RPC through the API. The local test suite cannot check PostgREST schema exposure.
 

@@ -4,7 +4,10 @@
  * at AAL2 (H-15), gapless numbering (ADM-03, H-11), idempotency (H-08).
  */
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import pg from "pg";
+import { describe, expect, inject, it } from "vitest";
 import {
   errorOf, fx, run, sqlstate,
   MANAGER, MANAGER_AAL1, OWNER, OWNER_AAL1, REP_A, REP_A_WRONG_DEVICE, REP_B, SUSPENDED,
@@ -344,5 +347,72 @@ describe("device hardening (L-0025 defect 1)", () => {
     const { rows } = await run("postgres", "select device_id from control.audit_event order by seq desc limit 1");
     expect(rows[0].device_id).toMatch(/^[0-9a-f]{64}$/);
     expect(rows[0].device_id).not.toBe(fx.repA.device);
+  });
+});
+
+describe("upgrade path: device ids leaked into audit history before 0004 (0005, L-0030 defect 1)", () => {
+  it("after all migrations, a raw id from pre-0004 history is revoked and cannot pass the device gate", async () => {
+    const root = resolve(import.meta.dirname, "../..");
+    const migDir = join(root, "supabase", "migrations");
+    const files = readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort();
+    const pre = files.filter((f) => f < "20261024232225");
+    const post = files.filter((f) => f >= "20261024232225");
+    const base = inject("databaseUrl");
+    const dbName = `kiran_upgrade_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const admin = new pg.Client({ connectionString: base });
+    await admin.connect();
+    await admin.query(`create database ${dbName}`);
+    const u = new URL(base);
+    u.pathname = `/${dbName}`;
+    const c = new pg.Client({ connectionString: u.toString() });
+    await c.connect();
+    const raw = `web-${randomUUID()}`;
+    const as = async (id: string, aal: string, dev: string | null, sql: string, params: unknown[] = []) => {
+      await c.query("begin");
+      try {
+        await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.headers', $2, true)",
+          [JSON.stringify({ sub: id, role: "authenticated", aal }), JSON.stringify(dev ? { "x-kiran-device": dev } : {})]);
+        await c.query("set local role authenticated");
+        const r = await c.query(sql, params);
+        await c.query("commit");
+        return r;
+      } catch (e) {
+        await c.query("rollback");
+        throw e;
+      }
+    };
+    try {
+      if (!(await c.query("select to_regprocedure('auth.jwt()') is not null h")).rows[0].h) {
+        await c.query(readFileSync(join(root, "supabase", "tests", "shim", "supabase-shim.sql"), "utf8"));
+      }
+      for (const f of pre) await c.query(readFileSync(join(migDir, f), "utf8"));
+      const owner = randomUUID();
+      const rep = randomUUID();
+      await c.query("insert into auth.users (id, email) values ($1, 'o@example.test'), ($2, 'r@example.test')", [owner, rep]);
+      await c.query("select app.bootstrap_owner($1, '[Test] Owner')", [owner]);
+      await as(owner, "aal2", null, "select app.owner_create_user($1, '[Test] Rep', 'rep')", [rep]);
+      const dev = (await as(rep, "aal1", raw, "select (app.register_device($1)).id", [raw])).rows[0].id;
+      await as(owner, "aal2", null, "select app.approve_device($1, 'fixture')", [dev]);
+      await as(rep, "aal1", raw, "select app.request_approval(gen_random_uuid(), 'discount', 'order', null, '{}', 'pre-0004 write')");
+
+      for (const f of post) await c.query(readFileSync(join(migDir, f), "utf8"));
+
+      expect((await c.query("select ok from control.verify_audit_chain()")).rows[0].ok).toBe(true);
+      expect((await c.query("select status::text s from public.device where id = $1", [dev])).rows[0].s).toBe("revoked");
+      // the leaked raw id, used as the header with the rep's session, is refused
+      let err: string | null = null;
+      try {
+        await as(rep, "aal1", raw, "select app.request_approval(gen_random_uuid(), 'discount', 'order', null, '{}', 'replayed leaked id')");
+      } catch (e) {
+        err = (e as Error).message;
+      }
+      expect(err).toMatch(/device is not approved/);
+      // re-registering it only queues it for a fresh office approval
+      expect((await as(rep, "aal1", raw, "select (app.register_device($1)).status::text s", [raw])).rows[0].s).toBe("pending");
+    } finally {
+      await c.end();
+      await admin.query(`drop database ${dbName}`);
+      await admin.end();
+    }
   });
 });

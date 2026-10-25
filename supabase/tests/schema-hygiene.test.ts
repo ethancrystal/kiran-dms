@@ -62,7 +62,7 @@ describe("schema hygiene", () => {
     const { rows } = await run("postgres", `
       select table_schema || '.' || table_name || '.' || column_name c from information_schema.columns
       where table_schema in ('public', 'control')
-        and column_name ~* '(supplier|manufacturer|vendor|unit_cost|cost_price|landed_cost|margin)'`);
+        and column_name ~* '(supplier|manufacturer|vendor|unit_cost|cost_price|landed_cost|margin)'`);  // activity-log-check:allow-supplier-pattern
     expect(rows).toEqual([]);
   });
 });
