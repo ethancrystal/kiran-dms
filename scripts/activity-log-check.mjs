@@ -77,16 +77,23 @@ const isReference = (v, quoted) => {
 // quoted literals count there. Config/env/YAML/TOML files keep bare values.
 const isCodeFile = (f) => /\.(m?[jt]sx?|cjs|cts)$/i.test(f);
 const isPasswordName = (n) => /secret|pass|pwd|token/i.test(n);
-// Password-like names: 12+ chars, or 8+ with a digit. Key-like names: 8+ with a digit, or
-// 20+, unless the value is plainly a name made of lowercase words (e.g. a storage key
-// "kiran.device.registering"), which real keys never are.
-const looksSecret = (name, v) => isPasswordName(name)
-  ? v.length >= 12 || (v.length >= 8 && /\d/.test(v))
-  : v.length >= 8 && (/\d/.test(v) || v.length >= 20) && !isNameLike(v);
-// A name, not a key: lowercase word segments joined by . _ / -, each a short word with at most
-// two trailing digits, or a version like v1 (e.g. "kiran.outbox.v1", "kiran.device.registering").
+// Password-like names: 12+ chars, or 8+ with a digit. Key-like names: 8+ with a digit, or 20+.
+// Never a secret, whatever the name: a multi-part name made of lowercase words (a storage key such
+// as "kiran.auth.token.v1"; L-0066 F-B). For token-named constants that are not passwords, a value
+// with whitespace or parentheses is data, e.g. a design token "oklch(0.7 0.1 240)" (L-0066 F-D).
+const looksSecret = (name, v) => {
+  if (isNameLike(v) && !/secret|pass|pwd/i.test(name)) return false; // passwords keep the strict rule ("hunter2.hunter2")
+  if (/token/i.test(name) && !/secret|pass|pwd/i.test(name) && /[\s()]/.test(v)) return false;
+  return isPasswordName(name)
+    ? v.length >= 12 || (v.length >= 8 && /\d/.test(v))
+    : v.length >= 8 && (/\d/.test(v) || v.length >= 20);
+};
+// A name, not a key: two or more segments joined by . _ / - :, each a lowercase word with up to
+// four trailing digits (fy2026), a 4-digit year, or a version like v1 (e.g. "kiran.outbox.v1",
+// "kiran:outbox:v1", "kiran.invoice.fy2026"; L-0066 F-C). A single word ("sunshine2024") is not.
 function isNameLike(v) {
-  return v.split(/[._\/-]/).every((seg) => /^[a-z]{2,16}\d{0,2}$/.test(seg) || /^v\d{1,3}$/.test(seg));
+  const segs = v.split(/[._\/:-]/);
+  return segs.length >= 2 && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{4}$/.test(seg) || /^v\d{1,3}$/.test(seg));
 }
 const secretAssignment = (text, file) => {
   for (const re of [ASSIGN_RE, ENV_KEY_RE]) {
@@ -217,7 +224,7 @@ function parseLog(text, label) {
     if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {
       fail(`${label}: setext (underlined) headings are not allowed in ${LOG_PATH} (line ${i + 1}).`);
     }
-    if (/PKT\s*[·⋅•∙・]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
+    if (/PKT\s*[·⋅•∙・|]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
   }
   const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
   if (text && heads.length !== 1) fail(`${label}: expected exactly one "## 16. Activity log" heading, found ${heads.length}.`);
@@ -285,8 +292,20 @@ if (baseText) {
       if (x.code) continue;
       if (x.line.trim() === "---") fail("A `---` separator may appear only as the last line of the log.");
       if (isHeading(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text may not contain headings other than entry headers: "${x.line.slice(0, 70)}"`);
-      if (/^\s{0,3}>/.test(x.line)) fail(`New log text may not contain blockquotes: "${x.line.slice(0, 70)}"`); // L-0061 D3
-      if (/^\s*([-*+]|\d+[.)])\s+#{1,6}(\s|$)/.test(x.line)) fail(`New log text may not contain headings inside list items: "${x.line.slice(0, 70)}"`);
+      // Peel off every container marker (blockquote ">" and list "-", "*", "+", "1." / "1)"),
+      // however deeply nested, before testing (L-0061 D3, L-0066 A1).
+      let inner = x.line;
+      let quoted = false;
+      let listed = false;
+      for (;;) {
+        const q = inner.match(/^\s{0,3}>\s?/);
+        if (q) { quoted = true; inner = inner.slice(q[0].length); continue; }
+        const li = inner.match(/^\s*([-*+]|\d+[.)])\s+/);
+        if (li) { listed = true; inner = inner.slice(li[0].length); continue; }
+        break;
+      }
+      if (quoted) fail(`New log text may not contain blockquotes: "${x.line.slice(0, 70)}"`);
+      if (listed && isHeading(inner)) fail(`New log text may not contain headings inside list items: "${x.line.slice(0, 70)}"`);
     }
   }
 }
