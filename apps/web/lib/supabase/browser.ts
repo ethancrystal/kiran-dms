@@ -17,21 +17,35 @@ export function deviceId(): string {
   return id;
 }
 
+let client: ReturnType<typeof createBrowserClient> | undefined;
+let clientDevice: string | undefined;
+
 /**
- * A revoked device id is dead for good (migration 0006). Replace it with a fresh one and
- * rebuild the client so the new header is sent; the new id must be approved again.
+ * The browser client, bound to the current device id. `isSingleton: false` stops
+ * @supabase/ssr from handing back its own module-level cached client, which would keep
+ * the old `x-kiran-device` header after a rotation (L-0042 defect 1). The client is
+ * rebuilt whenever the device id changes.
+ */
+export function supabaseBrowser() {
+  const id = deviceId();
+  if (!client || clientDevice !== id) {
+    client = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      isSingleton: false,
+      global: { headers: { "x-kiran-device": id } },
+    });
+    clientDevice = id;
+  }
+  return client;
+}
+
+/**
+ * A revoked device id is dead for good (migration 0006). Replace it with a fresh one;
+ * the next supabaseBrowser() call builds a client that sends the new header. The new id
+ * must be approved by the office like any new phone.
  */
 export function rotateDeviceId(): string {
   window.localStorage.removeItem(DEVICE_KEY);
   client = undefined;
+  clientDevice = undefined;
   return deviceId();
-}
-
-let client: ReturnType<typeof createBrowserClient> | undefined;
-
-export function supabaseBrowser() {
-  client ??= createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { "x-kiran-device": deviceId() } },
-  });
-  return client;
 }

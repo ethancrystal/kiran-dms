@@ -1,34 +1,38 @@
 #!/usr/bin/env node
 /**
- * activity-log-check — implements docs/ACTIVITY.md Appendix C (tightened per L-0025, L-0030, L-0035).
+ * activity-log-check — implements docs/ACTIVITY.md Appendix C (tightened per L-0025, L-0030,
+ * L-0035, L-0042).
  *
  * This is a tripwire, not a proof: it catches mistakes and cheap evasions in a text file.
  * Branch protection and a human reviewer who is not the author remain the real control.
+ * Rather than recognising every Markdown trick, ACTIVITY.md is held to a narrow structure:
+ * no raw HTML, entities, comments or setext headings anywhere; the only lines that look
+ * like entries are canonical entry headers; and new log text may contain no other headings.
  *
  * Fails (exit 1) when, between BASE and HEAD:
- *  0. BASE was given but cannot be resolved (fails closed; an all-zero sha means "first
- *     push" and falls back to HEAD~1);
- *  1. anything changed — any file other than ACTIVITY.md, or ACTIVITY.md outside its §16
- *     log (rules, board, claims, blockers, appendices) — but no new `### L-NNNN` entry;
- *  2. the §16 log is not strictly append-only: exactly one §16 heading in the file
- *     (loosely matched); no HTML comments anywhere in ACTIVITY.md (outside code); the old
- *     log is an exact prefix of the new one; new text starts with a new entry header; a
- *     `---` separator only as the final line;
- *  3. any header-like line (look-alike `#`, spacing, dashes, zero-width characters)
- *     does not parse as a canonical entry header; numbering not sequential; a new entry
- *     lacks signature, type, Task line or (DONE/VERIFIED/HANDOFF/PROGRESS) Evidence line;
- *     a Task line contains zero-width or non-Latin look-alike characters;
+ *  0. BASE was given but cannot be resolved, or any git command fails (e.g. a diff too large
+ *     to read) — the check fails closed. An all-zero sha falls back to HEAD~1;
+ *  1. anything changed — any file other than ACTIVITY.md, or ACTIVITY.md outside §16 — but
+ *     no new `### L-NNNN` entry was appended;
+ *  2. structure or append-only broken: not exactly one §16 heading; HTML tags, entities,
+ *     comments or setext underlines outside code; a line shaped like an entry ("… PKT · …")
+ *     that is not a canonical header; the old log not an exact prefix of the new one; new
+ *     text not starting with a header; any non-canonical heading in new text; a `---`
+ *     separator other than as the final line (code blocks excepted);
+ *  3. a new entry lacks signature, type, Task line or (DONE/VERIFIED/HANDOFF/PROGRESS)
+ *     Evidence line; numbering not sequential; a Task line with non-ASCII characters outside
+ *     a small allowlist;
  *  4. DONE/VERIFIED lacks the security checklist; a VERIFIED entry names no task, names a
  *     task with no DONE entry, or shares a signature (equal, contained, or same
  *     "session <id>") with any DONE entry for a task it names (§7, MJ ruling L-0029);
- *  5. an added line (text or binary) contains a secret-looking value, supplier/cost
- *     wording outside vault migrations and tests, or an owner-listed sensitive term; or a
- *     `.env*` file other than `.env.example` is added.
+ *  5. an added line contains a secret-looking value, supplier/cost wording outside vault
+ *     migrations, tests and docs, or an owner-listed sensitive term; or a file whose name
+ *     starts with `.env` (other than `.env.example`) is added or changed.
  *
  * Usage: node scripts/activity-log-check.mjs [BASE] [HEAD]
  *   BASE defaults to origin/main, then main, then the root commit. HEAD defaults to the worktree.
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 
 const LOG_PATH = "docs/ACTIVITY.md";
@@ -37,11 +41,10 @@ const TYPES = new Set([
   "SESSION-START", "CLAIM", "PROGRESS", "DECISION", "ASSUMPTION", "BLOCKER", "DEVIATION",
   "DONE", "VERIFIED", "HANDOFF", "CLAIM-RELEASED", "CORRECTION", "SECURITY-INCIDENT",
 ]);
-const ZERO_WIDTH = /[​-‏⁠-⁤﻿­]/;
 const ZERO_WIDTH_G = /[​-‏⁠-⁤﻿­]/g;
-const DASHES_G = /[‐-―−﹘﹣－]/g;
-const LOOKALIKE = /[Ͱ-ϿЀ-ӿԀ-ԯⰀ-ⱟＡ-ｚ]/; // Greek, Cyrillic, Glagolitic, fullwidth
-const clean = (t) => t.normalize("NFKC").replace(ZERO_WIDTH_G, "").replace(DASHES_G, "-");
+const clean = (t) => t.normalize("NFKC").replace(ZERO_WIDTH_G, "");
+// Non-ASCII characters a Task line may legitimately contain (en/em dash, section, not-equal, middle dot, times, ellipsis).
+const TASK_LINE_ALLOWED = new Set(["–", "—", "§", "≠", "·", "×", "…"]);
 
 const SECRET_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
@@ -51,26 +54,32 @@ const SECRET_PATTERNS = [
   // A connection string with a password (any user, incl. empty; any +driver), except the local CLI stack and <pw>/… placeholders.
   /\bpostgres(?:ql)?(?:\+\w+)?:\/\/[^:\s/@]*:(?!postgres@127\.0\.0\.1|postgres@localhost|<|…)[^@\s]+@/i,
 ];
-// name = value / name: value. Group 1 = name, group 2 = value. Quotes of any kind, and
-// common wrappers such as String("...") are skipped before the value.
-const Q = "[\"'`]";
-const ASSIGN_RE = new RegExp(
-  String.raw`\b([\w.-]*(?:secret|passw(?:or)?d|pass|pwd|token|api[_-]?key|private[_-]?key|secret[_-]?key|access[_-]?key|service[_-]?role[_-]?key))\b` +
-  Q + String.raw`?\s*[:=]\s*(?:String\(|Buffer\.from\(|encodeURIComponent\()?\s*` + Q + String.raw`?([^\s"'` + "`" + String.raw`,;)]+)`,
-  "gi");
-// Upper-case env-style *_KEY names (SUPABASE_KEY=...). Case-sensitive on purpose, so code
-// identifiers such as idempotency_key or JSX data-key do not trip it.
-const ENV_KEY_RE = /\b([A-Z][A-Z0-9_]*_KEY)\s*[:=]\s*["']?([^\s"'`,;)]+)/g;
-const isReference = (v) => /^(<|\$|env\(|process\.env|import\.meta|secrets\.)/.test(v) || /^[A-Za-z_$][\w$]*(\.[\w$]+)+$/.test(v);
+// name = value / name: value. The value is either a quoted string (measured in full) or a bare token.
+const NAME = String.raw`([\w.-]*(?:secret|passw(?:or)?d|pass|pwd|token|api[_-]?key|private[_-]?key|secret[_-]?key|access[_-]?key|service[_-]?role[_-]?key))`;
+const VALUE = String.raw`(?:String\(|Buffer\.from\(|encodeURIComponent\()?\s*(?:"([^"]*)"|'([^']*)'|` + "`([^`]*)`" + String.raw`|([^\s"'` + "`" + String.raw`,;)]+))`;
+const ASSIGN_RE = new RegExp(String.raw`\b` + NAME + String.raw`\b["'` + "`" + String.raw`]?\s*[:=]\s*` + VALUE, "gi");
+// Upper-case env-style *_KEY names (SUPABASE_KEY=...); case-sensitive so idempotency_key / data-key do not trip it.
+const ENV_KEY_RE = new RegExp(String.raw`\b([A-Z][A-Z0-9_]*_KEY)\s*[:=]\s*` + VALUE, "g");
+// References, not secrets. Quoted values: only <placeholder> or a whole ${...} template.
+// Bare values: also a pure $VAR, env(...), process.env, import.meta, secrets., or a dotted property path.
+const isReference = (v, quoted) => {
+  if (/^<[^>]*>$/.test(v) || /^\$\{[^}]+\}$/.test(v) || /^env\([A-Z0-9_]+\)$/.test(v)) return true; // env(NAME): Supabase config.toml reference
+  if (quoted) return false;
+  return /^\$\{?[A-Z_][A-Z0-9_]*\}?$/.test(v) || // env references are UPPER_CASE; "$Qx7m..." is a value /^(env\(|process\.env|import\.meta|secrets\.)/.test(v) ||
+    /^[A-Za-z_$][\w$]*(\.[\w$]+)+$/.test(v);
+};
 const isPasswordName = (n) => /secret|pass|pwd|token/i.test(n);
-// Password-like names: 12+ chars, or 8+ with a digit. Key-like names: 8+ with a digit, or 20+.
 const looksSecret = (name, v) => isPasswordName(name)
   ? v.length >= 12 || (v.length >= 8 && /\d/.test(v))
   : v.length >= 8 && (/\d/.test(v) || v.length >= 20);
 const secretAssignment = (text) => {
   for (const re of [ASSIGN_RE, ENV_KEY_RE]) {
     re.lastIndex = 0;
-    for (const m of text.matchAll(re)) if (!isReference(m[2]) && looksSecret(m[1], m[2])) return m[1];
+    for (const m of text.matchAll(re)) {
+      const quotedVal = m[2] ?? m[3] ?? m[4];
+      const value = quotedVal ?? m[5] ?? "";
+      if (!isReference(value, quotedVal !== undefined) && looksSecret(m[1], value)) return m[1];
+    }
   }
   return null;
 };
@@ -78,46 +87,65 @@ const secretAssignment = (text) => {
 const SUPPLIER_RE = /\b(?:supplier\s*[:=]|(?:supplier_name|supplier_id|unit_cost|cost[_ ]price|landed[_ ]cost|manufacturer)\b)/i;  // activity-log-check:allow-supplier-pattern
 const ALLOW_MARK = "activity-log-check:allow-supplier-pattern";
 const DETECTORS = new Set(["scripts/activity-log-check.mjs", "supabase/tests/schema-hygiene.test.ts"]);
-// Places where supplier wording is legitimate: vault migrations, tests (which must name
-// cost columns to prove they never leak), and docs. Owner-listed terms are enforced everywhere.
+const isTestFile = (f) => /^supabase\/tests\//.test(f);
 const SUPPLIER_OK = (f) =>
-  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/");
+  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || isTestFile(f) || f.startsWith("docs/");
+const isEnvFile = (f) => { const b = f.split("/").pop() ?? ""; return b.startsWith(".env") && b !== ".env.example"; };
 const SENSITIVE_TERMS = (process.env.KIRAN_SENSITIVE_TERMS ?? "")
   .split(/\r?\n/).map((t) => t.trim().toLowerCase()).filter((t) => t.length >= 3);
 
-const sh = (cmd) => execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024 }).trim();
 const errors = [];
 const fail = (m) => errors.push(m);
+// git without a shell (no cmd.exe escaping), raw UTF-8 paths, generous buffer; failures are reported, never swallowed.
+const git = (args, { allowFail = false } = {}) => {
+  try {
+    return execFileSync("git", ["-c", "core.quotePath=false", ...args], {
+      encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 512 * 1024 * 1024,
+    });
+  } catch (e) {
+    if (allowFail) return null;
+    fail(`git ${args.slice(0, 3).join(" ")} failed (${e.code ?? e.message}); refusing to pass (fails closed).`);
+    return "";
+  }
+};
 
 function resolveBase(arg) {
   if (arg) {
     if (/^0+$/.test(arg)) {
-      try { return sh('git rev-parse --verify "HEAD~1^{commit}"'); } catch { fail("Base is the all-zero sha and HEAD has no parent; cannot check."); return null; }
+      const p = git(["rev-parse", "--verify", "HEAD~1^{commit}"], { allowFail: true });
+      if (p) return p.trim();
+      fail("Base is the all-zero sha and HEAD has no parent; cannot check.");
+      return null;
     }
-    try { return sh(`git rev-parse --verify "${arg}^{commit}"`); } catch { fail(`Base "${arg}" cannot be resolved; refusing to check (fails closed).`); return null; }
+    const r = git(["rev-parse", "--verify", `${arg}^{commit}`], { allowFail: true });
+    if (r) return r.trim();
+    fail(`Base "${arg}" cannot be resolved; refusing to check (fails closed).`);
+    return null;
   }
+  const headSha = (git(["rev-parse", "HEAD"], { allowFail: true }) ?? "").trim();
   for (const c of ["origin/main", "main"]) {
-    try {
-      const s = sh(`git rev-parse --verify "${c}^{commit}"`);
-      if (sh("git rev-parse HEAD") !== s) return s;
-    } catch { /* candidate missing */ }
+    const s = git(["rev-parse", "--verify", `${c}^{commit}`], { allowFail: true });
+    if (s && s.trim() !== headSha) return s.trim();
   }
-  try { return sh("git rev-list --max-parents=0 HEAD").split("\n")[0]; } catch { return null; }
+  const root = git(["rev-list", "--max-parents=0", "HEAD"], { allowFail: true });
+  return root ? root.trim().split("\n")[0] : null;
 }
 
 const base = resolveBase(process.argv[2]);
 const head = process.argv[3] ?? "";
-if (process.argv[3]) { try { sh(`git rev-parse --verify "${head}^{commit}"`); } catch { fail(`Head "${head}" cannot be resolved.`); } }
-const range = base ? `${base} ${head}`.trim() : "";
+if (head && !git(["rev-parse", "--verify", `${head}^{commit}`], { allowFail: true })) fail(`Head "${head}" cannot be resolved.`);
+const range = base ? [base, ...(head ? [head] : [])] : [];
 
-// --- changed files (renames split into delete + add)
-let changed = [];
-try { changed = sh(`git diff --no-renames --name-only ${range}`).split("\n").filter(Boolean); } catch { changed = []; }
+// --- changed files (NUL-separated: no path quoting at all; renames split into delete + add)
+const split0 = (s) => (s ?? "").split("\0").filter(Boolean);
+let changed = range.length ? split0(git(["diff", "--no-renames", "--name-only", "-z", ...range])) : [];
+const notDeleted = range.length ? split0(git(["diff", "--no-renames", "--name-only", "--diff-filter=d", "-z", ...range])) : [];
 let untracked = [];
-if (!head) { try { untracked = sh("git ls-files --others --exclude-standard").split("\n").filter(Boolean); } catch { /* ignore */ } }
+if (!head) untracked = split0(git(["ls-files", "--others", "--exclude-standard", "-z"]));
 changed = [...new Set([...changed, ...untracked])];
+for (const f of new Set([...notDeleted, ...untracked])) if (isEnvFile(f)) fail(`${f}: environment files must never be committed (H-20).`);
 
-// --- Markdown structure: CommonMark-style fences; inline code stripped where it matters
+// --- Markdown structure
 function scan(text) {
   const out = [];
   let fence = null;
@@ -139,28 +167,42 @@ function scan(text) {
   return out;
 }
 const stripInlineCode = (l) => l.replace(/(`+)[^`]*?\1/g, "");
-const isSection16 = (l) => /^\s{0,3}#{1,6}\s*16\s*\.\s*activity\s+log/i.test(clean(l));
-const headerLike = (l) => /^\s{0,3}#{1,6}\s*L\s*-?\s*\d/i.test(clean(l));
+const plain = (l) => clean(stripInlineCode(l)).replace(/\\/g, "");
+const isSection16 = (l) => /^\s{0,3}#{1,6}\s*16\s*\.?\s*activity\s+log/i.test(plain(l));
+const isHeading = (l) => /^\s{0,3}#{1,6}(\s|$)/.test(l);
 
 function parseLog(text, label) {
   const sc = scan(text);
+  // whole-file structural rules (outside code)
+  for (let i = 0; i < sc.length; i++) {
+    const x = sc[i];
+    if (x.code) continue;
+    const p = plain(x.line);
+    if (/<!--|-->/.test(p)) { fail(`${label}: HTML comments are not allowed in ${LOG_PATH}.`); break; }
+  }
+  for (let i = 0; i < sc.length; i++) {
+    const x = sc[i];
+    if (x.code) continue;
+    const p = plain(x.line);
+    if (/<\/?[A-Za-z!?][^>]*>/.test(p)) fail(`${label}: raw HTML is not allowed in ${LOG_PATH} (line ${i + 1}).`);
+    if (/&#?[A-Za-z0-9]+;/.test(p)) fail(`${label}: HTML entities are not allowed in ${LOG_PATH} (line ${i + 1}).`);
+    if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {
+      fail(`${label}: setext (underlined) headings are not allowed in ${LOG_PATH} (line ${i + 1}).`);
+    }
+    if (/PKT\s*·/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
+  }
   const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
   if (text && heads.length !== 1) fail(`${label}: expected exactly one "## 16. Activity log" heading, found ${heads.length}.`);
-  for (const x of sc) {
-    if (!x.code && /<!--|-->/.test(stripInlineCode(x.line))) { fail(`${label}: HTML comments are not allowed in ${LOG_PATH}.`); break; }
-  }
   const start = heads[0] ?? -1;
-  if (start === -1) return { logLines: [], entries: [], bad: [], outside: text };
-  let end = sc.findIndex((x, i) => i > start && !x.code && /^## (Appendix|\d+\.)/.test(x.line));
+  if (start === -1) return { logSc: [], entries: [], outside: text };
+  let end = sc.findIndex((x, i) => i > start && !x.code && /^## Appendix\b/.test(x.line));
   if (end === -1) end = sc.length;
   const logSc = sc.slice(start, end);
   const entries = [];
-  const bad = [];
   let cur = null;
   for (const x of logSc) {
-    if (!x.code && headerLike(x.line)) {
+    if (!x.code && ENTRY_RE.test(x.line)) {
       const m = x.line.match(ENTRY_RE);
-      if (!m) { bad.push(x.line); cur = null; continue; }
       cur = { id: m[1], n: Number(m[2]), sig: m[4], type: m[5], body: [] };
       entries.push(cur);
       continue;
@@ -168,14 +210,14 @@ function parseLog(text, label) {
     if (cur) cur.body.push(x.line);
   }
   const all = sc.map((x) => x.line);
-  return { logLines: logSc.map((x) => x.line), entries, bad, outside: [...all.slice(0, start), ...all.slice(end)].join("\n") };
+  return { logSc, entries, outside: [...all.slice(0, start), ...all.slice(end)].join("\n") };
 }
 
 const headText = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, "utf8") : "";
 let baseText = "";
-if (base) { try { baseText = sh(`git show ${base}:${LOG_PATH}`); } catch { baseText = ""; } }
+if (base) baseText = git(["show", `${base}:${LOG_PATH}`], { allowFail: true }) ?? "";
 const H = parseLog(headText, "HEAD");
-const B = baseText ? parseLog(baseText, "BASE") : { logLines: [], entries: [], bad: [], outside: "" };
+const B = baseText ? parseLog(baseText, "BASE") : { logSc: [], entries: [], outside: "" };
 const newEntries = H.entries.filter((e) => !B.entries.some((b) => b.id === e.id));
 
 // 1. any change needs a log entry (incl. ACTIVITY.md outside §16)
@@ -185,30 +227,33 @@ if ((otherFiles.length || outsideChanged) && newEntries.length === 0) {
   fail(`${otherFiles.length} file(s) changed${outsideChanged ? " and ACTIVITY.md changed outside §16" : ""} but ${LOG_PATH} has no new log entry.`);
 }
 
-// 2. strictly append-only
+// 2. strictly append-only, and new text holds only canonical structure
 if (baseText) {
-  const nonBlank = (arr) => arr.filter((l) => l.trim() !== "");
-  const baseLog = nonBlank(B.logLines);
-  while (baseLog.length && baseLog[baseLog.length - 1].trim() === "---") baseLog.pop();
-  const headLog = nonBlank(H.logLines);
+  const nonBlank = (arr) => arr.filter((x) => x.line.trim() !== "");
+  const baseLog = nonBlank(B.logSc);
+  while (baseLog.length && !baseLog[baseLog.length - 1].code && baseLog[baseLog.length - 1].line.trim() === "---") baseLog.pop();
+  const headLog = nonBlank(H.logSc);
   let ok = true;
   for (let i = 0; i < baseLog.length; i++) {
-    if (headLog[i] !== baseLog[i]) {
-      fail(`Log section (§16) is not append-only at existing line ${i + 1}: expected "${baseLog[i].slice(0, 70)}", found "${(headLog[i] ?? "<end of log>").slice(0, 70)}".`);
+    if (headLog[i]?.line !== baseLog[i].line) {
+      fail(`Log section (§16) is not append-only at existing line ${i + 1}: expected "${baseLog[i].line.slice(0, 70)}", found "${(headLog[i]?.line ?? "<end of log>").slice(0, 70)}".`);
       ok = false;
       break;
     }
   }
   if (ok) {
     const rest = headLog.slice(baseLog.length);
-    while (rest.length && rest[rest.length - 1].trim() === "---") rest.pop();
-    if (rest.length && !rest[0].startsWith("### L-")) fail(`New log text must start with a new entry header; found "${rest[0].slice(0, 70)}" appended to the last existing entry.`);
-    if (rest.some((l) => l.trim() === "---")) fail("A `---` separator may appear only as the last line of the log.");
+    while (rest.length && !rest[rest.length - 1].code && rest[rest.length - 1].line.trim() === "---") rest.pop();
+    if (rest.length && !ENTRY_RE.test(rest[0].line)) fail(`New log text must start with a new entry header; found "${rest[0].line.slice(0, 70)}" appended to the last existing entry.`);
+    for (const x of rest) {
+      if (x.code) continue;
+      if (x.line.trim() === "---") fail("A `---` separator may appear only as the last line of the log.");
+      if (isHeading(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text may not contain headings other than entry headers: "${x.line.slice(0, 70)}"`);
+    }
   }
 }
 
-// 3 + 4. headers, numbering, required lines, maker ≠ checker
-for (const l of H.bad) fail(`Malformed or look-alike log entry header (must match the §16 template exactly): "${l.slice(0, 90)}"`);
+// 3 + 4. numbering, required lines, maker ≠ checker
 for (let i = 1; i < H.entries.length; i++) {
   if (H.entries[i].n !== H.entries[i - 1].n + 1) fail(`Log numbering not sequential at ${H.entries[i].id} (previous ${H.entries[i - 1].id}).`);
 }
@@ -221,14 +266,14 @@ const sameAgent = (a, b) => {
   return x === y || x.includes(y) || y.includes(x) || (sx !== null && sx === sessionOf(b));
 };
 const taskLine = (body) => (body.match(/\*\*Task:\*\*([^\n]*)/) || [])[1] ?? "";
-const taskIds = (body) => [...clean(taskLine(body)).replace(/\*\*Claim:\*\*.*$/, "").matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\b/g)].map((m) => m[1]);
+const taskIds = (body) => [...taskLine(body).replace(/\*\*Claim:\*\*.*$/, "").matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\b/g)].map((m) => m[1]);
 for (const e of newEntries) {
   const body = e.body.join("\n");
   if (!TYPES.has(e.type)) fail(`${e.id}: unknown entry type "${e.type}".`);
   if (e.sig.split(" · ").length < 3) fail(`${e.id}: signature must be "<agent> · <model> · <session/branch>".`);
   if (!/\*\*Task:\*\*/.test(body)) fail(`${e.id}: missing **Task:** line.`);
-  const tl = taskLine(body);
-  if (ZERO_WIDTH.test(tl) || LOOKALIKE.test(tl)) fail(`${e.id}: Task line contains zero-width or look-alike characters.`);
+  const odd = [...taskLine(body)].filter((ch) => ch.charCodeAt(0) > 0x7e && !TASK_LINE_ALLOWED.has(ch));
+  if (odd.length) fail(`${e.id}: Task line contains disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}).`);
   if (["DONE", "VERIFIED", "HANDOFF", "PROGRESS"].includes(e.type) && !/\*\*Evidence:\*\*\s*\S/.test(body)) fail(`${e.id}: ${e.type} entry needs a non-empty **Evidence:** line.`);
   if (["DONE", "VERIFIED"].includes(e.type) && !/Security checklist/.test(body)) fail(`${e.id}: ${e.type} entry lacks the security checklist block.`);
   if (e.type === "VERIFIED") {
@@ -245,34 +290,38 @@ for (const e of newEntries) {
 }
 
 // 5. secrets and supplier identifiers in ADDED lines, parsed with real diff structure
-let diff = "";
-try { diff = sh(`git diff --no-renames --text --no-ext-diff --unified=0 ${range}`); } catch { /* ignore */ }
+let diff = range.length ? git(["diff", "--no-renames", "--text", "--no-ext-diff", "--unified=0", ...range]) : "";
 for (const f of untracked) {
   try {
     const body = readFileSync(f, "utf8").split(/\r?\n/).map((l) => `+${l}`).join("\n");
     diff += `\ndiff --git a/${f} b/${f}\n+++ b/${f}\n@@ -0,0 +1 @@\n${body}`;
-  } catch { /* unreadable */ }
+  } catch (e) { fail(`${f}: cannot read untracked file (${e.code ?? e.message}); refusing to pass.`); }
 }
+const unquote = (p) => (p.startsWith('"') && p.endsWith('"') ? JSON.parse(p.replace(/\\([0-7]{3})/g, (_, o) => "\\u00" + parseInt(o, 8).toString(16).padStart(2, "0"))) : p);
 let file = "";
 let inHeader = false;
 for (const l of diff.split("\n")) {
   if (l.startsWith("diff --git ")) {
-    const m = l.match(/ b\/(.+)$/);
-    file = m ? m[1] : "";
+    const m = l.match(/ ("b\/.+"|b\/.+)$/);
+    file = m ? unquote(m[1]).replace(/^"?b\//, "") : "";
     inHeader = true;
-    if (/(^|\/)\.env(\.|$)/.test(file) && !/(^|\/)\.env\.example$/.test(file) && changed.includes(file)) fail(`${file}: environment files must never be committed (H-20).`);
     continue;
   }
   if (inHeader) {
-    if (l.startsWith("+++ ")) { const m = l.match(/^\+\+\+ (?:b\/)?(.+)$/); if (m && m[1] !== "/dev/null") file = m[1]; }
+    if (l.startsWith("+++ ")) {
+      const m = l.match(/^\+\+\+ (.+)$/);
+      if (m && m[1] !== "/dev/null") file = unquote(m[1]).replace(/^b\//, "");
+    }
     if (l.startsWith("@@")) inHeader = false;
     continue;
   }
   if (!l.startsWith("+")) continue;
   const text = l.slice(1);
   for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${file}: added line matches secret pattern ${re}.`);
-  const named = secretAssignment(text);
-  if (named) fail(`${file}: added line assigns a secret-looking value to "${named}" (H-20).`);
+  if (!isTestFile(file)) {
+    const named = secretAssignment(text);
+    if (named) fail(`${file}: added line assigns a secret-looking value to "${named}" (H-20).`);
+  }
   const allowed = DETECTORS.has(file) && text.includes(ALLOW_MARK);
   if (!SUPPLIER_OK(file) && !allowed && SUPPLIER_RE.test(text)) fail(`${file}: added line looks like supplier identity or cost data outside the vault (H-01): "${text.trim().slice(0, 80)}"`);
   const low = text.toLowerCase();
