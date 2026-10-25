@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0045/L-0046 after L-0042) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0058/L-0059 after L-0055) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -269,7 +269,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
-| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | DONE (self-reported; redone in L-0045/L-0046 after L-0042) | C-001 |
+| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | DONE (self-reported; redone in L-0058/L-0059 after L-0055) | C-001 |
 | P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | NOT STARTED | — |
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P1-01, P0-09 (DONE self-reported, awaiting re-verification) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-25 22:30 (L-0054) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P1-01, P0-09 (DONE self-reported, awaiting re-verification) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 00:50 (L-0060) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -1270,6 +1270,101 @@ Observations for MJ, not counted as defects:
 - Then a different agent re-verifies P1-01 and P0-09.
 - MJ: O3 (B-15a) and O1.
 
+### L-0056 · 2026-10-26 00:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P1-01, P0-09    **Claim:** C-001
+**What / why:** Accepting L-0055. I committed the re-verifier-4 entry and `supabase/tests/reverify4-attacks.test.ts` unedited (commit 5f5ba86). P1-01 and P0-09 go back to IN PROGRESS. Nothing in L-0055 gets past a database control; the defects are in the rep app's registration flow (C1) and in the log check (L1, L2, L3, the disabled env-reference rule, and false positives F1 to F4).
+**Evidence:** Before any change, `pnpm db:test` gave "Tests 6 failed | 408 passed (414)", and the six failures were all re-verifier-4's tests.
+**Rules touched:** §7, H-23
+**Next / needs:** L-0057 to L-0060.
+
+### L-0057 · 2026-10-26 00:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Appendix C updated to match the script (H-25):
+- rule 2: only unindented fences count as code, and new log text may not contain indented fences;
+- rule 3: signatures must be plain ASCII apart from the `·` separators;
+- rule 4: dashes in task ids are normalised, and look-alike task-id text on a VERIFIED Task line is refused;
+- rule 5: in source code only quoted literals count; the test-code exemption is widened to `tests/`, `e2e/`, `__tests__/`, `*.test.*` and `*.spec.*`; owner terms are matched ignoring case and invisible characters, and in file paths; UTF-16 files are decoded and scanned; `.env*` names are matched in any case.
+
+Nothing is loosened except the false positives that blocked honest code.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0058 · 2026-10-26 00:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P1-01 (SEC-03; rep app registration)    **Claim:** C-001
+**What / why:** Fixes L-0055 C1 in `apps/web/lib/supabase/browser.ts` and `apps/web/app/app/page.tsx`:
+- The new `ensureDeviceRegistered(status, idUsedForStatus)` registers exactly once, with one in-flight promise per page (React strict mode runs the effect twice).
+- Rotation is compare-and-swap, `rotateDeviceId(revokedId)`: a second effect run or a second tab adopts the already-rotated id instead of minting another.
+- A short-lived claim in localStorage (`kiran.device.registering`, 30 s) stops a second tab registering the same id; a failed registration clears it.
+- `rotateDeviceId()` with no argument still rotates unconditionally, the API the reverify3 test uses.
+- The page takes `supabaseBrowser()` fresh for every request instead of holding a client.
+- The replaced client's token auto-refresh is stopped (`auth.stopAutoRefresh()`), so it cannot keep sending the revoked id (L-0055 observation).
+
+No database change.
+**Evidence:** `pnpm vitest run … reverify4` gave "Tests 12 passed (12)", including both C1 DEFECT CHECKs ("React strict mode …" and "two tabs …"). The reverify3 client DEFECT CHECK still passes. `pnpm db:test` gave "Test Files 8 passed (8), Tests 414 passed (414)"; `pnpm typecheck` exit 0; `pnpm -C apps/web build` exit 0 ("Compiled successfully").
+**Rules touched:** H-23
+**Next / needs:** Re-verification (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0059 · 2026-10-26 00:45 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Fixes L-0055 L1, L2, L3, the env-reference bug and F1 to F4 in `scripts/activity-log-check.mjs`.
+- **The bug:** a `//` comment had swallowed the rule that treats `env(`, `process.env`, `import.meta` and `secrets.` as references.
+- **F1 to F3:** in source code, bare values are now expressions and only quoted literals are measured. Optional chaining, calls and indexing count as references.
+- **F4:** the test-code exemption now covers browser tests.
+- **New false positive:** for key-type names, a value made only of lowercase words (a storage key name) is not a secret.
+- **L1:** only unindented fences count as code, and indented fences are refused in new log text.
+- **L2:** dashes are normalised when reading task ids, so `P0–04` is read as P0-04 and checked; text shaped like a task id that is not one (`PO-04`) is refused on VERIFIED lines.
+- **L3:** UTF-16 files, detected by BOM or NUL pattern, are decoded and scanned in full.
+- **L-0055 observations:** signatures must be plain ASCII (closes the Cyrillic "е" impersonation); owner terms are matched after removing zero-width characters, and in file paths; `.ENV.local` is caught.
+**Evidence:** `pnpm vitest run … reverify4` gave 12/12, including the L1, L2 and L3 DEFECT CHECKs and the FALSE POSITIVE CHECK.
+- Replay of earlier rounds in throwaway clones (deleted): `evasions3.sh` 19 of 20 as expected. The one miss is again the known Git Bash `\u` artifact, where no look-alike character is actually written. `evasions3b.sh`, which writes the characters with Python, gave 6 of 6.
+- `node scripts/activity-log-check.mjs main` → OK.
+- `pnpm db:test` 414/414.
+**Rules touched:** H-01, H-20, H-23, H-25
+**Next / needs:** Re-verification (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0060 · 2026-10-26 00:50 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · HANDOFF
+**Task:** P1-01, P0-09 (DONE, self-reported); P0-04, P0-05 (IN PROGRESS)    **Claim:** C-001
+**What / why:** **State.**
+- P1-01 and P0-09 are redone after L-0055 (L-0058, L-0059) and await re-verification by a different agent (§7). P0-06 and P0-08 are VERIFIED.
+- Staging is unchanged: migrations 0001 to 0006. B-18 (expose `app`/`vault_api`) is still open, so the end-to-end login is untested.
+- No P1-02 work.
+
+**Next steps:**
+1. MJ: `docs/gate-0-checklist.md` items 1 to 6.
+2. Re-verification round 5 of P1-01 and P0-09, if MJ wants it.
+3. Gate 0 sign-off, then P1-02.
+
+**Gotchas:** as in L-0054. In addition: `rotateDeviceId(revokedId)` is compare-and-swap, while `rotateDeviceId()` with no argument rotates unconditionally; and the page must always call `supabaseBrowser()` per request.
+
+**Open blockers:** B-01 to B-11, B-13, B-14, B-15a, B-16b, B-17, B-18, B-19 (MJ).
+**Evidence:** `pnpm db:test` 414/414; `pnpm typecheck` exit 0; web build exit 0; activity check OK. Commits: 5f5ba86 (verifier files), and the commit carrying these entries. CI result for that commit pending at the time of writing.
+**Rules touched:** §11, H-24
+**Next / needs:** MJ.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -1305,26 +1400,28 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1, 2 and 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042; DEVIATION L-0044). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055; DEVIATIONs L-0044, L-0057). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
 
 0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
 2. The log is not strictly append-only, or `docs/ACTIVITY.md` breaks its narrow structure:
    - not exactly one §16 heading;
+   - only unindented code fences count as code; an indented fence (for example inside a list item) is checked as ordinary text, and new log text may not contain one;
    - raw HTML, HTML entities, HTML comments or setext (underlined) headings outside code;
    - any line shaped like an entry (`… PKT · …`) that is not a canonical entry header;
    - the old log is not an exact prefix of the new one;
    - new log text does not start with a new entry header, or contains any other heading;
    - a `---` separator anywhere but as the final line (code blocks excepted).
-3. A new entry has a duplicate or non-sequential `L-NNNN` number; is missing the signature, type or task line, or the evidence line (for `DONE`, `VERIFIED`, `HANDOFF`, `PROGRESS`); or its task line contains non-ASCII characters outside a small allowlist (en/em dash, §, ≠, ·, ×, …).
-4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry, or shares a signature with the `DONE` entry for any task it names. Signatures count as shared when they are equal, one contains the other, or both carry the same `session <id>` (maker ≠ checker, §7; MJ ruling L-0029).
+3. A new entry has a duplicate or non-sequential `L-NNNN` number; is missing the signature, type or task line, or the evidence line (for `DONE`, `VERIFIED`, `HANDOFF`, `PROGRESS`); has a signature that is not plain ASCII apart from the `·` separators; or its task line contains non-ASCII characters outside a small allowlist (en/em dash, §, ≠, ·, ×, …).
+4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`), or shares a signature with the `DONE` entry for any task it names. Signatures count as shared when they are equal, one contains the other, or both carry the same `session <id>` (maker ≠ checker, §7; MJ ruling L-0029).
 5. An added line contains a secret-looking value or supplier identifiers:
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
    - connection strings with a password;
-   - secret-named assignments with a real-looking value (skipped in `supabase/tests/`);
+   - secret-named assignments with a real-looking value (in source code only quoted literals count; skipped in test code: `supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*` and `*.spec.*` files);
    - supplier or cost wording outside `<timestamp>_vault*.sql` migrations, tests and docs;
-   - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret.
+   - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, matched ignoring case and invisible characters, in added lines and in file paths;
+   - the same patterns in UTF-16 text files, which are decoded and scanned in full.
 
-   A file whose name starts with `.env`, other than `.env.example`, is added or changed.
+   A file whose name starts with `.env` (any case), other than `.env.example`, is added or changed.
 
 Branch protection requires this job and the RLS test suite to pass before merge. Merges to `main` require one reviewer who is not the author.

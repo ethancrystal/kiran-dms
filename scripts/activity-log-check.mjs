@@ -60,23 +60,34 @@ const VALUE = String.raw`(?:String\(|Buffer\.from\(|encodeURIComponent\()?\s*(?:
 const ASSIGN_RE = new RegExp(String.raw`\b` + NAME + String.raw`\b["'` + "`" + String.raw`]?\s*[:=]\s*` + VALUE, "gi");
 // Upper-case env-style *_KEY names (SUPABASE_KEY=...); case-sensitive so idempotency_key / data-key do not trip it.
 const ENV_KEY_RE = new RegExp(String.raw`\b([A-Z][A-Z0-9_]*_KEY)\s*[:=]\s*` + VALUE, "g");
-// References, not secrets. Quoted values: only <placeholder> or a whole ${...} template.
-// Bare values: also a pure $VAR, env(...), process.env, import.meta, secrets., or a dotted property path.
+// References, not secrets. Quoted values: only <placeholder>, a whole ${...} template, or
+// "env(NAME)" (Supabase config.toml). Bare values: also an UPPER_CASE $VAR / ${VAR}
+// ("$Qx7m..." is a value), env(...), process.env, import.meta, secrets., a dotted property
+// path, or any expression (calls, optional chaining, indexing).
 const isReference = (v, quoted) => {
-  if (/^<[^>]*>$/.test(v) || /^\$\{[^}]+\}$/.test(v) || /^env\([A-Z0-9_]+\)$/.test(v)) return true; // env(NAME): Supabase config.toml reference
+  if (/^<[^>]*>$/.test(v) || /^\$\{[^}]+\}$/.test(v) || /^env\([A-Z0-9_]+\)$/.test(v)) return true;
   if (quoted) return false;
-  return /^\$\{?[A-Z_][A-Z0-9_]*\}?$/.test(v) || // env references are UPPER_CASE; "$Qx7m..." is a value /^(env\(|process\.env|import\.meta|secrets\.)/.test(v) ||
-    /^[A-Za-z_$][\w$]*(\.[\w$]+)+$/.test(v);
+  if (/^\$\{?[A-Z_][A-Z0-9_]*\}?$/.test(v)) return true;
+  if (/^(env\(|process\.env|import\.meta|secrets\.)/.test(v)) return true;
+  if (/^[A-Za-z_$][\w$]*(\??\.[\w$]+)+$/.test(v)) return true;
+  return /[(\[]|\?\./.test(v);
 };
+// In source code a bare value is an identifier or expression, never a literal secret; only
+// quoted literals count there. Config/env/YAML/TOML files keep bare values.
+const isCodeFile = (f) => /\.(m?[jt]sx?|cjs|cts)$/i.test(f);
 const isPasswordName = (n) => /secret|pass|pwd|token/i.test(n);
+// Password-like names: 12+ chars, or 8+ with a digit. Key-like names: 8+ with a digit, or
+// 20+, unless the value is plainly a name made of lowercase words (e.g. a storage key
+// "kiran.device.registering"), which real keys never are.
 const looksSecret = (name, v) => isPasswordName(name)
   ? v.length >= 12 || (v.length >= 8 && /\d/.test(v))
-  : v.length >= 8 && (/\d/.test(v) || v.length >= 20);
-const secretAssignment = (text) => {
+  : v.length >= 8 && (/\d/.test(v) || v.length >= 20) && !/^[a-z]+([._\/-][a-z]+)*$/.test(v);
+const secretAssignment = (text, file) => {
   for (const re of [ASSIGN_RE, ENV_KEY_RE]) {
     re.lastIndex = 0;
     for (const m of text.matchAll(re)) {
       const quotedVal = m[2] ?? m[3] ?? m[4];
+      if (quotedVal === undefined && isCodeFile(file)) continue;
       const value = quotedVal ?? m[5] ?? "";
       if (!isReference(value, quotedVal !== undefined) && looksSecret(m[1], value)) return m[1];
     }
@@ -87,12 +98,18 @@ const secretAssignment = (text) => {
 const SUPPLIER_RE = /\b(?:supplier\s*[:=]|(?:supplier_name|supplier_id|unit_cost|cost[_ ]price|landed[_ ]cost|manufacturer)\b)/i;  // activity-log-check:allow-supplier-pattern
 const ALLOW_MARK = "activity-log-check:allow-supplier-pattern";
 const DETECTORS = new Set(["scripts/activity-log-check.mjs", "supabase/tests/schema-hygiene.test.ts"]);
-const isTestFile = (f) => /^supabase\/tests\//.test(f);
+// Test code: supabase/tests/, any tests/ e2e/ __tests__/ directory, or *.test.* / *.spec.* files.
+const isTestFile = (f) => /^supabase\/tests\//.test(f) || /(^|\/)(tests?|e2e|__tests__)\//.test(f) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(f);
 const SUPPLIER_OK = (f) =>
-  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || isTestFile(f) || f.startsWith("docs/");
-const isEnvFile = (f) => { const b = f.split("/").pop() ?? ""; return b.startsWith(".env") && b !== ".env.example"; };
+  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/");
+const isEnvFile = (f) => { const b = (f.split("/").pop() ?? "").toLowerCase(); return b.startsWith(".env") && b !== ".env.example"; };
+// Owner-listed terms, matched after removing invisible characters (zero-width splitting) and case.
 const SENSITIVE_TERMS = (process.env.KIRAN_SENSITIVE_TERMS ?? "")
-  .split(/\r?\n/).map((t) => t.trim().toLowerCase()).filter((t) => t.length >= 3);
+  .split(/\r?\n/).map((t) => t.normalize("NFKC").replace(/[​-‏⁠-⁤﻿­]/g, "").trim().toLowerCase()).filter((t) => t.length >= 3);
+const termIn = (text) => {
+  const low = text.normalize("NFKC").replace(/[​-‏⁠-⁤﻿­]/g, "").toLowerCase();
+  return SENSITIVE_TERMS.some((t) => low.includes(t));
+};
 
 const errors = [];
 const fail = (m) => errors.push(m);
@@ -150,14 +167,16 @@ function scan(text) {
   const out = [];
   let fence = null;
   for (const l of text.split(/\r?\n/)) {
-    const m = l.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    // Only unindented fences count as code. An indented fence (e.g. inside a list item) may be
+    // closed early by the renderer (L-0055 L1), so its lines are checked as ordinary text.
+    const m = l.match(/^(`{3,}|~{3,})(.*)$/);
     if (!fence && m && !(m[1][0] === "`" && m[2].includes("`"))) {
       fence = { ch: m[1][0], len: m[1].length };
       out.push({ line: l, code: true });
       continue;
     }
     if (fence) {
-      const c = l.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
+      const c = l.match(/^(`{3,}|~{3,})\s*$/);
       if (c && c[1][0] === fence.ch && c[1].length >= fence.len) fence = null;
       out.push({ line: l, code: true });
       continue;
@@ -249,6 +268,7 @@ if (baseText) {
       if (x.code) continue;
       if (x.line.trim() === "---") fail("A `---` separator may appear only as the last line of the log.");
       if (isHeading(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text may not contain headings other than entry headers: "${x.line.slice(0, 70)}"`);
+      if (/^\s+(`{3,}|~{3,})/.test(x.line)) fail(`New log text may not contain indented code fences (they end early inside lists): "${x.line.slice(0, 70)}"`);
     }
   }
 }
@@ -266,11 +286,17 @@ const sameAgent = (a, b) => {
   return x === y || x.includes(y) || y.includes(x) || (sx !== null && sx === sessionOf(b));
 };
 const taskLine = (body) => (body.match(/\*\*Task:\*\*([^\n]*)/) || [])[1] ?? "";
-const taskIds = (body) => [...taskLine(body).replace(/\*\*Claim:\*\*.*$/, "").matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\b/g)].map((m) => m[1]);
+// Dashes are normalised so "P0–04" (en dash) is read as P0-04 and checked (L-0055 L2).
+const taskText = (body) => taskLine(body).replace(/\*\*Claim:\*\*.*$/, "").replace(/[‐-―−]/g, "-");
+const taskIds = (body) => [...taskText(body).matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\b/g)].map((m) => m[1]);
+// Something shaped like a task id that is not one, e.g. "PO-04" (letter O) or "P0 04".
+const lookalikeTaskIds = (body) => [...taskText(body).replace(/\b(P\d-\d{2}|PLAN-\d{2})\b/g, " ")
+  .matchAll(/\bP\s?[A-Za-z0-9]\s?-?\s?\d{2}\b/g)].map((m) => m[0]);
 for (const e of newEntries) {
   const body = e.body.join("\n");
   if (!TYPES.has(e.type)) fail(`${e.id}: unknown entry type "${e.type}".`);
   if (e.sig.split(" · ").length < 3) fail(`${e.id}: signature must be "<agent> · <model> · <session/branch>".`);
+  if ([...e.sig].some((ch) => ch.charCodeAt(0) > 0x7e && ch !== "·")) fail(`${e.id}: signature must be plain ASCII (apart from the · separators), so look-alike letters cannot impersonate another signer.`);
   if (!/\*\*Task:\*\*/.test(body)) fail(`${e.id}: missing **Task:** line.`);
   const odd = [...taskLine(body)].filter((ch) => ch.charCodeAt(0) > 0x7e && !TASK_LINE_ALLOWED.has(ch));
   if (odd.length) fail(`${e.id}: Task line contains disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}).`);
@@ -279,6 +305,8 @@ for (const e of newEntries) {
   if (e.type === "VERIFIED") {
     const tasks = taskIds(body);
     if (tasks.length === 0) fail(`${e.id}: a VERIFIED entry must name at least one task id (P<phase>-<nn>) on its Task line.`);
+    const fakes = lookalikeTaskIds(body);
+    if (fakes.length) fail(`${e.id}: Task line has text shaped like a task id that is not one (${fakes.join(", ")}); write task ids as P<phase>-<nn>.`);
     for (const task of tasks) {
       const dones = H.entries.filter((d) => d.type === "DONE" && taskIds(d.body.join("\n")).includes(task));
       if (dones.length === 0) fail(`${e.id}: ${task} has no DONE entry to verify.`);
@@ -319,13 +347,43 @@ for (const l of diff.split("\n")) {
   const text = l.slice(1);
   for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${file}: added line matches secret pattern ${re}.`);
   if (!isTestFile(file)) {
-    const named = secretAssignment(text);
+    const named = secretAssignment(text, file);
     if (named) fail(`${file}: added line assigns a secret-looking value to "${named}" (H-20).`);
   }
   const allowed = DETECTORS.has(file) && text.includes(ALLOW_MARK);
   if (!SUPPLIER_OK(file) && !allowed && SUPPLIER_RE.test(text)) fail(`${file}: added line looks like supplier identity or cost data outside the vault (H-01): "${text.trim().slice(0, 80)}"`);
-  const low = text.toLowerCase();
-  for (const term of SENSITIVE_TERMS) if (low.includes(term)) fail(`${file}: added line contains an owner-listed sensitive term (H-01).`);
+  if (termIn(text)) fail(`${file}: added line contains an owner-listed sensitive term (H-01).`);
+}
+
+// 5b. owner-listed terms in file paths, and UTF-16 text files (git shows them as binary
+// noise, so their content is decoded and scanned in full) (L-0055 L3).
+const readAdded = (f) => {
+  if (!head) { try { return readFileSync(f); } catch { return null; } }
+  try {
+    return execFileSync("git", ["show", `${head}:${f}`], { stdio: ["ignore", "pipe", "ignore"], maxBuffer: 512 * 1024 * 1024 });
+  } catch { return null; }
+};
+for (const f of new Set([...notDeleted, ...untracked])) {
+  if (termIn(f)) fail(`${f}: file path contains an owner-listed sensitive term (H-01).`);
+  const buf = readAdded(f);
+  if (!buf || buf.length < 2) continue;
+  let decoded = null;
+  if (buf[0] === 0xff && buf[1] === 0xfe) decoded = buf.subarray(2).toString("utf16le");
+  else if (buf[0] === 0xfe && buf[1] === 0xff) decoded = Buffer.from(buf.subarray(2)).swap16().toString("utf16le");
+  else {
+    const sample = buf.subarray(0, 4096);
+    let oddNul = 0; let evenNul = 0;
+    for (let i = 0; i < sample.length; i++) if (sample[i] === 0) (i % 2 ? oddNul++ : evenNul++);
+    const half = sample.length / 2;
+    if (oddNul > half * 0.3 && evenNul < half * 0.05) decoded = sample.length ? buf.toString("utf16le") : null;
+    else if (evenNul > half * 0.3 && oddNul < half * 0.05) decoded = Buffer.from(buf.subarray(0, buf.length - (buf.length % 2))).swap16().toString("utf16le");
+  }
+  if (decoded === null) continue;
+  for (const text of decoded.split(/\r?\n/)) {
+    for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (UTF-16): line matches secret pattern ${re}.`);
+    if (!isTestFile(f)) { const named = secretAssignment(text, f); if (named) fail(`${f} (UTF-16): line assigns a secret-looking value to "${named}" (H-20).`); }
+    if (termIn(text)) fail(`${f} (UTF-16): line contains an owner-listed sensitive term (H-01).`);
+  }
 }
 
 if (errors.length) {

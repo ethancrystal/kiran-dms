@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { deviceId, rotateDeviceId, supabaseBrowser } from "@/lib/supabase/browser";
+import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
 
 type Session = {
   full_name: string;
@@ -23,32 +23,24 @@ export default function RepHome() {
 
   useEffect(() => {
     (async () => {
-      const sb = supabaseBrowser();
-      const { data: { user } } = await sb.auth.getUser();
+      // Always take the client fresh from supabaseBrowser(): it is rebuilt after a rotation.
+      const { data: { user } } = await supabaseBrowser().auth.getUser();
       if (!user) return setState({ kind: "error", message: "Not signed in." });
 
-      const first = await sb.schema("app").rpc("my_session");
+      const idUsed = deviceId();
+      const first = await supabaseBrowser().schema("app").rpc("my_session");
       const s0 = first.data as Session | null;
       if (first.error || !s0) return setState({ kind: "error", message: "Your account is not set up. Contact your manager." });
       if (s0.status !== "active") {
         return setState({ kind: "error", message: "Your account is not active. Contact your manager." });
       }
-      let client = sb;
       if (!s0.device_status || s0.device_status === "revoked") {
-        // A revoked id is dead for good (migration 0006): generate a fresh one, which the
-        // office must approve like any new phone.
-        if (s0.device_status === "revoked") {
-          rotateDeviceId();
-          client = supabaseBrowser();
-        }
-        const reg = await client.schema("app").rpc("register_device", {
-          p_fingerprint: deviceId(),
-          p_platform: navigator.userAgent.slice(0, 60),
-          p_label: null,
-        });
+        // A revoked id is dead for good (migration 0006): a fresh one is generated and
+        // registered once, even if this effect runs twice or two tabs are open.
+        const reg = await ensureDeviceRegistered(s0.device_status, idUsed);
         if (reg.error) return setState({ kind: "error", message: "Could not register this phone." });
       }
-      const again = await client.schema("app").rpc("my_session");
+      const again = await supabaseBrowser().schema("app").rpc("my_session");
       if (again.error || !again.data) return setState({ kind: "error", message: "Could not load your session." });
       setState({ kind: "ready", session: again.data as Session });
     })();
