@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0032/L-0033 after L-0030) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0037/L-0038 after L-0035) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -269,7 +269,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
-| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | DONE (self-reported; redone in L-0032/L-0033 after L-0030) | C-001 |
+| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | DONE (self-reported; redone in L-0037/L-0038 after L-0035) | C-001 |
 | P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | NOT STARTED | — |
@@ -359,7 +359,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
 | B-14 | How do reps get the plan list and taxonomies (visit outcomes, product groups, salon types)? Doc 06 §2 gives reps no access to "installment templates, credit rules, config" (verifier Q1) | P1-02 rep visit logging, P1-06 ordering | Reps see no config; Phase 1 RPCs return only what a given screen needs (e.g. allowed plans for one salon) | MJ | PENDING |
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
-| B-16 | (a) The re-verifier test requiring no raw device id in `audit_event` cannot pass without rewriting the append-only, hash-chained audit log (L-0034): approve replacing its assertion with "pre-0004 raw ids cannot pass the device gate", or choose another approach. (b) L-0030 Q5: cap pending devices per user (recommend 3)? (c) L-0030 Q6: should a revoked device id be dead for good, so the phone must generate a new id (recommend yes)? | CI `db-tests` (red until a is decided); P1-01 VERIFIED | Test left failing (H-23); leaked ids revoked (L-0032); Q5/Q6 behaviour unchanged | MJ | PENDING |
+| B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | PENDING |
 
 ---
 
@@ -892,6 +892,78 @@ Questions for MJ, not counted as defects:
 - (h) decide which rule 5 misses matter, and refuse compressed files;
 - (i) to (k): give vault tests and idempotency keys a way through.
 Then a different agent re-verifies P1-01 and P0-09. MJ: Q1 to Q4 and B-16.
+
+### L-0036 · 2026-10-25 17:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P1-01, P0-09    **Claim:** C-001
+**What / why:** Accepting L-0035. I committed the re-verifier-2 entry and `supabase/tests/reverify2-attacks.test.ts` unedited (commit cb9157a). P1-01 and P0-09 go back to IN PROGRESS. L-0035 was right that my L-0032 claim was false: the leaked-id fix does depend on Q6, because the real phone keeps the same id, so restoring it re-approves the leaked id. Per §1, with the docs silent on this security point, I am taking the more restrictive answer to B-16c (Q6): a revoked device id is dead for good. B-16b (pending cap) stays with MJ, since L-0035 Q2 shows a cap would not bound audit growth anyway. L-0035 Q1 (a pre-0004 raw id that was already 64-hex) and Q3 (null `revoked_by` on 0005's revocations) are noted and left as is: Q1 is not exploitable without a preimage and only locks that phone out; for Q3, the purpose string records the reason.
+**Evidence:** `pnpm vitest run … reverify2 -t "DEFECT CHECK"` reproduced the defect before any change.
+**Rules touched:** §1, §7, H-23
+**Next / needs:** L-0037, L-0038, L-0039.
+
+### L-0037 · 2026-10-25 17:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P1-01 (SEC-03, doc 04 invariant 7)    **Claim:** C-001
+**What / why:** Migration `supabase/migrations/20261025123056_device_revoked_final.sql` makes `app.register_device` refuse a revoked device id ("device id revoked; generate a new one"); revoked rows never return to pending or approved. `apps/web` now rotates its device id when the session reports `revoked` (`rotateDeviceId()` in `lib/supabase/browser.ts`, used by `app/app/page.tsx`) and queues the fresh id for approval. A leaked raw id can therefore never pass the device gate again, whatever the office does. Also: `apps/web/next.config.ts` sets `agentRules: false`, so `next dev` no longer writes its own `apps/web/AGENTS.md` (L-0035 Q4); I deleted the generated file. My earlier test of revive-to-pending is replaced by "a revoked device id is dead for good", and the upgrade-path test now expects re-registration of the leaked id to be refused.
+**Evidence:** `pnpm db:test` → "Tests 3 failed | 388 passed (391)". The 3 failures are verifier tests that encode the removed behaviour (L-0039). Both device-related ones now stop at the registration step with "device id revoked; generate a new one", so the attack is blocked before any approval. `pnpm typecheck` exit 0; `pnpm -C apps/web build` exit 0 ("Compiled successfully"), and no `apps/web/AGENTS.md` afterwards. Staging: migration recorded as `20261025123056_device_revoked_final`; `verify_audit_chain()` ok over 27 rows; authenticated can execute `app.register_device`, anon cannot; security advisors: only the intentional INFO.
+**Rules touched:** H-08, H-16, H-17, H-23
+**Next / needs:** Re-verification (§7) after MJ rules on B-16a.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24) — three verifier tests still fail by design, see L-0039
+
+### L-0038 · 2026-10-25 17:50 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Rewrote `scripts/activity-log-check.mjs` against every L-0035 finding. The header now says plainly that it is a tripwire, not a proof; branch protection and a non-author reviewer remain the real control.
+- **Base handling:** an unresolvable base fails closed; an all-zero base falls back to HEAD~1. Revisions are quoted, because `cmd.exe` treats `^` as an escape.
+- **Markdown parsing:** CommonMark-style fence parsing, and look-alike headers are rejected (spacing, `####`, U+2011, zero-width).
+- **Decoys:** one §16 heading per file, loosely matched; no HTML comments anywhere in ACTIVITY.md outside code, with inline code spans ignored.
+- **Edits outside the log:** any change to ACTIVITY.md outside §16 needs a new entry.
+- **VERIFIED entries:** each needs a DONE entry for every task it names, and a VERIFIED signature sharing a `session <id>` with the DONE counts as the same agent.
+- **Task lines:** zero-width or Greek/Cyrillic look-alike characters are rejected.
+- **Secrets:** quoted values of any kind, `String(...)`-style wrappers, password-like names at 12+ characters, and postgres URLs with an empty user or a `+driver` scheme.
+- **False positives fixed:** supplier wording is allowed in `supabase/tests/`; code identifiers like `idempotency_key` and `data-key` no longer trip the check (env-style `*_KEY` stays upper-case only).
+
+Not covered, by design: compressed or line-split secrets.
+**Evidence:** Script `evasions2.sh`, run in a throwaway clone (deleted): "23 as expected, 0 wrong".
+- **Fail as they should:** (a) the three look-alike headers; (b) the fence trick; (c) a decoy log plus a comment-hidden real log; (d1) a board edit and (d2) an H-16 rewrite with no entry; (e1) VERIFIED for tasks with no DONE; (e2) same-session VERIFIED of P0-06; (f1) zero-width and (f2) Cyrillic task ids; (g) tampering with an all-zero base or an unknown base; (h1–h5) a template literal, a `String()` wrapper, a 19-letter `DB_PASSWORD`, an empty-user URL, a `+driver` URL.
+- **Pass as they should:** (i) a vault-leak test naming `unit_cost`; (j1) an `idempotency_key` fixture; (j2) a JSX `data-key`; (k) a log entry quoting an HTML comment in backticks; a legitimate change.
+- **Earlier set:** `evasions.sh` from L-0033 still blocks all 19 attack cases. Its "legitimate" case now reuses the existing number L-0031, so it is correctly not counted as new.
+
+On this branch: `node scripts/activity-log-check.mjs main` → OK.
+**Rules touched:** H-01, H-20, H-23, H-25
+**Next / needs:** Re-verification (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24) — three verifier tests still fail by design, see L-0039
+
+### L-0039 · 2026-10-25 17:55 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P1-01    **Claim:** C-001
+**What / why:** Three verifier tests now fail because they encode behaviour that the fixes deliberately removed. Under H-23 I have not edited them.
+1. "DEFECT CHECK: after 0004 no raw device id … remains readable in the audit log" (L-0030): it requires rewriting the append-only, hash-chained audit log (L-0034).
+2. "DEFECT CHECK: a raw id leaked into pre-0004 audit history never passes the device gate again …" (L-0035): it asserts, as intermediate steps, that re-registering the leaked id revives the original row as `pending` and that the owner's approval succeeds. With 0006 the attack is refused at the registration step. Its own secure goal holds, but it never reaches that assertion.
+3. "QUESTION (not a defect): a device the office revoked can re-enter the queue …" (L-0030): it records the old revive-to-pending behaviour.
+
+CI `db-tests` stays red until MJ rules. B-16 is updated.
+**Evidence:** `pnpm db:test` → exactly these 3 failures. Tests 2 and 3 fail with "device id revoked; generate a new one" thrown at the re-register step.
+**Rules touched:** H-06, H-17, H-23
+**Next / needs:** MJ: approve updating these three tests so they assert the secure end state (the leaked or revoked id never passes the gate; re-registration is refused), or choose another approach.
 
 ---
 

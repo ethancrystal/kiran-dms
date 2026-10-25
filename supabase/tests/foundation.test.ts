@@ -327,19 +327,19 @@ describe("device hardening (L-0025 defect 1)", () => {
     expect(await sqlstate("anon", "select app.my_session()")).toBe("42501");
   });
 
-  it("a revoked device that registers again goes back to pending, never straight to approved", async () => {
+  it("a revoked device id is dead for good: registering it again is refused (0006, L-0035)", async () => {
     const fp = `dev-${randomUUID()}`;
-    const r = await run("postgres", `
-      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repB.id, role: "authenticated", aal: "aal1" })}', true);
-      set local role authenticated;
-      select (app.register_device('${fp}')).id as id;
-      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.manager.id, role: "authenticated", aal: "aal2" })}', true);
-      select (app.revoke_device((select id from public.device where user_id = '${fx.repB.id}' and status = 'pending' order by created_at desc limit 1), 'lost')).status as s1;
-      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repB.id, role: "authenticated", aal: "aal1" })}', true);
-      select (app.register_device('${fp}')).status as s2;
-    `) as unknown as Array<{ rows: Array<Record<string, string>> }>;
-    expect(r[4].rows[0].s1).toBe("revoked");
-    expect(r[6].rows[0].s2).toBe("pending");
+    const reg = await run({ as: "repB", device: fp }, "select (app.register_device($1)).id as id", [fp], { commit: true });
+    await run(MANAGER, "select app.revoke_device($1, 'reported stolen')", [reg.rows[0].id], { commit: true });
+    expect(await errorOf({ as: "repB", device: fp }, "select app.register_device($1)", [fp]))
+      .toMatch(/device id revoked; generate a new one/);
+    const { rows } = await run("postgres", "select status::text s from public.device where id = $1", [reg.rows[0].id]);
+    expect(rows[0].s).toBe("revoked");
+    // a fresh id (what the app generates) registers as a new pending row
+    const fresh = `dev-${randomUUID()}`;
+    const r2 = await run({ as: "repB", device: fresh }, "select (app.register_device($1)).* ", [fresh]);
+    expect(r2.rows[0]).toMatchObject({ status: "pending" });
+    expect(r2.rows[0].id).not.toBe(reg.rows[0].id);
   });
 
   it("the audit trail stores a hash of the device header, not the raw id", async () => {
@@ -407,8 +407,14 @@ describe("upgrade path: device ids leaked into audit history before 0004 (0005, 
         err = (e as Error).message;
       }
       expect(err).toMatch(/device is not approved/);
-      // re-registering it only queues it for a fresh office approval
-      expect((await as(rep, "aal1", raw, "select (app.register_device($1)).status::text s", [raw])).rows[0].s).toBe("pending");
+      // and it can never be registered again (0006), so no office approval can revive it
+      let regErr: string | null = null;
+      try {
+        await as(rep, "aal1", "dev-other-phone-0001", "select app.register_device($1)", [raw]);
+      } catch (e) {
+        regErr = (e as Error).message;
+      }
+      expect(regErr).toMatch(/device id revoked; generate a new one/);
     } finally {
       await c.end();
       await admin.query(`drop database ${dbName}`);

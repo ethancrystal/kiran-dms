@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { deviceId, supabaseBrowser } from "@/lib/supabase/browser";
+import { deviceId, rotateDeviceId, supabaseBrowser } from "@/lib/supabase/browser";
 
 type Session = {
   full_name: string;
@@ -33,15 +33,22 @@ export default function RepHome() {
       if (s0.status !== "active") {
         return setState({ kind: "error", message: "Your account is not active. Contact your manager." });
       }
-      if (!s0.device_status) {
-        const reg = await sb.schema("app").rpc("register_device", {
+      let client = sb;
+      if (!s0.device_status || s0.device_status === "revoked") {
+        // A revoked id is dead for good (migration 0006): generate a fresh one, which the
+        // office must approve like any new phone.
+        if (s0.device_status === "revoked") {
+          rotateDeviceId();
+          client = supabaseBrowser();
+        }
+        const reg = await client.schema("app").rpc("register_device", {
           p_fingerprint: deviceId(),
           p_platform: navigator.userAgent.slice(0, 60),
           p_label: null,
         });
         if (reg.error) return setState({ kind: "error", message: "Could not register this phone." });
       }
-      const again = await sb.schema("app").rpc("my_session");
+      const again = await client.schema("app").rpc("my_session");
       if (again.error || !again.data) return setState({ kind: "error", message: "Could not load your session." });
       setState({ kind: "ready", session: again.data as Session });
     })();

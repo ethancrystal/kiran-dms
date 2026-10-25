@@ -17,6 +17,16 @@ export function deviceId(): string {
   return id;
 }
 
+/**
+ * A revoked device id is dead for good (migration 0006). Replace it with a fresh one and
+ * rebuild the client so the new header is sent; the new id must be approved again.
+ */
+export function rotateDeviceId(): string {
+  window.localStorage.removeItem(DEVICE_KEY);
+  client = undefined;
+  return deviceId();
+}
+
 let client: ReturnType<typeof createBrowserClient> | undefined;
 
 export function supabaseBrowser() {

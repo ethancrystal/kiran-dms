@@ -12,6 +12,9 @@ const securityHeaders = [
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // Agent instructions live only in the repo-root AGENTS.md / CLAUDE.md (ACTIVITY.md P0-09);
+  // stop `next dev` from writing its own apps/web/AGENTS.md (L-0035 Q4).
+  agentRules: false,
   reactStrictMode: true,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
