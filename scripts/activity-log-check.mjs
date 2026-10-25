@@ -66,6 +66,7 @@ const ENV_KEY_RE = new RegExp(String.raw`\b([A-Z][A-Z0-9_]*_KEY)\s*[:=]\s*` + VA
 // path, or any expression (calls, optional chaining, indexing).
 const isReference = (v, quoted) => {
   if (/^<[^>]*>$/.test(v) || /^\$\{[^}]+\}$/.test(v) || /^env\([A-Z0-9_]+\)$/.test(v)) return true;
+  if (quoted && v.includes("${")) return true; // template literal built from other values, e.g. `Bearer ${token}`
   if (quoted) return false;
   if (/^\$\{?[A-Z_][A-Z0-9_]*\}?$/.test(v)) return true;
   if (/^(env\(|process\.env|import\.meta|secrets\.)/.test(v)) return true;
@@ -81,7 +82,12 @@ const isPasswordName = (n) => /secret|pass|pwd|token/i.test(n);
 // "kiran.device.registering"), which real keys never are.
 const looksSecret = (name, v) => isPasswordName(name)
   ? v.length >= 12 || (v.length >= 8 && /\d/.test(v))
-  : v.length >= 8 && (/\d/.test(v) || v.length >= 20) && !/^[a-z]+([._\/-][a-z]+)*$/.test(v);
+  : v.length >= 8 && (/\d/.test(v) || v.length >= 20) && !isNameLike(v);
+// A name, not a key: lowercase word segments joined by . _ / -, each a short word with at most
+// two trailing digits, or a version like v1 (e.g. "kiran.outbox.v1", "kiran.device.registering").
+function isNameLike(v) {
+  return v.split(/[._\/-]/).every((seg) => /^[a-z]{2,16}\d{0,2}$/.test(seg) || /^v\d{1,3}$/.test(seg));
+}
 const secretAssignment = (text, file) => {
   for (const re of [ASSIGN_RE, ENV_KEY_RE]) {
     re.lastIndex = 0;
@@ -100,16 +106,19 @@ const ALLOW_MARK = "activity-log-check:allow-supplier-pattern";
 const DETECTORS = new Set(["scripts/activity-log-check.mjs", "supabase/tests/schema-hygiene.test.ts"]);
 // Test code: supabase/tests/, any tests/ e2e/ __tests__/ directory, or *.test.* / *.spec.* files.
 const isTestFile = (f) => /^supabase\/tests\//.test(f) || /(^|\/)(tests?|e2e|__tests__)\//.test(f) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(f);
+// The password-name heuristic also skips UI text (i18n/locale files) and Markdown prose, where
+// "password" is a label or a word. The hard patterns (keys, JWTs, connection strings) still apply.
+const skipsNameHeuristic = (f) => isTestFile(f) || /(^|\/)(i18n|locales?|translations)\//.test(f) || /\.mdx?$/i.test(f);
 const SUPPLIER_OK = (f) =>
   /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/");
 const isEnvFile = (f) => { const b = (f.split("/").pop() ?? "").toLowerCase(); return b.startsWith(".env") && b !== ".env.example"; };
-// Owner-listed terms, matched after removing invisible characters (zero-width splitting) and case.
+// Owner-listed terms, matched after NFKC and removing every Unicode default-ignorable code point
+// (zero-width, combining grapheme joiner, variation selectors, tag characters) and case (L-0061 D5).
+const INVISIBLE_G = /\p{Default_Ignorable_Code_Point}/gu;
+const termNorm = (t) => t.normalize("NFKC").replace(INVISIBLE_G, "").toLowerCase();
 const SENSITIVE_TERMS = (process.env.KIRAN_SENSITIVE_TERMS ?? "")
-  .split(/\r?\n/).map((t) => t.normalize("NFKC").replace(/[​-‏⁠-⁤﻿­]/g, "").trim().toLowerCase()).filter((t) => t.length >= 3);
-const termIn = (text) => {
-  const low = text.normalize("NFKC").replace(/[​-‏⁠-⁤﻿­]/g, "").toLowerCase();
-  return SENSITIVE_TERMS.some((t) => low.includes(t));
-};
+  .split(/\r?\n/).map((t) => termNorm(t).trim()).filter((t) => t.length >= 3);
+const termIn = (text) => { const low = termNorm(text); return SENSITIVE_TERMS.some((t) => low.includes(t)); };
 
 const errors = [];
 const fail = (m) => errors.push(m);
@@ -176,7 +185,7 @@ function scan(text) {
       continue;
     }
     if (fence) {
-      const c = l.match(/^(`{3,}|~{3,})\s*$/);
+      const c = l.match(/^ {0,3}(`{3,}|~{3,})\s*$/); // CommonMark: a closing fence may be indented up to 3 spaces (L-0061 D1)
       if (c && c[1][0] === fence.ch && c[1].length >= fence.len) fence = null;
       out.push({ line: l, code: true });
       continue;
@@ -208,7 +217,7 @@ function parseLog(text, label) {
     if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {
       fail(`${label}: setext (underlined) headings are not allowed in ${LOG_PATH} (line ${i + 1}).`);
     }
-    if (/PKT\s*·/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
+    if (/PKT\s*[·⋅•∙・]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
   }
   const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
   if (text && heads.length !== 1) fail(`${label}: expected exactly one "## 16. Activity log" heading, found ${heads.length}.`);
@@ -216,6 +225,11 @@ function parseLog(text, label) {
   if (start === -1) return { logSc: [], entries: [], outside: text };
   let end = sc.findIndex((x, i) => i > start && !x.code && /^## Appendix\b/.test(x.line));
   if (end === -1) end = sc.length;
+  for (let i = 0; i < sc.length; i++) {
+    if ((i < start || i >= end) && !sc[i].code && ENTRY_RE.test(sc[i].line)) {
+      fail(`${label}: entry header outside the §16 log (line ${i + 1}): "${sc[i].line.slice(0, 70)}"`); // L-0061 D2
+    }
+  }
   const logSc = sc.slice(start, end);
   const entries = [];
   let cur = null;
@@ -248,27 +262,31 @@ if ((otherFiles.length || outsideChanged) && newEntries.length === 0) {
 
 // 2. strictly append-only, and new text holds only canonical structure
 if (baseText) {
-  const nonBlank = (arr) => arr.filter((x) => x.line.trim() !== "");
-  const baseLog = nonBlank(B.logSc);
-  while (baseLog.length && !baseLog[baseLog.length - 1].code && baseLog[baseLog.length - 1].line.trim() === "---") baseLog.pop();
-  const headLog = nonBlank(H.logSc);
+  // Exact prefix, blank lines included (L-0061 D7). Only the closing separator and the
+  // trailing blank lines of the old log may move below the new entries.
+  const baseLog = [...B.logSc];
+  while (baseLog.length && !baseLog[baseLog.length - 1].code && /^(---)?\s*$/.test(baseLog[baseLog.length - 1].line)) baseLog.pop();
+  const headLog = H.logSc;
   let ok = true;
   for (let i = 0; i < baseLog.length; i++) {
     if (headLog[i]?.line !== baseLog[i].line) {
-      fail(`Log section (§16) is not append-only at existing line ${i + 1}: expected "${baseLog[i].line.slice(0, 70)}", found "${(headLog[i]?.line ?? "<end of log>").slice(0, 70)}".`);
+      fail(`Log section (§16) is not append-only at existing line ${i + 1} of the log: expected "${baseLog[i].line.slice(0, 70)}", found "${(headLog[i]?.line ?? "<end of log>").slice(0, 70)}".`);
       ok = false;
       break;
     }
   }
   if (ok) {
-    const rest = headLog.slice(baseLog.length);
+    const rest = headLog.slice(baseLog.length).filter((x) => x.line.trim() !== "");
     while (rest.length && !rest[rest.length - 1].code && rest[rest.length - 1].line.trim() === "---") rest.pop();
     if (rest.length && !ENTRY_RE.test(rest[0].line)) fail(`New log text must start with a new entry header; found "${rest[0].line.slice(0, 70)}" appended to the last existing entry.`);
     for (const x of rest) {
+      // Checked on code lines too: an indented fence can close a block early (L-0055 L1, L-0061 D1).
+      if (/^\s+(`{3,}|~{3,})/.test(x.line)) fail(`New log text may not contain indented code fences: "${x.line.slice(0, 70)}"`);
       if (x.code) continue;
       if (x.line.trim() === "---") fail("A `---` separator may appear only as the last line of the log.");
       if (isHeading(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text may not contain headings other than entry headers: "${x.line.slice(0, 70)}"`);
-      if (/^\s+(`{3,}|~{3,})/.test(x.line)) fail(`New log text may not contain indented code fences (they end early inside lists): "${x.line.slice(0, 70)}"`);
+      if (/^\s{0,3}>/.test(x.line)) fail(`New log text may not contain blockquotes: "${x.line.slice(0, 70)}"`); // L-0061 D3
+      if (/^\s*([-*+]|\d+[.)])\s+#{1,6}(\s|$)/.test(x.line)) fail(`New log text may not contain headings inside list items: "${x.line.slice(0, 70)}"`);
     }
   }
 }
@@ -291,7 +309,7 @@ const taskText = (body) => taskLine(body).replace(/\*\*Claim:\*\*.*$/, "").repla
 const taskIds = (body) => [...taskText(body).matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\b/g)].map((m) => m[1]);
 // Something shaped like a task id that is not one, e.g. "PO-04" (letter O) or "P0 04".
 const lookalikeTaskIds = (body) => [...taskText(body).replace(/\b(P\d-\d{2}|PLAN-\d{2})\b/g, " ")
-  .matchAll(/\bP\s?[A-Za-z0-9]\s?-?\s?\d{2}\b/g)].map((m) => m[0]);
+  .matchAll(/\bP[A-Za-z0-9]\s?-\s?[A-Za-z0-9]{2}\b|\bP[0-9O]\s[0-9Ol]{2}\b/g)].map((m) => m[0]); // P0-O4, P0-0l, PO-04, P0 04; not "PR 12" (L-0061 D4)
 for (const e of newEntries) {
   const body = e.body.join("\n");
   if (!TYPES.has(e.type)) fail(`${e.id}: unknown entry type "${e.type}".`);
@@ -346,7 +364,7 @@ for (const l of diff.split("\n")) {
   if (!l.startsWith("+")) continue;
   const text = l.slice(1);
   for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${file}: added line matches secret pattern ${re}.`);
-  if (!isTestFile(file)) {
+  if (!skipsNameHeuristic(file)) {
     const named = secretAssignment(text, file);
     if (named) fail(`${file}: added line assigns a secret-looking value to "${named}" (H-20).`);
   }
@@ -367,22 +385,24 @@ for (const f of new Set([...notDeleted, ...untracked])) {
   if (termIn(f)) fail(`${f}: file path contains an owner-listed sensitive term (H-01).`);
   const buf = readAdded(f);
   if (!buf || buf.length < 2) continue;
-  let decoded = null;
-  if (buf[0] === 0xff && buf[1] === 0xfe) decoded = buf.subarray(2).toString("utf16le");
-  else if (buf[0] === 0xfe && buf[1] === 0xff) decoded = Buffer.from(buf.subarray(2)).swap16().toString("utf16le");
-  else {
-    const sample = buf.subarray(0, 4096);
-    let oddNul = 0; let evenNul = 0;
-    for (let i = 0; i < sample.length; i++) if (sample[i] === 0) (i % 2 ? oddNul++ : evenNul++);
-    const half = sample.length / 2;
-    if (oddNul > half * 0.3 && evenNul < half * 0.05) decoded = sample.length ? buf.toString("utf16le") : null;
-    else if (evenNul > half * 0.3 && oddNul < half * 0.05) decoded = Buffer.from(buf.subarray(0, buf.length - (buf.length % 2))).swap16().toString("utf16le");
-  }
-  if (decoded === null) continue;
-  for (const text of decoded.split(/\r?\n/)) {
-    for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (UTF-16): line matches secret pattern ${re}.`);
-    if (!isTestFile(f)) { const named = secretAssignment(text, f); if (named) fail(`${f} (UTF-16): line assigns a secret-looking value to "${named}" (H-20).`); }
-    if (termIn(text)) fail(`${f} (UTF-16): line contains an owner-listed sensitive term (H-01).`);
+  if (buf.length > 64 * 1024 * 1024) { fail(`${f}: file too large to scan (> 64 MB); refusing to pass.`); continue; }
+  // Every file is also decoded as UTF-16 in both byte orders and scanned in full, BOM or not
+  // (L-0061 D6). Ordinary UTF-8 text decodes to noise that these patterns do not match, so the
+  // hard patterns and owner terms run on both decodings. The password-name heuristic runs only
+  // when the file is recognisably UTF-16 (BOM, or the NUL pattern of mostly-ASCII UTF-16).
+  const body = buf[0] === 0xff && buf[1] === 0xfe ? buf.subarray(2) : buf[0] === 0xfe && buf[1] === 0xff ? buf.subarray(2) : buf;
+  const even = body.subarray(0, body.length - (body.length % 2));
+  const le = even.toString("utf16le");
+  const be = Buffer.from(even).swap16().toString("utf16le");
+  let nul = 0;
+  for (let i = 0; i < Math.min(buf.length, 4096); i++) if (buf[i] === 0) nul++;
+  const looksUtf16 = (buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff) || nul > Math.min(buf.length, 4096) * 0.15;
+  for (const decoded of [le, be]) {
+    for (const text of decoded.split(/\r?\n/)) {
+      for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (UTF-16): line matches secret pattern ${re}.`);
+      if (looksUtf16 && !skipsNameHeuristic(f)) { const named = secretAssignment(text, f); if (named) fail(`${f} (UTF-16): line assigns a secret-looking value to "${named}" (H-20).`); }
+      if (termIn(text)) fail(`${f} (UTF-16): line contains an owner-listed sensitive term (H-01).`);
+    }
   }
 }
 
