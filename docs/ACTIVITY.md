@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Fable 5.1 · session ee095e06 · branch feat/p0-foundation (K repo) | P0-04, P0-05 (P0-06, P0-09, P1-01 done: L-0011–L-0013) | SEC-02, SEC-04; doc 05 | repo root files, `scripts/`, `.github/`, `supabase/config.toml`, `supabase/migrations/`, `supabase/tests/`, `apps/web/` skeleton; RLS helpers, audit trigger, approval framework, numbering | 2026-10-25 02:57 | after B-12/B-13 answers | 2026-10-25 03:30 |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P1-01, P0-09 (DONE self-reported, awaiting re-verification) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-25 22:30 (L-0054) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -361,6 +361,8 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
 | B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | (a) RESOLVED L-0040; (b) PENDING |
 | B-17 | L-0042 Q1: add TRUNCATE guards on approval_request, device, user_profile, app_config, doc_counter (and update the verifier observation test)? Q2: refuse decisions on pending requests whose maker is suspended? (L-0047) | — (not exploitable by app roles) | Leave as is | MJ | PENDING |
+| B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | PENDING |
+| B-19 | F-3: should a rep see its own revoked/pending device rows (today yes) or only the approved one? Should tests stop sharing committed rows across files? Changing the re-verifier-3 test needs explicit approval (L-0052) | — (not a leak) | Leave as is | MJ | PENDING |
 
 ---
 
@@ -1117,6 +1119,111 @@ Neither is exploitable by an application role.
 **Evidence:** With the guard, `pnpm db:test` showed exactly the verifier's TRUNCATE observation test failing, plus a structural test I had added. After backing out, `git status` shows no migration or test change from this, and the suite is 402/402.
 **Rules touched:** H-07, H-23
 **Next / needs:** MJ: (Q1) add TRUNCATE guards and update that observation test, or leave as is? (Q2) should decisions on a suspended maker's pending requests be refused?
+
+### L-0048 · 2026-10-25 22:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · SESSION-START
+**Task:** P1-01, P0-09, P0-04, P0-05 (follow-up brief from MJ, folding in the independent end-to-end check)    **Claim:** C-001 (renewed in L-0049)
+**What / why:** MJ pasted a follow-up brief written against an earlier snapshot (HEAD c9d830e, with `reverify3-attacks.test.ts` still untracked). §2 checklist:
+1. Read this file in full, including all entries to L-0047, the blockers B-01 to B-17, the board and claims.
+2. Read `00-README.md` and the docs behind P1-01/P0-09/P0-05, plus `docs/test-report-2026-10-25.md`.
+3. Claims: only C-001, which is mine.
+4. Blockers read: B-12 resolved, B-13 open, B-15a open, B-16b open, B-17 open.
+5. Branch `feat/p0-foundation`; baseline `pnpm db:test` 402/402, typecheck exit 0.
+6. Environment: local plus staging only; no production access.
+
+Where the brief is already out of date:
+- `reverify3-attacks.test.ts` was committed unedited in 0373bdd, with the re-verifier-3 entry L-0042.
+- F-1 was corrected (L-0042/L-0043) and fixed (L-0045).
+- The log is at L-0047, so the brief's "L-0042 next" no longer applies; numbering continues at L-0048.
+
+I am doing the parts still open: a CORRECTION against L-0037, F-1 before/after evidence, F-2 (blocker plus staging smoke script), F-3 (investigation plus blocker), the Gate 0 human-only list, and a HANDOFF. No P1-02 work. I did not reinstall dependencies: everything ran in the Windows shell that installed them.
+**Rules touched:** H-19, H-22, H-23
+**Next / needs:** L-0049.
+
+### L-0049 · 2026-10-25 22:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · CLAIM
+**Task:** P0-04, P0-05, P1-01, P0-09    **Claim:** C-001 (renewed)
+**What / why:** Areas: `scripts/staging-smoke.mjs` (new), `package.json` (script `staging:smoke`), `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` (copied from `Kiran Company/plan/`), and this file. No migration, no change to any test file. I wrote these entries after starting the work in this turn: the claim covers that work.
+**Rules touched:** —
+**Next / needs:** —
+
+### L-0050 · 2026-10-25 22:05 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · CORRECTION
+**Task:** P1-01 (corrects L-0037)    **Claim:** C-001
+**What / why:** The independent check (`docs/test-report-2026-10-25.md`; separate Fable 5.1 session, read-only, run at c9d830e) found two claims in L-0037 that were not true end to end.
+- **F-1:** L-0037 said the rep app "queues the fresh id for approval". It did not: `@supabase/ssr` returned its cached singleton client, so the old `x-kiran-device` header stayed after rotation. Re-verifier-3 found the same (L-0042). The fix is in L-0045 (`isSingleton: false`, and the client is rebuilt when the id changes).
+- **F-2:** L-0037 said "authenticated can execute `app.register_device`". That was a database grant check, not an API check. On hosted staging the Data API exposes only `public` and `graphql_public`, so every `app.*` call returns 406 "Invalid schema: app"; login and device registration cannot complete against staging. `supabase/config.toml` sets this only for the local CLI stack. The fix is a dashboard setting, which only MJ can change: B-18, L-0051.
+**Evidence:**
+- **F-1, before:** with the pre-fix `browser.ts` (from 76a1f33) temporarily in place, `pnpm vitest run --config supabase/tests/vitest.config.ts reverify3 -t "DEFECT CHECK"` failed: "Tests 1 failed | 10 skipped (11)", probe `"sameClient":true`, and both `rpc/register_device` and `rpc/my_session` sent the old id.
+- **F-1, after:** with the current file restored (checked with `cmp`), the same command gave "Tests 1 passed | 10 skipped (11)". `git status` was clean afterwards.
+- **F-2:** `pnpm staging:smoke` (L-0053) gave "FAIL app.my_session reachable [406 PGRST106: Invalid schema: app]" and the same for `app.register_device`.
+**Rules touched:** H-23, H-24, H-25
+**Next / needs:** B-18 (MJ).
+
+### L-0051 · 2026-10-25 22:10 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P0-05 (SEC-02, SEC-03 end to end)    **Claim:** C-001
+**What / why:** F-2. Hosted staging does not expose the `app` and `vault_api` schemas. Only MJ can change this, in the Supabase dashboard (the agent's Supabase tools cannot change API settings). Exact steps: **Project Settings → Data API → Exposed schemas → add `app` and `vault_api`. Keep `control` and `supplier_vault` UNEXPOSED.** Then run `pnpm staging:smoke`, which must print "All checks passed". The step is now the first item of `docs/gate-0-checklist.md`, with a standing note that every hosted project (production later) needs it, because `config.toml` does not apply to hosted projects. B-18 added.
+**Evidence:** Smoke run on 2026-10-25: 2 FAIL (the two `app` probes, 406), 3 PASS (`control` 406, `supplier_vault` 406, anon read of `user_profile` 401/42501).
+**Rules touched:** H-19
+**Next / needs:** MJ: change the setting, then run the smoke check.
+
+### L-0052 · 2026-10-25 22:15 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P1-01    **Claim:** C-001
+**What / why:** F-3 is a question for MJ, not a defect. The report saw re-verifier-3's test "suspend then reactivate: the old id stays dead…" fail with `visible: 4` against an expected 2. What I found:
+1. The report ran while re-verifier-3 was still editing that file (the report notes the file was touched at 19:50). The committed version (0373bdd) no longer expects a literal 2. It asserts `visible` equals `total` (rep B, on its approved fresh device, sees exactly its own device rows) and `total >= 2`. It passes in every run here: 402/402 in the full suite, 11/11 for the file alone.
+2. The count depends on file order. All test files share one database, and `foundation.test.ts` commits two extra devices for rep B (one in "a new device starts pending…" and one in "a revoked device id is dead for good…"). The fixture device, plus this test's fresh device, plus those two makes exactly 4, the number the report saw. When reverify3 runs first, the total is 2.
+3. The four visible rows are all rep B's own: the approved fresh device, and its revoked or pending older ones. This is the own-rows device policy (`user_id = auth.uid() and app.self_ok()`); no other user's row is visible.
+
+I have not edited the test.
+**Evidence:** `git show 0373bdd:supabase/tests/reverify3-attacks.test.ts` contains `expect(visible).toBe(total)` and `expect(total).toBeGreaterThanOrEqual(2)`. Full `pnpm db:test` → "Test Files 7 passed (7), Tests 402 passed (402)".
+**Rules touched:** H-23
+**Next / needs:** MJ (B-19): should a rep see its own revoked and pending device rows (today: yes; harmless, and useful on a "my phones" screen), or only the approved one? Separately, should tests stop sharing committed rows between files, to remove order dependence? Any change to that test needs your explicit approval, as in L-0040.
+
+### L-0053 · 2026-10-25 22:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-04, P0-05    **Claim:** C-001
+**What / why:** Added `scripts/staging-smoke.mjs` (run with `pnpm staging:smoke`). It is read-only, uses only the anon/publishable key from `KIRAN_STAGING_URL` and `KIRAN_STAGING_ANON_KEY`, never prints the key, and refuses to run with a service-role or secret key. It checks:
+- `app.my_session` and `app.register_device` are reachable (401/403 counts as reachable; 406 PGRST106 or 404 PGRST202 is a fail);
+- `control` and `supplier_vault` answer 406 PGRST106;
+- an anonymous read of `user_profile` is refused.
+
+The `register_device` probe cannot write: anon has no EXECUTE grant on it, and the function also refuses callers without a profile. I rewrote `docs/gate-0-checklist.md` as one ordered list of MJ's human-only actions:
+1. Expose `app`/`vault_api` (keep `control` and `supplier_vault` hidden).
+2. Auth settings: sign-up off, TOTP on, password length 12.
+3. Owner account and TOTP via `docs/runbooks/owner-bootstrap.md`.
+4. Branch protection on `main` (B-13).
+5. The `KIRAN_SENSITIVE_TERMS` secret (B-15a).
+6. D-08/B-01 to B-11, B-14, B-16b, B-17, B-19.
+
+It also carries a standing runbook note on exposed schemas and the smoke command. Copied the independent report to `docs/test-report-2026-10-25.md`; a grep found no keys or connection strings in it.
+**Evidence:** Smoke run on staging: exit 1, with "FAIL app.my_session … [406 PGRST106]", "FAIL app.register_device … [406 PGRST106]", "PASS control schema NOT exposed (406)", "PASS supplier_vault schema NOT exposed (406)", "PASS anon cannot read public.user_profile [401 42501]". `pnpm db:test` → 402/402; `pnpm typecheck` exit 0; `pnpm -C apps/web build` exit 0 ("Compiled successfully"); service-role scan of `apps/web/{app,components,lib}` → none.
+**Rules touched:** H-18, H-19, H-25
+**Next / needs:** L-0054.
+
+### L-0054 · 2026-10-25 22:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · HANDOFF
+**Task:** P1-01, P0-09 (DONE, self-reported); P0-04, P0-05 (IN PROGRESS)    **Claim:** C-001 (stays open for P0-04/P0-05)
+**What / why:** **State.** Branch `feat/p0-foundation`, PR https://github.com/ethancrystal/kiran-dms/pull/1.
+- **Staging** has migrations 0001 to 0006; the audit chain verifies; the advisors show only the two intentional INFO notices.
+- **Board:** P0-06 and P0-08 VERIFIED (L-0030). P1-01 and P0-09 DONE (self-reported; redone in L-0045/L-0046 after L-0042). Nothing is marked VERIFIED by me.
+- **Not working:** login and device registration against staging (F-2, B-18); the office login has never run end to end (there is no owner account).
+- **Not started:** P1-02 and everything after it (Gate 0 not accepted).
+
+**Next steps, in order:**
+1. MJ does `docs/gate-0-checklist.md` items 1 to 3, then runs `pnpm staging:smoke` until it prints "All checks passed".
+2. Re-verification of P1-01 and P0-09 by a DIFFERENT agent (§7, L-0029): requested here, not started by me. Focus on the L-0045 client fix and the L-0046 log check; the database held all of L-0042.
+3. MJ answers B-17, B-19, B-16b and items B-01 to B-11, then signs Gate 0.
+4. Then P1-02 and P1-03 per §12.1.
+
+**Gotchas:**
+- This machine has a global `DATABASE_URL` (an unrelated remote host) and `NODE_ENV=development`. The harness reads only `KIRAN_TEST_DATABASE_URL`, and the web build pins production through `cross-env`.
+- `node_modules` here is Windows-built; any Linux/WSL agent must reinstall (embedded-postgres is platform-specific).
+- In Git Bash, `$'\u…'` does not produce the character, so look-alike tests must write characters with Python or Node.
+- Test files share one database, so counts of committed rows depend on file order (L-0052); assert relative counts.
+- Supabase records its own migration versions; rename local files to match after `apply_migration`.
+- `apps/web/.env.local` points at staging with the publishable key and is git-ignored.
+
+**Open blockers:** B-13, B-15a, B-16b, B-17, B-18, B-19, B-01 to B-11, B-14 (all MJ).
+
+**Could not run:** the end-to-end office or rep login (needs B-18 and the owner account); CI on this commit (it runs after the push; the previous commit 4f6e71a was pushed before this check).
+**Evidence:** Commits this session after the brief: 0373bdd (verifier files), 4f6e71a (L-0042 fixes), plus the commit carrying these entries. `pnpm db:test` 402/402; `pnpm typecheck` exit 0; web build exit 0; `pnpm activity:check` run before committing (result in the commit message); staging smoke 3 PASS / 2 FAIL (F-2).
+**Rules touched:** §11, H-23, H-24
+**Next / needs:** MJ: gate checklist items 1 to 6.
 
 ---
 
