@@ -359,7 +359,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
 | B-14 | How do reps get the plan list and taxonomies (visit outcomes, product groups, salon types)? Doc 06 §2 gives reps no access to "installment templates, credit rules, config" (verifier Q1) | P1-02 rep visit logging, P1-06 ordering | Reps see no config; Phase 1 RPCs return only what a given screen needs (e.g. allowed plans for one salon) | MJ | PENDING |
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
-| B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | PENDING |
+| B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | (a) RESOLVED L-0040; (b) PENDING |
 
 ---
 
@@ -964,6 +964,27 @@ CI `db-tests` stays red until MJ rules. B-16 is updated.
 **Evidence:** `pnpm db:test` → exactly these 3 failures. Tests 2 and 3 fail with "device id revoked; generate a new one" thrown at the re-register step.
 **Rules touched:** H-06, H-17, H-23
 **Next / needs:** MJ: approve updating these three tests so they assert the secure end state (the leaked or revoked id never passes the gate; re-registration is refused), or choose another approach.
+
+### L-0040 · 2026-10-25 18:10 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P1-01 (B-16a)    **Claim:** C-001
+**What / why:** MJ approved: "Approved: update the three verifier tests in B-16a to assert the secure end state (leaked or revoked ids never pass the gate; re-registering them is refused; audit history stays append-only)." B-16(a) is resolved. B-16(b), the pending-device cap, stays open. B-16(c) stands as implemented in L-0037, and MJ has not overruled it.
+**Rules touched:** H-23 (test change made under explicit MJ approval)
+**Next / needs:** L-0041.
+
+### L-0041 · 2026-10-25 18:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P1-01    **Claim:** C-001
+**What / why:** Updated the three B-16a tests under L-0040. Each keeps its setup, attack steps and goal; only the assertions that described removed behaviour changed.
+1. `reverify-attacks.test.ts`, upgrade path:
+   - it now applies every migration from 0004 on, not just 0004;
+   - it accepts that append-only history keeps the raw id, and asserts that editing that row fails ("append-only");
+   - it asserts the device is revoked, the raw id is refused at the gate, re-registering it is refused, and the chain verifies.
+2. `reverify2-attacks.test.ts`, L-0035 test: re-registering the leaked id is refused and the original row stays revoked; a made-up id still makes a new row; the office cannot re-approve the old row; the final assertion (the leaked id never passes the gate) is unchanged.
+3. `reverify-attacks.test.ts`, the former Q6 test: a device the office revoked can neither re-register nor be approved, and stays revoked.
+
+Titles now cite B-16a / L-0040.
+**Evidence:** `pnpm db:test` → "Test Files 6 passed (6), Tests 391 passed (391)". Mutation check: a temporary migration restoring the old revive-to-pending and unconditional-approve behaviour made all three updated tests fail, plus one existing test ("Tests 4 failed | 23 passed (27)" on the reverify files). The temporary file was deleted, and `git status` shows only the two test files changed.
+**Rules touched:** H-23
+**Next / needs:** CI on this push; re-verification of P1-01 and P0-09 (§7).
 
 ---
 

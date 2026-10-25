@@ -89,7 +89,7 @@ async function upgradedDb(extra?: (c: pg.Client, as: AsFn, ids: { owner: string;
 type AsFn = (id: string, aal: string, dev: string | null, sql: string, params?: unknown[]) => Promise<pg.QueryResult>;
 
 describe("0005 retirement of pre-0004 device ids (L-0032)", () => {
-  it("DEFECT CHECK: a raw id leaked into pre-0004 audit history never passes the device gate again, even after its phone is re-approved", async () => {
+  it("DEFECT CHECK: a raw id leaked into pre-0004 audit history never passes the device gate again, and its phone cannot be re-registered or re-approved (B-16a, L-0040)", async () => {
     const db = await upgradedDb();
     try {
       // Precondition (builder's claim, L-0032): revoked, and the leaked id alone is refused.
@@ -98,21 +98,31 @@ describe("0005 retirement of pre-0004 device ids (L-0032)", () => {
         "select device_id from control.audit_event where device_id is not null and device_id !~ '^[0-9a-f]{64}$' limit 1")).rows[0].device_id;
       expect(leaked).toBe(db.raw); // the bearer value anyone with audit/backup access can read
 
-      // The thief (stolen session, own phone) re-registers the leaked id. Unlike a made-up id it
-      // revives the ORIGINAL row: same device id, the rep's own platform/label, original created_at.
+      // Secure end state (MJ approval L-0040, B-16a): the thief (stolen session, own phone) cannot
+      // re-register the leaked id; it is dead for good and the original row stays revoked.
       const orig = (await db.c.query("select id, platform, label, created_at from public.device where id = $1", [db.dev])).rows[0];
-      const revived = (await db.as(db.rep, "aal1", "dev-thief-phone-000001",
-        "select id, status::text s, platform, label, created_at from app.register_device($1, 'thief-browser', 'thief')", [db.raw])).rows[0];
-      expect({ id: revived.id, s: revived.s, platform: revived.platform, label: revived.label, created_at: revived.created_at })
-        .toEqual({ id: orig.id, s: "pending", platform: "android", label: "rep phone", created_at: orig.created_at });
+      let regErr: string | null = null;
+      try {
+        await db.as(db.rep, "aal1", "dev-thief-phone-000001",
+          "select app.register_device($1, 'thief-browser', 'thief')", [db.raw]);
+      } catch (e) {
+        regErr = (e as Error).message;
+      }
+      expect(regErr).toMatch(/device id revoked; generate a new one/);
+      expect((await db.c.query("select status::text s from public.device where id = $1", [orig.id])).rows[0].s).toBe("revoked");
       const madeUp = (await db.as(db.rep, "aal1", "dev-thief-phone-000001",
         "select id, platform from app.register_device($1, 'thief-browser', 'thief')", [`dev-${randomUUID()}`])).rows[0];
       expect(madeUp.id).not.toBe(orig.id);
       expect(madeUp.platform).toBe("thief-browser");
 
-      // The office approves the rep's known phone (the only way to restore the real phone, which
-      // still holds the same id in localStorage: apps/web never rotates it).
-      await db.as(db.owner, "aal2", null, "select app.approve_device($1, 'rep says the phone was reset')", [db.dev]);
+      // The office cannot approve the rep's old row either: a revoked device stays revoked.
+      let approveErr: string | null = null;
+      try {
+        await db.as(db.owner, "aal2", null, "select app.approve_device($1, 'rep says the phone was reset')", [db.dev]);
+      } catch (e) {
+        approveErr = (e as Error).message;
+      }
+      expect(approveErr).toMatch(/revoked devices cannot be re-approved/);
 
       // Secure expectation: the id that sits readable in the audit log is dead for good.
       let err: string | null = null;

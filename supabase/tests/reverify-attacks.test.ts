@@ -99,17 +99,19 @@ describe("device gate on write paths (doc 04 invariant 7)", () => {
     expect(n).toBeGreaterThanOrEqual(1);
   });
 
-  it("QUESTION (not a defect): a device the office revoked can re-enter the queue and be approved again", async () => {
+  it("a device the office revoked can never re-enter the queue or be approved again (MJ approval L-0040, B-16a)", async () => {
     const r = await run("postgres", `
       ${asUser(fx.manager.id, "aal2", null)}
       select (app.revoke_device((select id from public.device where user_id = '${fx.repA.id}' and status = 'approved'), 'reported stolen')).status s1;
       ${asUser(fx.repA.id, "aal1", fx.repA.device)}
-      select (app.register_device('${fx.repA.device}')).status s2;
+      do $$ begin perform app.register_device('${fx.repA.device}'); raise exception 'REGISTER_NOT_REFUSED'; exception when insufficient_privilege then null; end $$;
       ${asUser(fx.manager.id, "aal2", null)}
-      select (app.approve_device((select id from public.device where user_id = '${fx.repA.id}' and device_fingerprint = '${sha(fx.repA.device)}'), 'one click')).status s3;`) as unknown as Multi;
+      do $$ begin perform app.approve_device((select id from public.device where user_id = '${fx.repA.id}' and device_fingerprint = '${sha(fx.repA.device)}'), 'one click'); raise exception 'APPROVE_NOT_REFUSED'; exception when insufficient_privilege then null; end $$;
+      reset role;
+      select status::text s2 from public.device where user_id = '${fx.repA.id}' and device_fingerprint = '${sha(fx.repA.device)}';`) as unknown as Multi;
     const vals = r.flatMap((x) => (x.rows?.[0] ? Object.entries(x.rows[0]).filter(([k]) => /^s\d$/.test(k)).map(([, v]) => v) : []));
-    // L-0027 behaviour: revoked -> pending on re-register. Observed third step: "approved" (one manager click); not asserted, MJ to decide (L-0030 Q6).
-    expect(vals.slice(0, 2)).toEqual(["revoked", "pending"]);
+    // Revoked, re-registration refused, approval refused, still revoked (the do-blocks raise if either was allowed).
+    expect(vals).toEqual(["revoked", "revoked"]);
   });
 
   it("a device registered before its user is suspended cannot be approved afterwards, even after reactivation", async () => {
@@ -218,7 +220,7 @@ describe("device gate on read paths and side channels", () => {
 describe("upgrade path: a database that had devices before migration 0004", () => {
   // Builds a separate throwaway database on the same server: migrations 0001–0003, a rep
   // with an approved device who makes one audited write, then migration 0004.
-  it("DEFECT CHECK: after 0004 no raw device id (a bearer credential) remains readable in the audit log", async () => {
+  it("DEFECT CHECK: a raw device id left in append-only audit history is worthless after all migrations (B-16a, L-0040)", async () => {
     const root = resolve(import.meta.dirname, "../..");
     const migDir = join(root, "supabase", "migrations");
     const files = readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort();
@@ -255,7 +257,8 @@ describe("upgrade path: a database that had devices before migration 0004", () =
       const dev = (await as(rep, "aal1", raw, "select (app.register_device($1)).id", [raw])).rows[0].id;
       await as(owner, "aal2", null, "select app.approve_device($1, 'fixture')", [dev]);
       await as(rep, "aal1", raw, "select app.request_approval(gen_random_uuid(), 'discount', 'order', null, '{}', 'pre-0004 write')");
-      await c.query(readFileSync(join(migDir, hardening), "utf8"));
+      // MJ approval L-0040 (B-16a): apply every migration from 0004 on, as a real upgrade would.
+      for (const f of files.filter((f) => f >= "20261024232225")) await c.query(readFileSync(join(migDir, f), "utf8"));
 
       const chain = (await c.query("select ok from control.verify_audit_chain()")).rows[0].ok;
       expect(chain).toBe(true); // the replaced audit_row keeps the chain intact across the upgrade
@@ -269,7 +272,37 @@ describe("upgrade path: a database that had devices before migration 0004", () =
         from control.audit_event
         where coalesce(before::text, '') like '%' || $1 || '%' or coalesce(after::text, '') like '%' || $1 || '%' or device_id = $1
         order by seq`, [raw])).rows;
-      expect(leaks).toEqual([]);
+      // Secure end state (MJ approval L-0040, B-16a). History is append-only and hash-chained, so a raw
+      // id written before 0004 stays in it and can never be edited away ...
+      expect(leaks.length).toBeGreaterThan(0);
+      let editErr: string | null = null;
+      try {
+        await c.query("update control.audit_event set device_id = null where seq = $1", [leaks[0].seq]);
+      } catch (e) {
+        editErr = (e as Error).message;
+      }
+      expect(editErr).toMatch(/append-only/);
+      // ... but the leaked id is worthless: its device is revoked, it never passes the gate, and it
+      // can never be registered again.
+      const devStatus = (await c.query("select status::text s from public.device where user_id = $1 order by created_at limit 1", [rep])).rows[0].s;
+      expect(devStatus).toBe("revoked");
+      let gateErr: string | null = null;
+      try {
+        await as(rep, "aal1", raw, "select app.request_approval(gen_random_uuid(), 'discount', 'order', null, '{}', 'replayed leaked id')");
+      } catch (e) {
+        gateErr = (e as Error).message;
+        await c.query("rollback"); // this test's as() helper does not roll back on error
+      }
+      expect(gateErr).toMatch(/device is not approved/);
+      let regErr: string | null = null;
+      try {
+        await as(rep, "aal1", "dev-other-phone-0001", "select app.register_device($1)", [raw]);
+      } catch (e) {
+        regErr = (e as Error).message;
+        await c.query("rollback");
+      }
+      expect(regErr).toMatch(/device id revoked; generate a new one/);
+      expect((await c.query("select ok from control.verify_audit_chain()")).rows[0].ok).toBe(true);
     } finally {
       await c.end();
       await admin.query(`drop database if exists ${dbName} with (force)`);
