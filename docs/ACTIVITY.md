@@ -1821,6 +1821,88 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 
+### L-0085 · 2026-10-26 22:00 PKT · Claude · Opus 5.5 · re-verifier-9 subagent · branch feat/p0-foundation (K repo) · CORRECTION
+**Task:** P0-02, P0-09    **Claim:** —
+**What / why:** Independent §7 re-verification, round 9, of the P0-02 import dry-run (L-0084) and of the log check P0-09 after L-0078 and L-0082, under MJ's L-0029 ruling. I am a fresh subagent and wrote none of the earlier entries. Result: **P0-02 is not VERIFIED** (corrects L-0084) and **P0-09 is not VERIFIED** (corrects L-0078 and L-0082). For P0-09 the L-0075 fixes hold where they were applied (lone carriage return, the character ban in new log text, autolinks, fail-closed paths, the query-parameter pattern, the mixed-case exemption, B-21), but the L-0075 D1(b) fence desync is open again through other characters, and the D2 and D3 tricks still work everywhere outside new log text. I added two files, not committed: `supabase/tests/reverify9-attacks.test.ts` and `packages/import/tests/reverify9-import.test.ts`. Their DEFECT CHECKs and FALSE POSITIVE CHECKs fail on purpose (H-23); the controls and the observation pass. I edited no other file and did not touch the board.
+
+P0-02 defects (corrects L-0084):
+- D1 (H-03, H-25; blocking). When no row among the first 20 names a known column, `splitHeader` takes the first row with two non-empty cells as the header; and a data cell that happens to be an alias word (a type cell "Parlour" is a name alias) outranks a header written in Roman Urdu. The report then prints those header cells verbatim under "Column mapping" and "ignored columns", in the text report and in the JSON report. A synthetic sheet without a header row, run through the CLI, printed "Test Salon 01" and "0399-0000001" in full. The runbook promises the report never prints salon names or full phone numbers. Fix: never print header cells verbatim when they could be data (column letters instead), and refuse a sheet whose header row names no known column unless `--mapping` names its columns.
+- D2 (wrong CLEAN; money). `cellText` turns a formula whose cached result is an Excel error into the 15-character text "[object Object]", which passes as a salon name or an area. An error cell (values pasted from a failed lookup) and a formula with no cached result become empty, so a balance reads as Rs 0 with no warning. Each of three one-row files was CLEAN. Fix: an error value or a missing formula result is a row error in that field.
+- D3 (wrong CLEAN). Without `--sheet` the tool reads the first worksheet even when it is hidden, and the report does not name the sheet it read. A clean hidden sheet gave CLEAN while the visible sheet had a blank name and an Excel-damaged phone. Fix: read the first visible sheet and print its name, or refuse when hidden sheets exist and no sheet is named.
+- D4 (wrong CLEAN). The prefix guess gives a "Contact Mobile" column to `contact_name`, and leaves "Owner Mobile" unmapped when "Owner Name" exists, so the phone column is never validated: "3.99E+09" passed with only a "no phone" warning. Fix: a header containing a phone word (mobile, phone, cell, whatsapp) maps to phone before any contact prefix, or the run stops when a phone-like column is left unmapped.
+- D5 (phone; low). A mobile number missing one digit (0399-000000, or 92399000000) matches the landline rule and imports with only a landline warning. No landline area code starts with 3. Fix: a number starting 03 or 923 must be a full mobile number, else an error.
+- D6 (money; low). "(-1,000)" is read as plus Rs 1,000, because the brackets and the minus cancel. Fix: refuse both marks together.
+
+P0-02 false positives (honest files refused):
+- FP1. Lakh grouping, as owners commonly write amounts (1,25,000; Rs 12,50,000/-), is refused as "not a rupee figure".
+- FP2. A cached formula result with binary float noise (1650.0000000000002 for 1500 times 1.1, which Excel displays as 1,650) is refused. Fix: round a numeric cell to paisa when it is within a tiny tolerance of a whole paisa.
+- FP3 (H-25). A title line starting with "Salon" above headers in Roman Urdu becomes the header row, because only that line names an alias. The runbook's remedy, `--mapping`, is applied after the header row is chosen, so every mapped column is reported missing and the file never passes (exit 1). Fix: let the explicit mapping choose the header row.
+
+P0-09 defects (corrects L-0078 and L-0082):
+- D1 (rule 2; blocking; the L-0075 D1(b) class reopened, contrary to L-0078's claim that it closes classes of trick). `scan` closes a fence when the fence characters are followed by any JavaScript whitespace, while CommonMark allows only spaces or tabs after a closing fence. A closing fence followed by U+00A0 (no-break space) or U+000B (vertical tab) therefore closes the block for the script only; the next bare fence closes it for the renderer and opens one for the script. The shape below exits 0 for both characters. markdown-it-py renders the forged header as an h3 and its Task and Evidence lines as a paragraph, while the script reads them as code, so they escape numbering, the entry-shape rule and maker ≠ checker.
+
+~~~text
+```text
+sample
+``` followed by U+00A0 (or U+000B)
+```
+(here a full canonical entry header for L-0099, typed VERIFIED and signed "MJ · human")
+**Task:** P0-09    **Claim:** —
+**Evidence:** VERIFIED by MJ, CI green.
+```
+end
+``` followed by U+00A0 (or U+000B)
+```
+~~~
+
+Fix (P0-09 D1): every fence test accepts only spaces and tabs, for example the closing test
+
+```
+/^ {0,3}(`{3,}|~{3,})[ \t]*$/
+```
+
+- D2 (rule 2, H-25). Two gaps. (a) L-0078 closed L-0075 D2 and D3 only in new log text, by the character ban. The whole-file rule that Appendix C states for every line outside code still uses the old code-span stripping and still needs the closing angle bracket on the same line, so any change outside §16 that comes with an entry can carry those tricks: an HTML comment opened and closed between escaped backticks in §14, and a bare pre or details tag opener in §15 (the pre one swallows the rest of the document for the renderer) each exit 0. (b) A level-two Appendix heading placed in the new text below the new entry becomes the end of §16, so it escapes the "no other headings" rule, and everything below it escapes the new-text rules. Under such a heading, an h3 tag between escaped backticks, with HTML entities for the hyphen and the letter K, rendered a canonical-looking VERIFIED header for L-0099 signed MJ; exit 0. Fix: apply the character ban (or the CommonMark code-span rule) to every changed line outside code in the whole file, and end §16 only where the base file ends it, or refuse a new Appendix heading.
+- D3 (rule 5). The L-0075 D5 libpq fix is partial: libpq also accepts spaces around the equals sign and single-quoted values. A keyword string with "password = value" in a TypeScript literal, and the spaced or the single-quoted form in a Markdown runbook, each exit 0. Fix: optional spaces around the equals sign and an optional single quote in the keyword pattern.
+- D4 (rule 5, H-25; low). The mixed-case name-like branch splits digit runs into 4-digit chunks, so two words plus a digit run of any length pass; the same branch also lets lowercase multi-part values with long digit runs through, which the lowercase rule (up to 4 digits) refused before L-0078. `SMS_API_KEY = "KiranSms903718264519"` and `SMS_API_KEY = "kiran-sms-90371826451937"` in TypeScript exit 0, while Appendix C says "made only of whole words" and "short numbers". Fix: cap digit runs at 4 in the mixed-case branch.
+- D5 (rule 4, H-25; low). Task-line text shaped like a task id is not flagged when it has one digit or another separator: a VERIFIED entry by another signer with Task "P0-08, P0-9", "P0-08, P0_09" or "P0-08, P0.09" exits 0, and only P0-08 is checked. Fix: widen the look-alike pattern.
+
+P0-09 false positive:
+- FP1 (rule 5; the L-0075 FP5 family). An acronym breaks the mixed-case split: `FONT_KEY = "NotoNaskhArabicUI-Regular"` (an Urdu and Arabic UI font, for the P1-06 and P1-07 PDFs) is refused as a secret.
+
+Observations (for MJ, not defects):
+- O1 (P0-02). The report prints the area column verbatim, by design (P0-03 needs it). If an owner's area column holds street addresses, those are printed too.
+- O2 (P0-02). The tool also reads .txt files as CSV, which the runbook does not mention; an Excel "Unicode Text" export is UTF-16 and fails safe as unreadable columns. A real file placed under `packages/import/tests/` gets no in-repo warning, and that folder is not git-ignored.
+- O3 (P0-09, B-21 edge). The approved exemption also covers `apps/web/public/vault/`, which Next.js serves to anyone without a login; supplier wording in a static JSON file there exits 0. Suggest excluding `public/` from the exemption.
+- O4 (P0-09). A JWT in a UTF-32 file exits 0; Appendix C claims UTF-16 only, so this is not a breach.
+
+**Evidence:** All runs local, with `DATABASE_URL` unset in the child env, on embedded Postgres. No remote database, Supabase project, GitHub or MCP tool was touched, and `scripts/staging-smoke.mjs` was not run. Spreadsheets were generated in temp directories outside the repository and deleted.
+1. `pnpm -C packages/import test` with my file: "Test Files 1 failed | 1 passed (2)" and "Tests 9 failed | 18 passed (27)". The builder's 17 tests and my control pass; my nine checks fail. Their logged values: "rv9 P0-02 D1 leaks: cliText true, typeWordText true, typeWordJson true"; "D2 clean: nameErr true, balErrCell true, balUncached true"; "D3 verdict: true"; "D4 clean: contactMobile true, ownerMobile true"; "D5 ok: local true, intl true"; "D6: ok true, value 100000"; FP2 "false" with an opening_balance error on row 2; FP3 exit status 1.
+2. `pnpm vitest run --config supabase/tests/vitest.config.ts reverify9`: "Test Files 1 failed (1)" and "Tests 6 failed | 2 passed (8)". Logged statuses: "rv9 D1 (nbsp, vt): 0 0"; "rv9 D2 (appendixH3, comment, pre, split): 0 0 0 0"; "rv9 D3 (tsSpaced, mdQuoted, mdSpaced): 0 0 0"; "rv9 D4 (mixed, lower): 0 0"; "rv9 D5 (control, oneDigit, underscore, dot): 0 0 0 0"; "rv9 FP1 (font): 1".
+3. Controls that held (exit 1 where refused): the L-0075 lone carriage return and escaped-backtick h3 in new log text; supplier wording in a look-alike `vaulted/` segment; an owner term inside a `vault/` path. Passed as they should (exit 0): an ordinary code change with an entry; a closing fence followed by an ordinary space; supplier wording under `apps/web/app/office/vault/`; the L-0075 FP5 storage key. The rv8 file still passes in full within the suite below.
+4. Full suite with my two files and this entry in place: `pnpm db:test` gave "Test Files 1 failed | 12 passed (13)" and "Tests 6 failed | 456 passed (462)". The six failures are my P0-09 checks; all 454 earlier tests and my control and observation pass. I ran it again after writing these counts into this entry, with the same result. Gotchas: three background attempts stopped at "No test files found" before running anything (an intermittent harness flake; a retry ran normally), and a filtered run once hit the same flake; and a first full run gave "Tests 20 failed | 442 passed (462)", 17 of the failures in earlier verifiers' files, because my draft of this entry had a header-shaped line inside a code block, which the older harnesses (they find the last entry by a plain line match) read as L-0099. I replaced that line before the run quoted here. The observation statuses in O3 and O4 were measured by hand in a throwaway clone with the same steps.
+5. `pnpm typecheck`: exit 0 (supabase tests, packages/import and apps/web).
+6. Read, not only run: the JSON report directory is fixed (`import-reports/` at the repo root, git-ignored), the file name comes from the timestamp only, and no user input reaches the path; `--mapping` and `--areas` are read only; old .xls is refused; scientific-notation phones are refused; duplicate-phone warnings are masked; text amounts reach bigint paisa without float arithmetic; merged, rich-text and hyperlink cells read correctly and row numbers match the sheet with a title line, a blank row and merged cells (my control). Fixtures are synthetic (Test Salon NN, 0399 numbers). The CI step `pnpm -r --if-present test` and the `.gitignore` entry exist; gate-0-checklist criterion 2 and action 7 agree with the runbook.
+7. Rendering, markdown-it-py 4.2.0, `commonmark` and `gfm-like` presets, linkify off: the P0-09 D1 forged header rendered as an h3 for both characters; the D2 h3 tag and comment were emitted as raw HTML. I did not view GitHub's own rendering.
+8. Docs against code: P0-02 D1 and FP3 disagree with the runbook (H-25). P0-09 D2, D4 and D5 disagree with Appendix C (H-25); D1 and D3 break promises Appendix C already makes.
+9. `node scripts/activity-log-check.mjs 99a97de` on this entry: "activity-log-check OK (1 new log entry, 3 changed files)." `git status --short`: M docs/ACTIVITY.md, ?? packages/import/tests/reverify9-import.test.ts, ?? supabase/tests/reverify9-attacks.test.ts.
+**Rules touched:** H-03, H-16, H-20, H-23, H-24, H-25; §5 (money in paisa); §7; Appendix C
+**Next / needs:**
+- Builder, P0-02: fix D1 to D6 and FP1 to FP3 and update the runbook where it disagrees; then a different agent re-verifies. Until D1 is fixed, MJ should run action 7 only on a sheet whose header row the tool recognises, and should not share the report.
+- Builder, P0-09: fix D1 to D5 and FP1 and update Appendix C; then a different agent re-verifies.
+- MJ: O1 to O4 are your decisions; B-22 is still pending.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change in either task
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — the dry-run writes to no database; the log prefix rule held
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — see O3
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — none in either diff or in mine; but P0-02 D1 can print real names and phones in a report
+[x] Governance powers still owner-only + AAL2 (H-15) — not applicable, no permission change
+[ ] No control weakened, skipped or "temporarily" disabled (H-16) — P0-09 D1 and D2 reopen L-0075 classes; P0-02 D1 breaks the H-03 promise
+[ ] Docs match code; deviations logged (H-25) — see item 8
+[x] Tests actually run; real results recorded (H-23, H-24)
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
