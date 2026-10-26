@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0078 after L-0075) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0078 and L-0082 after L-0075) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:15 (L-0079) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:35 (L-0082) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -364,7 +364,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | PENDING |
 | B-19 | F-3: should a rep see its own revoked/pending device rows (today yes) or only the approved one? Should tests stop sharing committed rows across files? Changing the re-verifier-3 test needs explicit approval (L-0052) | — (not a leak) | Leave as is | MJ | PENDING |
 | B-20 | L-0061 client observations: O1 cross-tab rotation not atomic (Web Lock), O2 a 30 s claim blocks re-registration after a crash, O3 blocked storage leaves the page on "Loading…". Fix now (reopens P1-01) or defer to P1-09? (L-0065) | — (P1-01 VERIFIED; fails closed) | Defer to P1-09 | MJ | PENDING |
-| B-21 | L-0075 FP3: also allow supplier wording under any `vault/` path segment (P1-05 vault UI) and in i18n, locale or translations directories? Owner terms still apply everywhere. (L-0079) | rv8 FP3 test red until decided | Approve | MJ | PENDING |
+| B-21 | L-0075 FP3: also allow supplier wording under any `vault/` path segment (P1-05 vault UI) and in i18n, locale or translations directories? Owner terms still apply everywhere. (L-0079) | rv8 FP3 test red until decided | Approve | MJ | RESOLVED (L-0080: approved) |
 | B-22 | L-0075 O1: scan commit messages for owner terms and secret patterns (H-01)? Look-alike letters in owner terms stay an accepted limit. (L-0079) | — | Scan commit messages | MJ | PENDING |
 
 ---
@@ -1750,6 +1750,39 @@ Security checklist (tick honestly):
 **Rules touched:** H-01, H-22
 **Next / needs:** MJ: approve or refuse B-21 and B-22.
 
+### L-0080 · 2026-10-26 20:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-09 (B-21)    **Claim:** C-001
+**What / why:** MJ approved: "Approved: B-21. Allow supplier wording under any vault/ path segment and in i18n, locale or translations directories; owner terms still apply everywhere." B-21 is resolved. B-22 stays pending.
+**Rules touched:** H-01, H-22
+**Next / needs:** L-0081, L-0082.
+
+### L-0081 · 2026-10-26 20:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Appendix C rule 5 updated to match the script under L-0080 (H-25): supplier or cost wording is also allowed in any path with a `vault/` directory segment and in i18n, locale or translations directories. Owner-listed terms still apply in every file and path.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0082 · 2026-10-26 20:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Implements B-21 (L-0080) in `scripts/activity-log-check.mjs`: the supplier-wording allow-list adds any `vault/` directory segment (the owner's vault UI planned for P1-05) and i18n, locale or translations directories. This is the exact change proposed in L-0079, nothing else. With it, every L-0075 finding except O1 (B-22) is addressed.
+**Evidence:**
+- `pnpm vitest run … reverify8` gave "Tests 12 passed (12)".
+- The full suite, typecheck and the log check were re-run after these entries were written; the counts are in the commit message.
+**Rules touched:** H-01, H-23, H-25
+**Next / needs:** Re-verification of P0-09 (§7) by a different agent, or MJ sets stopping criteria. MJ: B-22.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -1805,7 +1838,7 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
    - connection strings with a password, including a password given as a URI query parameter or as a libpq `password=` keyword (placeholders and `${…}` or `$VAR` references excepted);
    - secret-named assignments with a real-looking value (in source code only quoted literals count; template literals built from `${…}` do not; nor, for names that are not password- or secret-like, multi-part lowercase name-like values (at least one word segment; others may be short numbers or a letter plus digits) such as `kiran.outbox.v1`, `kiran:outbox:v1`, `kiran.invoice.fy2026` or `receipt-a5-v2`, or mixed-case values made only of whole words such as `NotoNastaliqUrdu-Regular` or `KiranOutboxEncryptedV1`, or token-named values containing spaces or parentheses such as a design token; skipped in test code (`supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*`, `*.spec.*`), i18n/locale files and Markdown);
-   - supplier or cost wording outside `<timestamp>_vault*.sql` migrations, tests and docs;
+   - supplier or cost wording outside `<timestamp>_vault*.sql` migrations, tests, docs, any path with a `vault/` directory segment, and i18n, locale or translations directories (MJ, L-0080);
    - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, matched after NFKC, ignoring case and every Unicode default-ignorable character, in added lines and in file paths;
    - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, scanned in full (files over 64 MB fail).
 

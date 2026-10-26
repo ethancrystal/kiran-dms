@@ -135,8 +135,12 @@ const isTestFile = (f) => /^supabase\/tests\//.test(f) || /(^|\/)(tests?|e2e|__t
 // The password-name heuristic also skips UI text (i18n/locale files) and Markdown prose, where
 // "password" is a label or a word. The hard patterns (keys, JWTs, connection strings) still apply.
 const skipsNameHeuristic = (f) => isTestFile(f) || /(^|\/)(i18n|locales?|translations)\//.test(f) || /\.mdx?$/i.test(f);
+// Supplier wording is also legitimate in the owner's vault UI (any path with a `vault/` directory
+// segment, doc 07 / P1-05) and in i18n labels (MJ approval, B-21 / L-0080). Real supplier names
+// are still caught everywhere by the owner-listed terms.
 const SUPPLIER_OK = (f) =>
-  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/");
+  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/")
+  || /(^|\/)vault\//.test(f) || /(^|\/)(i18n|locales?|translations)\//.test(f);
 const isEnvFile = (f) => { const b = (f.split("/").pop() ?? "").toLowerCase(); return b.startsWith(".env") && b !== ".env.example"; };
 // Owner-listed terms, matched after NFKC and removing every Unicode default-ignorable code point
 // (zero-width, combining grapheme joiner, variation selectors, tag characters) and case (L-0061 D5).
