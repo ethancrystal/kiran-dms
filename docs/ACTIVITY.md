@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0074 after L-0071) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0078 after L-0075) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 09:40 (L-0074) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:15 (L-0079) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -364,6 +364,8 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | PENDING |
 | B-19 | F-3: should a rep see its own revoked/pending device rows (today yes) or only the approved one? Should tests stop sharing committed rows across files? Changing the re-verifier-3 test needs explicit approval (L-0052) | — (not a leak) | Leave as is | MJ | PENDING |
 | B-20 | L-0061 client observations: O1 cross-tab rotation not atomic (Web Lock), O2 a 30 s claim blocks re-registration after a crash, O3 blocked storage leaves the page on "Loading…". Fix now (reopens P1-01) or defer to P1-09? (L-0065) | — (P1-01 VERIFIED; fails closed) | Defer to P1-09 | MJ | PENDING |
+| B-21 | L-0075 FP3: also allow supplier wording under any `vault/` path segment (P1-05 vault UI) and in i18n, locale or translations directories? Owner terms still apply everywhere. (L-0079) | rv8 FP3 test red until decided | Approve | MJ | PENDING |
+| B-22 | L-0075 O1: scan commit messages for owner terms and secret patterns (H-01)? Look-alike letters in owner terms stay an accepted limit. (L-0079) | — | Scan commit messages | MJ | PENDING |
 
 ---
 
@@ -1691,6 +1693,63 @@ Observations, not defects:
 - Builder, P0-09: fix D1 to D5 and FP1, FP2, FP4 and FP5, and update Appendix C where it disagrees; then a different agent re-verifies P0-09.
 - MJ: FP3 (a path exemption for the P1-05 vault UI, or not) and O1 are your decisions.
 
+### L-0076 · 2026-10-26 20:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-09    **Claim:** C-001
+**What / why:** Accepting L-0075. I committed the re-verifier-8 entry and `supabase/tests/reverify8-attacks.test.ts` unedited (commit e79b3a4). P0-09 goes back to IN PROGRESS for D1 to D5 and false positives FP1, FP2, FP4 and FP5. FP3 and O1 were assigned to MJ by L-0075, so I am not deciding them (L-0079).
+**Evidence:** L-0075 recorded "Tests 10 failed | 444 passed (454)" with its file in place. My first run of reverify4 to reverify8 after the fixes gave "Tests 1 failed | 51 passed (52)": the FP4 autolink check still failed because the whole-file raw-HTML rule did not yet skip autolinks. Fixed in L-0078.
+**Rules touched:** §7, H-23
+**Next / needs:** L-0077 to L-0079.
+
+### L-0077 · 2026-10-26 20:05 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Appendix C updated to match the script (H-25).
+- **Rule 0:** an added file the script cannot read, or a changed path that is not valid UTF-8, fails the check.
+- **Rule 2:** a carriage return not followed by a line feed is refused anywhere in this file. New log text may not contain the less-than, ampersand or backslash characters outside fenced code; CommonMark autolinks (a URL or e-mail address in angle brackets) are allowed there and in the whole-file raw-HTML rule. The rule refusing a line that names both an entry id and PKT is removed; the entry-shaped line rule counts only dot-like separators after PKT, not a table bar.
+- **Rule 5:** connection strings include a password given as a URI query parameter or as a libpq keyword. Mixed-case values made only of whole words, such as a font or storage key, count as name-like.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0078 · 2026-10-26 20:10 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Fixes L-0075 D1 to D5, FP1, FP2, FP4 and FP5 in `scripts/activity-log-check.mjs`. The approach this round closes classes of trick rather than single cases.
+- **D1:** a lone carriage return anywhere in the file fails, so nothing can split a line for the renderer only.
+- **D2, D3:** new log text outside fenced code may not contain the less-than, ampersand or backslash characters at all, whatever surrounds them, so no code-span, open-tag or escape trick reaches the renderer. Autolinks are removed before the test.
+- **D4:** an added path that cannot be read now fails (it used to be skipped), and so does any path the script sees as not valid UTF-8.
+- **D5:** two new hard patterns: a password as a URI query parameter, and a libpq keyword password. Placeholders and dollar or brace references are exempt. They apply in every file, docs included; the existing tree still passes.
+- **FP1:** the rule pairing an entry id with PKT on a non-header line is removed. Fake headers are still caught by the entry-shaped line rule and by the heading rules.
+- **FP2:** the table bar no longer counts as an entry separator after PKT.
+- **FP4:** autolinks are skipped by both the whole-file raw-HTML rule and the new-text character rule.
+- **FP5:** the name-like test also accepts values that split exactly into capitalised or lowercase words, short numbers or a V-version, with at least two words. Password and secret names keep the strict rule.
+**Evidence:**
+- `pnpm vitest run … reverify8 -t autolink` gave "Tests 1 passed | 11 skipped (12)" after the FP4 fix.
+- `pnpm db:test` before writing these entries gave "Test Files 12 passed (12), Tests 454 passed (454)"; this was with the FP3 exemption, which I then removed (L-0079), so rv8 FP3 fails again on purpose.
+- Replays in throwaway clones (deleted): `evasions3.sh` gave 20 of 20 as expected (the earlier Git Bash escape miss is now refused by the backslash rule); `evasions3b.sh` gave 6 of 6.
+- `node scripts/activity-log-check.mjs main` → OK.
+- The full suite, typecheck and the log check were re-run after these entries were written; the counts are in the commit message.
+**Rules touched:** H-01, H-20, H-23, H-25
+**Next / needs:** MJ: L-0079. Then re-verification of P0-09 (§7), or stopping criteria.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0079 · 2026-10-26 20:15 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P0-09    **Claim:** C-001
+**What / why:** Two L-0075 items are MJ's decisions, not fixes.
+- **FP3 (B-21):** supplier wording is allowed only in vault migrations, tests and docs, so the owner's vault UI planned for P1-05 and an i18n label such as "Supplier" are refused. Proposed one-line change, ready to approve as written: also allow any path with a `vault/` directory segment, and i18n, locale or translations directories. Real supplier names stay caught everywhere by the owner-listed terms; this exempts only the generic word. Recommendation: approve. Until then the rule stays restrictive, and CI shows one red test (rv8 FP3) on purpose.
+- **O1 (B-22):** owner terms in commit messages are not scanned (H-01 lists commit messages; Appendix C does not claim them), and look-alike letters in an owner term pass (inherent, L-0061 D5). Recommendation: scan commit messages in the range for owner terms and secret patterns; accept the look-alike limit.
+**Evidence:** L-0075 items 4 and 8 and its Next / needs; `reverify8-attacks.test.ts` FP3 and OBSERVATION tests.
+**Rules touched:** H-01, H-22
+**Next / needs:** MJ: approve or refuse B-21 and B-22.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -1726,25 +1785,26 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
 
-0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit.
+0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit. An added file that cannot be read for scanning, or a changed path that is not valid UTF-8, also fails.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
 2. The log is not strictly append-only, or `docs/ACTIVITY.md` breaks its narrow structure:
    - not exactly one §16 heading;
+   - a carriage return not followed by a line feed anywhere in the file;
    - only unindented code fences open a code block (a closing fence may be indented up to 3 spaces, as in CommonMark); an indented opening fence is checked as ordinary text, and new log text may not contain any indented fence marker, inside or outside code;
    - a canonical entry header anywhere outside the §16 log;
    - raw HTML, HTML entities, HTML comments or setext (underlined) headings outside code;
    - any line shaped like an entry (`… PKT · …`) that is not a canonical entry header;
    - the old log, blank lines included, is not an exact prefix of the new one (only its closing `---` and trailing blank lines may move);
-   - new log text does not start with a new entry header, or contains any other heading, a blockquote at any nesting depth, or a heading inside a list item at any nesting depth; in new log text any indented heading, blockquote or setext underline is refused whatever the indentation (a block can nest in a list item by indentation alone), and so is a non-canonical line naming both an `L-nnnn` id and PKT;
+   - new log text does not start with a new entry header, or contains any other heading, a blockquote at any nesting depth, or a heading inside a list item at any nesting depth; in new log text any indented heading, blockquote or setext underline is refused whatever the indentation (a block can nest in a list item by indentation alone); new log text may not contain `<`, `&` or a backslash outside fenced code, except in CommonMark autolinks (a URL or e-mail address in angle brackets), which the raw-HTML rule also allows;
    - a `---` separator anywhere but as the final line (code blocks excepted).
 3. A new entry has a duplicate or non-sequential `L-NNNN` number; is missing the signature, type or task line, or the evidence line (for `DONE`, `VERIFIED`, `HANDOFF`, `PROGRESS`); has a signature that is not plain ASCII apart from the `·` separators; or its task line contains non-ASCII characters outside a small allowlist (en/em dash, §, ≠, ·, ×, …).
 4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`), or shares a signature with the `DONE` entry for any task it names. Signatures count as shared when they are equal, one contains the other, or both carry the same `session <id>` (maker ≠ checker, §7; MJ ruling L-0029).
 5. An added line contains a secret-looking value or supplier identifiers:
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
-   - connection strings with a password;
-   - secret-named assignments with a real-looking value (in source code only quoted literals count; template literals built from `${…}` do not; nor, for names that are not password- or secret-like, multi-part lowercase name-like values (at least one word segment; others may be short numbers or a letter plus digits) such as `kiran.outbox.v1`, `kiran:outbox:v1`, `kiran.invoice.fy2026` or `receipt-a5-v2`, or token-named values containing spaces or parentheses such as a design token; skipped in test code (`supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*`, `*.spec.*`), i18n/locale files and Markdown);
+   - connection strings with a password, including a password given as a URI query parameter or as a libpq `password=` keyword (placeholders and `${…}` or `$VAR` references excepted);
+   - secret-named assignments with a real-looking value (in source code only quoted literals count; template literals built from `${…}` do not; nor, for names that are not password- or secret-like, multi-part lowercase name-like values (at least one word segment; others may be short numbers or a letter plus digits) such as `kiran.outbox.v1`, `kiran:outbox:v1`, `kiran.invoice.fy2026` or `receipt-a5-v2`, or mixed-case values made only of whole words such as `NotoNastaliqUrdu-Regular` or `KiranOutboxEncryptedV1`, or token-named values containing spaces or parentheses such as a design token; skipped in test code (`supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*`, `*.spec.*`), i18n/locale files and Markdown);
    - supplier or cost wording outside `<timestamp>_vault*.sql` migrations, tests and docs;
    - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, matched after NFKC, ignoring case and every Unicode default-ignorable character, in added lines and in file paths;
    - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, scanned in full (files over 64 MB fail).

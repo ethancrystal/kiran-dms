@@ -53,6 +53,10 @@ const SECRET_PATTERNS = [
   /\bAKIA[0-9A-Z]{16}\b/,
   // A connection string with a password (any user, incl. empty; any +driver), except the local CLI stack and <pw>/… placeholders.
   /\bpostgres(?:ql)?(?:\+\w+)?:\/\/[^:\s/@]*:(?!postgres@127\.0\.0\.1|postgres@localhost|<|…)[^@\s]+@/i,
+  // A password as a URI query parameter, or in a libpq keyword string (L-0075 D5), unless it is a
+  // placeholder or a ${…}/$VAR reference.
+  /[?&;]\s*(?:password|passwd|pwd|pass)=(?!<|\{|\$|\*{3}|…)[^&\s"'`;]{6,}/i,
+  /(?:^|[\s"'`])(?:password|passwd|pwd)=(?!<|\{|\$|\*{3}|…)[^&\s"'`;]{6,}/i,
 ];
 // name = value / name: value. The value is either a quoted string (measured in full) or a bare token.
 const NAME = String.raw`([\w.-]*(?:secret|passw(?:or)?d|pass|pwd|token|api[_-]?key|private[_-]?key|secret[_-]?key|access[_-]?key|service[_-]?role[_-]?key))`;
@@ -96,9 +100,19 @@ const looksSecret = (name, v) => {
 // "salons-page-3", "kiran-outbox-2026-01").
 function isNameLike(v) {
   const segs = v.split(/[._\/:-]/);
-  return segs.length >= 2
+  if (segs.length >= 2
     && segs.some((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg))
-    && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{1,4}$/.test(seg) || /^[a-z]\d{1,3}$/.test(seg));
+    && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{1,4}$/.test(seg) || /^[a-z]\d{1,3}$/.test(seg))) return true;
+  // Mixed-case names made of whole words ("NotoNastaliqUrdu-Regular", "KiranOutboxEncryptedV1";
+  // L-0075 FP5): every segment splits exactly into capitalised or lowercase words of 2+ letters,
+  // short numbers or a V-version, with at least two words in all. Random keys never split this way.
+  let words = 0;
+  for (const seg of segs) {
+    const parts = seg.match(/[A-Z][a-z]+|[a-z]{2,}|[Vv]\d{1,3}|\d{1,4}/g) ?? [];
+    if (parts.join("") !== seg || parts.some((p) => /^[A-Za-z]$/.test(p))) return false;
+    words += parts.filter((p) => /^[A-Za-z]{2,}$/.test(p) && (p.length > 1)).length;
+  }
+  return words >= 2;
 }
 const secretAssignment = (text, file) => {
   for (const re of [ASSIGN_RE, ENV_KEY_RE]) {
@@ -211,7 +225,14 @@ const plain = (l) => clean(stripInlineCode(l)).replace(/\\/g, "");
 const isSection16 = (l) => /^\s{0,3}#{1,6}\s*16\s*\.?\s*activity\s+log/i.test(plain(l));
 const isHeading = (l) => /^\s{0,3}#{1,6}(\s|$)/.test(l);
 
+// CommonMark autolinks (<https://…>, <name@host>) are links, not raw HTML (L-0075 FP4).
+const AUTOLINK_RE = /<(?:https?:\/\/[^\s<>]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})>/g;
+
 function parseLog(text, label) {
+  // CommonMark ends a line at a lone CR too; the script splits on LF. A lone CR could therefore
+  // hide a heading or close a fence for the renderer only (L-0075 D1). Refuse it anywhere.
+  const loneCr = text.search(/\r(?!\n)/);
+  if (loneCr !== -1) fail(`${label}: a carriage return not followed by a line feed is not allowed in ${LOG_PATH} (offset ${loneCr}).`);
   const sc = scan(text);
   // whole-file structural rules (outside code)
   for (let i = 0; i < sc.length; i++) {
@@ -224,12 +245,12 @@ function parseLog(text, label) {
     const x = sc[i];
     if (x.code) continue;
     const p = plain(x.line);
-    if (/<\/?[A-Za-z!?][^>]*>/.test(p)) fail(`${label}: raw HTML is not allowed in ${LOG_PATH} (line ${i + 1}).`);
+    if (/<\/?[A-Za-z!?][^>]*>/.test(p.replace(AUTOLINK_RE, ""))) fail(`${label}: raw HTML is not allowed in ${LOG_PATH} (line ${i + 1}).`);
     if (/&#?[A-Za-z0-9]+;/.test(p)) fail(`${label}: HTML entities are not allowed in ${LOG_PATH} (line ${i + 1}).`);
     if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {
       fail(`${label}: setext (underlined) headings are not allowed in ${LOG_PATH} (line ${i + 1}).`);
     }
-    if (/PKT\s*[·⋅•∙・|]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
+    if (/PKT\s*[·⋅•∙・]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
   }
   const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
   if (text && heads.length !== 1) fail(`${label}: expected exactly one "## 16. Activity log" heading, found ${heads.length}.`);
@@ -321,7 +342,11 @@ if (baseText) {
         if (/^>/.test(bare)) fail(`New log text may not contain indented blockquotes: "${x.line.slice(0, 70)}"`);
       }
       if (/^\s+(=+|-+)\s*$/.test(x.line)) fail(`New log text may not contain indented setext underlines: "${x.line.slice(0, 70)}"`);
-      if (/\bL-\d{4}\b/.test(x.line) && /\bPKT\b/.test(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text has a non-canonical line naming an entry id and PKT: "${x.line.slice(0, 70)}"`);
+      // No raw-HTML, entity or escape characters at all in new prose (L-0075 D2, D3): "<", "&" and
+      // "\" are refused outside fenced code, whatever surrounds them, so no code-span or open-tag
+      // trick can reach the renderer. CommonMark autolinks (<https://…>, <name@host>) are allowed.
+      const noAutolinks = x.line.replace(AUTOLINK_RE, "");
+      if (/[<&\\]/.test(noAutolinks)) fail(`New log text may not contain "<", "&" or "\\" outside fenced code (write URLs bare or as <https://…>, placeholders as {name}): "${x.line.slice(0, 70)}"`);
     }
   }
 }
@@ -418,8 +443,10 @@ const readAdded = (f) => {
 };
 for (const f of new Set([...notDeleted, ...untracked])) {
   if (termIn(f)) fail(`${f}: file path contains an owner-listed sensitive term (H-01).`);
+  if (f.includes("�")) { fail(`${f}: file path is not valid UTF-8; refusing to pass (fails closed).`); continue; }
   const buf = readAdded(f);
-  if (!buf || buf.length < 2) continue;
+  if (buf === null) { fail(`${f}: added file cannot be read for scanning; refusing to pass (fails closed, L-0075 D4).`); continue; }
+  if (buf.length < 2) continue;
   if (buf.length > 64 * 1024 * 1024) { fail(`${f}: file too large to scan (> 64 MB); refusing to pass.`); continue; }
   // Every file is also decoded as UTF-16 in both byte orders and scanned in full, BOM or not
   // (L-0061 D6). Ordinary UTF-8 text decodes to noise that these patterns do not match, so the
