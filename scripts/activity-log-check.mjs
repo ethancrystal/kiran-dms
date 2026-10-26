@@ -91,9 +91,14 @@ const looksSecret = (name, v) => {
 // A name, not a key: two or more segments joined by . _ / - :, each a lowercase word with up to
 // four trailing digits (fy2026), a 4-digit year, or a version like v1 (e.g. "kiran.outbox.v1",
 // "kiran:outbox:v1", "kiran.invoice.fy2026"; L-0066 F-C). A single word ("sunshine2024") is not.
+// Segments may also be short numbers ("3", "01", "2026") or a letter plus digits ("a5", "v2"),
+// as long as at least one segment is a real word of 2+ letters (L-0071 F: "receipt-a5-v2",
+// "salons-page-3", "kiran-outbox-2026-01").
 function isNameLike(v) {
   const segs = v.split(/[._\/:-]/);
-  return segs.length >= 2 && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{4}$/.test(seg) || /^v\d{1,3}$/.test(seg));
+  return segs.length >= 2
+    && segs.some((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg))
+    && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{1,4}$/.test(seg) || /^[a-z]\d{1,3}$/.test(seg));
 }
 const secretAssignment = (text, file) => {
   for (const re of [ASSIGN_RE, ENV_KEY_RE]) {
@@ -306,6 +311,17 @@ if (baseText) {
       }
       if (quoted) fail(`New log text may not contain blockquotes: "${x.line.slice(0, 70)}"`);
       if (listed && isHeading(inner)) fail(`New log text may not contain headings inside list items: "${x.line.slice(0, 70)}"`);
+      // A block can also sit inside a list item by indentation alone (4+ spaces, no marker on its
+      // line). New log text is held to the strict reading: whatever the indentation, no heading,
+      // blockquote or setext underline, and no non-canonical line pairing an L-nnnn id with PKT
+      // (L-0071 E). Use fenced code blocks for examples.
+      const bare = x.line.replace(/^\s+/, "");
+      if (bare !== x.line) {
+        if (/^#{1,6}(\s|$)/.test(bare)) fail(`New log text may not contain indented headings (they nest inside list items): "${x.line.slice(0, 70)}"`);
+        if (/^>/.test(bare)) fail(`New log text may not contain indented blockquotes: "${x.line.slice(0, 70)}"`);
+      }
+      if (/^\s+(=+|-+)\s*$/.test(x.line)) fail(`New log text may not contain indented setext underlines: "${x.line.slice(0, 70)}"`);
+      if (/\bL-\d{4}\b/.test(x.line) && /\bPKT\b/.test(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text has a non-canonical line naming an entry id and PKT: "${x.line.slice(0, 70)}"`);
     }
   }
 }
