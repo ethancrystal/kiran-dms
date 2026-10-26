@@ -25,9 +25,34 @@ export type Mapping = Partial<Record<Field, string>>;
 
 export type MappingResult = {
   mapping: Mapping;            // field -> header as it appears in the file
+  extraPhones: string[];       // further phone-like columns ("Owner Mobile"): checked as phones too
   unmappedHeaders: string[];   // headers no field claimed (ignored by the import)
   missingRequired: Field[];    // required fields with no column: the dry-run cannot pass
   problems: string[];          // explicit-mapping mistakes (unknown field or header)
+};
+
+// A header naming a phone ("Contact Mobile", "Owner Mobile", "WhatsApp No") is a phone column,
+// whatever other word it starts with (L-0085 P0-02 D4).
+const PHONE_WORD = /\b(mobile|phone|cell|whatsapp|tel|telephone|contact no|contact number|fone)\b/;
+export const isPhoneHeader = (h: string) => PHONE_WORD.test(keyOf(h));
+
+// Reports print a header's text only when every word in it is header vocabulary (the alias
+// words plus a few connectors). Anything else could be a data row taken as the header (a salon
+// name, a phone), so it is shown as its column letter instead (H-03, L-0085 P0-02 D1).
+const VOCAB = new Set([
+  ...Object.values(FIELDS).flatMap((f) => f.aliases.flatMap((a) => a.split(" "))),
+  "mobile", "phone", "cell", "whatsapp", "tel", "telephone", "fone", "no", "number", "of", "the", "and",
+  "salon", "salons", "shop", "owner", "contact", "primary", "secondary", "alt", "alternate", "other", "second",
+  "rs", "pkr", "amount", "total", "date", "city", "colour", "color", "status", "rep",
+]);
+export const isHeaderWords = (h: string) => {
+  const words = keyOf(h).split(" ").filter(Boolean);
+  return words.length > 0 && words.length <= 5 && words.every((w) => VOCAB.has(w));
+};
+export const columnLetter = (i: number) => {
+  let s = "";
+  for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
 };
 
 export function resolveMapping(headers: string[], explicit: Record<string, string> = {}): MappingResult {
@@ -45,19 +70,27 @@ export function resolveMapping(headers: string[], explicit: Record<string, strin
     used.add(actual);
   }
 
-  // Guess the rest: an exact alias match first, then a header that starts with an alias.
-  for (const pass of ["exact", "prefix"] as const) {
+  // Guess the rest: an exact alias match first, then any header naming a phone for the phone
+  // field, then a header that starts with an alias. Phone-like headers never go to another field.
+  for (const pass of ["exact", "phone", "prefix"] as const) {
     for (const field of FIELD_NAMES) {
       if (mapping[field]) continue;
+      if (pass === "phone" && field !== "phone") continue;
       for (const alias of FIELDS[field].aliases) {
-        const hit = [...byKey.entries()].find(([k, h]) => !used.has(h) && (pass === "exact" ? k === alias : k.startsWith(alias + " ")));
+        const hit = [...byKey.entries()].find(([k, h]) => !used.has(h) && (
+          pass === "exact" ? k === alias
+          : pass === "phone" ? isPhoneHeader(h)
+          : k.startsWith(alias + " ") && (field === "phone" || !isPhoneHeader(h))));
         if (hit) { mapping[field] = hit[1]; used.add(hit[1]); break; }
       }
     }
   }
+  const extraPhones = headers.filter((h) => h.trim() !== "" && !used.has(h) && isPhoneHeader(h));
+  for (const h of extraPhones) used.add(h);
 
   return {
     mapping,
+    extraPhones,
     unmappedHeaders: headers.filter((h) => h.trim() !== "" && !used.has(h)),
     missingRequired: FIELD_NAMES.filter((f) => FIELDS[f].required && !mapping[f]),
     problems,

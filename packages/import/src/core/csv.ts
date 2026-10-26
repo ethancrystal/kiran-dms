@@ -34,12 +34,16 @@ export function parseCsv(text: string): string[][] {
 }
 
 // Sheets often start with a title line, so the header is the row among the first 20 whose
-// cells name the most import fields; failing that, the first row with two non-empty cells.
-// Returns its 1-based row number so issues point at the row the owner sees.
-export function splitHeader(table: string[][]): { headers: string[]; rows: string[][]; firstDataRow: number } {
-  let h = -1, best = 0;
+// cells name the most import fields (counting the columns an explicit --mapping names), if it
+// names at least two; failing that, the first row with two non-empty cells. One match is not
+// enough: a title such as "Salon list 2026", or a data row holding the word "Parlour", would
+// otherwise win (L-0085 P0-02 D1, FP3). Returns its 1-based row number so issues point at the
+// row the owner sees.
+export function splitHeader(table: string[][], explicit: Record<string, string> = {}): { headers: string[]; rows: string[][]; firstDataRow: number } {
+  let h = -1, best = 1;
   table.slice(0, 20).forEach((r, i) => {
-    const n = Object.keys(resolveMapping(r.map((c) => (c ?? "").trim())).mapping).length;
+    const m = resolveMapping(r.map((c) => (c ?? "").trim()), explicit);
+    const n = Object.keys(m.mapping).length + m.extraPhones.length;
     if (n > best) { best = n; h = i; }
   });
   if (h === -1) h = table.findIndex((r) => r.filter((c) => (c ?? "").trim() !== "").length >= 2);

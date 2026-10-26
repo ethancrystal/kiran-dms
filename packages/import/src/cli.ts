@@ -14,7 +14,7 @@ import { basename, dirname, join, relative, resolve, isAbsolute } from "node:pat
 import { fileURLToPath } from "node:url";
 import { splitHeader } from "./core/csv.ts";
 import { dryRun, formatReport, reportJson } from "./core/validate.ts";
-import { readTable } from "./read.ts";
+import { readTable, type ReadInfo } from "./read.ts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const REPORT_DIR = join(REPO_ROOT, "import-reports");   // git-ignored
@@ -66,11 +66,17 @@ async function main() {
   }
 
   let table: string[][];
-  try { table = await readTable(path, sheet); }
+  const info: ReadInfo = {};
+  try { table = await readTable(path, sheet, info); }
   catch (e) { console.error(`error: cannot read ${basename(path)}: ${(e as Error).message}`); process.exit(2); }
 
-  const { headers, rows, firstDataRow } = splitHeader(table);
+  const { headers, rows, firstDataRow } = splitHeader(table, explicit);
   const report = dryRun(headers, rows, { mapping: explicit, knownAreas, firstDataRow });
+  if (info.sheet !== undefined) {
+    // Which sheet was checked, so a hidden or wrong sheet is never mistaken for the real one (L-0085 D3).
+    console.log(`Sheet read: "${info.sheet}"${info.sheetHidden ? " (HIDDEN sheet, chosen with --sheet)" : ""}` +
+      (info.hiddenSkipped?.length ? `; hidden sheets skipped: ${info.hiddenSkipped.map((n) => `"${n}"`).join(", ")}` : "") + "\n");
+  }
   console.log(formatReport(report, { maxIssues }));
 
   if (json) {

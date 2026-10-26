@@ -48,8 +48,11 @@ export function normalizePhone(raw: string): Result<string> {
   if (/^3\d{9}$/.test(d)) return { ok: true, value: "+92" + d };
   // Landlines: 0 + area code + subscriber number (Karachi 021 + 8 digits). They cannot
   // receive the CTL-09 verification OTP, so they are imported with a warning.
-  if (/^92[1-9]\d{8,9}$/.test(d)) return { ok: true, value: "+" + d, warning: "landline: cannot receive the verification OTP (CTL-09)" };
-  if (/^0[1-9]\d{8,9}$/.test(d)) return { ok: true, value: "+92" + d.slice(1), warning: "landline: cannot receive the verification OTP (CTL-09)" };
+  // No landline area code starts with 3 (03 is the mobile prefix), so a short 03 number is a
+  // mobile with a digit missing, not a landline (L-0085 P0-02 D5).
+  if (/^92[124-9]\d{8,9}$/.test(d)) return { ok: true, value: "+" + d, warning: "landline: cannot receive the verification OTP (CTL-09)" };
+  if (/^0[124-9]\d{8,9}$/.test(d)) return { ok: true, value: "+92" + d.slice(1), warning: "landline: cannot receive the verification OTP (CTL-09)" };
+  if (/^(0|92)?3\d+$/.test(d)) return { ok: false, error: "mobile number has the wrong number of digits (expected 03XX-XXXXXXX)" };
   return { ok: false, error: "phone is not a valid Pakistani number" };
 }
 
@@ -65,17 +68,32 @@ export function maskPhone(e164: string): string {
 }
 
 // Rupee amounts to integer paisa (bigint; never floats). Accepts "Rs 12,500", "12500.5",
-// "(1,000)" for a negative, "-1000", "12,500/-". At most two decimal places.
+// "(1,000)" for a negative, "-1000", "12,500/-", and lakh grouping "1,25,000" (L-0085 FP1).
+// At most two decimal places. Brackets and a minus together are ambiguous and refused (D6).
 export function parsePaisa(raw: string): Result<bigint> {
   let v = raw.trim().replace(/^(rs\.?|pkr)\s*/i, "").replace(/\s*(\/-|rs\.?|pkr)$/i, "").replace(/\s+/g, "");
   if (v === "" || v === "-") return { ok: true, value: 0n };
   let neg = false;
   if (/^\(.*\)$/.test(v)) { neg = true; v = v.slice(1, -1); }
-  if (v.startsWith("-")) { neg = !neg; v = v.slice(1); }
-  if (!/^(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?$/.test(v)) return { ok: false, error: "amount is not a rupee figure (expected e.g. 12,500 or 12500.50)" };
+  if (v.startsWith("-")) {
+    if (neg) return { ok: false, error: "amount has both brackets and a minus sign; write one of them" };
+    neg = true; v = v.slice(1);
+  }
+  if (!/^(\d{1,3}(,\d{3})+|\d{1,2}(,\d{2})+,\d{3}|\d+)(\.\d{1,2})?$/.test(v)) return { ok: false, error: "amount is not a rupee figure (expected e.g. 12,500 or 12500.50)" };
   const [whole, frac = ""] = v.replace(/,/g, "").split(".");
   const paisa = BigInt(whole) * 100n + BigInt((frac + "00").slice(0, 2));
   return { ok: true, value: neg ? -paisa : paisa };
+}
+
+// Excel error values, as exceljs reads them or as a CSV export shows them, and the marker the
+// reader uses for a formula with no saved result. Returns the error message, or null.
+export const NO_RESULT = "#NO-RESULT";
+const EXCEL_ERRORS = /^#(N\/A|REF!|VALUE!|DIV\/0!|NAME\?|NUM!|NULL!|SPILL!|CALC!|FIELD!|BLOCKED!|CONNECT!|BUSY!|UNKNOWN!|GETTING_DATA)$/i;
+export function excelError(cell: string): string | null {
+  const v = cell.trim();
+  if (v === NO_RESULT) return "cell is a formula with no saved result: open the file in Excel, let it calculate, and save it";
+  if (EXCEL_ERRORS.test(v)) return `cell holds the Excel error ${v.toUpperCase()}: fix the formula or type the value`;
+  return null;
 }
 
 export function formatRupees(paisa: bigint): string {

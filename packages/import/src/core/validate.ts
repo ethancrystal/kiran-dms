@@ -4,9 +4,9 @@
 // Errors block the import ("not clean"); warnings are imported with a flag for the manager.
 // The definitions are in docs/runbooks/excel-import-dry-run.md and must stay in sync (H-25).
 
-import { resolveMapping, type Field, type Mapping } from "./mapping.ts";
+import { columnLetter, isHeaderWords, resolveMapping, type Field, type Mapping } from "./mapping.ts";
 import {
-  formatRupees, keyOf, mapSalonType, maskPhone, normalizePhone, parseChairs, parseGeo, parsePaisa,
+  excelError, formatRupees, keyOf, mapSalonType, maskPhone, normalizePhone, parseChairs, parseGeo, parsePaisa,
   splitPhones, type SalonType,
 } from "./normalize.ts";
 
@@ -30,8 +30,9 @@ export type SalonCandidate = {
 
 export type DryRunReport = {
   clean: boolean;
-  mapping: Mapping;
-  unmappedHeaders: string[];
+  mapping: Mapping;            // field -> column, as printed: "Header" when it is header vocabulary, else "column C"
+  extraPhones: string[];       // further phone columns, printed the same way
+  unmappedHeaders: string[];   // ignored columns, printed the same way
   fatal: string[];             // file-level problems (missing required column, bad mapping)
   rowsRead: number;            // non-empty data rows
   rowsValid: number;           // rows with no error
@@ -58,6 +59,8 @@ export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions 
   const col = (f: Field) => (m.mapping[f] === undefined ? -1 : headers.indexOf(m.mapping[f]!));
   const idx = Object.fromEntries((Object.keys(m.mapping) as Field[]).map((f) => [f, col(f)])) as Partial<Record<Field, number>>;
   const get = (r: string[], f: Field) => (idx[f] === undefined || idx[f]! < 0 ? "" : (r[idx[f]!] ?? "").trim());
+  const extraIdx = m.extraPhones.map((h) => headers.indexOf(h));
+  const label = (h: string) => (isHeaderWords(h) || Object.values(opts.mapping ?? {}).includes(h) ? `"${h}"` : `column ${columnLetter(headers.indexOf(h))}`);
 
   const errors: Issue[] = [];
   const warnings: Issue[] = [];
@@ -74,47 +77,61 @@ export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions 
       const warn = (field: Issue["field"], message: string) => warnings.push({ row: rowNo, field, message });
       const before = errors.length;
 
-      const name = get(r, "name");
-      if (name === "") err("name", "salon name is empty");
+      // A cell holding an Excel error (#N/A, #REF!, ...) or a formula with no saved result is
+      // an error in its own right, never read as text, zero or blank (L-0085 P0-02 D2).
+      const bad = new Set<Field>();
+      for (const f of Object.keys(idx) as Field[]) {
+        const e = excelError(get(r, f));
+        if (e) { err(f, e); bad.add(f); }
+      }
+      const extraCells = extraIdx.map((c) => (r[c] ?? "").trim());
+      for (const c of extraCells) { const e = excelError(c); if (e) { err("phone", e); bad.add("phone"); } }
+      const val = (f: Field) => (bad.has(f) ? "" : get(r, f));
+
+      const name = val("name");
+      if (bad.has("name")) { /* reported above */ }
+      else if (name === "") err("name", "salon name is empty");
       else if (name.length < 2 || name.length > 120) err("name", "salon name must be 2 to 120 characters");
 
-      const area = get(r, "area");
-      if (area === "") err("area", "area is empty (every salon needs an area to get a territory, SAL-02)");
+      const area = val("area");
+      if (bad.has("area")) { /* reported above */ }
+      else if (area === "") err("area", "area is empty (every salon needs an area to get a territory, SAL-02)");
       else if (known && !known.has(keyOf(area))) warn("area", "area is not in the area list");
 
-      const type = mapSalonType(get(r, "type"));
+      const type = mapSalonType(val("type"));
       if (type.ok && type.warning) warn("type", type.warning);
 
+      const phoneCells = bad.has("phone") ? [] : [get(r, "phone"), ...extraCells];
       const phones: string[] = [];
-      for (const p of splitPhones(get(r, "phone"))) {
+      for (const p of phoneCells.flatMap(splitPhones)) {
         const n = normalizePhone(p);
         if (!n.ok) { err("phone", n.error); continue; }
         if (n.warning) warn("phone", n.warning);
         if (!phones.includes(n.value)) phones.push(n.value);
       }
-      if (get(r, "phone") === "") warn("phone", "no phone: the salon cannot be verified (CTL-09) until one is added");
+      if (!bad.has("phone") && phoneCells.every((c) => c === "")) warn("phone", "no phone: the salon cannot be verified (CTL-09) until one is added");
 
-      const chairs = parseChairs(get(r, "chairs"));
+      const chairs = parseChairs(val("chairs"));
       if (!chairs.ok) err("chairs", chairs.error);
 
-      const geo = parseGeo(get(r, "lat"), get(r, "lng"));
+      const geo = bad.has("lat") || bad.has("lng") ? { ok: true as const, value: null } : parseGeo(get(r, "lat"), get(r, "lng"));
       if (!geo.ok) err("lat", geo.error);
       else if (geo.warning) warn("lat", geo.warning);
 
-      const bal = parsePaisa(get(r, "opening_balance"));
+      const bal = parsePaisa(val("opening_balance"));
       if (!bal.ok) err("opening_balance", bal.error);
       else if (bal.value < 0n) warn("opening_balance", "negative balance (the salon is in credit): needs a manager decision before go-live");
 
-      const contact = get(r, "contact_name");
+      const contact = val("contact_name");
       if (contact.length > 120) err("contact_name", "contact name is longer than 120 characters");
 
       if (errors.length === before) {
         candidates.push({
           row: rowNo, name, type: type.ok ? type.value : "other", area,
-          address: get(r, "address") || null, phones, contactName: contact || null,
+          address: val("address") || null, phones, contactName: contact || null,
           chairs: chairs.ok ? chairs.value : null, geo: geo.ok ? geo.value : null,
           openingBalancePaisa: bal.ok ? bal.value : 0n,
-          notes: get(r, "notes") || null, ref: get(r, "ref") || null, source: "excel_import",
+          notes: val("notes") || null, ref: val("ref") || null, source: "excel_import",
         });
       }
     });
@@ -147,8 +164,9 @@ export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions 
 
   return {
     clean: fatal.length === 0 && errors.length === 0 && rowsRead > 0,
-    mapping: m.mapping,
-    unmappedHeaders: m.unmappedHeaders,
+    mapping: Object.fromEntries(Object.entries(m.mapping).map(([f, h]) => [f, label(h!)])) as Mapping,
+    extraPhones: m.extraPhones.map(label),
+    unmappedHeaders: m.unmappedHeaders.map(label),
     fatal: rowsRead === 0 && fatal.length === 0 ? ["the file has no data rows"] : fatal,
     rowsRead,
     rowsValid: candidates.length,
@@ -174,8 +192,9 @@ export function formatReport(r: DryRunReport, opts: { maxIssues?: number } = {})
   out.push(`Rows read: ${r.rowsRead}   valid: ${r.rowsValid}   errors: ${r.errors.length}   warnings: ${r.warnings.length}`);
   out.push(``);
   out.push(`Column mapping:`);
-  for (const [f, h] of Object.entries(r.mapping)) out.push(`  ${f.padEnd(16)} <- "${h}"`);
-  if (r.unmappedHeaders.length) out.push(`  (ignored columns: ${r.unmappedHeaders.map((h) => `"${h}"`).join(", ")})`);
+  for (const [f, h] of Object.entries(r.mapping)) out.push(`  ${f.padEnd(16)} <- ${h}`);
+  for (const h of r.extraPhones) out.push(`  ${"phone (also)".padEnd(16)} <- ${h}`);
+  if (r.unmappedHeaders.length) out.push(`  (ignored columns: ${r.unmappedHeaders.join(", ")})`);
   if (r.fatal.length) { out.push(``); out.push(`File problems:`); for (const f of r.fatal) out.push(`  - ${f}`); }
   const list = (title: string, xs: Issue[]) => {
     if (!xs.length) return;

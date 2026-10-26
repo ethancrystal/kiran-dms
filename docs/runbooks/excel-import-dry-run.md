@@ -5,7 +5,8 @@ The dry-run reads the owner's salon sheet, checks every row against the salon fi
 ## Never commit the file or the report (H-03)
 
 - Keep the Excel file **outside the repository folder** (for example in `Documents`). The tool warns if the file is inside the repo.
-- The report never prints salon names, contact names, addresses or full phone numbers. Problems point at spreadsheet row numbers, and phones are masked (`03xx-xxx-1234`).
+- The report never prints salon names, contact names, addresses or full phone numbers. Problems point at spreadsheet row numbers, and phones are masked (`03xx-xxx-1234`). A column's heading is printed only when it is made of ordinary heading words ("Salon Name", "Owner Mobile"); any other heading is shown as its column letter ("column C"), because it may be a data row read as the header.
+- The **Areas** list in the report prints each area exactly as written in the sheet. Keep the area column to locality names ("Gulshan Block 13"); put street addresses in the address column, which is never printed.
 - `--json` writes the same masked report to `import-reports/`, which git ignores. Do not commit or upload it anyway.
 
 ## Run it
@@ -20,13 +21,13 @@ Options:
 
 | Option | Use |
 |---|---|
-| `--sheet "Name"` | Read a sheet other than the first |
+| `--sheet "Name"` | Read this sheet. Without it, the tool reads the first **visible** sheet, skips hidden ones, and prints which sheet it read |
 | `--mapping map.json` | Say which column is which, when the guess is wrong: `{"name": "Dukan", "area": "Ilaqa", "phone": "Mobile"}` |
 | `--areas areas.txt` | The area list (one per line; `area,territory` also works). Areas not on it become warnings (P0-03) |
 | `--json` | Also write the masked report to `import-reports/` |
 | `--max-issues N` | How many errors and warnings to print (default 200) |
 
-Old `.xls` files are refused: open them in Excel and Save As `.xlsx` or `.csv`.
+Old `.xls` files are refused: open them in Excel and Save As `.xlsx` or `.csv`. A `.txt` file is read as CSV (comma, semicolon or tab separated).
 
 Exit code: `0` clean, `1` not clean, `2` the file or an option could not be read.
 
@@ -44,13 +45,16 @@ The result is **CLEAN** when the file has at least one data row, both required c
 | Latitude without longitude, or not a valid coordinate | Pin outside Karachi, or latitude and longitude swapped |
 | Opening balance that is not a rupee figure (`12,500`, `Rs 4500.50`, `2,000/-` and `(1,500)` are fine) | Negative opening balance (the salon is in credit: the manager decides before go-live) |
 | Contact name longer than 120 characters | Area not on the `--areas` list |
+| A cell holding an Excel error (`#N/A`, `#REF!`, `#VALUE!`, ...), or a formula with no saved result | |
+| A mobile number with a digit missing or extra (`0399-000000`) | |
+| An amount with both brackets and a minus sign (`(-1,000)`) | |
 
 How values are read:
 
-- **Phones:** `0399-0000001`, `+92 399 0000001`, `3990000001` (Excel dropped the zero) all become `+923990000001`. Several numbers in one cell (`/`, `,` or `;`) are all kept; the first is the main contact.
-- **Opening balance:** rupees to whole paisa, never a decimal number. In P1-02 each balance becomes an "opening invoice" row that the manager reconciles with the salon before go-live (doc 11, risks).
+- **Phones:** `0399-0000001`, `+92 399 0000001`, `3990000001` (Excel dropped the zero) all become `+923990000001`. Several numbers in one cell (`/`, `,` or `;`) are all kept; the first is the main contact. Every column whose heading names a phone ("Mobile", "Contact Mobile", "Owner Mobile", "WhatsApp No") is checked; the first is the main phone column.
+- **Opening balance:** rupees to whole paisa, never a decimal number. Thousands grouping (`125,000`) and lakh grouping (`1,25,000`) are both read. A formula result such as `1650.0000000000002` is read as Excel shows it (1,650). In P1-02 each balance becomes an "opening invoice" row that the manager reconciles with the salon before go-live (doc 11, risks).
 - **Type:** words like "Ladies Beauty Parlour", "Gents", "Bridal", "Home Parlour" or "Academy" map to the doc 04 types.
-- **Header row:** the row that names the most known columns among the first 20, so a title line above the header is fine. Column names the tool recognises are in `packages/import/src/core/mapping.ts`.
+- **Header row:** among the first 20 rows, the one that names the most known columns, if it names at least two (a title line above the header is fine). With `--mapping`, the columns the mapping names count too, so headers the tool does not know ("Dukan", "Ilaqa") are found. If no row qualifies, the first row with two filled cells is taken as the header. Column names the tool recognises are in `packages/import/src/core/mapping.ts`.
 
 ## After a clean run
 

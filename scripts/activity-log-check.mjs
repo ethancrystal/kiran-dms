@@ -57,6 +57,17 @@ const SECRET_PATTERNS = [
   // placeholder or a ${…}/$VAR reference.
   /[?&;]\s*(?:password|passwd|pwd|pass)=(?!<|\{|\$|\*{3}|…)[^&\s"'`;]{6,}/i,
   /(?:^|[\s"'`])(?:password|passwd|pwd)=(?!<|\{|\$|\*{3}|…)[^&\s"'`;]{6,}/i,
+  // A libpq keyword string ("host=… user=… password = value", spaces or single quotes allowed;
+  // L-0085 P0-09 D3). Needs another libpq keyword on the line, so code such as
+  // "password = req.body.password" is not caught here.
+  { test: (t) => {
+      if (!/\b(?:host|hostaddr|dbname|user|port|sslmode)\s*=\s*\S/i.test(t)) return false;
+      for (const m of t.matchAll(/\b(?:password|passwd|pwd)\s*=\s*(?:'([^']*)'|([^\s'"`;&]+))/gi)) {
+        const v = m[1] ?? m[2] ?? "";
+        if (v.length >= 6 && !/^(<|\{|\$|\*{3}|…)/.test(v)) return true;
+      }
+      return false;
+    }, toString: () => "libpq password keyword" },
 ];
 // name = value / name: value. The value is either a quoted string (measured in full) or a bare token.
 const NAME = String.raw`([\w.-]*(?:secret|passw(?:or)?d|pass|pwd|token|api[_-]?key|private[_-]?key|secret[_-]?key|access[_-]?key|service[_-]?role[_-]?key))`;
@@ -104,13 +115,18 @@ function isNameLike(v) {
     && segs.some((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg))
     && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{1,4}$/.test(seg) || /^[a-z]\d{1,3}$/.test(seg))) return true;
   // Mixed-case names made of whole words ("NotoNastaliqUrdu-Regular", "KiranOutboxEncryptedV1";
-  // L-0075 FP5): every segment splits exactly into capitalised or lowercase words of 2+ letters,
-  // short numbers or a V-version, with at least two words in all. Random keys never split this way.
+  // L-0075 FP5): every segment splits exactly into capitalised words of 3+ letters, lowercase
+  // words of 3+ letters, short acronyms ("UI" in "NotoNaskhArabicUI-Regular", L-0085 FP1), whole
+  // numbers of up to 4 digits or a V-version of up to 3, with at least two real words in all.
+  // Digit runs are taken whole, so "KiranSms903718264519" is not a name (L-0085 D4).
   let words = 0;
   for (const seg of segs) {
-    const parts = seg.match(/[A-Z][a-z]+|[a-z]{2,}|[Vv]\d{1,3}|\d{1,4}/g) ?? [];
-    if (parts.join("") !== seg || parts.some((p) => /^[A-Za-z]$/.test(p))) return false;
-    words += parts.filter((p) => /^[A-Za-z]{2,}$/.test(p) && (p.length > 1)).length;
+    const parts = seg.match(/[A-Z]{2,3}(?=[A-Z][a-z]|[^A-Za-z]|$)|[A-Z][a-z]{2,}|[a-z]{3,}|[Vv]\d+|\d+/g) ?? [];
+    if (parts.join("") !== seg) return false;
+    for (const p of parts) {
+      if (/^[Vv]\d+$/.test(p) ? p.length > 4 : /^\d+$/.test(p) && p.length > 4) return false;
+    }
+    words += parts.filter((p) => /[a-z]/.test(p)).length;
   }
   return words >= 2;
 }
@@ -215,7 +231,9 @@ function scan(text) {
       continue;
     }
     if (fence) {
-      const c = l.match(/^ {0,3}(`{3,}|~{3,})\s*$/); // CommonMark: a closing fence may be indented up to 3 spaces (L-0061 D1)
+      // CommonMark: a closing fence may be indented up to 3 spaces (L-0061 D1) and followed only by
+      // spaces or tabs; not by a no-break space or vertical tab, which JavaScript's \s matches (L-0085 D1).
+      const c = l.match(/^ {0,3}(`{3,}|~{3,})[ \t]*$/);
       if (c && c[1][0] === fence.ch && c[1].length >= fence.len) fence = null;
       out.push({ line: l, code: true });
       continue;
@@ -233,17 +251,28 @@ const isHeading = (l) => /^\s{0,3}#{1,6}(\s|$)/.test(l);
 const AUTOLINK_RE = /<(?:https?:\/\/[^\s<>]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})>/g;
 
 function parseLog(text, label) {
+  // Rules added in L-0085 bind the new version only, so a base written under the older rules still parses.
+  const isHead = label === "HEAD";
   // CommonMark ends a line at a lone CR too; the script splits on LF. A lone CR could therefore
   // hide a heading or close a fence for the renderer only (L-0075 D1). Refuse it anywhere.
   const loneCr = text.search(/\r(?!\n)/);
   if (loneCr !== -1) fail(`${label}: a carriage return not followed by a line feed is not allowed in ${LOG_PATH} (offset ${loneCr}).`);
+  // Other control characters (vertical tab, form feed, ...) have no place in Markdown prose and
+  // are read differently by JavaScript's \s and by CommonMark (L-0085 D1).
+  const ctrl = text.search(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/);
+  if (isHead && ctrl !== -1) fail(`${label}: control characters other than tab and line breaks are not allowed in ${LOG_PATH} (offset ${ctrl}).`);
   const sc = scan(text);
+  const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
+  const start = heads[0] ?? -1;
+  let end = start === -1 ? -1 : sc.findIndex((x, i) => i > start && !x.code && /^## Appendix\b/.test(x.line));
+  if (end === -1) end = sc.length;
+  const inOldLogRange = (i) => !isHead || (start !== -1 && i > start && i < end);
   // whole-file structural rules (outside code)
   for (let i = 0; i < sc.length; i++) {
     const x = sc[i];
     if (x.code) continue;
     const p = plain(x.line);
-    if (/<!--|-->/.test(p)) { fail(`${label}: HTML comments are not allowed in ${LOG_PATH}.`); break; }
+    if (/<!--|-->/.test(p) || (!inOldLogRange(i) && /<!--|-->/.test(x.line))) { fail(`${label}: HTML comments are not allowed in ${LOG_PATH}.`); break; }
   }
   for (let i = 0; i < sc.length; i++) {
     const x = sc[i];
@@ -251,17 +280,24 @@ function parseLog(text, label) {
     const p = plain(x.line);
     if (/<\/?[A-Za-z!?][^>]*>/.test(p.replace(AUTOLINK_RE, ""))) fail(`${label}: raw HTML is not allowed in ${LOG_PATH} (line ${i + 1}).`);
     if (/&#?[A-Za-z0-9]+;/.test(p)) fail(`${label}: HTML entities are not allowed in ${LOG_PATH} (line ${i + 1}).`);
+    // Outside the §16 log (rules, tables, appendices; editable alongside any entry) the test runs
+    // on the raw line, code spans and backslashes included, and needs no closing ">": a tag or
+    // comment opener anywhere refuses the line, so neither an escaped backtick nor a tag split
+    // over two lines hides HTML from it (L-0085 D2). Write placeholders as {name} there. New log
+    // text has the stricter character rule in check 2; old log text was checked when it was added.
+    if (!inOldLogRange(i) && /<[A-Za-z\/!?]|&#?[A-Za-z0-9]+;/.test(x.line.replace(AUTOLINK_RE, ""))) {
+      fail(`${label}: raw HTML or an entity is not allowed outside the log in ${LOG_PATH}, even in code spans (line ${i + 1}; write placeholders as {name}).`);
+    }
     if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {
       fail(`${label}: setext (underlined) headings are not allowed in ${LOG_PATH} (line ${i + 1}).`);
     }
     if (/PKT\s*[·⋅•∙・]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
   }
-  const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
   if (text && heads.length !== 1) fail(`${label}: expected exactly one "## 16. Activity log" heading, found ${heads.length}.`);
-  const start = heads[0] ?? -1;
-  if (start === -1) return { logSc: [], entries: [], outside: text };
-  let end = sc.findIndex((x, i) => i > start && !x.code && /^## Appendix\b/.test(x.line));
-  if (end === -1) end = sc.length;
+  // Top-level section headings (# and ##, outside code), compared with the base below: a new
+  // "## Appendix" heading would otherwise end §16 early and exempt the text after it (L-0085 D2).
+  const sections = sc.filter((x) => !x.code && /^ {0,3}#{1,2}(\s|$)/.test(x.line)).map((x) => x.line.trim());
+  if (start === -1) return { logSc: [], entries: [], outside: text, sections };
   for (let i = 0; i < sc.length; i++) {
     if ((i < start || i >= end) && !sc[i].code && ENTRY_RE.test(sc[i].line)) {
       fail(`${label}: entry header outside the §16 log (line ${i + 1}): "${sc[i].line.slice(0, 70)}"`); // L-0061 D2
@@ -280,14 +316,14 @@ function parseLog(text, label) {
     if (cur) cur.body.push(x.line);
   }
   const all = sc.map((x) => x.line);
-  return { logSc, entries, outside: [...all.slice(0, start), ...all.slice(end)].join("\n") };
+  return { logSc, entries, outside: [...all.slice(0, start), ...all.slice(end)].join("\n"), sections };
 }
 
 const headText = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, "utf8") : "";
 let baseText = "";
 if (base) baseText = git(["show", `${base}:${LOG_PATH}`], { allowFail: true }) ?? "";
 const H = parseLog(headText, "HEAD");
-const B = baseText ? parseLog(baseText, "BASE") : { logSc: [], entries: [], outside: "" };
+const B = baseText ? parseLog(baseText, "BASE") : { logSc: [], entries: [], outside: "", sections: [] };
 const newEntries = H.entries.filter((e) => !B.entries.some((b) => b.id === e.id));
 
 // 1. any change needs a log entry (incl. ACTIVITY.md outside §16)
@@ -298,6 +334,9 @@ if ((otherFiles.length || outsideChanged) && newEntries.length === 0) {
 }
 
 // 2. strictly append-only, and new text holds only canonical structure
+if (baseText && B.sections.join("\n") !== H.sections.join("\n")) {
+  fail(`The top-level section headings (# and ##) of ${LOG_PATH} may not be added, removed, renamed or reordered (L-0085 D2).`);
+}
 if (baseText) {
   // Exact prefix, blank lines included (L-0061 D7). Only the closing separator and the
   // trailing blank lines of the old log may move below the new entries.
@@ -373,7 +412,7 @@ const taskText = (body) => taskLine(body).replace(/\*\*Claim:\*\*.*$/, "").repla
 const taskIds = (body) => [...taskText(body).matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\b/g)].map((m) => m[1]);
 // Something shaped like a task id that is not one, e.g. "PO-04" (letter O) or "P0 04".
 const lookalikeTaskIds = (body) => [...taskText(body).replace(/\b(P\d-\d{2}|PLAN-\d{2})\b/g, " ")
-  .matchAll(/\bP[A-Za-z0-9]\s?-\s?[A-Za-z0-9]{2}\b|\bP[0-9O]\s[0-9Ol]{2}\b/g)].map((m) => m[0]); // P0-O4, P0-0l, PO-04, P0 04; not "PR 12" (L-0061 D4)
+  .matchAll(/\bP[A-Za-z0-9]\s?[-_.]\s?[A-Za-z0-9]{1,3}\b|\bP[0-9O]\s[0-9Ol]{1,3}\b/g)].map((m) => m[0]); // P0-O4, P0-0l, PO-04, P0 04, P0-9, P0_09, P0.09; not "PR 12" (L-0061 D4, L-0085 D5)
 for (const e of newEntries) {
   const body = e.body.join("\n");
   if (!TYPES.has(e.type)) fail(`${e.id}: unknown entry type "${e.type}".`);
