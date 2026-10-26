@@ -64,6 +64,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # Workspace package tests, e.g. the Excel import dry-run (packages/import, P0-02).
+      - run: pnpm -r --if-present test
       - name: service-role key must never reach client code (H-18)
         run: |
           if grep -rnE "SUPABASE_SERVICE_ROLE_KEY|service_role" apps/web/app apps/web/components apps/web/lib 2>/dev/null | grep -v "server-only"; then

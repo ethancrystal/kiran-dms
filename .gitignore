@@ -16,3 +16,5 @@ supabase/.temp/
 supabase/.branches/
 *.tsbuildinfo
 next-env.d.ts
+# Excel import dry-run reports (P0-02): masked, but never committed (H-03)
+import-reports/

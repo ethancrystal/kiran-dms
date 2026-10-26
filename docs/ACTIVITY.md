@@ -253,7 +253,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P0-01 | Resolve Phase 0 decisions: D-08, OQ-01–04, 06–08, 11–13, 16 (MJ answers; log each) | doc 12 | NOT STARTED | — |
-| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS | C-001 |
+| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, L-0084; real-file run is MJ, gate-0-checklist action 7) | C-001 |
 | P0-03 | Draft Karachi territories; choose the pilot territory and pilot rep | PIP-01, OQ-13 | NOT STARTED | — |
 | P0-04 | Create the repo, CI, Supabase staging + prod, Next.js skeleton; copy this file to `docs/ACTIVITY.md` | doc 05 | IN PROGRESS | C-001 |
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:40 (L-0083) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:55 (L-0084) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -1792,6 +1792,34 @@ Security checklist (tick honestly):
 **Evidence:** Board row P0-02 set to IN PROGRESS under C-001. Commit 52a718b (B-21) is pushed; with it, `pnpm db:test` gave "Tests 454 passed (454)".
 **Rules touched:** H-03, H-22, §8
 **Next / needs:** Build, test, then DONE.
+
+### L-0084 · 2026-10-26 20:55 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-02 (dry-run tool)    **Claim:** C-001
+**What / why:** The Excel import dry-run for Gate 0 criterion 2, built and tested on synthetic data only (B-02 default). Running it on the owner's real file is MJ's step (gate-0-checklist action 7), so the board row stays IN PROGRESS until that run is logged.
+- **New package `packages/import`:** a core with no I/O (column mapping, value normalisers, row validation, masked report) and a thin command-line wrapper, run as `pnpm -C packages/import dry-run` followed by the file path. It reads .xlsx (exceljs 4.4.0) or .csv (own parser); old .xls is refused with a Save As hint. It writes nothing to any database; the real import is P1-02 and will reuse the core.
+- **Checks against doc 04:** salon name and area required; type mapped to the doc 04 enum, unknown words become other with a warning; phones normalised to +92, with Excel number damage an error and landlines a warning (no OTP, CTL-09); the same phone on two salons flagged (CTL-18); chairs 1 to 200; latitude and longitude both or neither, swapped or outside Karachi flagged; opening balance to integer paisa as bigint, negative balances flagged for the manager; same name in the same area flagged. Errors block, warnings import with a flag. The full list, and what CLEAN means, is in the new runbook `docs/runbooks/excel-import-dry-run.md`.
+- **H-03 by construction:** the report never prints salon names, contact names, addresses or full phones (rows by number, phones masked); the optional JSON report has the same masked facts and goes only to `import-reports/`, now in `.gitignore`; the tool warns when the input file sits inside the repository.
+- **Also:** CI runs workspace package tests in the typecheck job (`pnpm -r --if-present test`), so the required check name is unchanged. `docs/gate-0-checklist.md` updated: criterion 2 no longer waits for the P1-02 tables, a new action 7 for MJ, and a stale tasks line corrected (P1-01 is VERIFIED).
+**Evidence:**
+- `pnpm -r --if-present test` from the root gave "Tests 17 passed (17)": normalisers, mapping, the clean and messy synthetic CSVs (every error on its spreadsheet row), the area list, a generated .xlsx with numeric phone and formula cells, CLI exit codes 0, 1 and 2, the in-repo warning, the JSON report location, and a check that no report contains a name or a full phone.
+- `pnpm typecheck` exit 0 (both workspace packages included).
+- `pnpm audit --prod` reports one moderate advisory, in uuid through exceljs (GHSA-w5hq-g745-h8pq, a buffer bounds check in v3, v5 and v6 when a buffer is passed). exceljs uses only v4 without a buffer, so it is not reachable here; noted, not overridden.
+- Fixtures are synthetic: Test Salon NN, Test Owner X, 0399-prefixed numbers, and public locality names from doc 02.
+- The full suite and the log check were re-run after this entry was written; the counts are in the commit message.
+**Rules touched:** H-03, H-22, H-23, H-25
+**Next / needs:** MJ: gate-0-checklist action 7 (run it on the real file, outside the repo, and log the summary). A different agent may verify the tool (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — no database writes at all
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable, read-only tool
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
 
 ---
 

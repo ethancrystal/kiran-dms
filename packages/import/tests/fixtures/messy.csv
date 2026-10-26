@@ -1,0 +1,13 @@
+Salon Name,Type,Area,Phone,Chairs,Outstanding,Lat,Lng
+,Ladies Parlour,Gulshan Block 13,0399-0000011,2,,,
+Test Salon 12,Barber,,0399-0000012,1,,,
+Test Salon 13,Barber,Clifton,3.99E+09,1,,,
+Test Salon 14,Barber,Clifton,call shop,1,,,
+Test Salon 15,Barber,Clifton,0399-0000015,many,,,
+Test Salon 16,Barber,Clifton,0399-0000016,1,"12,50",,
+Test Salon 17,Barber,Clifton,0399-0000017,1,,24.8,
+Test Salon 18,xyz,Clifton,0399-0000099,1,"(1,500)",,
+Test Salon 19,Barber,Clifton,0399-0000099,1,,67.03,24.86
+Test Salon 20,Barber,Saddar,021-00000020,1,,,
+Test Salon 20,Barber,saddar,,1,,,
+

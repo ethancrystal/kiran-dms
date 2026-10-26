@@ -1,6 +1,6 @@
 # Gate 0 checklist — Phase 0 exit (for MJ)
 
-Status as of 2026-10-25, staging project `iurvazdyxzlspegygldo` ("Supabase Kiran"). Gate 0 is signed only by MJ (ACTIVITY §8). The exit criteria come from `docs/11-roadmap.md`. The independent end-to-end check of the same day is in `docs/test-report-2026-10-25.md`.
+Status as of 2026-10-26, staging project `iurvazdyxzlspegygldo` ("Supabase Kiran"). Gate 0 is signed only by MJ (ACTIVITY §8). The exit criteria come from `docs/11-roadmap.md`. The independent end-to-end check of the same day is in `docs/test-report-2026-10-25.md`.
 
 ## Your human-only actions, in order
 
@@ -12,6 +12,7 @@ Status as of 2026-10-25, staging project `iurvazdyxzlspegygldo` ("Supabase Kiran
 | 4 | **Branch protection on `main`** (B-13): require `activity-log-check`, `db-tests` and `typecheck`, plus one reviewer who is not the author. | Makes the protocol binding, not advisory | Settings → Branches shows the rule |
 | 5 | **Add the `KIRAN_SENSITIVE_TERMS` Actions secret** (B-15a), with supplier identifiers one per line. | The real control that keeps supplier names out of the repo | Secret listed under Settings → Secrets → Actions |
 | 6 | **Answer the open decisions** in ACTIVITY §14: D-08 / B-01 (governance split), B-02 (Excel file), B-03 (owner identity, second owner), B-04 to B-11, B-14 (rep access to lists), B-16b (pending-device cap), B-17 (TRUNCATE guards; suspended maker), B-19 (F-3 visibility). | Phase 0 decisions must be logged before Gate 0 | Each has a DECISION entry |
+| 7 | **Run the Excel dry-run on your file** (B-02, P0-02): keep the file outside the repo folder and run `pnpm -C packages/import dry-run "<path to your file>"`, following `docs/runbooks/excel-import-dry-run.md`. Fix the rows it lists until it prints "Result: CLEAN". | Gate 0 criterion 2; the area list it prints feeds the territory draft (P0-03). Real salon data must never enter the repo (H-03), so only you can run it | It exits 0 with "Result: CLEAN"; you log the summary lines (not the file) in a PROGRESS entry |
 
 **Never forget item 1 again:** `supabase/config.toml` lists `app` and `vault_api` under `[api] schemas`, but that file configures only the local CLI stack. Every hosted project (staging now, production later) needs the same two schemas exposed by hand in the dashboard. Run `pnpm staging:smoke` after any project is created or restored.
 
@@ -28,11 +29,11 @@ It uses only the public anon key, never prints it, and writes nothing. It passes
 | # | Criterion | Status |
 |---|---|---|
 | 1 | Owner and manager can log in with MFA to an empty office app | **Not yet.** Screens built; gating correct when signed out. Needs actions 1–3 |
-| 2 | Excel import dry-run shows clean data | **Blocked** (B-02): needs your Excel file and the P1-02 salon tables |
+| 2 | Excel import dry-run shows clean data | **Tool ready** (P0-02, L-0083 onward): needs only your Excel file, run on your machine (action 7). It no longer waits for the P1-02 tables |
 | 3 | Phase 0 decisions logged | **Partly.** Logged: stack, staging (L-0019), verifier independence (L-0029), config defaults (L-0024, unconfirmed), B-16a (L-0040). Open: action 6 |
 | 4 | ACTIVITY enforcement active in CI | **Yes**, except branch protection (action 4) and the term list (action 5). Latest CI on this branch is green |
 
-Tasks: P0-06 VERIFIED, P0-08 VERIFIED; P1-01 and P0-09 DONE (self-reported), awaiting re-verification by a different agent; P0-04 and P0-05 IN PROGRESS (need actions 1–3); P0-01, P0-02, P0-03, P0-07 need you.
+Tasks: P0-06 VERIFIED, P0-08 VERIFIED, P1-01 VERIFIED (L-0061); P0-09 DONE (self-reported), awaiting re-verification by a different agent; P0-04 and P0-05 IN PROGRESS (need actions 1–3); P0-02 IN PROGRESS (tool built and tested on synthetic data; needs action 7); P0-01, P0-03, P0-07 need you.
 
 ## After Gate 0
 
