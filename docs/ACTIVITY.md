@@ -253,7 +253,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P<phase>-<nn>`. R
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P0-01 | Resolve Phase 0 decisions: D-08, OQ-01–04, 06–08, 11–13, 16 (MJ answers; log each) | doc 12 | NOT STARTED | — |
-| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | NOT STARTED | — |
+| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS | C-001 |
 | P0-03 | Draft Karachi territories; choose the pilot territory and pilot rep | PIP-01, OQ-13 | NOT STARTED | — |
 | P0-04 | Create the repo, CI, Supabase staging + prod, Next.js skeleton; copy this file to `docs/ACTIVITY.md` | doc 05 | IN PROGRESS | C-001 |
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:35 (L-0082) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-26 20:40 (L-0083) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -1782,6 +1782,16 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or "temporarily" disabled (H-16)
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0083 · 2026-10-26 20:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-02    **Claim:** C-001
+**What / why:** Claiming P0-02 (load and clean the Excel; import mapping and dry-run) toward Gate 0 criterion 2. MJ does not have the file in the repo and must never put it there (H-03); B-02's stated default is "use synthetic data for development", so I build the dry-run tool against synthetic data only, and MJ runs it locally on the real file.
+- Scope: a dry-run only. It reads a file, validates it against the doc 04 salon fields, prints a masked report and writes nothing to any database. The real import is P1-02 (H-22).
+- New paths added to C-001: `packages/import/`, `.github/workflows/ci.yml` (a step to run the package tests), `.gitignore` (a report directory), `docs/runbooks/`.
+- Record: earlier in this session I offered MJ a Gate 0 waiver to start P1-02, and MJ answered "no continue on G0". No waiver was logged and nothing for P1-02 was built. Gate 0 stays NOT PASSED.
+**Evidence:** Board row P0-02 set to IN PROGRESS under C-001. Commit 52a718b (B-21) is pushed; with it, `pnpm db:test` gave "Tests 454 passed (454)".
+**Rules touched:** H-03, H-22, §8
+**Next / needs:** Build, test, then DONE.
 
 ---
 
