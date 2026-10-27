@@ -1,0 +1,22 @@
+{
+  "name": "@kiran/import",
+  "private": true,
+  "type": "module",
+  "description": "Excel/CSV salon import: field mapping and dry-run (P0-02, SAL-10). Writes nothing to any database.",
+  "bin": {
+    "kiran-import-dry-run": "./src/cli.ts"
+  },
+  "scripts": {
+    "dry-run": "node src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  }
+}

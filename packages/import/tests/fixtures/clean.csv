@@ -1,0 +1,8 @@
+Kiran salon list - SYNTHETIC test data, not real salons or people
+Sr No,Salon Name,Type,Area,Address,Mobile No,Owner Name,Chairs,Balance,Remarks
+1,Test Salon 01,Ladies Beauty Parlour,Gulshan Block 13,Test Street 1,0399-0000001,Test Owner A,4,"12,500",
+2,Test Salon 02,Gents Salon,Gulshan Block 13,Test Street 2,+92 399 0000002,Test Owner B,2,0,
+3,Test Salon 03,Bridal Studio,North Nazimabad,Test Street 3,3990000003,Test Owner C,6,Rs 4500.50,"pays late, call first"
+4,Test Salon 04,Barber,North Nazimabad,,0399-0000004 / 0399-0000005,,1,,
+5,Test Salon 05,Home Parlour,Clifton,Test Street 5,0399 0000006,Test Owner E,,"2,000/-",
+6,Test Salon 06,unisex,Clifton,Test Street 6,0399-0000007,Test Owner F,3,,

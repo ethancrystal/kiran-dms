@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  activity-log-check:
+    name: activity-log-check (ACTIVITY.md Appendix C)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check ACTIVITY.md discipline
+        env:
+          # Owner-maintained, newline-separated list of supplier identifiers (Appendix C rule 5).
+          # Lives only in GitHub Actions secrets; never committed.
+          KIRAN_SENSITIVE_TERMS: ${{ secrets.KIRAN_SENSITIVE_TERMS }}
+        run: node scripts/activity-log-check.mjs "${{ github.event.pull_request.base.sha || github.event.before }}" HEAD
+
+  db-tests:
+    name: migrations + RLS matrix (local Supabase stack)
+    runs-on: ubuntu-latest
+    env:
+      # Local CLI stack only: fixed, public development credentials, not a secret.
+      KIRAN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      # Real Postgres + GoTrue (the auth schema, auth.uid(), auth.jwt()). `supabase start`
+      # applies supabase/migrations exactly as `supabase db push` would on a hosted project.
+      - name: Start Supabase (db + auth only)
+        run: supabase start -x realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - run: pnpm db:test
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  typecheck:
+    name: typecheck + service-role scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # Workspace package tests, e.g. the Excel import dry-run (packages/import, P0-02).
+      - run: pnpm -r --if-present test
+      - name: service-role key must never reach client code (H-18)
+        run: |
+          if grep -rnE "SUPABASE_SERVICE_ROLE_KEY|service_role" apps/web/app apps/web/components apps/web/lib 2>/dev/null | grep -v "server-only"; then
+            echo "service_role reference found in client-reachable paths"; exit 1
+          fi
+          echo "no service_role references in client paths"
