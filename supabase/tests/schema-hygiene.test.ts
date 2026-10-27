@@ -8,6 +8,40 @@ import { run } from "./helpers/db";
 const SCHEMAS = "('public', 'control', 'supplier_vault', 'app', 'vault_api')";
 const notExtension = `not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')`;
 
+// Guard queries for council findings 4 and 6 (B-26). Each returns the offending objects; the
+// tests below assert it returns none, and that it does catch a planted violation.
+const AUDIT_GAPS = `
+  select n.nspname || '.' || c.relname t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where c.relkind in ('r', 'p') and n.nspname in ${SCHEMAS}
+    and n.nspname || '.' || c.relname not in ('control.audit_event', 'control.audit_chain_head')
+    and not exists (select 1 from pg_trigger tg join pg_proc f on f.oid = tg.tgfoid
+                    join pg_namespace fn on fn.oid = f.pronamespace
+                    where tg.tgrelid = c.oid and not tg.tgisinternal
+                      and fn.nspname = 'control' and f.proname = 'audit_row'
+                      and tg.tgenabled in ('O', 'A')
+                      and (tg.tgtype & 1) = 1 and (tg.tgtype & 2) = 0 and (tg.tgtype & 28) = 28)`;
+const VIEW_GAPS = `
+  select n.nspname || '.' || c.relname t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname in ${SCHEMAS}
+    and (c.relkind in ('m', 'f')
+         or (c.relkind = 'v' and not exists (
+               select 1 from unnest(coalesce(c.reloptions, '{}')) o where o in ('security_invoker=true', 'security_invoker=on'))))`;
+const SCHEMA_GAPS = `
+  select n.nspname t from pg_namespace n
+  where pg_get_userbyid(n.nspowner) = current_user
+    and left(n.nspname, 3) <> 'pg_' and n.nspname <> 'information_schema'
+    and n.nspname not in ${SCHEMAS}
+    and n.nspname not in ('auth', 'extensions', 'storage', 'graphql', 'graphql_public', 'realtime', '_realtime',
+                          'vault', 'pgsodium', 'pgsodium_masks', 'net', 'cron', 'supabase_functions',
+                          'supabase_migrations', 'pgbouncer', '_analytics', '_supavisor')
+    and (exists (select 1 from pg_class c where c.relnamespace = n.oid)
+         or exists (select 1 from pg_proc p where p.pronamespace = n.oid))`;
+// Run setup statements and a guard in one rolled-back transaction; return the guard's rows.
+const planted = async (setup: string, guard: string) => {
+  const res = (await run("postgres", `${setup}; ${guard}`)) as unknown as Array<{ rows: Array<{ t: string }> }>;
+  return res[res.length - 1].rows.map((r) => r.t);
+};
+
 describe("schema hygiene", () => {
   it("every table has RLS enabled AND forced (H-13)", async () => {
     const { rows } = await run("postgres", `
@@ -17,14 +51,34 @@ describe("schema hygiene", () => {
     expect(rows).toEqual([]);
   });
 
-  it("every table except the audit chain itself has the audit trigger (H-17)", async () => {
-    const { rows } = await run("postgres", `
-      select n.nspname || '.' || c.relname t from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where c.relkind in ('r', 'p') and n.nspname in ${SCHEMAS}
-        and n.nspname || '.' || c.relname not in ('control.audit_event', 'control.audit_chain_head')
-        and not exists (select 1 from pg_trigger tg join pg_proc f on f.oid = tg.tgfoid
-                        where tg.tgrelid = c.oid and f.proname = 'audit_row' and not tg.tgisinternal)`);
-    expect(rows).toEqual([]);
+  it("every table except the audit chain itself has an enabled AFTER ROW INSERT/UPDATE/DELETE audit trigger calling control.audit_row (H-17)", async () => {
+    // Not just "a trigger named audit_row exists": a disabled trigger, a statement-level or
+    // BEFORE trigger, one that skips an operation, or a look-alike function in another schema
+    // all fail (council finding 6, B-26). tgtype bits: 1 row, 2 before, 4 insert, 8 delete, 16 update.
+    expect((await run("postgres", AUDIT_GAPS)).rows).toEqual([]);
+  });
+
+  it("every view in our schemas runs with the caller's rights (security_invoker), and none is materialized or foreign", async () => {
+    // A view owned by postgres without security_invoker reads base tables past RLS; a
+    // materialized view or foreign table has no RLS at all (council finding 4, B-26).
+    expect((await run("postgres", VIEW_GAPS)).rows).toEqual([]);
+  });
+
+  it("no schema created by our migrations is missing from the guarded list", async () => {
+    // A new schema (exposed through the API or not) would escape every guard in this file.
+    // Platform schemas are excluded by name; anything else owned by the migration role
+    // must be one of ours (council finding 4, B-26).
+    expect((await run("postgres", SCHEMA_GAPS)).rows).toEqual([]);
+  });
+
+  it("each of those guards catches a planted violation (the guards are tested, not just run)", async () => {
+    expect(await planted("alter table public.app_config disable trigger audit", AUDIT_GAPS)).toEqual(["public.app_config"]);
+    expect(await planted(`drop trigger audit on public.app_config;
+      create trigger audit after insert or update on public.app_config for each row execute function control.audit_row()`, AUDIT_GAPS)).toEqual(["public.app_config"]);
+    expect(await planted("create view public.zz_planted as select 1 as x", VIEW_GAPS)).toEqual(["public.zz_planted"]);
+    expect(await planted("create view app.zz_planted with (security_invoker = true) as select 1 as x", VIEW_GAPS)).toEqual([]);
+    expect(await planted("create materialized view public.zz_planted_m as select 1 as x", VIEW_GAPS)).toEqual(["public.zz_planted_m"]);
+    expect(await planted("create schema zz_planted; create table zz_planted.t (id int)", SCHEMA_GAPS)).toEqual(["zz_planted"]);
   });
 
   it("anon can execute no function in our schemas", async () => {

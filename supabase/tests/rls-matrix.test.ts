@@ -132,14 +132,25 @@ const MATRIX: Row[] = [
   },
 ];
 
+// Every relation (table, view, materialized view, foreign table) in our five schemas.
+const COVERAGE = `select n.nspname || '.' || c.relname as t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where c.relkind in ('r', 'p', 'v', 'm', 'f')
+    and n.nspname in ('public', 'control', 'supplier_vault', 'app', 'vault_api') order by 1`;
+
 describe("RLS matrix", () => {
-  it("every table in public, control and supplier_vault is covered by the matrix", async () => {
-    const { rows } = await run<{ t: string }>(
-      "postgres",
-      `select n.nspname || '.' || c.relname as t from pg_class c join pg_namespace n on n.oid = c.relnamespace
-       where c.relkind in ('r', 'p') and n.nspname in ('public', 'control', 'supplier_vault') order by 1`,
-    );
+  it("every table, view, materialized view and foreign table in our five schemas is covered by the matrix", async () => {
+    // Views and the API-exposed schemas app and vault_api count too: a view or a table there
+    // would otherwise escape the role-by-role checks below (council finding 4, B-26).
+    const { rows } = await run<{ t: string }>("postgres", COVERAGE);
     expect(rows.map((r) => r.t).sort()).toEqual(MATRIX.map((m) => m.table).sort());
+  });
+
+  it("the coverage query sees a planted view in an exposed schema and a planted table in public", async () => {
+    const res = (await run("postgres", `create view app.zz_planted with (security_invoker = true) as select 1 as x;
+      create table public.zz_planted_t (id int); ${COVERAGE}`)) as unknown as Array<{ rows: Array<{ t: string }> }>;
+    const seen = res[res.length - 1].rows.map((r) => r.t);
+    expect(seen).toContain("app.zz_planted");
+    expect(seen).toContain("public.zz_planted_t");
   });
 
   for (const row of MATRIX) {

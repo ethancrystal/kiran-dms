@@ -257,7 +257,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | P0-03 | Draft Karachi territories; choose the pilot territory and pilot rep | PIP-01, OQ-13 | NOT STARTED | — |
 | P0-04 | Create the repo, CI, Supabase staging + prod, Next.js skeleton; copy this file to `docs/ACTIVITY.md` | doc 05 | IN PROGRESS | C-001 |
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
-| P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
+| P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | IN PROGRESS (reopened L-0111 for B-26; was VERIFIED L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
 | P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097 and L-0105 after L-0085) | C-001 |
@@ -269,7 +269,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
-| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0061) | C-001 |
+| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | IN PROGRESS (reopened L-0111 for B-26; was VERIFIED L-0061) | C-001 |
 | P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | NOT STARTED | — |
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 14:30 (L-0109) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 15:20 (L-0115) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -369,7 +369,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | RESOLVED (L-0091: approved) |
 | B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
 | B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
-| B-26 | Council findings 4 to 6 reopen verified P0-06 and P1-01 (view-aware guards, device revocation trigger as migration 0007 applied to staging, audit-trigger guard); finding 7 in full (fail on an empty owner-term list in CI) right after B-15a. (L-0108) | P0-06, P1-01, P0-09 | Approve both | MJ | PENDING |
+| B-26 | Council findings 4 to 6 reopen verified P0-06 and P1-01 (view-aware guards, device revocation trigger as migration 0007 applied to staging, audit-trigger guard); finding 7 in full (fail on an empty owner-term list in CI) right after B-15a. (L-0108) | P0-06, P1-01, P0-09 | Approve both | MJ | PART RESOLVED (4 to 6: L-0110); finding 7 after B-15a |
 
 ---
 
@@ -2240,6 +2240,78 @@ Recommendation: approve reopening P0-06 and P1-01 for findings 4 to 6, with one 
 **Evidence:** `git log origin/main` shows the PR 2 merge 8f789cd; board rows as listed.
 **Rules touched:** §11
 **Next / needs:** MJ decisions above; then round 10 verification of P0-02 and P0-09, or MJ sets stopping criteria.
+
+### L-0110 · 2026-10-28 14:55 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-06, P1-01, P0-09 (B-26)    **Claim:** C-001
+**What / why:** MJ approved: "Approved: B-26. Reopen P0-06 and P1-01 for council findings 4 to 6, including migration 0007 applied to staging, then a fresh verification; finding 7 in full right after B-15a." Reopening P1-01 changes its board row, which is the edit anchor of the reverify5 OBSERVATION test; MJ approved updating that anchor only, choosing "Approve anchor update" to the question "May I update just that anchor string to the new P1-01 board text, nothing else, as you approved once before (L-0067)?"
+**Rules touched:** §7, H-23, H-26
+**Next / needs:** L-0111 to L-0115.
+
+### L-0111 · 2026-10-28 15:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-06, P1-01    **Claim:** C-001
+**What / why:** P0-06 (VERIFIED L-0030) and P1-01 (VERIFIED L-0061) are reopened for council findings 4 to 6 under L-0110. Both board rows now read IN PROGRESS until a fresh verifier signs them off; the new board rule (L-0097) will require that verdict to be cited and independent. In `supabase/tests/reverify5-attacks.test.ts` only the anchor string of the OBSERVATION test changes, to the new P1-01 row text; nothing else in that file changes.
+**Evidence:** `git diff` of the reverify5 file is one line.
+**Rules touched:** §7, H-23
+**Next / needs:** L-0112, L-0113.
+
+### L-0112 · 2026-10-28 15:05 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P1-01 (device binding)    **Claim:** C-001
+**What / why:** Council finding 5. Migration 0007 `20261027204046_device_state_guard.sql` adds `control.device_guard`, a BEFORE UPDATE trigger on `public.device`: a revoked row never changes again (status or last-seen), identity columns (id, user id, fingerprint, created at) never change, and status moves only pending to approved, pending to revoked, approved to revoked. It binds every role, the table owner included, so the rule that migration 0004 once broke (L-0035) is now held by the schema, not by two functions.
+- Applied to staging under L-0110: Supabase recorded version 20261027204046 (the local file was renamed to match). The staging copy has a shorter header comment; the function, trigger and grant are identical.
+**Evidence:**
+- New `supabase/tests/device-guard.test.ts` (4 tests, as the table owner): the forward moves pass; every change to a revoked row, identity changes and approved to pending are refused with 42501.
+- Earlier verifiers' device suites still pass: foundation, verifier-attacks, reverify, reverify2, reverify3 "Tests 114 passed (114)".
+- Staging, read-only: the device table has the triggers audit (AFTER, enabled), device_guard (BEFORE UPDATE, enabled) and device_no_delete. Security advisors: only the two intentional INFO notes (control tables with RLS and no policies).
+- The full suite was re-run after these entries; counts in the commit message.
+**Rules touched:** H-06, H-07, H-13, H-23
+**Next / needs:** Fresh verification of P1-01 (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — matrix now covers views and the exposed schemas
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — new trigger function pins search_path
+[x] Audit trigger present; hash chain verifies (H-17) — guard now checks it is enabled and fires on every operation
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — every change tightens a guard
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0113 · 2026-10-28 15:10 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-06 (RLS test harness)    **Claim:** C-001
+**What / why:** Council findings 4 and 6.
+- `rls-matrix.test.ts`: the exact-list coverage now includes views, materialized views and foreign tables, and the API-exposed schemas app and vault_api, so any new relation there must be added to the matrix.
+- `schema-hygiene.test.ts`: every view in our five schemas must use security_invoker, and none may be materialized or foreign (they bypass RLS); no schema created by the migration role may exist outside the guarded list (platform schemas excluded by name); the audit-trigger guard now requires an enabled AFTER ROW trigger on insert, update and delete calling control.audit_row, not just a trigger with that name.
+- The guards are tested: a planted disabled audit trigger, a planted trigger that skips delete, a planted view without security_invoker, a planted materialized view and a planted schema are each caught, and a planted security_invoker view and table are seen by the coverage query.
+**Evidence:** `pnpm vitest run … schema-hygiene rls-matrix device-guard` gave "Test Files 3 passed (3), Tests 296 passed (296)". The schema guard's platform list cannot be checked locally against the Supabase CLI stack; CI on PR 3 will show it.
+**Rules touched:** H-13, H-17, H-23
+**Next / needs:** Fresh verification of P0-06 (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — matrix now covers views and the exposed schemas
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — new trigger function pins search_path
+[x] Audit trigger present; hash chain verifies (H-17) — guard now checks it is enabled and fires on every operation
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — every change tightens a guard
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0114 · 2026-10-28 15:15 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P1-01    **Claim:** C-001
+**What / why:** Doc 04 device row updated to match migration 0007 (H-25): a revoked device is final and status only moves forward, enforced by a trigger. B-26 is resolved for findings 4 to 6; finding 7 in full stays open until B-15a.
+**Rules touched:** H-25
+**Next / needs:** —
+
+### L-0115 · 2026-10-28 15:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-06, P1-01, P0-02, P0-09    **Claim:** C-001
+**What / why:** Requesting the fresh verification MJ asked for: P0-06 and P1-01 (reopened), and the self-reported P0-02 tool and P0-09 log check. A different agent will verify; I do not mark anything VERIFIED (§7).
+**Evidence:** Board rows as above.
+**Rules touched:** §7
+**Next / needs:** Independent verifier entry.
 
 ---
 

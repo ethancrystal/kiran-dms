@@ -52,7 +52,7 @@ erDiagram
 | Entity | Key fields | Notes |
 |---|---|---|
 | **user_profile** | id (= auth user id), full_name, role (`owner`/`manager`/`rep`), phone, status (`active`/`suspended`/`offboarded`), cnic_encrypted, photo_url, start_date, commission_plan_id, vault_grant (bool, owner-set), created_by | One row per login. Role is a column checked by RLS via a stable function, never trusted from the client |
-| **device** | id, user_id, device_fingerprint, platform, label, status (`pending`/`approved`/`revoked`), approved_by, approved_at, last_seen_at | Reps can only hold sessions from approved devices |
+| **device** | id, user_id, device_fingerprint, platform, label, status (`pending`/`approved`/`revoked`), approved_by, approved_at, last_seen_at | Reps can only hold sessions from approved devices. A revoked device is final and status only moves forward (pending to approved or revoked, approved to revoked); a trigger enforces it for every role (migration 0007, ACTIVITY L-0112) |
 | **territory** | id, name, status | e.g., "Gulshan / Johar" |
 | **area** | id, territory_id, name | e.g., "Gulshan Block 13" — salon addresses resolve to an area |
 | **rep_territory** | rep_id, territory_id, from_date, to_date | History kept; current = `to_date is null` |
