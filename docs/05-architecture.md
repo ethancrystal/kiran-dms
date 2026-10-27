@@ -9,7 +9,7 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 | Layer | Choice | Why |
 |---|---|---|
 | Database | **Supabase Postgres** (managed), region: closest low-latency option to Karachi (Mumbai `ap-south-1` or Singapore `ap-southeast-1`) | Row-level security, triggers, `pg_cron`, `pgsodium`/`vault` for secrets, PITR backups, Postgres everything |
-| Auth | **Supabase Auth** — email+password+TOTP for owner/manager; phone OTP for reps; custom claims for role via a `user_profile` lookup | Managed, supports MFA (AAL2) enforcement in RLS, session control |
+| Auth | **Supabase Auth** — email+password+TOTP for owner/manager; email one-time code for reps (ACTIVITY L-0101; was phone OTP); custom claims for role via a `user_profile` lookup | Managed, supports MFA (AAL2) enforcement in RLS, session control |
 | API | **PostgREST via Supabase client** for ordinary CRUD under RLS; **Postgres functions (RPC)** for every money/stock/stage mutation and all vault access; **Edge Functions** (Deno) for integrations (WhatsApp, SMS, PDF) and scheduled jobs | Business rules live in the database where RLS and triggers can enforce them; the client is never trusted |
 | Web apps | **Next.js (App Router), TypeScript**, one codebase, two surfaces: `/app` (rep PWA) and `/office` (owner/manager) | Shared types, server components for the office, PWA for the field |
 | Rep offline layer | **IndexedDB** (Dexie) + an **outbox** of mutations with idempotency keys; service worker for shell caching; background sync when online | Field reality: basements, dense markets, 3G |

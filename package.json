@@ -11,7 +11,8 @@
     "db:test": "vitest run --config supabase/tests/vitest.config.ts",
     "activity:check": "node scripts/activity-log-check.mjs",
     "typecheck": "tsc -p supabase/tests/tsconfig.json --noEmit && pnpm -r --if-present typecheck",
-    "staging:smoke": "node scripts/staging-smoke.mjs"
+    "staging:smoke": "node scripts/staging-smoke.mjs",
+    "service-role:scan": "node scripts/service-role-scan.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

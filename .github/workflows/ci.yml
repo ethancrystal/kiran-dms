@@ -66,9 +66,14 @@ jobs:
       - run: pnpm typecheck
       # Workspace package tests, e.g. the Excel import dry-run (packages/import, P0-02).
       - run: pnpm -r --if-present test
+      # Production build of the web app, so the client bundle itself can be scanned (H-18).
+      # Placeholder public settings only; no real project is contacted at build time.
+      - name: build web app
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+        run: pnpm -C apps/web build
+      # Key names anywhere in apps/ and packages/ source, key values in the built bundle; fails
+      # closed on unreadable paths (council audit 2026-10-27, finding 1).
       - name: service-role key must never reach client code (H-18)
-        run: |
-          if grep -rnE "SUPABASE_SERVICE_ROLE_KEY|service_role" apps/web/app apps/web/components apps/web/lib 2>/dev/null | grep -v "server-only"; then
-            echo "service_role reference found in client-reachable paths"; exit 1
-          fi
-          echo "no service_role references in client paths"
+        run: node scripts/service-role-scan.mjs --bundle apps/web/.next/static

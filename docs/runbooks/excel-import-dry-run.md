@@ -37,7 +37,7 @@ The result is **CLEAN** when the file has at least one data row, both required c
 
 | Errors: block the import | Warnings: imported with a flag |
 |---|---|
-| No column for salon name or area; a mapping that names a missing column | Salon type not recognised (imported as `other`) |
+| No column for salon name or area; a mapping that names a missing column; two columns with the same heading (rename one) | Salon type not recognised (imported as `other`) |
 | Salon name empty, or not 2 to 120 characters | No phone (the salon cannot be verified, CTL-09, until one is added) |
 | Area empty (every salon needs an area for its territory, SAL-02) | Landline number (cannot receive the verification OTP) |
 | A phone that is not a valid Pakistani number, contains letters, or was turned into a number by Excel (`3.99E+09`) | The same phone on more than one salon (CTL-18) |

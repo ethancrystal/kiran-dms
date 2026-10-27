@@ -26,7 +26,7 @@ const ENTRY = [
 ];
 const FAKE_JWT = ["eyJ" + "hbGciOiJIUzI1NiJ9", "eyJ" + "zdWIiOiJ4eHh4eHh4eCJ9", "c2lnbmF0dXJlc2lnbmF0dXJl"].join(".");
 
-function check(files: Record<string, string | Buffer>): number | null {
+function check(files: Record<string, string | Buffer>, entry: string[] = ENTRY, mutate?: (t: string) => string): number | null {
   const dir = mkdtempSync(join(tmpdir(), "kiran-rulings-"));
   try {
     const g = (...a: string[]) => {
@@ -46,8 +46,10 @@ function check(files: Record<string, string | Buffer>): number | null {
     const next = `L-${String(Number(all[last].slice(6, 10)) + 1).padStart(4, "0")}`;
     let sep = all.findIndex((l) => l.startsWith("## Appendix A")) - 1;
     while (all[sep].trim() !== "---") sep--;
-    all.splice(sep, 0, ...ENTRY.map((l) => l.replaceAll("L-NEXT", next)));
-    writeFileSync(logPath, all.join("\n"));
+    all.splice(sep, 0, ...entry.map((l) => l.replaceAll("L-NEXT", next)));
+    let text = all.join("\n");
+    if (mutate) text = mutate(text).replaceAll("L-NEXT", next);
+    writeFileSync(logPath, text);
     for (const [rel, content] of Object.entries(files)) {
       mkdirSync(dirname(join(dir, rel)), { recursive: true });
       writeFileSync(join(dir, rel), content);
@@ -85,5 +87,42 @@ describe("log check: MJ rulings B-21, B-23, B-24", { timeout: 300_000 }, () => {
     expect(check({ "apps/web/lib/u32le.txt": utf32(`k=${FAKE_JWT}\n`, "le") })).toBe(1);
     expect(check({ "apps/web/lib/u32be.txt": utf32(`k=${FAKE_JWT}\n`, "be") })).toBe(1);
     expect(check({ "apps/web/lib/u32ok.txt": utf32("greeting = salaam\n", "le") })).toBe(0);
+  });
+});
+
+// Set the Status cell of one §12 board row.
+const setStatus = (task: string, status: string) => (t: string) => t.split("\n").map((l) => {
+  if (!l.startsWith(`| ${task} |`)) return l;
+  const cells = l.split("|");
+  cells[cells.length - 3] = ` ${status} `;
+  return cells.join("|");
+}).join("\n");
+const verdict = (sig: string, type: string) => [
+  `### L-NEXT · 2026-10-27 04:00 PKT · ${sig} · ${type}`,
+  "**Task:** P0-02    **Claim:** —",
+  "**What / why:** rulings case verdict.",
+  "**Evidence:** rulings case evidence.",
+  "**Rules touched:** §7",
+  "**Next / needs:** —",
+  "",
+  "Security checklist (tick honestly):",
+  '[x] No control weakened, skipped or "temporarily" disabled (H-16)',
+  "",
+];
+
+describe("log check: board moves to VERIFIED (council audit finding 2)", { timeout: 300_000 }, () => {
+  const OTHER = "Tester · Model X · rulings-verifier · branch t";
+  const BUILDER = "Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo)";
+
+  it("a move to VERIFIED citing an independent verdict with the checklist passes, as VERIFIED or CORRECTION", () => {
+    expect(check({}, verdict(OTHER, "VERIFIED"), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(0);
+    expect(check({}, verdict(OTHER, "CORRECTION"), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(0);
+  });
+
+  it("refuses a move with no cited entry, citing the builder's own DONE, or a verdict by the maker", () => {
+    expect(check({}, ENTRY, setStatus("P0-02", "VERIFIED"))).toBe(1);
+    expect(check({}, ENTRY, setStatus("P0-02", "VERIFIED (L-0084)"))).toBe(1);
+    expect(check({}, verdict(BUILDER, "CORRECTION"), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(1);
+    expect(check({}, ENTRY, setStatus("P0-02", "VERIFIED (L-9999)"))).toBe(1);
   });
 });

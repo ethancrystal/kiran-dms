@@ -253,14 +253,14 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P0-01 | Resolve Phase 0 decisions: D-08, OQ-01–04, 06–08, 11–13, 16 (MJ answers; log each) | doc 12 | NOT STARTED | — |
-| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, redone in L-0088 after L-0085; real-file run is MJ, gate-0-checklist action 7) | C-001 |
+| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, redone in L-0088 and L-0098 after L-0085; real-file run is MJ, gate-0-checklist action 7) | C-001 |
 | P0-03 | Draft Karachi territories; choose the pilot territory and pilot rep | PIP-01, OQ-13 | NOT STARTED | — |
 | P0-04 | Create the repo, CI, Supabase staging + prod, Next.js skeleton; copy this file to `docs/ACTIVITY.md` | doc 05 | IN PROGRESS | C-001 |
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089 and L-0093 after L-0085) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093 and L-0097 after L-0085) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-27 20:05 (L-0093) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 13:40 (L-0103) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -368,6 +368,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-22 | L-0075 O1: scan commit messages for owner terms and secret patterns (H-01)? Look-alike letters in owner terms stay an accepted limit. (L-0079) | — | Scan commit messages | MJ | PENDING |
 | B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | RESOLVED (L-0091: approved) |
 | B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
+| B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
 
 ---
 
@@ -2023,6 +2024,135 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 
+### L-0094 · 2026-10-28 09:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-02, P0-09    **Claim:** C-001
+**What / why:** MJ ran a codebase council audit (11 domain auditors, one refuting verifier per finding, one synthesis; read-only, nothing in the repo changed): 89 findings raised, 77 survived verification, 3 major, none critical. The report is outside the repo. MJ asked for the top three fixes: "Yes, fix the top three audit findings: the service-role CI scan, rule 4 for entries that move a task to VERIFIED, and the duplicate-header drop in the Excel dry-run."
+**Evidence:** Workflow run wf_264edd6a-183: 101 agents, 0 errors; scores 3 for database-design, security-fundamentals, testing-strategy and domain-modeling, 2 for the other seven; observability absent.
+**Rules touched:** H-18, §7, H-03
+**Next / needs:** L-0095 to L-0098.
+
+### L-0095 · 2026-10-28 09:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Appendix C rule 4 updated to match the script (H-25): a §12 board row that moves to VERIFIED must cite the verifying entry, and that entry is held to rule 4 whatever its type. The CI paragraph now names the service-role scan. The dry-run runbook lists a repeated column heading as an error.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0096 · 2026-10-28 09:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (CI service-role scan, H-18)    **Claim:** C-001
+**What / why:** Council finding 1: the CI grep for the service-role key dropped every line containing "server-only", never looked at `apps/web/proxy.ts`, `apps/web/next.config.ts` or `packages/`, hid read errors, and did not match secret-key names.
+- New `scripts/service-role-scan.mjs` (also `pnpm service-role:scan`): key NAMES anywhere in `apps/` and `packages/` source fail; in the built client bundle (library code there mentions the names in its own comments) key VALUES fail: an sb_secret key, a JWT whose payload role is service_role, or the literal value of the key if it is set in the environment. An unreadable path, or nothing scanned, fails.
+- CI typecheck job now builds the web app with placeholder public settings and scans the source and `apps/web/.next/static`. The job name is unchanged, so the required check name stays the same.
+**Evidence:**
+- New `supabase/tests/service-role-scan.test.ts`: "Tests 4 passed (4)": clean source passes; key names in a server-only line, `proxy.ts`, `next.config.ts` and `packages/` fail; a missing root fails; library comments and an anon JWT in the bundle pass; a service-role JWT, an sb_secret value and the configured key value fail.
+- Local: `pnpm -C apps/web build` with placeholders in about 44 seconds, then `node scripts/service-role-scan.mjs --bundle apps/web/.next/static` gave "service-role scan OK: 46 files".
+**Rules touched:** H-18, H-20, H-23
+**Next / needs:** CI result on push.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — all three changes tighten a check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0097 · 2026-10-28 09:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Council finding 2: rule 4 (maker differs from checker, checklist, named task) ran only on entries typed VERIFIED, but every verifier so far recorded its verdict as a CORRECTION entry, so none of the three board moves to VERIFIED was ever checked. `scripts/activity-log-check.mjs` now compares the §12 board with the base: a row that becomes VERIFIED must read "VERIFIED (L-nnnn)", and that entry must exist, be a VERIFIED or CORRECTION entry, name the task on its Task line, carry the security checklist, and not share a signature with any DONE entry for the task.
+**Evidence:**
+- `supabase/tests/log-check-rulings.test.ts` gained two tests ("Tests 4 passed (4)" for the file): an independent VERIFIED or CORRECTION verdict passes; no cited entry, citing the builder's own DONE (L-0084), a verdict signed by the builder session, or a missing entry each fail.
+- `node scripts/activity-log-check.mjs main` OK: the three existing moves (P0-06 and P0-08 citing L-0030, P1-01 citing L-0061) satisfy the rule.
+**Rules touched:** §7, H-12, H-23, H-25
+**Next / needs:** —
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — all three changes tighten a check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0098 · 2026-10-28 09:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-02 (dry-run tool)    **Claim:** C-001
+**What / why:** Council finding 8: when two columns had the same heading, the mapping claimed one and the other was dropped unchecked (its phones left out of the CTL-18 duplicate check) while the run still said CLEAN. A repeated heading (case, spacing and punctuation ignored) is now a file problem naming the columns by letter; the heading text is printed only when it is heading vocabulary.
+**Evidence:** `pnpm -C packages/import test` gave "Tests 28 passed (28)", including the new test.
+**Rules touched:** H-03, H-23
+**Next / needs:** —
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — all three changes tighten a check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0099 · 2026-10-28 13:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-04 (staging web hosting)    **Claim:** C-001
+**What / why:** MJ asked for a deployable staging web app. Railway was considered and approved for staging, then MJ withdrew it ("coudnt login to railway please use vercel"), so D-05 (Vercel) stands unchanged and no DECISION is logged. Nothing was created or deleted on Railway.
+- Vercel team "laviezahgmailcom's projects", project `kiran-dms`: linked to `ethancrystal/kiran-dms`, root `apps/web`, Next.js, Node 22, Vercel Authentication on every deployment. Production builds of `main` are Ready.
+- The Supabase integration had added ten server secrets to the project (the service-role and secret keys, the JWT secret, and the Postgres URLs, user and password). That breaks H-18, and MJ deleted all ten. Six public variables remain (the Supabase URL and the anon and publishable keys), set for Production only.
+- My mistake, recorded per H-24: on MJ's second project `kiran-dms-tbbh`, a deployment I created through the API went to production instead of preview, with a build that did nothing (no install, no next build), so its production alias pointed at an empty site. The rollback was blocked by this session's permission check, and I asked MJ to roll it back; MJ then deleted a project. No data or secret was involved.
+- I could not read or set environment values myself: reading the local env file to upload it, revealing a value (Vercel requires a passkey) and deleting a variable were each refused by the session's permission check, so MJ made those changes.
+**Evidence:** Vercel API on `kiran-dms` lists exactly six environment keys, ssoProtection deploymentType all, link ethancrystal/kiran-dms, latest deployments READY on main.
+**Rules touched:** H-18, H-19, H-24, D-05
+**Next / needs:** MJ: B-25. Previews of `feat/p0-foundation` need the six public variables enabled for Preview. Login on any deployment still needs Gate 0 action 1 (expose `app` and `vault_api` on staging).
+
+### L-0100 · 2026-10-28 13:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P0-04    **Claim:** C-001
+**What / why:** B-25: which Supabase project did the Vercel Supabase integration connect, and should its secrets be rotated? The ten deleted variables held server secrets that were stored in Vercel for a while. If they belong to the staging project `iurvazdyxzlspegygldo`, the service-role and secret keys and the database password should be rotated in Supabase. If the integration created a new Supabase project, that project is empty (no migrations were applied there) and the app must point at staging instead.
+**Evidence:** The variable rows carry the Supabase integration mark; the project's Storage tab lists no connected database; revealing a value needs MJ's passkey.
+**Rules touched:** H-18, H-20
+**Next / needs:** MJ: confirm the integration's Supabase project; rotate if it is staging.
+
+### L-0101 · 2026-10-28 13:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-05 (rep sign-in, SEC-03)    **Claim:** C-001
+**What / why:** MJ asked "Why are we using number sigin? Is it necessary" and, offered the options, chose "Email code (Recommended)": reps sign in with their email and a 6-digit code sent by email, with no SMS provider; device binding stays exactly as is; phone sign-in can be added back later. This changes doc 06 section 3 (rep primary factor) and SEC-03, so it is logged here under H-26. Office sign-in (email, password, TOTP) is unchanged.
+**Rules touched:** H-26, H-15, SEC-03
+**Next / needs:** L-0102, L-0103.
+
+### L-0102 · 2026-10-28 13:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-05    **Claim:** C-001
+**What / why:** Docs updated to match L-0101 (H-25): SEC-03 in doc 03; the auth row in doc 05; the rep column of doc 06 section 3 (primary factor, lockout wording, company mailboxes instead of company SIMs); doc 08 device step; the owner-bootstrap runbook (the Magic Link email template must contain the code token, own SMTP before the pilot; the SMS provider is no longer needed for sign-in); the Gate 0 checklist action 2; `supabase/config.toml` comment; the repo map in CLAUDE.md and AGENTS.md. Phone OTPs for salons (CTL-09, CTL-18) are untouched.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0103 · 2026-10-28 13:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-05 (rep sign-in)    **Claim:** C-001
+**What / why:** `apps/web/app/app/login/page.tsx` now asks for an email, sends a one-time code with shouldCreateUser false (the owner still creates every account, H-15), and verifies the 6-digit code as an email OTP. A "use a different email" button and its style were added. Nothing else changes: the device gate, approval flow and session handling are the same.
+**Evidence:**
+- `pnpm -C apps/web typecheck` clean; `pnpm -C apps/web build` with placeholder public settings compiled, with the static page at the rep login route.
+- `node scripts/service-role-scan.mjs --bundle apps/web/.next/static` OK (46 files).
+- No automated test covers this page (apps/web has no tests yet, a known audit gap); verified by build only. The full suite and the log check were re-run after these entries were written; counts in the commit message.
+- For the live app MJ must add the code token to the Supabase Magic Link email template (owner-bootstrap step 4); otherwise the email carries only a link.
+**Rules touched:** SEC-03, H-15, H-23, H-25
+**Next / needs:** MJ: the email template change; Gate 0 actions 1 to 3; rep accounts are created by the owner once signed in.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15) — sign-in still cannot create accounts
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — device binding unchanged; the primary factor changes by MJ decision (L-0101)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -2058,7 +2188,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
 
 0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit. An added file that cannot be read for scanning, or a changed path that is not valid UTF-8, also fails.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
@@ -2074,7 +2204,7 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
    - new log text does not start with a new entry header, or contains any other heading, a blockquote at any nesting depth, or a heading inside a list item at any nesting depth; in new log text any indented heading, blockquote or setext underline is refused whatever the indentation (a block can nest in a list item by indentation alone); new log text may not contain `<`, `&` or a backslash outside fenced code, except in CommonMark autolinks (a URL or e-mail address in angle brackets), which the raw-HTML rule also allows;
    - a `---` separator anywhere but as the final line (code blocks excepted).
 3. A new entry has a duplicate or non-sequential `L-NNNN` number; is missing the signature, type or task line, or the evidence line (for `DONE`, `VERIFIED`, `HANDOFF`, `PROGRESS`); has a signature that is not plain ASCII apart from the `·` separators; or its task line contains non-ASCII characters outside a small allowlist (en/em dash, §, ≠, ·, ×, …).
-4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`, `P0-9`, `P0_09`, `P0.09`), or shares a signature with the `DONE` entry for any task it names. Signatures count as shared when they are equal, one contains the other, or both carry the same `session {id}` (maker ≠ checker, §7; MJ ruling L-0029).
+4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`, `P0-9`, `P0_09`, `P0.09`), or shares a signature with the `DONE` entry for any task it names. A §12 board row that moves to VERIFIED must read `VERIFIED (L-nnnn)`, and that entry, whatever its type, must be a `VERIFIED` or `CORRECTION` entry that names the task, carries the security checklist, and shares no signature with any `DONE` entry for the task (L-0097). Signatures count as shared when they are equal, one contains the other, or both carry the same `session {id}` (maker ≠ checker, §7; MJ ruling L-0029).
 5. An added line contains a secret-looking value or supplier identifiers:
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
    - connection strings with a password, including a password given as a URI query parameter or as a libpq `password` keyword, with or without spaces around `=` and quoted or not, on a line with another libpq keyword such as `host=` or `user=` (placeholders and `${…}` or `$VAR` references excepted);
@@ -2085,4 +2215,4 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
 
    A file whose name starts with `.env` (any case), other than `.env.example`, is added or changed.
 
-Branch protection requires this job and the RLS test suite to pass before merge. Merges to `main` require one reviewer who is not the author.
+Branch protection requires this job and the RLS test suite to pass before merge. The typecheck job also builds the web app and runs `scripts/service-role-scan.mjs` (H-18): key names in `apps/` and `packages/` source, key values in the client bundle (L-0096). Merges to `main` require one reviewer who is not the author.
