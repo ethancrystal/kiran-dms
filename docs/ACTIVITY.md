@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 09:40 (L-0098) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 13:40 (L-0103) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -368,6 +368,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-22 | L-0075 O1: scan commit messages for owner terms and secret patterns (H-01)? Look-alike letters in owner terms stay an accepted limit. (L-0079) | — | Scan commit messages | MJ | PENDING |
 | B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | RESOLVED (L-0091: approved) |
 | B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
+| B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
 
 ---
 
@@ -2096,6 +2097,59 @@ Security checklist (tick honestly):
 [x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
 [x] Governance powers still owner-only + AAL2 (H-15)
 [x] No control weakened, skipped or "temporarily" disabled (H-16) — all three changes tighten a check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0099 · 2026-10-28 13:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-04 (staging web hosting)    **Claim:** C-001
+**What / why:** MJ asked for a deployable staging web app. Railway was considered and approved for staging, then MJ withdrew it ("coudnt login to railway please use vercel"), so D-05 (Vercel) stands unchanged and no DECISION is logged. Nothing was created or deleted on Railway.
+- Vercel team "laviezahgmailcom's projects", project `kiran-dms`: linked to `ethancrystal/kiran-dms`, root `apps/web`, Next.js, Node 22, Vercel Authentication on every deployment. Production builds of `main` are Ready.
+- The Supabase integration had added ten server secrets to the project (the service-role and secret keys, the JWT secret, and the Postgres URLs, user and password). That breaks H-18, and MJ deleted all ten. Six public variables remain (the Supabase URL and the anon and publishable keys), set for Production only.
+- My mistake, recorded per H-24: on MJ's second project `kiran-dms-tbbh`, a deployment I created through the API went to production instead of preview, with a build that did nothing (no install, no next build), so its production alias pointed at an empty site. The rollback was blocked by this session's permission check, and I asked MJ to roll it back; MJ then deleted a project. No data or secret was involved.
+- I could not read or set environment values myself: reading the local env file to upload it, revealing a value (Vercel requires a passkey) and deleting a variable were each refused by the session's permission check, so MJ made those changes.
+**Evidence:** Vercel API on `kiran-dms` lists exactly six environment keys, ssoProtection deploymentType all, link ethancrystal/kiran-dms, latest deployments READY on main.
+**Rules touched:** H-18, H-19, H-24, D-05
+**Next / needs:** MJ: B-25. Previews of `feat/p0-foundation` need the six public variables enabled for Preview. Login on any deployment still needs Gate 0 action 1 (expose `app` and `vault_api` on staging).
+
+### L-0100 · 2026-10-28 13:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P0-04    **Claim:** C-001
+**What / why:** B-25: which Supabase project did the Vercel Supabase integration connect, and should its secrets be rotated? The ten deleted variables held server secrets that were stored in Vercel for a while. If they belong to the staging project `iurvazdyxzlspegygldo`, the service-role and secret keys and the database password should be rotated in Supabase. If the integration created a new Supabase project, that project is empty (no migrations were applied there) and the app must point at staging instead.
+**Evidence:** The variable rows carry the Supabase integration mark; the project's Storage tab lists no connected database; revealing a value needs MJ's passkey.
+**Rules touched:** H-18, H-20
+**Next / needs:** MJ: confirm the integration's Supabase project; rotate if it is staging.
+
+### L-0101 · 2026-10-28 13:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-05 (rep sign-in, SEC-03)    **Claim:** C-001
+**What / why:** MJ asked "Why are we using number sigin? Is it necessary" and, offered the options, chose "Email code (Recommended)": reps sign in with their email and a 6-digit code sent by email, with no SMS provider; device binding stays exactly as is; phone sign-in can be added back later. This changes doc 06 section 3 (rep primary factor) and SEC-03, so it is logged here under H-26. Office sign-in (email, password, TOTP) is unchanged.
+**Rules touched:** H-26, H-15, SEC-03
+**Next / needs:** L-0102, L-0103.
+
+### L-0102 · 2026-10-28 13:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-05    **Claim:** C-001
+**What / why:** Docs updated to match L-0101 (H-25): SEC-03 in doc 03; the auth row in doc 05; the rep column of doc 06 section 3 (primary factor, lockout wording, company mailboxes instead of company SIMs); doc 08 device step; the owner-bootstrap runbook (the Magic Link email template must contain the code token, own SMTP before the pilot; the SMS provider is no longer needed for sign-in); the Gate 0 checklist action 2; `supabase/config.toml` comment; the repo map in CLAUDE.md and AGENTS.md. Phone OTPs for salons (CTL-09, CTL-18) are untouched.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0103 · 2026-10-28 13:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-05 (rep sign-in)    **Claim:** C-001
+**What / why:** `apps/web/app/app/login/page.tsx` now asks for an email, sends a one-time code with shouldCreateUser false (the owner still creates every account, H-15), and verifies the 6-digit code as an email OTP. A "use a different email" button and its style were added. Nothing else changes: the device gate, approval flow and session handling are the same.
+**Evidence:**
+- `pnpm -C apps/web typecheck` clean; `pnpm -C apps/web build` with placeholder public settings compiled, with the static page at the rep login route.
+- `node scripts/service-role-scan.mjs --bundle apps/web/.next/static` OK (46 files).
+- No automated test covers this page (apps/web has no tests yet, a known audit gap); verified by build only. The full suite and the log check were re-run after these entries were written; counts in the commit message.
+- For the live app MJ must add the code token to the Supabase Magic Link email template (owner-bootstrap step 4); otherwise the email carries only a link.
+**Rules touched:** SEC-03, H-15, H-23, H-25
+**Next / needs:** MJ: the email template change; Gate 0 actions 1 to 3; rep accounts are created by the owner once signed in.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15) — sign-in still cannot create accounts
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — device binding unchanged; the primary factor changes by MJ decision (L-0101)
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 

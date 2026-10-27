@@ -59,13 +59,13 @@ Permissions are enforced in three places that must agree: RLS policies (data), `
 
 | Control | Owner / Manager | Rep |
 |---|---|---|
-| Primary factor | Email + password (≥ 12 chars, breached-password check) | Phone number + SMS/WhatsApp OTP |
+| Primary factor | Email + password (≥ 12 chars, breached-password check) | Email + one-time code (MJ decision, ACTIVITY L-0101; was phone number + SMS/WhatsApp OTP) |
 | Second factor | **TOTP mandatory**; recovery codes stored offline by owner | Device binding (below); optional PIN for app open |
 | Device binding | Recommended (remembered devices list, alerts on new) | **Mandatory**: first device auto-registered; any new device → `pending` until a manager/owner approves; max 1 active device per rep by default |
 | Session lifetime | 12 h; re-auth (MFA) for: bank details, price lists, user management, vault, write-offs, exports | 14 days rolling; re-auth (OTP) for: payment reversal request, viewing a phone number outside today's route |
 | Step-up | AAL2 required in RLS for governance tables (`auth.jwt()->>'aal' = 'aal2'`) | — |
 | Revocation | Owner can kill any session/device instantly; takes effect on next request and on next sync for cached data | Same; plus automatic revoke at offboarding |
-| Lockout | 5 failed attempts → 15 min; alert owner on 10 | OTP rate-limited per number and per device |
+| Lockout | 5 failed attempts → 15 min; alert owner on 10 | OTP rate-limited per email address and per device |
 | Shared logins | Prohibited by policy; detected by concurrent sessions from distinct device fingerprints → anomaly | Same |
 
 ## 4. Data access — Row-Level Security strategy
@@ -137,7 +137,7 @@ using (
 ## 8. Operational security
 
 - **Phones:** reps use a company-provided or approved personal Android with screen lock enforced by the app (refuses to run without device lock + up-to-date OS); mock-location setting detected and flagged; app refuses to work on rooted devices where detectable.
-- **SIMs:** rep login phone numbers are company SIMs where possible so a departing rep cannot keep receiving OTPs.
+- **Rep email:** rep login addresses are company mailboxes where possible, so a departing rep cannot keep receiving sign-in codes (ACTIVITY L-0101; was company SIMs for phone OTP).
 - **Offboarding runbook (SEC-08):** suspend user → revoke sessions and devices → snapshot and transfer bag stock and cash position → reassign territories → notify assigned salons of the new rep (from the system, so the old rep cannot "introduce" themselves as still with Kiran) → archive. Target: under 10 minutes, all in one owner screen.
 - **Break-glass:** direct SQL in production requires owner approval recorded in a `case`, a time-boxed credential, and the session log attached to the case afterwards.
 - **Owner account recovery:** recovery codes printed and kept offline; a second owner-role account for continuity, disabled by default, enable requires the first owner or the documented recovery process.

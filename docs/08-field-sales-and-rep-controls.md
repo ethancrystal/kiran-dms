@@ -18,7 +18,7 @@ Pay structure (proposal, to be set by the owner): modest fixed salary + commissi
 | Step | What happens | System support |
 |---|---|---|
 | 1. Profile | Owner creates the user (owner-only): name, phone, CNIC (encrypted), photo, emergency contact, guarantor, commission plan, start date | FLD-01 |
-| 2. Device | Rep installs the PWA on their (approved) phone; first login via phone OTP registers the device; manager approves it | SEC-03 |
+| 2. Device | Rep installs the PWA on their (approved) phone; first login via an email one-time code (ACTIVITY L-0101) registers the device; manager approves it | SEC-03 |
 | 3. Territory | Manager assigns one territory and the route days | PIP-01, PIP-04 |
 | 4. Training (half day) | The in-app checklist walks the rep through: check-in, map and pins, nearby discovery, visit outcomes, building an order, payment plans and credit limits, recording cash vs. transfer, receipts to WhatsApp, bag stock, evening handover and stock close, and the **rules** in §4 | FLD-04 |
 | 5. Stock | Manager issues starter bag stock within the bag value limit; rep confirms count in-app | INV-03, CTL-05 |

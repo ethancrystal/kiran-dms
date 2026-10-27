@@ -19,7 +19,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 | `docs/` | The planning set (`00`–`13`) and `ACTIVITY.md` (build protocol + live log). Source of truth. |
 | `supabase/migrations/` | Forward-only SQL migrations: schemas, tables, RLS, SECURITY DEFINER functions, triggers. |
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
-| `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, phone OTP for reps). |
+| `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |
 | `apps/web/` | Next.js app: `/app` (rep PWA) and `/office` (owner/manager). |
 | `packages/shared/` | Types generated from the DB, validation schemas, i18n strings (en, ur). |
 | `scripts/` | CI helpers, incl. `activity-log-check.mjs` (ACTIVITY.md Appendix C). |

@@ -173,7 +173,8 @@ enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
-# Self-signup is OFF. Every account (office email or rep phone) is created by the owner (H-15,
+# Self-signup is OFF. Every account (office email + password, rep email for a one-time code;
+# MJ decision L-0101) is created by the owner (H-15,
 # docs/runbooks/owner-bootstrap.md).
 enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.

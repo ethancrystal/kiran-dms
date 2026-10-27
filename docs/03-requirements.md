@@ -119,7 +119,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 |---|---|---|---|
 | SEC-01 | Roles: owner, manager, rep. Manager = full operational access; owner = operational + governance (users, bank details, write-offs/credit notes, price lists, commission plans, vault grants, audit log, configuration). Permission matrix in doc 06 enforced by RLS and server-side checks | M | 1 |
 | SEC-02 | O/Mg login: email + password + TOTP MFA mandatory | M | 1 |
-| SEC-03 | Rep login: phone OTP; device binding — first device auto-registered, new device requires Mg approval | M | 1 |
+| SEC-03 | Rep login: email one-time code (MJ decision, ACTIVITY L-0101; was phone OTP); device binding — first device auto-registered, new device requires Mg approval | M | 1 |
 | SEC-04 | Sessions: rep 14 days with re-auth on sensitive actions; O/Mg 12 hours; immediate revoke by O/Mg | M | 1 |
 | SEC-05 | Append-only audit log of all writes to money, stock, salon, user and vault tables, plus all vault reads | M | 1 |
 | SEC-06 | No bulk export, copy-all, or list-download for reps; O/Mg exports watermarked with user + timestamp and logged | M | 1 |

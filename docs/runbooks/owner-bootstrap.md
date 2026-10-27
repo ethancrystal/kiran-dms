@@ -10,7 +10,7 @@ Who: **MJ or the owner, never an agent.** Where: the Supabase dashboard of the K
 2. **Authentication → Sign In / Providers:** turn **off** "Allow new users to sign up" (email and phone). The owner creates every account.
 3. **Authentication → Multi-Factor:** enable TOTP enrolment and verification. Check that the project's plan includes it.
    **Authentication → Passwords:** minimum length 12 and leaked-password protection on (doc 06 §3).
-4. **Authentication → Phone:** connect the SMS provider for rep OTPs once the sender ID is registered (B-08). Until then, use test phone numbers with fixed OTPs for the pilot rep only.
+4. **Authentication → Emails → Magic Link template:** reps sign in with an emailed 6-digit code (ACTIVITY L-0101), so the template must contain `{{ .Token }}` (the code), for example "Your Kiran sign-in code is {{ .Token }}". Supabase's built-in email is rate-limited and meant for testing; connect your own SMTP before the pilot (Authentication → Emails → SMTP). The SMS provider (B-08) is no longer needed for rep sign-in. (Previously: connect the SMS provider for rep OTPs.)
 5. After the migration is applied, make one authenticated call to an `app.*` RPC through the API. The local test suite cannot check PostgREST schema exposure.
 
 
