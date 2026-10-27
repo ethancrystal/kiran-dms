@@ -217,6 +217,15 @@ let untracked = [];
 if (!head) untracked = split0(git(["ls-files", "--others", "--exclude-standard", "-z"]));
 changed = [...new Set([...changed, ...untracked])];
 for (const f of new Set([...notDeleted, ...untracked])) if (isEnvFile(f)) fail(`${f}: environment files must never be committed (H-20).`);
+// Each commit in the range, not only the net diff: an env file or a secret added in one commit
+// and removed in a later one is still in git history (council audit 2026-10-27, finding 3).
+// The structural rules (1 to 4) stay on the net diff; rule 5 and the env-file rule walk commits.
+const commitRange = base ? `${base}..${head || "HEAD"}` : null;
+if (commitRange) {
+  for (const f of new Set(split0(git(["log", "--no-merges", "--no-renames", "--diff-filter=AM", "--name-only", "-z", "--format=", commitRange])))) {
+    if (isEnvFile(f)) fail(`${f}: environment files must never be committed, even in an intermediate commit (H-20).`);
+  }
+}
 
 // --- Markdown structure
 function scan(text) {
@@ -486,6 +495,19 @@ for (const f of untracked) {
   } catch (e) { fail(`${f}: cannot read untracked file (${e.code ?? e.message}); refusing to pass.`); }
 }
 const unquote = (p) => (p.startsWith('"') && p.endsWith('"') ? JSON.parse(p.replace(/\\([0-7]{3})/g, (_, o) => "\\u00" + parseInt(o, 8).toString(16).padStart(2, "0"))) : p);
+// History pass (finding 3): every added line of every commit in the range gets the hard checks
+// only (secret patterns and owner terms). The supplier-wording and name heuristics stay on the
+// net diff, so a fixed false positive in an earlier commit cannot block a PR forever.
+if (commitRange) {
+  let hfile = "";
+  for (const l of git(["log", "--no-merges", "-p", "--no-renames", "--text", "--no-ext-diff", "--unified=0", "--format=", commitRange]).split("\n")) {
+    if (l.startsWith("diff --git ")) { const m = l.match(/ ("b\/.+"|b\/.+)$/); hfile = m ? unquote(m[1]).replace(/^"?b\//, "") : ""; continue; }
+    if (!l.startsWith("+") || l.startsWith("+++ ")) continue;
+    const text = l.slice(1);
+    for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${hfile}: a commit in the range adds a line matching secret pattern ${re} (git history keeps it even if a later commit removes it; rotate the secret).`);
+    if (termIn(text)) fail(`${hfile}: a commit in the range adds a line containing an owner-listed sensitive term (H-01).`);
+  }
+}
 let file = "";
 let inHeader = false;
 for (const l of diff.split("\n")) {
@@ -569,3 +591,6 @@ if (errors.length) {
 }
 const plural = newEntries.length === 1 ? "entry" : "entries";
 console.log(`activity-log-check OK (${newEntries.length} new log ${plural}, ${changed.length} changed files).`);
+// Say how many owner terms were checked, so an empty KIRAN_SENSITIVE_TERMS is visible rather than
+// silently passing (council audit finding 7; failing closed waits on B-15a, see B-26).
+console.log(`owner terms checked: ${SENSITIVE_TERMS.length}${SENSITIVE_TERMS.length ? "" : " (KIRAN_SENSITIVE_TERMS is empty: supplier names are not being blocked)"}`);

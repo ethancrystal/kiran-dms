@@ -253,14 +253,14 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P0-01 | Resolve Phase 0 decisions: D-08, OQ-01–04, 06–08, 11–13, 16 (MJ answers; log each) | doc 12 | NOT STARTED | — |
-| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, redone in L-0088 and L-0098 after L-0085; real-file run is MJ, gate-0-checklist action 7) | C-001 |
+| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, redone in L-0088, L-0098 and L-0106 after L-0085; real-file run is MJ, gate-0-checklist action 7) | C-001 |
 | P0-03 | Draft Karachi territories; choose the pilot territory and pilot rep | PIP-01, OQ-13 | NOT STARTED | — |
 | P0-04 | Create the repo, CI, Supabase staging + prod, Next.js skeleton; copy this file to `docs/ACTIVITY.md` | doc 05 | IN PROGRESS | C-001 |
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093 and L-0097 after L-0085) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097 and L-0105 after L-0085) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 13:40 (L-0103) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 14:30 (L-0109) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -369,6 +369,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | RESOLVED (L-0091: approved) |
 | B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
 | B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
+| B-26 | Council findings 4 to 6 reopen verified P0-06 and P1-01 (view-aware guards, device revocation trigger as migration 0007 applied to staging, audit-trigger guard); finding 7 in full (fail on an empty owner-term list in CI) right after B-15a. (L-0108) | P0-06, P1-01, P0-09 | Approve both | MJ | PENDING |
 
 ---
 
@@ -2153,6 +2154,93 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 
+### L-0104 · 2026-10-28 14:05 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-02, P0-04, P0-09    **Claim:** C-001
+**What / why:** MJ merged PR 2 and asked me to continue with the plan. Re-read the board: Gate 0 is NOT PASSED, so no Phase 1 work. Agent-side Phase 0 work left: the remaining top-ten council findings (3, 7, 9, 10 now; 4 to 6 touch verified tasks, see L-0108), a doc and code divergence (`packages/shared` listed as existing), and the Gate 0 checklist. P0-03 (territories) and P0-07 (vendors) wait on MJ; adapter stubs are not built because nothing calls them yet (H-22).
+**Evidence:** Vercel production of `kiran-dms` now runs merge commit 8f789cd (build log shows the rep login route compiled), so the email sign-in is live behind the Vercel login. The PR 2 preview check failed only because the commits' git author is not a member of the Vercel team.
+**Rules touched:** §8, H-22
+**Next / needs:** L-0105 to L-0109.
+
+### L-0105 · 2026-10-28 14:10 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Council findings 3 and 7 in `scripts/activity-log-check.mjs`.
+- **Finding 3:** every commit in the range is now scanned, not only the net diff: a secret pattern or an owner term added in any commit fails (git history keeps it even if a later commit removes it), and so does an env file added in any commit. The structural rules and the supplier and name heuristics stay on the net diff, so a fixed false positive in an earlier commit cannot block a PR forever.
+- **Finding 7 (minimum):** the OK output adds a line with the number of owner terms checked, and says plainly when the secret list is empty. Failing closed on an empty list would make every PR red until B-15a, so it is raised as B-26 instead.
+**Evidence:**
+- `supabase/tests/log-check-rulings.test.ts` gained the history tests ("Tests 6 passed (6)" for the file): a fake JWT added then removed, and an env file added then removed, both fail; an honest file added then removed passes.
+- `node scripts/activity-log-check.mjs main` (full branch history since the old main) OK: no secret was ever committed.
+- The full suite was re-run after these entries; counts in the commit message.
+**Rules touched:** H-01, H-20, H-23, H-25
+**Next / needs:** Re-verification of P0-09 (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — each change tightens a check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0106 · 2026-10-28 14:15 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-02 (dry-run tool)    **Claim:** C-001
+**What / why:** Council findings 9 and 10 in `packages/import`.
+- **Finding 9:** a CSV quote mark opened and never closed now refuses the file, naming the line, instead of swallowing every later row into one cell and still reporting CLEAN.
+- **Finding 10:** a type label naming both ladies and gents is unisex (it was mens_salon, which would mean a lower starting credit limit); only "hair studio" maps to hair_studio, so another studio (a nail studio) is not recognised and gets a warning.
+- Runbook updated to match.
+**Evidence:** `pnpm -C packages/import test` gave "Tests 29 passed (29)", including new cases; the command line on an unterminated-quote file exits 2 with the line number.
+**Rules touched:** H-23, H-25
+**Next / needs:** Re-verification of P0-02 (§7).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — each change tightens a check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0107 · 2026-10-28 14:20 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Docs updated to match code (H-25).
+- Appendix C rule 5: the secret patterns, owner terms and the env-file rule apply to every commit in the range; the other heuristics to the net diff. The OK output reports the owner-term count.
+- CLAUDE.md and AGENTS.md listed `packages/shared/` as an existing directory; it was never built (council finding). Both now mark it as planned for P1-02 and list `packages/import/`.
+- Dry-run runbook (L-0106) and Gate 0 checklist (criterion 1: staging web app live on Vercel; tasks line refreshed).
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0108 · 2026-10-28 14:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P0-06, P1-01, P0-09    **Claim:** C-001
+**What / why:** B-26. Council findings 4 to 6 touch tasks that are VERIFIED, and finding 7 in full would turn CI red; both need MJ.
+- **Finding 4:** the RLS matrix and schema-hygiene guards cannot see views, or tables in the exposed schemas other than public. Fixing it changes P0-06's verified harness.
+- **Finding 5:** "a revoked device stays revoked" is enforced only inside two functions. A trigger on `public.device` would enforce it in the schema, but that is a seventh migration on P1-01 (verified), which also needs a staging apply.
+- **Finding 6:** the audit-trigger guard checks only that a trigger named audit_row exists, not that it is enabled and fires on every operation. P0-06 harness again.
+- **Finding 7 in full:** fail the log check when the owner-term list is empty in CI. Do this right after B-15a (the secret) exists, or it blocks every PR.
+Recommendation: approve reopening P0-06 and P1-01 for findings 4 to 6, with one new migration applied to staging, followed by a fresh verification; approve finding 7 for right after B-15a.
+**Evidence:** Council report (L-0094); `supabase/tests/rls-matrix.test.ts`, `supabase/tests/schema-hygiene.test.ts`, `supabase/migrations/20261024223304_foundation.sql` (device table).
+**Rules touched:** §7, H-13, H-16, H-17
+**Next / needs:** MJ: approve or refuse B-26.
+
+### L-0109 · 2026-10-28 14:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · HANDOFF
+**Task:** P0-02, P0-04, P0-05, P0-09    **Claim:** C-001
+**What / why:** State at the end of this chunk.
+- **Merged to main:** PR 1 (foundation, protocol, P1-01) and PR 2 (council top three, rep sign-in by email code). This chunk is on `feat/p0-foundation` for PR 3.
+- **Staging:** Supabase `iurvazdyxzlspegygldo` has migrations 0001 to 0006. Vercel project `kiran-dms` deploys `main` behind the Vercel login, with six public Supabase variables (Production only).
+- **Board:** P0-06, P0-08, P1-01 VERIFIED. P0-09 and the P0-02 tool DONE (self-reported), both waiting for a fresh verifier. P0-04 and P0-05 IN PROGRESS.
+- **Waiting on MJ:** Gate 0 actions 1 to 7 (`docs/gate-0-checklist.md`), the Magic Link template change, and blockers B-01 to B-11, B-13, B-14, B-15a, B-16b, B-17, B-19, B-20, B-22, B-25, B-26. Also: the Vercel preview deployments are refused because this machine's git author is not a Vercel team member.
+- **Open audit findings:** 59 minor findings and notes are below the line in the council report (outside the repo); the most important are the salon-type and phone-rule copies (fixed by building `packages/shared` in P1-02), concurrent replays returning a raw unique-violation, and the untested platform shims.
+- **Gotchas:** re-run the suite after every ACTIVITY.md edit (verifier tests read the log); run `pnpm db:test` in three parts when a session may restart; a new DONE entry for a task that a verifier test assumes has none breaks that test (L-0096 was re-tagged for this reason).
+**Evidence:** `git log origin/main` shows the PR 2 merge 8f789cd; board rows as listed.
+**Rules touched:** §11
+**Next / needs:** MJ decisions above; then round 10 verification of P0-02 and P0-09, or MJ sets stopping criteria.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -2188,7 +2276,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095, L-0107). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
 
 0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit. An added file that cannot be read for scanning, or a changed path that is not valid UTF-8, also fails.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
@@ -2211,6 +2299,7 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
    - secret-named assignments with a real-looking value (in source code only quoted literals count; template literals built from `${…}` do not; nor, for names that are not password- or secret-like, multi-part lowercase name-like values (at least one word segment; others may be short numbers or a letter plus digits) such as `kiran.outbox.v1`, `kiran:outbox:v1`, `kiran.invoice.fy2026` or `receipt-a5-v2`, or mixed-case values made only of whole words of 3+ letters, short acronyms, numbers of up to 4 digits and short V-versions, such as `NotoNastaliqUrdu-Regular`, `NotoNaskhArabicUI-Regular` or `KiranOutboxEncryptedV1` (digit runs count whole, so `KiranSms903718264519` is not a name), or token-named values containing spaces or parentheses such as a design token; skipped in test code (`supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*`, `*.spec.*`), i18n/locale files and Markdown);
    - supplier or cost wording outside `{timestamp}_vault*.sql` migrations, tests, docs, any path with a `vault/` directory segment except under a `public/` directory (MJ, L-0080, L-0091), and i18n, locale or translations directories (MJ, L-0080);
    - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, matched after NFKC, ignoring case and every Unicode default-ignorable character, in added lines and in file paths;
+   - the secret patterns, owner terms and the `.env` rule below also apply to every commit in the range, not only the net diff (git history keeps a removed secret); the other heuristics apply to the net diff (L-0105). The OK output reports how many owner terms were checked;
    - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, and as UTF-32 when it starts with a UTF-32 byte-order mark (MJ, L-0091), scanned in full (files over 64 MB fail).
 
    A file whose name starts with `.env` (any case), other than `.env.example`, is added or changed.

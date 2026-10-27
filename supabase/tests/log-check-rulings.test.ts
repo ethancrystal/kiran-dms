@@ -26,7 +26,7 @@ const ENTRY = [
 ];
 const FAKE_JWT = ["eyJ" + "hbGciOiJIUzI1NiJ9", "eyJ" + "zdWIiOiJ4eHh4eHh4eCJ9", "c2lnbmF0dXJlc2lnbmF0dXJl"].join(".");
 
-function check(files: Record<string, string | Buffer>, entry: string[] = ENTRY, mutate?: (t: string) => string): number | null {
+function check(files: Record<string, string | Buffer>, entry: string[] = ENTRY, mutate?: (t: string) => string, removeLater: string[] = []): number | null {
   const dir = mkdtempSync(join(tmpdir(), "kiran-rulings-"));
   try {
     const g = (...a: string[]) => {
@@ -56,6 +56,7 @@ function check(files: Record<string, string | Buffer>, entry: string[] = ENTRY, 
     }
     g("add", "-A");
     g("commit", "-q", "-m", "case");
+    if (removeLater.length) { g("rm", "-q", ...removeLater); g("commit", "-q", "-m", "case: remove again"); }
     const env: Record<string, string> = { ...(process.env as Record<string, string>), KIRAN_SENSITIVE_TERMS: "" };
     delete env.DATABASE_URL;
     delete env.KIRAN_TEST_DATABASE_URL;
@@ -124,5 +125,15 @@ describe("log check: board moves to VERIFIED (council audit finding 2)", { timeo
     expect(check({}, ENTRY, setStatus("P0-02", "VERIFIED (L-0084)"))).toBe(1);
     expect(check({}, verdict(BUILDER, "CORRECTION"), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(1);
     expect(check({}, ENTRY, setStatus("P0-02", "VERIFIED (L-9999)"))).toBe(1);
+  });
+});
+
+describe("log check: history pass (council audit finding 3)", { timeout: 300_000 }, () => {
+  it("a secret or an env file added in one commit and removed in the next still fails", () => {
+    expect(check({ "apps/web/lib/leak.txt": `k=${FAKE_JWT}\n` }, ENTRY, undefined, ["apps/web/lib/leak.txt"])).toBe(1);
+    expect(check({ "apps/web/.envrc": "export X=1\n" }, ENTRY, undefined, ["apps/web/.envrc"])).toBe(1);
+  });
+  it("an honest file added and removed passes", () => {
+    expect(check({ "apps/web/lib/tmp.ts": "export const a = 1;\n" }, ENTRY, undefined, ["apps/web/lib/tmp.ts"])).toBe(0);
   });
 });

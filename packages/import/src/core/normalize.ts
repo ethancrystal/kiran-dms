@@ -18,10 +18,14 @@ const TYPE_RULES: Array<[RegExp, SalonType]> = [
   [/\bbridal\b/, "bridal_studio"],
   [/\b(spa|wellness)\b/, "spa_wellness"],
   [/\bunisex\b/, "unisex"],
+  // Both ladies and gents in one label is a unisex salon, not a men's salon (council audit
+  // finding 10: "Ladies & Gents Salon" was read as mens_salon, a lower starting credit limit).
+  [/\b(ladies|lady|women|female)\b.*\b(gents?|mens?|male)\b|\b(gents?|mens?|male)\b.*\b(ladies|lady|women|female)\b/, "unisex"],
   [/\b(barber|hajjam|hajam)\b/, "barber"],
   [/\b(gents?|mens?|male)\b/, "mens_salon"],
   [/\b(ladies|lady|women|female|parlou?r|beauty)\b/, "ladies_parlor"],
-  [/\b(hair\s*studio|studio)\b/, "hair_studio"],
+  // Only a hair studio; a bare "studio" (e.g. "Nail Studio") is not recognised and gets a warning.
+  [/\bhair\s*studio\b/, "hair_studio"],
   [/\bother\b/, "other"],
 ];
 

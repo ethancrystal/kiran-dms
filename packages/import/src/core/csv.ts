@@ -16,19 +16,25 @@ export function parseCsv(text: string): string[][] {
   let row: string[] = [];
   let field = "";
   let quoted = false;
+  let line = 1;
+  let quoteLine = 0;
   for (let i = 0; i < t.length; i++) {
     const ch = t[i];
+    if (ch === "\n") line++;
     if (quoted) {
       if (ch === '"') {
         if (t[i + 1] === '"') { field += '"'; i++; } else quoted = false;
       } else field += ch;
-    } else if (ch === '"' && field === "") quoted = true;
+    } else if (ch === '"' && field === "") { quoted = true; quoteLine = line; }
     else if (ch === delim) { row.push(field); field = ""; }
     else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && t[i + 1] === "\n") i++;
+      if (ch === "\r" && t[i + 1] === "\n") { i++; line++; }
       row.push(field); rows.push(row); row = []; field = "";
     } else field += ch;
   }
+  // A quote opened and never closed would swallow every later line into one cell and the run
+  // would still look clean with fewer rows (council audit 2026-10-27, finding 9): refuse the file.
+  if (quoted) throw new Error(`a quoted field opened on line ${quoteLine} is never closed; fix the quote marks in the file`);
   if (field !== "" || row.length) { row.push(field); rows.push(row); }
   return rows;
 }

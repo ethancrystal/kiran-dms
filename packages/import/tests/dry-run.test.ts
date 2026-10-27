@@ -52,6 +52,13 @@ describe("normalisers", () => {
     expect(mapSalonType("Home Parlour")).toEqual({ ok: true, value: "home_parlor" });
     expect(mapSalonType("spa_wellness")).toEqual({ ok: true, value: "spa_wellness" });
     expect(mapSalonType("Beauty Academy")).toEqual({ ok: true, value: "academy" });
+    // Labels with more than one keyword (council finding 10).
+    expect(mapSalonType("Ladies & Gents Salon")).toEqual({ ok: true, value: "unisex" });
+    expect(mapSalonType("Gents and Ladies Parlour")).toEqual({ ok: true, value: "unisex" });
+    expect(mapSalonType("Gents Salon")).toEqual({ ok: true, value: "mens_salon" });
+    expect(mapSalonType("Hair Studio")).toEqual({ ok: true, value: "hair_studio" });
+    const nail = mapSalonType("Nail Studio");
+    expect(nail.ok && nail.value === "other" && nail.warning).toBeTruthy();
     const x = mapSalonType("xyz");
     expect(x.ok && x.value === "other" && x.warning).toBeTruthy();
   });
@@ -151,6 +158,10 @@ describe("dry run on synthetic files", () => {
 });
 
 describe("readers", () => {
+  it("CSV: an unterminated quoted field refuses the file instead of swallowing rows (council finding 9)", () => {
+    expect(() => parseCsv('Salon Name,Area\n"Test Salon 01,Clifton\nTest Salon 02,Saddar\n')).toThrow(/opened on line 2 is never closed/);
+  });
+
   it("CSV: quotes, embedded commas and newlines, semicolons and a BOM", () => {
     expect(parseCsv('﻿a;b\n"x;1";"he said ""hi""\nbye"\r\n')).toEqual([["a", "b"], ["x;1", 'he said "hi"\nbye']]);
   });

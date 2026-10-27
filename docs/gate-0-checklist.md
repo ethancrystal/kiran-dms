@@ -28,12 +28,12 @@ It uses only the public anon key, never prints it, and writes nothing. It passes
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | Owner and manager can log in with MFA to an empty office app | **Not yet.** Screens built; gating correct when signed out. Needs actions 1–3 |
+| 1 | Owner and manager can log in with MFA to an empty office app | **Not yet.** Staging web app is live on Vercel (project `kiran-dms`, production from `main`, Vercel login required; L-0099, L-0104). Sign-in pages load; logging in needs actions 1–3. Rep sign-in is now by email code (L-0101), which also needs the Magic Link template change in action 2 |
 | 2 | Excel import dry-run shows clean data | **Tool ready** (P0-02, L-0083 onward): needs only your Excel file, run on your machine (action 7). It no longer waits for the P1-02 tables |
 | 3 | Phase 0 decisions logged | **Partly.** Logged: stack, staging (L-0019), verifier independence (L-0029), config defaults (L-0024, unconfirmed), B-16a (L-0040). Open: action 6 |
 | 4 | ACTIVITY enforcement active in CI | **Yes**, except branch protection (action 4) and the term list (action 5). Latest CI on this branch is green |
 
-Tasks: P0-06 VERIFIED, P0-08 VERIFIED, P1-01 VERIFIED (L-0061); P0-09 DONE (self-reported), awaiting re-verification by a different agent; P0-04 and P0-05 IN PROGRESS (need actions 1–3); P0-02 IN PROGRESS (tool built and tested on synthetic data; needs action 7); P0-01, P0-03, P0-07 need you.
+Tasks: P0-06 VERIFIED, P0-08 VERIFIED, P1-01 VERIFIED (L-0061); P0-09 DONE (self-reported, last redone L-0105), awaiting re-verification by a different agent; P0-02 IN PROGRESS (tool DONE, self-reported, last redone L-0106; needs action 7); P0-04 and P0-05 IN PROGRESS (staging web app live; need actions 1–3); P0-01, P0-03, P0-07 need you.
 
 ## After Gate 0
 

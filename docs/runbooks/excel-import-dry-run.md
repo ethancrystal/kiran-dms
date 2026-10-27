@@ -27,7 +27,7 @@ Options:
 | `--json` | Also write the masked report to `import-reports/` |
 | `--max-issues N` | How many errors and warnings to print (default 200) |
 
-Old `.xls` files are refused: open them in Excel and Save As `.xlsx` or `.csv`. A `.txt` file is read as CSV (comma, semicolon or tab separated).
+Old `.xls` files are refused: open them in Excel and Save As `.xlsx` or `.csv`. A `.txt` file is read as CSV (comma, semicolon or tab separated). A CSV with a quote mark that is opened and never closed is refused, naming the line, because it would otherwise swallow every later row into one cell.
 
 Exit code: `0` clean, `1` not clean, `2` the file or an option could not be read.
 
@@ -53,7 +53,7 @@ How values are read:
 
 - **Phones:** `0399-0000001`, `+92 399 0000001`, `3990000001` (Excel dropped the zero) all become `+923990000001`. Several numbers in one cell (`/`, `,` or `;`) are all kept; the first is the main contact. Every column whose heading names a phone ("Mobile", "Contact Mobile", "Owner Mobile", "WhatsApp No") is checked; the first is the main phone column.
 - **Opening balance:** rupees to whole paisa, never a decimal number. Thousands grouping (`125,000`) and lakh grouping (`1,25,000`) are both read. A formula result such as `1650.0000000000002` is read as Excel shows it (1,650). In P1-02 each balance becomes an "opening invoice" row that the manager reconciles with the salon before go-live (doc 11, risks).
-- **Type:** words like "Ladies Beauty Parlour", "Gents", "Bridal", "Home Parlour" or "Academy" map to the doc 04 types.
+- **Type:** words like "Ladies Beauty Parlour", "Gents", "Bridal", "Home Parlour" or "Academy" map to the doc 04 types. A label naming both ladies and gents ("Ladies & Gents Salon") is unisex. "Hair Studio" is a hair studio; another studio ("Nail Studio") is not recognised and imports as other with a warning.
 - **Header row:** among the first 20 rows, the one that names the most known columns, if it names at least two (a title line above the header is fine). With `--mapping`, the columns the mapping names count too, so headers the tool does not know ("Dukan", "Ilaqa") are found. If no row qualifies, the first row with two filled cells is taken as the header. Column names the tool recognises are in `packages/import/src/core/mapping.ts`.
 
 ## After a clean run

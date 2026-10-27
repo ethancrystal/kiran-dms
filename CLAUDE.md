@@ -21,7 +21,8 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
 | `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |
 | `apps/web/` | Next.js app: `/app` (rep PWA) and `/office` (owner/manager). |
-| `packages/shared/` | Types generated from the DB, validation schemas, i18n strings (en, ur). |
+| `packages/shared/` | **Planned, not built yet** (P1-02): types generated from the DB, validation schemas, i18n strings (en, ur). Today the import normalisers live in `packages/import/src/core/`. |
+| `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes nothing to any database. |
 | `scripts/` | CI helpers, incl. `activity-log-check.mjs` (ACTIVITY.md Appendix C). |
 
 ## Commands
