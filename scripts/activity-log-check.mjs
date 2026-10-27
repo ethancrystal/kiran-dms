@@ -439,6 +439,44 @@ for (const e of newEntries) {
   }
 }
 
+// 4b. A §12 board row that moves to VERIFIED must cite the verifying entry, and that entry is held
+// to rule 4 whatever its type: it names the task, carries the security checklist, and is not
+// signed by the agent behind any DONE entry for the task. (Verifiers record verdicts as
+// CORRECTION or VERIFIED entries; before this, rule 4 ran only on entries typed VERIFIED, so no
+// board move to VERIFIED was ever checked. Council audit 2026-10-27, finding 2.)
+const boardOf = (text) => {
+  const out = new Map();
+  let inBoard = false;
+  for (const x of scan(text)) {
+    if (x.code) continue;
+    if (/^## /.test(x.line)) inBoard = /^## 12\. /.test(x.line);
+    const m = inBoard && x.line.match(/^\| ((?:P\d-\d{2})|(?:PLAN-\d{2})) \|/);
+    if (!m) continue;
+    const cells = x.line.split("|");
+    out.set(m[1], (cells[cells.length - 3] ?? "").trim());
+  }
+  return out;
+};
+if (baseText) {
+  const before = boardOf(baseText);
+  for (const [task, status] of boardOf(headText)) {
+    if (!/^VERIFIED\b/.test(status) || /^VERIFIED\b/.test(before.get(task) ?? "")) continue;
+    const ref = status.match(/^VERIFIED \((L-\d{4})\)/);
+    if (!ref) { fail(`§12 board: ${task} moved to VERIFIED without citing the verifying entry; write "VERIFIED (L-nnnn)".`); continue; }
+    const v = H.entries.find((e) => e.id === ref[1]);
+    if (!v) { fail(`§12 board: ${task} cites ${ref[1]} as its verification, but no such entry exists.`); continue; }
+    const vBody = v.body.join("\n");
+    if (!["VERIFIED", "CORRECTION"].includes(v.type)) fail(`§12 board: ${task} cites ${v.id}, a ${v.type} entry; a verification is a VERIFIED or CORRECTION entry.`);
+    if (!taskIds(vBody).includes(task)) fail(`§12 board: ${task} cites ${v.id}, whose Task line does not name ${task}.`);
+    if (!/Security checklist/.test(vBody)) fail(`§12 board: ${task} cites ${v.id}, which lacks the security checklist block.`);
+    const dones = H.entries.filter((d) => d.type === "DONE" && taskIds(d.body.join("\n")).includes(task));
+    if (dones.length === 0) fail(`§12 board: ${task} moved to VERIFIED but has no DONE entry.`);
+    for (const done of dones) {
+      if (sameAgent(done.sig, v.sig)) fail(`§12 board: ${task} is verified by ${v.id}, signed by the same agent as DONE ${done.id} ("${done.sig}"); maker must differ from checker.`);
+    }
+  }
+}
+
 // 5. secrets and supplier identifiers in ADDED lines, parsed with real diff structure
 let diff = range.length ? git(["diff", "--no-renames", "--text", "--no-ext-diff", "--unified=0", ...range]) : "";
 for (const f of untracked) {

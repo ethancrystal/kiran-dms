@@ -52,7 +52,18 @@ export type DryRunOptions = {
 
 export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions = {}): DryRunReport {
   const m = resolveMapping(headers, opts.mapping);
+  // Two columns with the same heading (case, spacing and punctuation ignored): the mapping can
+  // claim only one of them, so the other would be dropped unchecked, its phones left out of the
+  // CTL-18 duplicate check, while the run still said CLEAN (council audit 2026-10-27, finding 8).
+  const seen = new Map<string, number[]>();
+  headers.forEach((h, i) => { if (h.trim() !== "") seen.set(keyOf(h), [...(seen.get(keyOf(h)) ?? []), i]); });
+  const duplicates = [...seen.values()].filter((cols) => cols.length > 1).map((cols) => {
+    const h = headers[cols[0]];
+    const name = isHeaderWords(h) ? `"${h}"` : "a heading";
+    return `${name} heads more than one column (columns ${cols.map(columnLetter).join(", ")}): rename them so each column has its own heading`;
+  });
   const fatal = [
+    ...duplicates,
     ...m.problems,
     ...m.missingRequired.map((f) => `no column for required field "${f}" (add one, or pass a mapping)`),
   ];

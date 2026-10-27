@@ -70,6 +70,15 @@ describe("normalisers", () => {
 });
 
 describe("mapping", () => {
+  it("two columns with the same heading are a file problem, never a silent drop (council finding 8)", () => {
+    const r = dryRun(["Salon Name", "Area", "Mobile", "mobile "], [["Test Salon 01", "Clifton", "0399-0000001", "0399-0000002"]]);
+    expect(r.clean).toBe(false);
+    expect(r.fatal.join(" ")).toMatch(/"Mobile" heads more than one column \(columns C, D\)/);
+    const dataRow = dryRun(["Test Salon 01", "Saddar", "Test Salon 01"], [["x", "y", "z"]]);
+    expect(dataRow.fatal.join(" ")).toMatch(/a heading heads more than one column \(columns A, C\)/);
+    expect(formatReport(dataRow)).not.toMatch(/Test Salon/);
+  });
+
   it("guesses columns from common headers and lists the rest as ignored", () => {
     const m = resolveMapping(["Sr No", "Salon Name", "Type", "Area", "Mobile No", "Owner Name", "Balance", "Colour"]);
     expect(m.mapping).toMatchObject({ ref: "Sr No", name: "Salon Name", type: "Type", area: "Area", phone: "Mobile No", contact_name: "Owner Name", opening_balance: "Balance" });
