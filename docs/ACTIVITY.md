@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | VERIFIED (L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089 after L-0085) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089 and L-0093 after L-0085) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-27 10:20 (L-0090) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-27 20:05 (L-0093) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -366,8 +366,8 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-20 | L-0061 client observations: O1 cross-tab rotation not atomic (Web Lock), O2 a 30 s claim blocks re-registration after a crash, O3 blocked storage leaves the page on "Loading…". Fix now (reopens P1-01) or defer to P1-09? (L-0065) | — (P1-01 VERIFIED; fails closed) | Defer to P1-09 | MJ | PENDING |
 | B-21 | L-0075 FP3: also allow supplier wording under any `vault/` path segment (P1-05 vault UI) and in i18n, locale or translations directories? Owner terms still apply everywhere. (L-0079) | rv8 FP3 test red until decided | Approve | MJ | RESOLVED (L-0080: approved) |
 | B-22 | L-0075 O1: scan commit messages for owner terms and secret patterns (H-01)? Look-alike letters in owner terms stay an accepted limit. (L-0079) | — | Scan commit messages | MJ | PENDING |
-| B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | PENDING |
-| B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | PENDING |
+| B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | RESOLVED (L-0091: approved) |
+| B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
 
 ---
 
@@ -1987,6 +1987,42 @@ Security checklist (tick honestly):
 **Rules touched:** H-01, H-20, H-22
 **Next / needs:** MJ: approve or refuse B-23 and B-24.
 
+### L-0091 · 2026-10-27 19:55 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-09 (B-23, B-24)    **Claim:** C-001
+**What / why:** MJ approved: "Approved: B-23 (the vault exemption does not apply under any public/ directory) and B-24 (also decode added files with a UTF-32 byte-order mark when scanning for secrets)." B-23 and B-24 are resolved.
+**Rules touched:** H-01, H-20, H-22
+**Next / needs:** L-0092, L-0093.
+
+### L-0092 · 2026-10-27 20:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Appendix C rule 5 updated to match the script under L-0091 (H-25): the vault exemption for supplier wording does not apply under any `public/` directory; files that start with a UTF-32 byte-order mark are also decoded as UTF-32 and scanned in full.
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0093 · 2026-10-27 20:05 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Implements B-23 and B-24 (L-0091) in `scripts/activity-log-check.mjs`, exactly as proposed in L-0090.
+- **B-23:** a path with a `vault/` segment is exempt from the supplier-wording rule only if it has no `public/` segment, because the web app serves `public/` without sign-in.
+- **B-24:** a file starting with a UTF-32 byte-order mark (either byte order) is decoded as UTF-32 and scanned with the hard patterns, the name heuristic and the owner terms.
+- New builder test `supabase/tests/log-check-rulings.test.ts` covers B-21 with B-23 (vault UI passes; two public vault paths are refused) and B-24 (a fake JWT in UTF-32 in each byte order is refused; honest UTF-32 text passes). L-0085 had recorded both refused cases as passing before this change.
+**Evidence:**
+- `pnpm vitest run … log-check-rulings reverify9` gave "Tests 10 passed (10)".
+- The full suite, typecheck and the log check were re-run after these entries were written; the counts are in the commit message.
+**Rules touched:** H-01, H-20, H-23, H-25
+**Next / needs:** Re-verification of P0-02 and P0-09 (§7), or MJ sets stopping criteria for P0-09.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — both changes only tighten the check
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -2022,7 +2058,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
 
 0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit. An added file that cannot be read for scanning, or a changed path that is not valid UTF-8, also fails.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
@@ -2043,9 +2079,9 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
    - connection strings with a password, including a password given as a URI query parameter or as a libpq `password` keyword, with or without spaces around `=` and quoted or not, on a line with another libpq keyword such as `host=` or `user=` (placeholders and `${…}` or `$VAR` references excepted);
    - secret-named assignments with a real-looking value (in source code only quoted literals count; template literals built from `${…}` do not; nor, for names that are not password- or secret-like, multi-part lowercase name-like values (at least one word segment; others may be short numbers or a letter plus digits) such as `kiran.outbox.v1`, `kiran:outbox:v1`, `kiran.invoice.fy2026` or `receipt-a5-v2`, or mixed-case values made only of whole words of 3+ letters, short acronyms, numbers of up to 4 digits and short V-versions, such as `NotoNastaliqUrdu-Regular`, `NotoNaskhArabicUI-Regular` or `KiranOutboxEncryptedV1` (digit runs count whole, so `KiranSms903718264519` is not a name), or token-named values containing spaces or parentheses such as a design token; skipped in test code (`supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*`, `*.spec.*`), i18n/locale files and Markdown);
-   - supplier or cost wording outside `{timestamp}_vault*.sql` migrations, tests, docs, any path with a `vault/` directory segment, and i18n, locale or translations directories (MJ, L-0080);
+   - supplier or cost wording outside `{timestamp}_vault*.sql` migrations, tests, docs, any path with a `vault/` directory segment except under a `public/` directory (MJ, L-0080, L-0091), and i18n, locale or translations directories (MJ, L-0080);
    - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, matched after NFKC, ignoring case and every Unicode default-ignorable character, in added lines and in file paths;
-   - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, scanned in full (files over 64 MB fail).
+   - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, and as UTF-32 when it starts with a UTF-32 byte-order mark (MJ, L-0091), scanned in full (files over 64 MB fail).
 
    A file whose name starts with `.env` (any case), other than `.env.example`, is added or changed.
 

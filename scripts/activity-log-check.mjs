@@ -156,7 +156,8 @@ const skipsNameHeuristic = (f) => isTestFile(f) || /(^|\/)(i18n|locales?|transla
 // are still caught everywhere by the owner-listed terms.
 const SUPPLIER_OK = (f) =>
   /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/")
-  || /(^|\/)vault\//.test(f) || /(^|\/)(i18n|locales?|translations)\//.test(f);
+  || (/(^|\/)vault\//.test(f) && !/(^|\/)public\//.test(f))   // not under public/: served without sign-in (MJ, B-23 / L-0091)
+  || /(^|\/)(i18n|locales?|translations)\//.test(f);
 const isEnvFile = (f) => { const b = (f.split("/").pop() ?? "").toLowerCase(); return b.startsWith(".env") && b !== ".env.example"; };
 // Owner-listed terms, matched after NFKC and removing every Unicode default-ignorable code point
 // (zero-width, combining grapheme joiner, variation selectors, tag characters) and case (L-0061 D5).
@@ -502,11 +503,24 @@ for (const f of new Set([...notDeleted, ...untracked])) {
   let nul = 0;
   for (let i = 0; i < Math.min(buf.length, 4096); i++) if (buf[i] === 0) nul++;
   const looksUtf16 = (buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff) || nul > Math.min(buf.length, 4096) * 0.15;
-  for (const decoded of [le, be]) {
+  // A file starting with a UTF-32 byte-order mark is also decoded as UTF-32 and scanned in full,
+  // with the name heuristic too, since the mark makes it recognisable (MJ, B-24 / L-0091).
+  const utf32 = (buf[0] === 0xff && buf[1] === 0xfe && buf[2] === 0 && buf[3] === 0) ? "le"
+    : (buf[0] === 0 && buf[1] === 0 && buf[2] === 0xfe && buf[3] === 0xff) ? "be" : null;
+  const decodings = [[le, looksUtf16, "UTF-16"], [be, looksUtf16, "UTF-16"]];
+  if (utf32) {
+    let u = "";
+    for (let i = 4; i + 4 <= buf.length; i += 4) {
+      const cp = utf32 === "le" ? buf.readUInt32LE(i) : buf.readUInt32BE(i);
+      u += cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff) ? String.fromCodePoint(cp) : "�";
+    }
+    decodings.push([u, true, "UTF-32"]);
+  }
+  for (const [decoded, named0, enc] of decodings) {
     for (const text of decoded.split(/\r?\n/)) {
-      for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (UTF-16): line matches secret pattern ${re}.`);
-      if (looksUtf16 && !skipsNameHeuristic(f)) { const named = secretAssignment(text, f); if (named) fail(`${f} (UTF-16): line assigns a secret-looking value to "${named}" (H-20).`); }
-      if (termIn(text)) fail(`${f} (UTF-16): line contains an owner-listed sensitive term (H-01).`);
+      for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (${enc}): line matches secret pattern ${re}.`);
+      if (named0 && !skipsNameHeuristic(f)) { const named = secretAssignment(text, f); if (named) fail(`${f} (${enc}): line assigns a secret-looking value to "${named}" (H-20).`); }
+      if (termIn(text)) fail(`${f} (${enc}): line contains an owner-listed sensitive term (H-01).`);
     }
   }
 }
