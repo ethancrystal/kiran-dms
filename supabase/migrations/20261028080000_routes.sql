@@ -8,7 +8,7 @@
 --       can add pins and re-order the route), 10 (default_cycle_days seeds the due-list).
 --
 -- Until orders exist (P1-06) the last purchase is an office-entered opening baseline (A-09,
--- MJ L-0151); deliveries will replace it and mark the row basis = 'orders'. The due-list is
+-- MJ L-0157); deliveries will replace it and mark the row basis = 'orders'. The due-list is
 -- computed on read, so a change to a product group's default cycle applies at once.
 -- Past routes are final for every role. Reps read routes and the due-list only through
 -- functions (H-14).

@@ -6,7 +6,7 @@
 --               territories' salons, never delete or export), MAP-03 (append-only notes),
 --               CTL-18 part (the same phone on more than one salon is flagged)
 -- Docs: 02 (stages), 04 (salons), 06 §2 and §4 (rep scoping, masked phones, page caps).
--- ACTIVITY L-0137 (P1-02 split into parts a to d).
+-- ACTIVITY L-0143 (P1-02 split into parts a to d).
 --
 -- Reps never read salon tables directly (H-14): every salon read is a function that checks
 -- territory, masks phones and caps a page at 50 rows; app.reveal_phone returns one number

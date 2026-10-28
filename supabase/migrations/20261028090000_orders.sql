@@ -7,12 +7,12 @@
 --               CTL-07 (any price below list needs an approval), CTL-08 (manager overrides
 --               logged, capped per salon per month).
 -- Docs: 02 (first order → active), 04 (salon_credit, credit_event, order, order_line),
---       09 §1–2 (plans, credit rules), 13 §9 (discount thresholds), MJ L-0157.
+--       09 §1–2 (plans, credit rules), 13 §9 (discount thresholds), MJ L-0163.
 --
 -- Money is integer paisa (H-10). The credit profile changes only together with a credit_event
 -- in the same transaction (the same pattern as stage_event). Until invoices and payments exist
 -- (part b, P1-07) exposure is the total of confirmed installment orders (A-10). A cash order
--- never needs credit: a blocked salon may still buy cash on delivery (doc 09 §2, MJ L-0157).
+-- never needs credit: a blocked salon may still buy cash on delivery (doc 09 §2, MJ L-0163).
 -- Delivery, stock and invoices are part b; orders here stop at confirmed or cancelled.
 -- =============================================================================
 
@@ -198,7 +198,7 @@ language sql stable security definer set search_path = '' as $$
   where s.id = p_salon_id
 $$;
 
--- A-10: confirmed installment orders not yet cancelled. Cash orders never count (MJ L-0157).
+-- A-10: confirmed installment orders not yet cancelled. Cash orders never count (MJ L-0163).
 create function app.salon_exposure(p_salon_id uuid) returns bigint
 language sql stable security definer set search_path = '' as $$
   select coalesce(sum(o.total_paisa), 0)::bigint from public.sales_order o
@@ -264,7 +264,7 @@ begin
 end $$;
 
 -- ------------------------------------------------------------ credit profile ----
--- MJ L-0157 (2): until salon verification exists, the owner sets plan eligibility and limit by hand.
+-- MJ L-0163 (2): until salon verification exists, the owner sets plan eligibility and limit by hand.
 create function app.owner_set_credit(p_salon_id uuid, p_plan public.plan_code, p_limit_paisa bigint, p_reason text)
 returns public.salon_credit
 language plpgsql security definer set search_path = '' as $$

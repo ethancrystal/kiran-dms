@@ -4,7 +4,7 @@
 --               creates the stock movement from its source and one invoice with a sequential
 --               number), ADM-03 (invoice numbers gapless per financial year from 1 July).
 -- Docs: 02 (3 orders → active regular), 04 (delivery, invoice), 09 §8 (INV-<FY>-<seq>),
---       10 (stock leaves only through movements), MJ L-0157 (the salon's acknowledgment in
+--       10 (stock leaves only through movements), MJ L-0163 (the salon's acknowledgment in
 --       Phase 1 is the receiver's name with GPS and server time; an OTP comes with SMS).
 --
 -- A delivery takes some or all of what is left on a confirmed order. The rep delivers its own
@@ -43,7 +43,7 @@ create table public.delivery (
 create index delivery_order_idx on public.delivery (order_id);
 create index delivery_salon_idx on public.delivery (salon_id, delivered_at);
 comment on table public.delivery is
-  'ORD-04. Append-only. The acknowledgment is the receiver''s name, GPS and server time (MJ L-0157); an OTP is added with SMS.';
+  'ORD-04. Append-only. The acknowledgment is the receiver''s name, GPS and server time (MJ L-0163); an OTP is added with SMS.';
 
 create table public.delivery_line (
   id               uuid primary key default gen_random_uuid(),
@@ -131,7 +131,7 @@ begin
     raise exception using errcode = '22023', message = 'only a confirmed order is delivered (ORD-03)';
   end if;
   if length(btrim(coalesce(p_received_by_name, ''))) not between 2 and 80 then
-    raise exception using errcode = '22023', message = 'the name of the person who received the goods is required (MJ L-0157)';
+    raise exception using errcode = '22023', message = 'the name of the person who received the goods is required (MJ L-0163)';
   end if;
   -- The lines to deliver: as given (duplicates summed), or everything left.
   if p_lines is null then
@@ -205,7 +205,7 @@ end $$;
 
 -- ------------------------------------------------------------------ delivery ----
 -- The rep delivers its own confirmed order from its own bag during an open day, for a salon it
--- can reach, with the receiver's name and GPS (MJ L-0157). p_lines null: everything left.
+-- can reach, with the receiver's name and GPS (MJ L-0163). p_lines null: everything left.
 -- Idempotent on client_id: a replay returns the same invoice.
 create function app.rep_deliver(
   p_client_id uuid, p_order_id uuid, p_received_by_name text, p_lat numeric, p_lng numeric,
@@ -236,7 +236,7 @@ begin
   end if;
   if v_bag is null then perform app.raise_denied('this rep has no bag to deliver from'); end if;
   if p_lat is null or p_lng is null then
-    raise exception using errcode = '22023', message = 'GPS is required for a delivery (MJ L-0157)';
+    raise exception using errcode = '22023', message = 'GPS is required for a delivery (MJ L-0163)';
   end if;
   return app.deliver(p_client_id, p_order_id, v_bag, p_lines, p_received_by_name, p_lat, p_lng, p_mock_location,
                      p_delivered_at_client, v_day);

@@ -1,6 +1,6 @@
 /**
  * Credit profile and orders (migration 0012, task P1-06 part a): SAL-04, ORD-01 to ORD-03, ORD-10,
- * CTL-07, CTL-08; doc 09 §2 credit rules; doc 13 §9 discount thresholds; MJ decisions L-0157.
+ * CTL-07, CTL-08; doc 09 §2 credit rules; doc 13 §9 discount thresholds; MJ decisions L-0163.
  *
  * Catalogue, territories, salons and credit profiles are committed with fresh ids. Every order runs
  * in one rolled-back transaction that opens the reps' day for today as postgres and then switches
@@ -100,7 +100,7 @@ afterAll(async () => {
   await one(MANAGER, "select app.office_end_territory($1, $2, 'orders tests finished')", [fx.repB.id, T_B]);
 });
 
-describe("credit profile (SAL-04, MJ L-0157)", () => {
+describe("credit profile (SAL-04, MJ L-0163)", () => {
   it("only the owner sets plan and limit, with a reason; each change is a credit event", async () => {
     expect(await sqlstate(MANAGER, "select app.owner_set_credit($1, 'INST2', 100, 'manager tries')", [S_NEW])).toBe("42501");
     expect(await sqlstate(REP_A, "select app.owner_set_credit($1, 'INST2', 100, 'rep tries')", [S_NEW])).toBe("42501");
@@ -252,7 +252,7 @@ describe("taking an order (ORD-01, ORD-10)", () => {
   });
 });
 
-describe("the credit check (ORD-02, doc 09 §2, MJ L-0157)", () => {
+describe("the credit check (ORD-02, doc 09 §2, MJ L-0163)", () => {
   it("installments within the limit are confirmed; over the limit or above eligibility the order is held", async () => {
     const ok = id(),
       over = id(),

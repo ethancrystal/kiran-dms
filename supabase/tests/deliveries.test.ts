@@ -1,6 +1,6 @@
 /**
  * Deliveries and invoices (migration 0013, task P1-06 part b): ORD-03, ORD-04, ADM-03; doc 02
- * (3 orders → active regular); doc 09 §8 numbering; MJ L-0157 (receiver's name + GPS).
+ * (3 orders → active regular); doc 09 §8 numbering; MJ L-0163 (receiver's name + GPS).
  *
  * Catalogue, territories, salons, a warehouse and its opening stock are committed with fresh ids.
  * Each test runs in one rolled-back transaction that opens the reps' day, gives rep A a bag when it
@@ -108,7 +108,7 @@ afterAll(async () => {
   await one(MANAGER, "select app.office_end_territory($1, $2, 'deliveries tests finished')", [fx.repB.id, T_B]);
 });
 
-describe("delivering from the bag (ORD-04, MJ L-0157)", () => {
+describe("delivering from the bag (ORD-04, MJ L-0163)", () => {
   it("a full delivery moves the stock, issues one numbered invoice and completes the order", async () => {
     const o = id(),
       d = id();

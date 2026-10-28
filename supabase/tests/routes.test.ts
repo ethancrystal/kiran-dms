@@ -94,7 +94,7 @@ afterAll(async () => {
   await one(MANAGER, "select app.office_end_territory($1, $2, 'routes tests finished')", [fx.repB.id, T_B]);
 });
 
-describe("opening last purchase (A-09, MJ L-0151)", () => {
+describe("opening last purchase (A-09, MJ L-0157)", () => {
   it("only the office records it; a future date, an unknown salon or group is refused", async () => {
     const call = `select app.office_set_last_purchase($1, $2, ${TODAY} - 1)`;
     expect(await sqlstate(REP_A, call, [S1, G1])).toBe("42501");

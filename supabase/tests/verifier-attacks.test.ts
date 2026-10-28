@@ -259,11 +259,11 @@ describe("internal functions are not callable by app roles", () => {
       "warehouse_availability",
       // my_session, self_ok: added by migration 0004 (L-0026). Inventory RPCs and the my_bag_id RLS
       // helper: migration 0008 (P1-04); list change approved by MJ (L-0130, H-23). Territory and salon
-      // RPCs and the my_territory_ids RLS helper: migration 0009 (P1-02a); MJ approval L-0138.
-      // Rep day and visit RPCs: migration 0010 (P1-02 part b); MJ standing approval L-0138.
-      // Due-list and route RPCs: migration 0011 (P1-16); MJ standing approval L-0138.
-      // Credit and order RPCs: migration 0012 (P1-06 part a); MJ standing approval L-0138.
-      // Delivery RPCs: migration 0013 (P1-06 part b); MJ standing approval L-0138.
+      // RPCs and the my_territory_ids RLS helper: migration 0009 (P1-02a); MJ approval L-0144.
+      // Rep day and visit RPCs: migration 0010 (P1-02 part b); MJ standing approval L-0144.
+      // Due-list and route RPCs: migration 0011 (P1-16); MJ standing approval L-0144.
+      // Credit and order RPCs: migration 0012 (P1-06 part a); MJ standing approval L-0144.
+      // Delivery RPCs: migration 0013 (P1-06 part b); MJ standing approval L-0144.
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace

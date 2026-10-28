@@ -60,7 +60,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
 | ORD-01 | Create an order for a salon: lines (SKU, qty, unit price from active price list), discounts within rep's allowed % (default 0), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
-| ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0157). Hard stop for reps; Mg/O can override with reason | M | 1 |
+| ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0163). Hard stop for reps; Mg/O can override with reason | M | 1 |
 | ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O | M | 1 |
 | ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
 | ORD-05 | Invoice/receipt PDF or image: Kiran branding, salon, lines, totals, payment plan schedule, receipt numbers. **Never** shows supplier or cost | M | 1 |

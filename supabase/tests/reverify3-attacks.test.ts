@@ -72,7 +72,7 @@ describe("§7 sweep, written independently by re-verifier-3", () => {
 
   it("§7.4 list-dump: a rep on the approved phone sees only its own rows; it reads no salon rows (H-14)", async () => {
     // Was "salons do not exist yet" (to_regclass is null). Migration 0009 creates public.salon; reps read
-    // salons only through capped functions, so the table shows them 0 rows (MJ approval L-0138).
+    // salons only through capped functions, so the table shows them 0 rows (MJ approval L-0144).
     const r = await run(REP_A, `
       select (select count(*)::int from public.user_profile) p,
              (select count(*)::int from public.user_profile where id <> auth.uid()) p_other,
@@ -185,16 +185,16 @@ describe("§7.6 backdated client timestamps", () => {
     // Migration 0008 (P1-04; MJ approval L-0130, H-23): office_propose_stock_issue(p_route_date) is a
     // planned route day; record_count(p_counted_at_client) and record_demand(p_captured_at_client) store
     // the phone's time as evidence only, in *_client columns, next to the server's created_at (H-09).
-    // Migration 0009 (P1-02a; MJ approval L-0138): create_salon(p_created_at_client) and
+    // Migration 0009 (P1-02a; MJ approval L-0144): create_salon(p_created_at_client) and
     // add_salon_note(p_created_at_client) store the phone's time as evidence only (H-09).
-    // Migration 0010 (P1-02 part b; MJ standing approval L-0138): log_visit(p_arrived_at_client),
+    // Migration 0010 (P1-02 part b; MJ standing approval L-0144): log_visit(p_arrived_at_client),
     // rep_check_in(p_at_client) and rep_check_out(p_at_client) store the phone's time as evidence only.
     // Migration 0011 (P1-16): due_list(p_on), my_route(p_day), office_set_route(p_day) and
-    // rep_reorder_route(p_day) take a planned day (standing approval L-0138); routes are written only for
+    // rep_reorder_route(p_day) take a planned day (standing approval L-0144); routes are written only for
     // today or later. office_set_last_purchase(p_last_order_on) is an office-entered opening date that
-    // may not be in the future (MJ approval L-0151).
-    // Migration 0012 (P1-06 part a; standing approval L-0138): create_order(p_created_at_client) stores the
-    // phone's time as evidence only. Migration 0013 (P1-06 part b; L-0138): rep_deliver(p_delivered_at_client) too.
+    // may not be in the future (MJ approval L-0157).
+    // Migration 0012 (P1-06 part a; standing approval L-0144): create_order(p_created_at_client) stores the
+    // phone's time as evidence only. Migration 0013 (P1-06 part b; L-0144): rep_deliver(p_delivered_at_client) too.
     expect(rows.map((x) => x.f)).toEqual([
       "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_route",
       "app.office_propose_stock_issue", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
