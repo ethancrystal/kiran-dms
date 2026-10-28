@@ -4,7 +4,7 @@
 // Errors block the import ("not clean"); warnings are imported with a flag for the manager.
 // The definitions are in docs/runbooks/excel-import-dry-run.md and must stay in sync (H-25).
 
-import { columnLetter, isHeaderWords, resolveMapping, type Field, type Mapping } from "./mapping.ts";
+import { columnLetter, isHeaderWords, resolveMapping, strongMatches, type Field, type Mapping } from "./mapping.ts";
 import {
   excelError, formatRupees, keyOf, mapSalonType, maskPhone, normalizePhone, parseChairs, parseGeo, parsePaisa,
   splitPhones, type SalonType,
@@ -34,6 +34,7 @@ export type DryRunReport = {
   extraPhones: string[];       // further phone columns, printed the same way
   unmappedHeaders: string[];   // ignored columns, printed the same way
   fatal: string[];             // file-level problems (missing required column, bad mapping)
+  headerRow: number;           // spreadsheet row taken as the header; rows above it are not read
   rowsRead: number;            // non-empty data rows
   rowsValid: number;           // rows with no error
   errors: Issue[];
@@ -52,6 +53,14 @@ export type DryRunOptions = {
 
 export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions = {}): DryRunReport {
   const m = resolveMapping(headers, opts.mapping);
+  const headerRow = (opts.firstDataRow ?? 2) - 1;
+  // The header row is confirmed only when at least two of its headings are matched exactly or
+  // named by --mapping. A row matched only by headings that start with a known word ("Salon
+  // Colour" -> name, "Block 13" -> area) or by a phone word is likely a data row on a sheet
+  // with no header row: it and every row above it would be dropped unchecked, and its cells
+  // would be printed as headings. Such a row is refused, and none of its cells is printed: every
+  // heading is shown by column letter (L-0116 P0-02 D4).
+  const confirmed = strongMatches(m) >= 2;
   // Two columns with the same heading (case, spacing and punctuation ignored): the mapping can
   // claim only one of them, so the other would be dropped unchecked, its phones left out of the
   // CTL-18 duplicate check, while the run still said CLEAN (council audit 2026-10-27, finding 8).
@@ -59,19 +68,23 @@ export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions 
   headers.forEach((h, i) => { if (h.trim() !== "") seen.set(keyOf(h), [...(seen.get(keyOf(h)) ?? []), i]); });
   const duplicates = [...seen.values()].filter((cols) => cols.length > 1).map((cols) => {
     const h = headers[cols[0]];
-    const name = isHeaderWords(h) ? `"${h}"` : "a heading";
+    const name = confirmed && isHeaderWords(h) ? `"${h}"` : "a heading";
     return `${name} heads more than one column (columns ${cols.map(columnLetter).join(", ")}): rename them so each column has its own heading`;
   });
   const fatal = [
     ...duplicates,
     ...m.problems,
     ...m.missingRequired.map((f) => `no column for required field "${f}" (add one, or pass a mapping)`),
+    ...(!confirmed && m.missingRequired.length === 0
+      ? [`row ${headerRow} was taken as the header, but fewer than two of its headings are ones the tool knows exactly (such as "Salon Name", "Area", "Mobile"); ` +
+         `it may be a data row on a sheet with no header row: add a header row with plain headings, or name the columns with --mapping`]
+      : []),
   ];
   const col = (f: Field) => (m.mapping[f] === undefined ? -1 : headers.indexOf(m.mapping[f]!));
   const idx = Object.fromEntries((Object.keys(m.mapping) as Field[]).map((f) => [f, col(f)])) as Partial<Record<Field, number>>;
   const get = (r: string[], f: Field) => (idx[f] === undefined || idx[f]! < 0 ? "" : (r[idx[f]!] ?? "").trim());
   const extraIdx = m.extraPhones.map((h) => headers.indexOf(h));
-  const label = (h: string) => (isHeaderWords(h) || Object.values(opts.mapping ?? {}).includes(h) ? `"${h}"` : `column ${columnLetter(headers.indexOf(h))}`);
+  const label = (h: string) => ((confirmed && isHeaderWords(h)) || Object.values(opts.mapping ?? {}).includes(h) ? `"${h}"` : `column ${columnLetter(headers.indexOf(h))}`);
 
   const errors: Issue[] = [];
   const warnings: Issue[] = [];
@@ -179,6 +192,7 @@ export function dryRun(headers: string[], rows: string[][], opts: DryRunOptions 
     extraPhones: m.extraPhones.map(label),
     unmappedHeaders: m.unmappedHeaders.map(label),
     fatal: rowsRead === 0 && fatal.length === 0 ? ["the file has no data rows"] : fatal,
+    headerRow,
     rowsRead,
     rowsValid: candidates.length,
     errors,
@@ -202,6 +216,7 @@ export function formatReport(r: DryRunReport, opts: { maxIssues?: number } = {})
   out.push(`Result: ${r.clean ? "CLEAN: no errors; ready for the P1-02 import" : "NOT CLEAN: fix the errors below and run again"}`);
   out.push(`Rows read: ${r.rowsRead}   valid: ${r.rowsValid}   errors: ${r.errors.length}   warnings: ${r.warnings.length}`);
   out.push(``);
+  out.push(`Header row: ${r.headerRow}${r.headerRow > 1 ? ` (rows 1 to ${r.headerRow - 1} above it are not read)` : ""}`);
   out.push(`Column mapping:`);
   for (const [f, h] of Object.entries(r.mapping)) out.push(`  ${f.padEnd(16)} <- ${h}`);
   for (const h of r.extraPhones) out.push(`  ${"phone (also)".padEnd(16)} <- ${h}`);

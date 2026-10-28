@@ -8,7 +8,9 @@
  * the app reads their status through app.my_session() instead.
  *
  * SELECT expectation: "denied" (no privilege) or a SQL predicate. The persona must see
- * exactly the rows the predicate selects (evaluated as postgres). Writes: every
+ * exactly the rows the predicate selects (evaluated as postgres): the two sorted lists of
+ * whole-row text are compared, so a policy showing other rows in the same number fails
+ * (L-0116 D2). Writes: every
  * application role (anon, authenticated personas, service_role) must be refused for
  * direct INSERT / UPDATE / DELETE — all writes go through app.* functions (H-08).
  */
@@ -132,6 +134,11 @@ const MATRIX: Row[] = [
   },
 ];
 
+// The rows of a table that match a predicate, as a sorted list of whole-row text: row identity,
+// not a count. Run as postgres with the expected predicate, and as the persona with `true`.
+const rowSet = (table: string, where: string) =>
+  `select coalesce(array_agg(t::text order by t::text), '{}') as rows from ${table} t where ${where}`;
+
 // Every relation (table, view, materialized view, foreign table) in our five schemas.
 const COVERAGE = `select n.nspname || '.' || c.relname as t from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where c.relkind in ('r', 'p', 'v', 'm', 'f')
@@ -153,6 +160,30 @@ describe("RLS matrix", () => {
     expect(seen).toContain("public.zz_planted_t");
   });
 
+  it("the SELECT comparison catches a same-count leak: repA shown other users' devices instead of its own (L-0116 D2)", async () => {
+    // One rolled-back transaction. A helper picks as many devices of OTHER users as repA owns, and
+    // device_select is altered to show repA exactly those, so the count stays right whatever rows
+    // other test files have committed. The expected set is taken as postgres, the visible set as repA.
+    const A = fx.repA.id;
+    const res = (await run("postgres", `
+      create function public.zz_planted_swap() returns setof uuid language sql stable security definer set search_path = '' as $f$
+        select d.id from public.device d where d.user_id <> '${A}'::uuid order by d.id
+        limit (select count(*) from public.device where user_id = '${A}'::uuid) $f$;
+      grant execute on function public.zz_planted_swap() to authenticated;
+      alter policy device_select on public.device using (
+        case when (select auth.uid()) = '${A}'::uuid then id in (select public.zz_planted_swap())
+             else (user_id = (select auth.uid()) and (select app.self_ok())) or (select app.is_office()) end);
+      ${rowSet("public.device", `(user_id = ${me("repA")})`)};
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: A, role: "authenticated", aal: "aal1" })}', true),
+             set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
+      set local role authenticated;
+      ${rowSet("public.device", "true")}`)) as unknown as Array<{ rows: Array<{ rows: string[] }> }>;
+    const want = res[3].rows[0].rows, got = res[6].rows[0].rows;
+    expect(want.length).toBeGreaterThan(0);
+    expect(got.length).toBe(want.length);
+    expect(got).not.toEqual(want);
+  });
+
   for (const row of MATRIX) {
     describe(row.table, () => {
       for (const [name, who] of Object.entries(P)) {
@@ -162,9 +193,9 @@ describe("RLS matrix", () => {
             expect(await sqlstate(who, `select count(*) from ${row.table}`)).toBe("42501");
             return;
           }
-          const want = await run("postgres", `select count(*)::int as n from ${row.table} where ${exp}`);
-          const got = await run(who, `select count(*)::int as n from ${row.table}`);
-          expect(got.rows[0].n).toBe(want.rows[0].n);
+          const want = await run<{ rows: string[] }>("postgres", rowSet(row.table, `(${exp})`));
+          const got = await run<{ rows: string[] }>(who, rowSet(row.table, "true"));
+          expect(got.rows[0].rows).toEqual(want.rows[0].rows);
         });
 
         for (const [op, sql] of [

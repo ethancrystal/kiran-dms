@@ -253,14 +253,14 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P0-01 | Resolve Phase 0 decisions: D-08, OQ-01–04, 06–08, 11–13, 16 (MJ answers; log each) | doc 12 | NOT STARTED | — |
-| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, redone in L-0088, L-0098 and L-0106 after L-0085; real-file run is MJ, gate-0-checklist action 7) | C-001 |
+| P0-02 | Load and clean the Excel; build the import mapping and dry-run | SAL-10, OQ-01 | IN PROGRESS (tool DONE, self-reported, redone in L-0088, L-0098, L-0106 and L-0120 after L-0085 and L-0116; real-file run is MJ, gate-0-checklist action 7) | C-001 |
 | P0-03 | Draft Karachi territories; choose the pilot territory and pilot rep | PIP-01, OQ-13 | NOT STARTED | — |
 | P0-04 | Create the repo, CI, Supabase staging + prod, Next.js skeleton; copy this file to `docs/ACTIVITY.md` | doc 05 | IN PROGRESS | C-001 |
 | P0-05 | Owner/manager auth with mandatory TOTP MFA (owner account creation is human-only, §10) | SEC-02, SEC-04 | IN PROGRESS | C-001 |
-| P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | IN PROGRESS (reopened L-0111 for B-26; was VERIFIED L-0030) | C-001 |
+| P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | IN PROGRESS (reopened L-0111 for B-26; redone L-0119 after L-0116; was VERIFIED L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097 and L-0105 after L-0085) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097, L-0105 and L-0121 after L-0085 and L-0116) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -269,7 +269,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
-| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | IN PROGRESS (reopened L-0111 for B-26; was VERIFIED L-0061) | C-001 |
+| P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
 | P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | NOT STARTED | — |
@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 15:20 (L-0115) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 20:00 (L-0124) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -370,6 +370,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
 | B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
 | B-26 | Council findings 4 to 6 reopen verified P0-06 and P1-01 (view-aware guards, device revocation trigger as migration 0007 applied to staging, audit-trigger guard); finding 7 in full (fail on an empty owner-term list in CI) right after B-15a. (L-0108) | P0-06, P1-01, P0-09 | Approve both | MJ | PART RESOLVED (4 to 6: L-0110); finding 7 after B-15a |
+| B-27 | A board row may cite a CORRECTION that rejects the task (L-0116 O1): require a checkable per-task verdict line in the cited entry, or allow only VERIFIED-type entries? (L-0124) | P0-09 | Per-task verdict line | MJ | PENDING |
 
 ---
 
@@ -2383,6 +2384,114 @@ Security checklist (tick honestly):
 [ ] Docs match code; deviations logged (H-25) — P0-02 D3, D4; P0-09 D1, D2, D5 to D8
 [x] Tests actually run; real results recorded (H-23, H-24)
 
+### L-0117 · 2026-10-28 19:25 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P0-06, P1-01, P0-02, P0-09    **Claim:** C-001
+**What / why:** Accepting L-0116 (round 10, a workflow of fresh agents: three attackers, refuting verifiers, one writer). I committed its entry and its two test files unedited (commit 99fd726). P1-01 is VERIFIED by L-0116. P0-06, P0-02 and P0-09 stay open for its findings: P0-06 D1 to D3 and FP1; P0-02 D1 to D4, FP1 and O1; P0-09 D1 to D8. P0-09 O1 and O2 are MJ's decisions (L-0124, B-22).
+**Evidence:** L-0116 recorded "12 failed | 22 passed (34)" for its database part and "5 failed | 31 passed (36)" for packages/import, every failure one of its checks; CI on 99fd726 failed the same way.
+**Rules touched:** §7, H-23
+**Next / needs:** L-0118 to L-0124.
+
+### L-0118 · 2026-10-28 19:30 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P1-01    **Claim:** C-001
+**What / why:** MJ approved, choosing "Approve both" to the question "Round 10 verified P1-01 (L-0116). Setting its board row to VERIFIED (L-0116) breaks the reverify5 OBSERVATION test's anchor again. May I update that one anchor string to the new row text (only that line), and set the P1-01 row to VERIFIED (L-0116)?". Done in this change: the P1-01 row reads VERIFIED (L-0116), and only the anchor string of that reverify5 test changes.
+**Rules touched:** §7, H-23
+**Next / needs:** —
+
+### L-0119 · 2026-10-28 19:35 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-06 (RLS test harness)    **Claim:** C-001
+**What / why:** Fixes L-0116 P0-06 findings in `supabase/tests/schema-hygiene.test.ts` and `supabase/tests/rls-matrix.test.ts` (made by a fix-workflow agent, reviewed by a separate agent, integrated by me).
+- **D1:** the audit-trigger guard also requires no WHEN qualifier and no UPDATE OF column list.
+- **D2:** each RLS matrix SELECT cell now compares the sorted whole-row text a role sees with what the expected predicate selects, not the row count. A planted policy that shows the right number of wrong rows is caught.
+- **D3:** the schema guard covers every schema whose owner the migration role is a member of (so a schema created with another role as owner is covered), and graphql_public is refused if it holds any table, view or sequence (functions stay allowed there, as the platform keeps its graphql function in it).
+- **FP1:** a view passes the security_invoker check when Postgres itself reads the stored value as true (on, 1, yes and so on), and fails otherwise.
+- Planted-violation tests added for D1 and D3 and every spelling.
+**Evidence:** the fix agent ran "reverify10 schema-hygiene rls-matrix device-guard foundation: Test Files 5 passed (5), Tests 356 passed (356)"; the reviewer re-ran and found nothing loosened beyond FP1. The schema guard has not been run on the CI Supabase stack yet; CI on this push will show it. My own full-suite counts are in the commit message.
+**Rules touched:** H-13, H-17, H-23
+**Next / needs:** Re-verification of P0-06.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — matrix now compares row identity, not counts
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — no schema change
+[x] Audit trigger present; hash chain verifies (H-17) — guard now also refuses WHEN clauses and column lists
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — two documented false-positive corrections only (security_invoker spellings; empty-string formula results)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0120 · 2026-10-28 19:40 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-02 (dry-run tool)    **Claim:** C-001
+**What / why:** Fixes L-0116 P0-02 findings in `packages/import` (fix-workflow agent, separately reviewed).
+- **D1:** a closing quote followed by anything other than a delimiter or a line break refuses the file, naming the lines.
+- **D2:** headings are compared after removing invisible format characters and combining marks, so an invisible character cannot hide a second phone column. The same comparison now applies to area names in the duplicate and area-list warnings, so two areas differing only by an invisible character are treated as the same (warning level only).
+- **D3:** sheet names are printed only when made of common tab words; otherwise by position, including the hidden sheets skipped and the wrong-sheet error.
+- **D4:** a row matched only by heading prefixes never beats a row of plain headings, and is refused as the header unless a mapping confirms it.
+- **FP1:** a formula whose saved result is the empty string reads as an empty cell, found by a small reader of the file's own sheet XML (new `src/xlsx-raw.ts`, no new dependency).
+- **O1:** line numbers count CR-only line breaks.
+- Runbook updated.
+**Evidence:** the fix agent ran "pnpm -C packages/import test: Test Files 3 passed (3), Tests 50 passed (50)" and typecheck exit 0; the reviewer re-ran them. My counts are in the commit message.
+**Rules touched:** H-03, H-23, H-25
+**Next / needs:** Re-verification of P0-02.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — matrix now compares row identity, not counts
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — no schema change
+[x] Audit trigger present; hash chain verifies (H-17) — guard now also refuses WHEN clauses and column lists
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — two documented false-positive corrections only (security_invoker spellings; empty-string formula results)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0121 · 2026-10-28 19:45 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Fixes L-0116 P0-09 findings in `scripts/activity-log-check.mjs` (fix-workflow agent, separately reviewed).
+- **D1, D2, D3:** the §12 board is parsed the way GitHub renders tables (indented rows, missing outer pipes, escaped pipes, the Status column found by its header); a changed Status cell must be plain text, and any mention of verified in any spelling must be exactly the canonical citation form, except a reopen note of the form "was VERIFIED L-nnnn"; a task with more than one board row is refused.
+- **D4:** the cited verdict must come after the task's latest DONE entry.
+- **D5, D6:** the history pass reads merge commits as combined diffs, and only real file headers are skipped.
+- **D7, D8:** every file version added or changed by any commit in the range gets the UTF-16 and UTF-32 decodings scanned, and its path checked for owner terms.
+- Builder tests for each fix added to `supabase/tests/log-check-rulings.test.ts`.
+- The reopen-note allowance is a builder choice that narrows the literal D1 wording; it accepts nothing the old code refused.
+**Evidence:** the fix agent ran "log-check-rulings: Tests 18 passed (18)" and "reverify10: Tests 16 passed (16)"; the reviewer re-ran them. My counts are in the commit message.
+**Rules touched:** H-01, H-20, H-23, H-25
+**Next / needs:** Re-verification of P0-09.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — matrix now compares row identity, not counts
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — no schema change
+[x] Audit trigger present; hash chain verifies (H-17) — guard now also refuses WHEN clauses and column lists
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — two documented false-positive corrections only (security_invoker spellings; empty-string formula results)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0122 · 2026-10-28 19:50 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DEVIATION
+**Task:** P0-09 (ACTIVITY Appendix C)    **Claim:** C-001
+**What / why:** Appendix C rules 4 and 5 updated to match L-0121, the verification list gains L-0116, and the dry-run runbook matches L-0120 (H-25).
+**Rules touched:** H-25, H-26
+**Next / needs:** —
+
+### L-0123 · 2026-10-28 19:55 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · PROGRESS
+**Task:** P1-01    **Claim:** C-001
+**What / why:** Under L-0118, the P1-01 board row moves to VERIFIED (L-0116). The log check's board rule accepts it: L-0116 names P1-01, carries the checklist, is signed by the re-verifier-10 workflow (not the builder session), and comes after P1-01's latest DONE (L-0112).
+**Evidence:** `node scripts/activity-log-check.mjs origin/main` OK with this change.
+**Rules touched:** §7
+**Next / needs:** —
+
+### L-0124 · 2026-10-28 20:00 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · BLOCKER
+**Task:** P0-09    **Claim:** C-001
+**What / why:** B-27 (L-0116 P0-09 O1): a board row may cite a CORRECTION entry, and the check does not read whether that entry verified the task or rejected it. A recent CORRECTION that rejects a task could be cited as its verification. Options: (a) require the cited entry to state the verdict for each task in a fixed, checkable form, such as a line "P1-01: VERIFIED"; (b) allow only VERIFIED-type entries to be cited, so a verifier verifying one task and correcting another writes two entries. Recommendation: (a), because it keeps one verification entry per round.
+**Evidence:** `supabase/tests/reverify10-attacks.test.ts` O1 case.
+**Rules touched:** §7
+**Next / needs:** MJ: choose (a) or (b), or leave as is.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -2418,7 +2527,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095, L-0107). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085, L-0116; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095, L-0107, L-0122). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
 
 0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit. An added file that cannot be read for scanning, or a changed path that is not valid UTF-8, also fails.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
@@ -2434,15 +2543,15 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
    - new log text does not start with a new entry header, or contains any other heading, a blockquote at any nesting depth, or a heading inside a list item at any nesting depth; in new log text any indented heading, blockquote or setext underline is refused whatever the indentation (a block can nest in a list item by indentation alone); new log text may not contain `<`, `&` or a backslash outside fenced code, except in CommonMark autolinks (a URL or e-mail address in angle brackets), which the raw-HTML rule also allows;
    - a `---` separator anywhere but as the final line (code blocks excepted).
 3. A new entry has a duplicate or non-sequential `L-NNNN` number; is missing the signature, type or task line, or the evidence line (for `DONE`, `VERIFIED`, `HANDOFF`, `PROGRESS`); has a signature that is not plain ASCII apart from the `·` separators; or its task line contains non-ASCII characters outside a small allowlist (en/em dash, §, ≠, ·, ×, …).
-4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`, `P0-9`, `P0_09`, `P0.09`), or shares a signature with the `DONE` entry for any task it names. A §12 board row that moves to VERIFIED must read `VERIFIED (L-nnnn)`, and that entry, whatever its type, must be a `VERIFIED` or `CORRECTION` entry that names the task, carries the security checklist, and shares no signature with any `DONE` entry for the task (L-0097). Signatures count as shared when they are equal, one contains the other, or both carry the same `session {id}` (maker ≠ checker, §7; MJ ruling L-0029).
+4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`, `P0-9`, `P0_09`, `P0.09`), or shares a signature with the `DONE` entry for any task it names. The §12 board is read the way GitHub renders tables: a table opens at a header row followed by a delimiter row with the same number of cells and ends at a blank line or a heading; a row may be indented and may omit its outer pipes; cells split on unescaped pipes; the Status column is found by its header. Each task has exactly one board row. A Status cell whose text changed from the base is plain text (ASCII plus the Task-line allowlist, no Markdown emphasis, code or escape characters). If a changed Status cell mentions VERIFIED in any form (any case, after NFKC and removing default-ignorable characters and emphasis), it must read exactly `VERIFIED (L-nnnn)`; the only other allowed mention is a reopen note of the form `was VERIFIED L-nnnn`. A new or changed board line that mentions VERIFIED but is not a task row in a table with a Status column is refused. The cited entry, whatever its type, must be a `VERIFIED` or `CORRECTION` entry that names the task, carries the security checklist, shares no signature with any `DONE` entry for the task (L-0097), and comes after the task's latest `DONE` entry (L-0121). Signatures count as shared when they are equal, one contains the other, or both carry the same `session {id}` (maker ≠ checker, §7; MJ ruling L-0029).
 5. An added line contains a secret-looking value or supplier identifiers:
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
    - connection strings with a password, including a password given as a URI query parameter or as a libpq `password` keyword, with or without spaces around `=` and quoted or not, on a line with another libpq keyword such as `host=` or `user=` (placeholders and `${…}` or `$VAR` references excepted);
    - secret-named assignments with a real-looking value (in source code only quoted literals count; template literals built from `${…}` do not; nor, for names that are not password- or secret-like, multi-part lowercase name-like values (at least one word segment; others may be short numbers or a letter plus digits) such as `kiran.outbox.v1`, `kiran:outbox:v1`, `kiran.invoice.fy2026` or `receipt-a5-v2`, or mixed-case values made only of whole words of 3+ letters, short acronyms, numbers of up to 4 digits and short V-versions, such as `NotoNastaliqUrdu-Regular`, `NotoNaskhArabicUI-Regular` or `KiranOutboxEncryptedV1` (digit runs count whole, so `KiranSms903718264519` is not a name), or token-named values containing spaces or parentheses such as a design token; skipped in test code (`supabase/tests/`, any `tests/`, `e2e/` or `__tests__/` directory, `*.test.*`, `*.spec.*`), i18n/locale files and Markdown);
    - supplier or cost wording outside `{timestamp}_vault*.sql` migrations, tests, docs, any path with a `vault/` directory segment except under a `public/` directory (MJ, L-0080, L-0091), and i18n, locale or translations directories (MJ, L-0080);
    - any term in the owner-maintained `KIRAN_SENSITIVE_TERMS` GitHub secret, matched after NFKC, ignoring case and every Unicode default-ignorable character, in added lines and in file paths;
-   - the secret patterns, owner terms and the `.env` rule below also apply to every commit in the range, not only the net diff (git history keeps a removed secret); the other heuristics apply to the net diff (L-0105). The OK output reports how many owner terms were checked;
-   - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, and as UTF-32 when it starts with a UTF-32 byte-order mark (MJ, L-0091), scanned in full (files over 64 MB fail).
+   - the secret patterns, owner terms (in added lines and in the path of every file added or changed) and the `.env` rule below also apply to every commit in the range, merge commits included: a merge is read as a combined diff, so only files and lines that differ from every parent count, and a clean merge adds nothing (L-0105, L-0121). The other heuristics apply to the net diff. The OK output reports how many owner terms were checked;
+   - the same patterns in every added file decoded as UTF-16 in both byte orders, BOM or not, and as UTF-32 when it starts with a UTF-32 byte-order mark (MJ, L-0091), scanned in full (files over 64 MB fail); the secret patterns and owner terms also run on these decodings of every file version added or changed by any commit in the range (L-0121).
 
    A file whose name starts with `.env` (any case), other than `.env.example`, is added or changed.
 

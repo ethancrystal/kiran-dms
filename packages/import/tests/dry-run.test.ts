@@ -1,16 +1,17 @@
 // P0-02 dry-run tests. All data is synthetic (H-03): "Test Salon NN", "Test Owner X" and
 // 0399-prefixed numbers; areas are the public locality names used in doc 02.
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { parseCsv, splitHeader } from "../src/core/csv.ts";
 import { resolveMapping } from "../src/core/mapping.ts";
-import { mapSalonType, maskPhone, normalizePhone, parseGeo, parsePaisa } from "../src/core/normalize.ts";
+import { keyOf, mapSalonType, maskPhone, normalizePhone, parseGeo, parsePaisa } from "../src/core/normalize.ts";
 import { dryRun, formatReport, reportJson } from "../src/core/validate.ts";
 import { readTable } from "../src/read.ts";
+import { emptyStringFormulaCells } from "../src/xlsx-raw.ts";
 
 const PKG = resolve(import.meta.dirname, "..");
 const fixture = (n: string) => join(PKG, "tests/fixtures", n);
@@ -221,5 +222,196 @@ describe("command line", () => {
     } finally {
       await rm(join(dir, added[0]));
     }
+  });
+});
+
+// Fixes for the round-10 re-verification (L-0116, P0-02 D1 to D4, FP1, O1). Synthetic data only.
+const check = (table: string[][], mapping?: Record<string, string>) => {
+  const { headers, rows, firstDataRow } = splitHeader(table, mapping);
+  return dryRun(headers, rows, { firstDataRow, mapping });
+};
+const withTmp = async (fn: (dir: string) => Promise<void>) => {
+  const dir = await mkdtemp(join(tmpdir(), "kiran-import-l0116-"));
+  try { await fn(dir); } finally { await rm(dir, { recursive: true, force: true }); }
+};
+
+describe("L-0116 D1 and O1: CSV quotes", () => {
+  const head = [
+    "Salon Name,Area,Mobile,Notes",
+    "Test Salon 01,Gulshan,0399-0000001,ok",
+    'Test Salon 02,Clifton,0399-0000002,"Corner shop',
+    "Test Salon 03,Saddar,0399-000000,bad phone",
+    'Test Salon 05,Gulshan,0399-0000005,has 12" mirror',
+    "Test Salon 06,Saddar,0399-0000006,ok",
+  ];
+
+  it("a quote closed by a stray quote on a later line refuses the file, naming both lines and no cell text", () => {
+    for (const eol of ["\n", "\r\n", "\r"]) {
+      let msg = "";
+      try { parseCsv(head.join(eol) + eol); } catch (e) { msg = (e as Error).message; }
+      expect(msg, JSON.stringify(eol)).toMatch(/opened on line 3 is closed on line 5 by a quote mark that is followed by more text/);
+      expect(msg).not.toMatch(/Corner|mirror|Test Salon/);
+    }
+  });
+
+  it("text right after a closing quote on the same line is refused; a closing quote before a delimiter, a line break or the end is fine", () => {
+    expect(() => parseCsv('Salon Name,Area\n"Test Salon 01" x,Clifton\n')).toThrow(/opened on line 2 is closed on line 2/);
+    expect(() => parseCsv('Salon Name,Area\n"Test Salon 01" ,Clifton\n')).toThrow(/followed by more text/);
+    expect(parseCsv('a,b\n"x","y"\n"z","w"')).toEqual([["a", "b"], ["x", "y"], ["z", "w"]]);
+    expect(parseCsv('a,b\r"x","y"\r')).toEqual([["a", "b"], ["x", "y"]]);
+    expect(parseCsv('a;b\n"x";""\n')).toEqual([["a", "b"], ["x", ""]]);
+    // A quote inside an unquoted field (an inch mark) is kept as text, as before.
+    expect(parseCsv('a,b\n12" mirror,x\n')).toEqual([["a", "b"], ['12" mirror', "x"]]);
+  });
+
+  it("CR-only files: line numbers count CR, and the delimiter is detected per line", () => {
+    const open = ["Salon Name;Area;Mobile", "Test Salon 01;Gulshan;0399-0000001", 'Test Salon 02;"Clifton;0399-0000002'].join("\r");
+    expect(() => parseCsv(open)).toThrow(/opened on line 3 is never closed/);
+    expect(parseCsv("Salon Name;Area\rTest Salon 01;Gulshan\r")).toEqual([["Salon Name", "Area"], ["Test Salon 01", "Gulshan"]]);
+    // A quoted CRLF inside a field still counts as one line break.
+    expect(() => parseCsv('a,b\r\n"x\r\ny",2\r\n"open,3\r\n')).toThrow(/opened on line 4 is never closed/);
+  });
+});
+
+describe("L-0116 D2: invisible characters in headings", () => {
+  it("keyOf drops format characters, other default-ignorables and combining marks instead of splitting the word", () => {
+    for (const h of ["Ph​one", "Ph­one", "Ph⁠one", "Ph﻿one", "Phㅤone", "P‎hone"]) expect(keyOf(h), JSON.stringify(h)).toBe("phone");
+    expect(keyOf("Mob‌ile No")).toBe("mobile no");
+    expect(keyOf("Salon  Name!")).toBe("salon name");
+  });
+
+  it("a second phone heading with an invisible character is a duplicate heading, so the run is not clean", () => {
+    for (const [a, b] of [["Phone", "Ph​one"], ["Phone", "Ph­one"], ["Mobile", "Mob‌ile"]]) {
+      const r = check([["Salon Name", "Area", a, b], ["Test Salon 01", "Gulshan", "0399-0000001", "0399-000"]]);
+      expect(r.clean, b).toBe(false);
+      expect(r.fatal.join(" ")).toMatch(/heads more than one column \(columns C, D\)/);
+    }
+  });
+});
+
+describe("L-0116 D4: header rows found only by partial matches", () => {
+  const noHeader = [
+    ["Salon Colour", "Block 13", "0399-0000001"],
+    ["Test Salon 02", "Clifton", "0399-0000002"],
+    ["Test Salon 03", "Saddar", "0399-0000003"],
+  ];
+
+  it("a data row matching fields only by prefix is refused as the header, and none of its cells is printed", () => {
+    const r = check(noHeader);
+    expect(r.clean).toBe(false);
+    expect(r.headerRow).toBe(1);
+    expect(r.fatal.join(" ")).toMatch(/row 1 was taken as the header, but fewer than two of its headings are ones the tool knows exactly/);
+    expect(r.mapping).toEqual({ name: "column A", area: "column B" });
+    for (const t of [formatReport(r), reportJson(r)]) expect(t).not.toMatch(/Salon Colour|Block 13|0399/);
+  });
+
+  it("one exact match plus a prefix match (a type cell reading Salon) is not enough either", () => {
+    const r = check([["Test Salon 01", "Salon", "Block 13", "0399-0000001"], ["Test Salon 02", "Barber", "Clifton", "0399-0000002"]]);
+    expect(r.clean).toBe(false);
+    expect(formatReport(r) + reportJson(r)).not.toMatch(/Test Salon|Block 13|"Salon"/);
+  });
+
+  it("a plain header below a prefix-matching data row wins, and the report says which row is the header", () => {
+    const r = check([["Salon Colour", "Block 13", ""], ["Name", "Area", "Mobile"], ["Test Salon 02", "Clifton", "0399-0000002"]]);
+    expect(r.headerRow).toBe(2);
+    expect(r.clean).toBe(true);
+    expect(formatReport(r)).toMatch(/Header row: 2 \(rows 1 to 1 above it are not read\)/);
+  });
+
+  it("--mapping confirms headings the tool knows only by prefix", () => {
+    const table = [["Salon Name (Urdu)", "Area Block", "Mobile"], ["Test Salon 01", "Gulshan", "0399-0000001"]];
+    expect(check(table).clean).toBe(false);
+    const r = check(table, { name: "Salon Name (Urdu)", area: "Area Block" });
+    expect(r.clean).toBe(true);
+    expect(r.fatal).toEqual([]);
+    expect(formatReport(r)).toMatch(/Header row: 1\n/);
+  });
+
+  it("ordinary headings still pass (title line above, exact aliases, area name)", async () => {
+    expect((await run("clean.csv")).headerRow).toBe(2);
+    expect(check([["Shop Name", "Area Name", "Owner Mobile"], ["Test Salon 01", "Gulshan", "0399-0000001"]]).clean).toBe(true);
+  });
+});
+
+describe("L-0116 D3: sheet names are not printed unless they are common tab words", () => {
+  it("hidden sheets are counted by position and a wrong --sheet does not list the names", async () => {
+    await withTmp(async (dir) => {
+      const wb = new ExcelJS.Workbook();
+      wb.addWorksheet("Test Salon 01 khata", { state: "hidden" }).addRow(["x"]);
+      wb.addWorksheet("Test Salon 02 khata", { state: "hidden" }).addRow(["x"]);
+      wb.addWorksheet("Test Salon 03 khata", { state: "veryHidden" }).addRow(["x"]);
+      const ws = wb.addWorksheet("List");
+      ws.addRow(["Salon Name", "Area", "Mobile"]);
+      ws.addRow(["Test Salon 09", "Gulshan", "0399-0000009"]);
+      wb.addWorksheet("Test Salon 04 khata").addRow(["x"]);
+      const p = join(dir, "ledger.xlsx");
+      await wb.xlsx.writeFile(p);
+
+      const plain = cli(p);
+      expect(plain.status, plain.stderr).toBe(0);
+      expect(plain.stdout.split("\n")[0]).toBe('Sheet read: "List" (sheet 4) of 5; hidden sheets skipped: 3 (sheets 1, 2, 3)');
+      const wrong = cli(p, "--sheet", "Nope");
+      expect(wrong.status).toBe(2);
+      expect(wrong.stderr).toMatch(/no sheet named "Nope" \(the workbook has 5 sheets: "List" \(sheet 4\); 4 other sheet names are not printed/);
+      const hidden = cli(p, "--sheet", "Test Salon 02 khata");
+      expect(hidden.stdout.split("\n")[0]).toBe("Sheet read: sheet 2 of 5 (HIDDEN sheet, chosen with --sheet)");
+      for (const r of [plain, wrong]) expect(r.stdout + r.stderr).not.toMatch(/khata|Test Salon/);
+      // A hidden sheet chosen by name is still shown by position on success.
+      expect(hidden.stdout).not.toMatch(/khata|Test Salon/);
+    });
+  });
+});
+
+describe("L-0116 FP1: a formula whose saved result is the empty string", () => {
+  it("reads as an empty cell; a formula with no saved result is still refused; a text result is still read", async () => {
+    await withTmp(async (dir) => {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Salons & Co");
+      ws.addRow(["Salon Name", "Area", "Mobile", "Balance"]);
+      ws.addRow(["Test Salon 01", "Gulshan", "0399-0000001", { formula: 'IF(1=0,5,"")', result: "" }]);
+      ws.addRow(["Test Salon 02", "Gulshan", "0399-0000002", { formula: 'IF(1=1,"Rs 500","")', result: "Rs 500" }]);
+      ws.addRow(["Test Salon 03", "Clifton", "0399-0000003", { formula: "B9-C9" }]);
+      const p = join(dir, "blank.xlsx");
+      await wb.xlsx.writeFile(p);
+      expect([...(await emptyStringFormulaCells(p, "Salons & Co"))]).toEqual(["D2"]);
+      const { headers, rows, firstDataRow } = splitHeader(await readTable(p));
+      const r = dryRun(headers, rows, { firstDataRow });
+      expect(r.errors.map((e) => [e.row, e.field])).toEqual([[4, "opening_balance"]]);
+      expect(r.errors[0].message).toMatch(/formula with no saved result/);
+      expect(r.candidates.map((c) => [c.row, c.openingBalancePaisa])).toEqual([[2, 0n], [3, 50000n]]);
+    });
+  });
+
+  it("a shared formula dragged down a column with empty results reads as empty cells", async () => {
+    await withTmp(async (dir) => {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Salons");
+      ws.addRow(["Salon Name", "Area", "Mobile", "Balance"]);
+      ws.addRow(["Test Salon 01", "Gulshan", "0399-0000001"]);
+      ws.addRow(["Test Salon 02", "Gulshan", "0399-0000002"]);
+      ws.getCell("D2").value = { formula: 'IF(1=0,5,"")', result: "", shareType: "shared", ref: "D2:D3" } as ExcelJS.CellValue;
+      ws.getCell("D3").value = { sharedFormula: "D2", result: "" } as ExcelJS.CellValue;
+      const p = join(dir, "shared.xlsx");
+      await wb.xlsx.writeFile(p);
+      expect([...(await emptyStringFormulaCells(p, "Salons"))].sort()).toEqual(["D2", "D3"]);
+      const { headers, rows, firstDataRow } = splitHeader(await readTable(p));
+      const r = dryRun(headers, rows, { firstDataRow });
+      expect(r.errors).toEqual([]);
+      expect(r.clean).toBe(true);
+    });
+  });
+
+  it("fails closed: a file it cannot read as a workbook, or a sheet it cannot find, gives no cells", async () => {
+    await withTmp(async (dir) => {
+      const p = join(dir, "not-a-zip.xlsx");
+      await writeFile(p, "Salon Name,Area\n");
+      expect((await emptyStringFormulaCells(p, "Sheet1")).size).toBe(0);
+      const wb = new ExcelJS.Workbook();
+      wb.addWorksheet("Salons").addRow(["a", { formula: 'IF(1=0,5,"")', result: "" }]);
+      const q = join(dir, "ok.xlsx");
+      await wb.xlsx.writeFile(q);
+      expect((await emptyStringFormulaCells(q, "Other")).size).toBe(0);
+      expect((await emptyStringFormulaCells(q, "Salons")).size).toBe(1);
+    });
   });
 });

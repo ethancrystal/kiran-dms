@@ -132,7 +132,13 @@ export function parseGeo(latRaw: string, lngRaw: string): Result<{ lat: number; 
   return { ok: true, value: { lat, lng } };
 }
 
-// Comparison key for names and areas: case, spacing and punctuation do not matter.
+// Comparison key for headings, names and areas: case, spacing and punctuation do not matter.
+// Invisible characters (format characters such as a zero-width space, a zero-width non-joiner
+// or a soft hyphen, other default-ignorable code points such as the Hangul fillers, and
+// combining marks) are removed, not turned into a word break: "Ph<ZWSP>one" is the same heading
+// as "Phone", so a second such column is a duplicate, never an ignored "column D" (L-0116
+// P0-02 D2). Visible look-alike letters from other scripts are a known limit (L-0061, B-22).
 export function keyOf(s: string): string {
-  return s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return s.normalize("NFKC").replace(/[\p{Cf}\p{Mn}\p{Default_Ignorable_Code_Point}]/gu, "")
+    .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }

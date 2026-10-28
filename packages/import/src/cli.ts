@@ -14,7 +14,7 @@ import { basename, dirname, join, relative, resolve, isAbsolute } from "node:pat
 import { fileURLToPath } from "node:url";
 import { splitHeader } from "./core/csv.ts";
 import { dryRun, formatReport, reportJson } from "./core/validate.ts";
-import { readTable, type ReadInfo } from "./read.ts";
+import { readTable, sheetLabel, type ReadInfo } from "./read.ts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const REPORT_DIR = join(REPO_ROOT, "import-reports");   // git-ignored
@@ -72,10 +72,16 @@ async function main() {
 
   const { headers, rows, firstDataRow } = splitHeader(table, explicit);
   const report = dryRun(headers, rows, { mapping: explicit, knownAreas, firstDataRow });
-  if (info.sheet !== undefined) {
-    // Which sheet was checked, so a hidden or wrong sheet is never mistaken for the real one (L-0085 D3).
-    console.log(`Sheet read: "${info.sheet}"${info.sheetHidden ? " (HIDDEN sheet, chosen with --sheet)" : ""}` +
-      (info.hiddenSkipped?.length ? `; hidden sheets skipped: ${info.hiddenSkipped.map((n) => `"${n}"`).join(", ")}` : "") + "\n");
+  if (info.sheet !== undefined && info.sheetPosition !== undefined) {
+    // Which sheet was checked, so a hidden or wrong sheet is never mistaken for the real one
+    // (L-0085 D3). A sheet is named only when its name is made of common tab words, otherwise
+    // by its position in tab order (hidden sheets counted): a tab name may be a salon name
+    // (H-03, L-0116 P0-02 D3).
+    const skipped = info.hiddenSkipped ?? [];
+    const s = skipped.length === 1 ? "" : "s";
+    console.log(`Sheet read: ${sheetLabel(info.sheet, info.sheetPosition)} of ${info.sheetCount}` +
+      (info.sheetHidden ? " (HIDDEN sheet, chosen with --sheet)" : "") +
+      (skipped.length ? `; hidden sheet${s} skipped: ${skipped.length} (sheet${s} ${skipped.join(", ")})` : "") + "\n");
   }
   console.log(formatReport(report, { maxIssues }));
 
