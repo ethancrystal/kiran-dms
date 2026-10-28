@@ -242,9 +242,15 @@ describe("internal functions are not callable by app roles", () => {
         and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
     expect(rows.map((r) => r.proname)).toEqual([
       "approve_device", "cancel_approval", "decide_approval", "has_vault_grant", "is_aal2", "is_office",
-      "is_owner", "is_rep", "my_session", "owner_create_user", "owner_set_config", "owner_set_role", "owner_set_status",
-      "owner_set_vault_grant", "register_device", "rep_device_ok", "request_approval", "request_device_id",
-      "revoke_device", "self_ok", "user_role", // my_session, self_ok: added by migration 0004 (L-0026)
+      "is_owner", "is_rep", "low_stock", "my_bag", "my_bag_id", "my_session",
+      "office_cancel_stock_issue", "office_create_location", "office_post_adjustment", "office_propose_stock_issue",
+      "office_set_reorder_point", "office_upsert_product", "office_upsert_product_group",
+      "office_upsert_sku", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_role", "owner_set_sku_price",
+      "owner_set_status", "owner_set_vault_grant", "record_count", "record_demand", "register_device",
+      "rep_confirm_stock_issue", "rep_device_ok", "request_approval", "request_device_id",
+      "revoke_device", "self_ok", "stock_on_hand", "user_role", "warehouse_availability",
+      // my_session, self_ok: added by migration 0004 (L-0026). Inventory RPCs and the my_bag_id RLS
+      // helper: migration 0008 (P1-04); list change approved by MJ (L-0130, H-23).
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace

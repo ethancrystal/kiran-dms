@@ -113,13 +113,15 @@ erDiagram
 |---|---|---|
 | **product_group** | id, name, default_cycle_days | e.g., Color, Developer, Shampoo, Treatment, Styling |
 | **product** | id, product_group_id, brand_label (Kiran's public label), name, active | No supplier reference here — ever |
-| **sku** | id, product_id, variant (size/shade), unit, barcode, list_price (current, derived from price list), active | |
+| **sku** | id, product_id, code, variant (size/shade), unit, size, units_per_carton, barcode, list_price_paisa (null = not yet priced, cannot be issued or sold), active | Prices in integer paisa, set by the owner only. No cost here, ever. The agent price lives in **agent_price** (sku_id, price_paisa; P1-15), a separate table, so reps never see it |
 | **price_list** / **price_list_item** | id, name, effective_from, effective_to; sku_id, price | Owner-only writes |
-| **stock_location** | id, kind (`warehouse`/`rep_bag`/`quarantine`/`damaged`), owner_user_id (for rep_bag), name, bag_value_limit | |
-| **stock_movement** | id, sku_id, qty (+/-), from_location_id, to_location_id, kind (`receipt`/`issue_to_rep`/`sale`/`return_in`/`return_to_warehouse`/`quarantine`/`write_off`/`adjustment`/`transfer`), source_type, source_id, batch_id, reason, photo_url, actor_id, approval_id, created_at | **Append-only.** Receipts reference a vault goods receipt by opaque id only |
+| **stock_location** | id, kind (`warehouse`/`rep_bag`/`quarantine`/`damaged`), owner_user_id (for rep_bag), name, bag_value_limit_paisa | Independent agents have **no** location: their stock is theirs (D-15) |
+| **stock_movement** | id, sku_id, qty (+/-), from_location_id, to_location_id, kind (`receipt`/`issue_to_rep`/`sale`/`return_in`/`return_to_warehouse`/`quarantine`/`write_off`/`adjustment`/`transfer`/`sale_to_agent`), source_type, source_id, batch_id, reason, photo_url, actor_id, approval_id, created_at | **Append-only.** Receipts reference a vault goods receipt by opaque id only | Quantity is always positive; direction comes from from/to. A movement never leaves any location below zero
 | **batch** | id, sku_id, batch_code, expiry_date, received_at | Supplier lot numbers are stored in the vault, not here |
 | **stock_count** | id, location_id, counted_by, kind (`daily_close`/`spot_check`/`stock_take`), lines (jsonb expected vs counted), variance_total, created_at | Variances create `adjustment` movements only via approval |
 | **reorder_rule** | sku_id, reorder_point, safety_stock, lead_time_days, method (`manual`/`computed`) | |
+| **stock_issue** | id, client_id, from_location_id (warehouse), to_location_id (rep_bag), lines (sku, qty), issued_by, status (`pending`/`confirmed`/`disputed`/`cancelled`), confirmed_by, confirmed_at, route_date, suggestion (jsonb, INV-11) | Two-party issue (CTL-05): stock moves only when the rep confirms the count; the rep can never be the issuer |
+| **demand_signal** | id, client_id, sku_id (or product_group_id when Kiran does not carry the item; no free text, H-27), qty, reason (`not_in_bag`/`out_of_stock`/`not_in_catalogue`/`price`/`supply_short`/`other`), source (`visit_tap`/`order_shortfall`/`delivery_shortfall`/`agent_purchase_shortfall`/`bag_load_shortfall`), outcome (`lost`/`backordered`), salon_id, location_id, source_id, captured_by, captured_at_client, created_at | **Append-only** lost demand (DEM-01 to DEM-03). Unconstrained demand = delivered + lost |
 
 ## `control` zone
 
@@ -147,7 +149,7 @@ erDiagram
 
 ## Invariants the database must enforce
 
-1. **Append-only tables**: `visit`, `salon_note`, `discovery_run`, `stage_event`, `credit_event`, `payment`, `payment_allocation`, `cash_ledger_entry`, `stock_movement`, `audit_event`, `invoice`, `receipt`. Grant `INSERT` + `SELECT` only; corrections are reversing rows.
+1. **Append-only tables**: `visit`, `salon_note`, `discovery_run`, `stage_event`, `credit_event`, `payment`, `payment_allocation`, `cash_ledger_entry`, `stock_movement`, `stock_count`, `demand_signal`, `audit_event`, `invoice`, `receipt`. Grant `INSERT` + `SELECT` only; corrections are reversing rows.
 2. **Balances are derived**: a salon's receivable = Σ invoices − Σ allocations − Σ credit notes; a rep's cash = Σ cash_ledger entries for that holder; stock at a location = Σ movements. A nightly job recomputes and compares with any cached figures.
 3. **Custody chain closure**: every cash `in` to a rep has a `payment`; every rep `out` has a `handover`; every office `out` has a `bank_deposit`; every `bank_deposit` must match a `bank_statement_line` within 3 working days or it is an open exception.
 4. **Credit gate**: `order.status → confirmed` requires `salon.stage <> 'blocked'`, plan ∈ eligibility, and `exposure + total ≤ credit_limit` — or an approved `credit_override`.

@@ -38,6 +38,9 @@ const P: Record<string, Who> = {
 };
 
 const me = (k: keyof typeof fx) => `'${fx[k].id}'`;
+// The persona's rep bag id as a scalar subquery (null when it has none: the predicate then selects nothing).
+const bag = (k: keyof typeof fx) =>
+  `(select l.id from public.stock_location l where l.kind = 'rep_bag' and l.owner_user_id = ${me(k)})`;
 
 const MATRIX: Row[] = [
   {
@@ -120,6 +123,120 @@ const MATRIX: Row[] = [
       ownerAal1: "false",
       suspended: "false",
       service_role: "denied",
+    },
+  },
+  // Inventory (migration 0008, P1-04). Catalogue: active rows for any active user (reps on
+  // their approved device); everything for AAL2 office users.
+  ...(["public.product_group", "public.product", "public.sku"] as const).map((table): Row => ({
+    table,
+    writeCol: table === "public.sku" ? "variant" : "name",
+    select: {
+      anon: "denied",
+      repA: "active",
+      repAWrongDevice: "false",
+      repB: "active",
+      manager: "true",
+      managerAal1: "active",
+      owner: "true",
+      ownerAal1: "active",
+      suspended: "false",
+      service_role: "true",
+    },
+  })),
+  {
+    table: "public.stock_location",
+    writeCol: "name",
+    select: {
+      anon: "denied",
+      repA: `owner_user_id = ${me("repA")} or (kind = 'warehouse' and active)`,
+      repAWrongDevice: "false",
+      repB: `owner_user_id = ${me("repB")} or (kind = 'warehouse' and active)`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.stock_movement",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: `from_location_id = ${bag("repA")} or to_location_id = ${bag("repA")}`,
+      repAWrongDevice: "false",
+      repB: `from_location_id = ${bag("repB")} or to_location_id = ${bag("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.stock_issue",
+    writeCol: "decision_note",
+    select: {
+      anon: "denied",
+      repA: `bag_id = ${bag("repA")}`,
+      repAWrongDevice: "false",
+      repB: `bag_id = ${bag("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.stock_count",
+    writeCol: "variance_units",
+    select: {
+      anon: "denied",
+      repA: `counted_by = ${me("repA")} and kind = 'daily_close'`,
+      repAWrongDevice: "false",
+      repB: `counted_by = ${me("repB")} and kind = 'daily_close'`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.reorder_rule",
+    writeCol: "reorder_point",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.demand_signal",
+    writeCol: "qty",
+    select: {
+      anon: "denied",
+      repA: `captured_by = ${me("repA")}`,
+      repAWrongDevice: "false",
+      repB: `captured_by = ${me("repB")}`,
+      manager: "true",
+      managerAal1: `captured_by = ${me("manager")}`,
+      owner: "true",
+      ownerAal1: `captured_by = ${me("owner")}`,
+      suspended: "false",
+      service_role: "true",
     },
   },
   {
