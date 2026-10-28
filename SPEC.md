@@ -29,7 +29,8 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 - stock-outs under 2% of lines;
 - over 90% of installments collected on time;
 - Rs 0 unexplained handover variance;
-- every new rep productive within 2 weeks.
+- every new rep productive within 2 weeks;
+- monthly sales through independent agents, in rupees (D-21; target to be set by the owner, OQ-21).
 
 **Scope and order.** Phase 0 is foundations, and Phase 1 is the MVP: the khata, the bag and the controls. Their exit gates and build order are in [doc 11](docs/11-roadmap.md) and ACTIVITY §12. Requirement IDs are in [doc 03](docs/03-requirements.md).
 
@@ -73,7 +74,9 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 2. Stock leaves the warehouse **only after full payment** (cash counted or transfer matched); never on credit (AGT-03, A-07).
 3. The agent gets a numbered invoice and receipt on their phone; the movement is `sale_to_agent` (AGT-03).
 4. If they wanted more than is available, the shortfall is recorded as lost demand (DEM-02).
-5. Kiran pays nothing for recruiting other agents (AGT-06, A-06).
+5. The only thing an agent may send back is an **optional pre-order request**; nothing else is asked of them (AGT-04, D-23).
+6. Every agent purchase appears in the owner's morning digest, with a flag on unusually large ones (CTL-15, D-22).
+7. Kiran pays nothing for recruiting other agents (AGT-06, A-06).
 
 **J4 — The manager loads tomorrow's bags** ([doc 10 §7a](docs/10-inventory-and-restocking.md))
 1. The system suggests each rep's load from tomorrow's route: open deliveries, due re-orders × last quantity, a prospect allowance, minus what is already in the bag (INV-11).
@@ -82,9 +85,10 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 
 **J5 — The owner's morning** ([doc 01](docs/01-business-context.md), [doc 13](docs/13-anti-fraud-controls.md))
 1. "How much are we owed, by whom, and who is collecting it?" is answered from the phone in **under 10 s** (doc 01 system goal 2, doc 11 exit criterion 4).
-2. The daily digest lists every override, adjustment, variance, write-off, phone change and vault read (doc 00 fixed decision 8e, CTL-15).
-3. Lost demand by SKU and reason shows what the supplier shortage cost (DEM-03, D-18).
-4. A new rep can be onboarded and taking orders within **one working day**; offboarding takes under 10 minutes from one screen (doc 01 system goal 1, SEC-08).
+2. The daily digest lists every override, adjustment, variance, write-off, phone change, vault read and agent purchase (doc 00 fixed decision 8e, CTL-15, doc 13 §8, D-22).
+3. Monthly sales through agents are reported in rupees (D-21).
+4. Lost demand by SKU and reason shows what the supplier shortage cost (DEM-03, D-18).
+5. A new rep can be onboarded and taking orders within **one working day**; offboarding takes under 10 minutes from one screen (doc 01 system goal 1, SEC-08).
 
 ## 4. Phase 1 feature map
 
@@ -250,6 +254,8 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | OQ-18: may agents sell to Kiran's direct salons? | Agent 2 | No rule in the system |
 | OQ-19: who is served first when the supplier is short | Allocation (AGT-07) | Direct salons' orders first |
 | OQ-20: agent identity data | Agent 1 | Name and phone only |
+| OQ-21: monthly target for sales through agents (Rs) | Agent channel goal | No target; the figure is reported monthly |
+| OQ-22: what counts as an unusually large agent purchase | Digest flag | No flag; every agent purchase is listed anyway |
 | D-08: manager vs owner governance split | Permission matrix | Owner-only governance (doc 06 §2) |
 | A-08: rep bag limits owner-only (may be relaxed to the manager) | — | Owner only |
 | Renumbering of branch `claude/architecture-rfc` | Merging it | Not merged |

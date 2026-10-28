@@ -2622,6 +2622,12 @@ Security checklist (tick honestly):
 **Rules touched:** H-25
 **Next / needs:** MJ confirms SPEC.md; then Biome, the CI lint job and the Playwright harness under C-005.
 
+### L-0140 · 2026-10-28 13:24 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · DECISION
+**Task:** — (project spec; P1-15 agent scope)    **Claim:** C-005
+**What / why:** MJ answered three questions on the independent-agent channel, quoted: success measure "1 monthly sales"; agent purchases in the owner's morning digest "2 yes"; agents reporting back "3 optional pre-order only". Recorded as doc 12 D-21 (the channel is measured by monthly sales through agents, in rupees), D-22 (the digest lists every agent purchase and flags unusually large ones) and D-23 (an optional pre-order request is the only thing an agent sends back). Docs changed to match: doc 01 goals (new row), doc 03 CTL-15 and AGT-04, doc 08 section 10, doc 13 section 8 (new digest item 8, Agents), SPEC.md (objective, J3, J5, section 11). MJ gave no target figure and no "unusually large" threshold, so both are open questions with safe defaults rather than invented values: OQ-21 (target; default none, the figure is reported monthly) and OQ-22 (threshold; default no flag, every agent purchase is listed anyway). No doc 13 section 9 threshold changed (H-26).
+**Rules touched:** H-25, H-26
+**Next / needs:** MJ: OQ-21, OQ-22; MJ confirms SPEC.md.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
