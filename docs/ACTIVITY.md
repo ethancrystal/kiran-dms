@@ -272,7 +272,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
 | P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
-| P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | NOT STARTED | — |
+| P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
 | P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | NOT STARTED | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
@@ -281,6 +281,9 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-10 | Owner dashboard, receivables ageing, in-app notifications | RPT-01, 02; MSG-03 | NOT STARTED | — |
 | P1-11 | Admin config, company profile, rep profile | ADM-01, 02; FLD-01 | NOT STARTED | — |
 | P1-12 | Security acceptance suite (doc 06 §10, doc 07 §5) + backup restore drill | NFR-07, 12; SEC-10 | NOT STARTED | — |
+| P1-15 | Independent agents: agent role, agent price per SKU, cash-and-carry agent purchase (paid before release, `sale_to_agent`), agent app, no recruitment pay (D-15 to D-17) | AGT-01–04, 06; A-06, A-07 | NOT STARTED | — |
+| P1-16 | Thin due-list and route building: default cycle per product group + last purchase, due tasks, manual route with stop reasons (D-19) | PIP-03, PIP-05/06 (thin) | NOT STARTED | — |
+| P1-17 | Route-linked bag load suggestion and automatic lost-demand capture from orders, deliveries and agent purchases; lost-demand report (D-18, D-19) | INV-11; DEM-02, DEM-03 | NOT STARTED | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
 
@@ -315,7 +318,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 1. **P1-01 Foundation** — roles, devices, audit chain, approvals, RLS helpers. Everything else relies on these.
 2. **P1-02 / P1-03** — territories, salons, stage machine, map basics (can run in parallel on separate claims).
 3. **P1-04 / P1-05** — inventory and vault (parallel; the goods-receipt bridge connects them last).
-4. **P1-06** — orders and invoices.
+4. **P1-06** — orders and invoices. **P1-16** (due-list, routes) needs P1-02 and can run beside it; **P1-15** (agents) and **P1-17** (bag load, automatic lost demand) follow P1-06 and P1-04 (D-19, L-0128).
 5. **P1-07** — payments, receipts, cash custody, handover.
 6. **P1-08** — control layer and digest.
 7. **P1-09** — offline PWA (start the outbox contract early; finish it here).
@@ -334,7 +337,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Task ID | Released (PKT) | Reason (`done` / `abandoned` / `stale`) | Log entry |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| C-003 | P1-04 | 2026-10-28 10:25 | done | L-0134 |
 
 ---
 
@@ -385,6 +388,9 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-03 | Office powers require AAL2 at the database: owner/manager at AAL1 see only their own profile (doc 12 D-14) | L-0009 | None for security; UI must route to MFA first (done) | open |
 | A-04 | Reps may only open approval requests for discount, return acceptance, payment reversal; write-offs always route to the owner | L-0009 | Adjust the allow-list in `app.request_approval` | open |
 | A-05 | Credit starting limits for types doc 09 does not name; consumables cycle 30 days; "quote" visit outcome; credit ceiling unset (OQ-07) | L-0023 | Owner edits config; no schema change | open |
+| A-06 | Kiran pays agents nothing for recruiting other agents (no joining fee, referral bonus or override); agent earnings come only from their own resale margin. SECP treats MLM and referral marketing as unlawful (Companies Act 2017 s.301) | L-0128 | Legal exposure for the company | open |
+| A-07 | Agent purchases are paid in full (cash counted or transfer matched) before stock leaves the warehouse; agents never buy on credit | L-0128 | Receivables and custody risk the agent model is meant to avoid | open |
+| A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
 
 ---
 
@@ -2519,6 +2525,75 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or "temporarily" disabled (H-16) — on the Supabase stack the graphql_public case now asserts the platform refusal instead of planting
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0127 · 2026-10-28 10:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · SESSION-START
+**Task:** P1-04 (INV-01 to INV-06, CTL-05) plus the MJ additions in L-0128    **Claim:** C-003 (L-0129)
+**What / why:** MJ asked this session to stop verification work and build. Read this file in full on branch feat/p0-foundation at b61494f (rules, board, claims, blockers, assumptions, the last 20 entries, L-0107 to L-0126); this branch starts from that commit. Phase 0 is not complete: P0-01, P0-03, P0-07 and P0-10 are not started and need MJ; P0-02 (real Excel run), P0-04 and P0-05 (B-18 exposed schemas, owner account) wait on human-only steps; P0-06 is reopened by C-001. Phase 1 has only P1-01 built. C-001 (session ee095e06) is active on P0-02, P0-04 to P0-06 and P0-09, not on P1-02 to P1-14, so P1-04 is free to claim; this session adds new migration and test files and touches C-001 files only to add rows (the RLS matrix, H-13). Numbering note: branch claude/architecture-rfc (unmerged) reuses L-0104 to L-0109, B-26 and C-002; this branch follows feat/p0-foundation, so entries start at L-0127 and the claim is C-003. Staging (iurvazdyxzlspegygldo, L-0019) was only read for its migration list (7 applied, the 7th is 0007 from this branch history); nothing is applied there by this session.
+**Evidence:** Baseline on claude/p1-04-inventory at b61494f: `pnpm install --frozen-lockfile` OK; `pnpm typecheck` exit 0; `pnpm activity:check` OK; `pnpm db:test` against a fresh local Postgres 16 database (KIRAN_TEST_DATABASE_URL; embedded Postgres cannot initdb as root here): 17 files, 512 tests passed.
+**Rules touched:** H-22, H-23, H-24, §2, §3
+**Next / needs:** L-0128 (MJ decisions), L-0129 (claim), then docs and migration 0008.
+
+### L-0128 · 2026-10-28 10:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · DECISION
+**Task:** P1-04, P0-01 (decisions)    **Claim:** C-003
+**What / why:** MJ instructions in this session, quoted. "Lets build that include model for independent agents." "Move on from verification to actually building things now." "Check if Phase 0 is fully completed then Phase 1 and onwards." "Is there a way to links tomorrow's route to the stock a rep carries and if we have standalon agents who pay cash to take the supply then dont need to report back can also continue." On lost sales: "Find a way to do this." Answers to this session's five questions: "1 both" (salaried reps and independent agents), "2 10" (about 10 agents in 12 months), "3 yes anyone who want to be" (an agent channel open to anyone, women included), "4 stockout as the supplier sometimes get short of product", "5 yes" (move a thin due-list and route ordering into Phase 1). Recorded as doc 12 D-15 to D-20. Effects: (a) fixed decision 2 (roles at launch) gains an Agent role, under H-26: an independent agent buys stock outright, paid in full by cash or transfer before it leaves the warehouse, at an agent price; title passes at sale, so there is no bag, handover, visit or count reporting for agents; agents see only their own purchases, the catalogue with agent prices and availability, never salons, other agents, cost or supplier. (b) Phase 1 starts before Gate 0 is signed (section 8 exception by MJ); Phase 0 human-only items continue in parallel; section 7 still holds (a builder never marks its own work VERIFIED) and no control is weakened (H-16). (c) Lost demand is recorded (doc 03 DEM-01 to DEM-03). (d) A route-linked bag-load suggestion (INV-11) and a thin due-list (PIP-05, PIP-06 thin) move into Phase 1. (e) Supplier shortage is the main stock-out cause, so supplier fill rate is tracked in the vault (P1-05). Not decided by MJ, recorded as assumptions with the restrictive default: A-06 (Kiran pays agents nothing for recruiting other agents, SECP Companies Act 2017 section 301), A-07 (agent purchases are cash or transfer before release, never credit). Open questions OQ-17 to OQ-20 added for MJ (agent price, channel conflict, allocation when the supplier is short, agent identity data).
+**Rules touched:** H-26, H-22, section 8, H-16, H-27
+**Next / needs:** MJ: OQ-17 to OQ-20.
+
+### L-0129 · 2026-10-28 10:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · CLAIM
+**Task:** P1-04 (INV-01 to INV-06, CTL-05; DEM-01 to DEM-03 capture; INV-11 groundwork)    **Claim:** C-003
+**What / why:** C-003 added to section 13. Areas: a new migration `supabase/migrations/20261028050000_inventory.sql`; new test file `supabase/tests/inventory.test.ts`; rows added (nothing changed or removed) in `supabase/tests/rls-matrix.test.ts`; docs 03, 04, 08, 10, 11, 12 and this file for the L-0128 decisions. Agent role, orders, route and load-sheet functions are later claims (P1-02, P1-06, new rows P1-15 to P1-17).
+**Rules touched:** section 3
+**Next / needs:** docs, then migration 0008 and tests.
+
+### L-0130 · 2026-10-28 10:25 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · DECISION
+**Task:** P1-04 (H-23 test change)    **Claim:** C-003
+**What / why:** Migration 0008 made three verifier-authored tests fail because they freeze the P1-01 surface. MJ was asked: "May I make these three updates, changing nothing else in those tests?" (1: add the new inventory functions to the allowlist of functions authenticated may execute; 2: allow the planned route date and the phone's count and tap times, stored only as evidence in *_client columns; 3: in the table-owner TRUNCATE observation, assert that approval_request can no longer be truncated, because stock_movement.approval_id now references it). MJ chose "Approve all 3 (Recommended)". Done exactly as described: `supabase/tests/verifier-attacks.test.ts` allowlist extended (and `owner_set_bag_limit` replaces `office_set_bag_limit`, L-0131); `supabase/tests/reverify3-attacks.test.ts` client-time list extended, and the TRUNCATE case no longer truncates approval_request and instead asserts 0A000 for it. Nothing else in those files changed.
+**Rules touched:** H-23
+**Next / needs:** L-0131.
+
+### L-0131 · 2026-10-28 10:25 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · ASSUMPTION
+**Task:** P1-04 (CTL-05)    **Claim:** C-003
+**What / why:** A-08 added to section 15. The docs do not say who sets a rep bag's value limit. It caps the stock a rep is trusted with, so a colluding manager and rep would need to raise it; the restrictive reading applies (section 1): creating a rep bag and changing its limit are owner-only (`app.office_create_location` refuses kind rep_bag for anyone but the owner; `app.owner_set_bag_limit`). Warehouses and other locations stay office-level.
+**Rules touched:** section 1, H-15, H-16
+**Next / needs:** MJ may relax it to the manager if preferred.
+
+### L-0132 · 2026-10-28 10:25 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · DEVIATION
+**Task:** P1-04 (INV-03, INV-06, CTL-05)    **Claim:** C-003
+**What / why:** Parts of the P1-04 requirements depend on modules not built yet, so they are not in migration 0008; docs unchanged because the docs already place them with those modules. (1) INV-03 movements: `receipt` comes with the vault goods receipt (P1-05); `sale` with deliveries (P1-06); `sale_to_agent` with agents (P1-15); `return_in`, `quarantine` and `write_off` with returns and write-off approvals (P2-04, P1-08). The movement kinds and their shape checks exist now. Opening stock and count corrections go in through approved `adjustment` requests. (2) INV-06 low-stock alerts: `app.low_stock()` lists them; pushing them as notifications is MSG-03 (P1-10). (3) CTL-05: the weekly spot check is recordable; the system choosing the day is part of the digest work (P1-08). (4) demand_signal.salon_id has no foreign key until salons exist (P1-02): that migration must add it NOT VALID or accept that older taps may name no real salon.
+**Rules touched:** H-25
+**Next / needs:** the tasks named above.
+
+### L-0133 · 2026-10-28 10:25 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · DONE
+**Task:** P1-04 (INV-01 to INV-06, CTL-05; DEM-01)    **Claim:** C-003
+**What / why:** Migration 0008 `supabase/migrations/20261028050000_inventory.sql`. Catalogue (product_group, product, sku; prices owner-only; no cost columns). Locations (warehouse, rep_bag with value limit, quarantine, damaged). Append-only `stock_movement` with positive quantities, a kind-shape check and a trigger that refuses any movement leaving a location below zero for every role. Two-party `stock_issue` (to_rep and to_warehouse): the office proposes, pending units are reserved, the bag value limit is checked at list price, and stock moves only when the receiving rep confirms the same count from the approved device; a different count disputes it and moves nothing. Append-only `stock_count` (rep daily close of their own bag; office spot checks, cycle counts, stock-takes) recording expected, counted and variance without changing stock. Adjustments only through an approved `adjustment` request, used once (unique approval_id), with the doc 13 section 9 owner threshold re-checked at posting (a missing threshold or an unpriced SKU routes to the owner). Manual reorder points and `app.low_stock()`. Rep reads `app.my_bag()` and `app.warehouse_availability()` (quantities only). Lost demand: append-only `demand_signal` and `app.record_demand` (DEM-01): idempotent by client_id, an item Kiran does not carry recorded by product group (no free text, H-27), supply shortages recorded by the office only. Docs 00, 03, 04, 08, 10, 11, 12 updated for D-15 to D-20 (L-0128); board rows P1-15 to P1-17 and assumptions A-06 to A-08 added.
+**Evidence:** On claude/p1-04-inventory from b61494f: `pnpm db:test` on a fresh local Postgres 16 database (KIRAN_TEST_DATABASE_URL): 18 files, 897 tests passed (baseline 17 files, 512). New: `supabase/tests/inventory.test.ts` (catalogue and price authority, adjustments single use and owner threshold, issue and confirmation, disputes, bag limit, availability, negative-stock trigger as postgres, append-only for postgres, counts, lost demand replay and privacy, audit chain verifies) and RLS matrix rows for all nine new tables across ten personas. `pnpm typecheck` exit 0. `pnpm activity:check` OK. The migration was also applied by itself to a fresh database (shim plus migrations 0001 to 0008 with psql ON_ERROR_STOP): clean. Not applied to staging. Commit SHA in the commit carrying this entry.
+**Rules touched:** H-06, H-07, H-08, H-09, H-13, H-15, H-16, H-17, H-23, H-27
+**Next / needs:** a different agent verifies P1-04 (section 7); then P1-02, P1-16, P1-06, P1-15, P1-17 (L-0135).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — nine tables, ten personas each
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — stock_movement, stock_count, demand_signal also refuse UPDATE, DELETE, TRUNCATE for postgres; master rows never deleted
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — every RPC takes a client_id or a client-chosen id; replays tested
+[x] Audit trigger present; hash chain verifies (H-17) — schema-hygiene guard passes; chain verified at the end of the inventory tests
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no cost column; the agent price is kept out of sku on purpose
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Dummy] and [Test] data only; diff read
+[x] Governance powers still owner-only + AAL2 (H-15) — prices and rep bag limits owner-only
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — three verifier tests changed only as MJ approved (L-0130)
+[x] Docs match code; deviations logged (H-25) — L-0132
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0134 · 2026-10-28 10:25 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · CLAIM-RELEASED
+**Task:** P1-04    **Claim:** C-003
+**What / why:** C-003 released (done): moved to the released table. P1-04 board row set to DONE (self-reported). The next tasks get their own claims.
+**Rules touched:** section 3
+**Next / needs:** L-0135.
+
+### L-0135 · 2026-10-28 10:25 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-04-inventory · HANDOFF
+**Task:** P1-04    **Claim:** — (C-003 released)
+**What / why:** State: migration 0008 (inventory and lost-demand capture) and its tests are on branch claude/p1-04-inventory, cut from feat/p0-foundation b61494f; full suite green (897). No pull request yet; not applied to staging. Next steps, in order: (1) a different agent verifies P1-04 (section 7: try to break custody, the negative-stock trigger, adjustment single use and threshold, rep isolation); (2) P1-02 salons and territories (adds the demand_signal.salon_id foreign key, L-0132); (3) P1-16 thin due-list and manual routes (D-19); (4) P1-06 orders, with automatic shortfall capture (DEM-02); (5) P1-15 agents (agent role, agent_price table, cash-and-carry purchase); (6) P1-17 route-linked bag load (INV-11). Gotchas: on this container embedded Postgres cannot initdb as root, so run `pnpm db:test` with KIRAN_TEST_DATABASE_URL on a fresh local database (`service postgresql start`; drop and create kiran_test before each run, because the harness re-applies every migration on a plain Postgres). Every new module trips the verifier allowlist and client-time tests in verifier-attacks and reverify3; each change needs MJ approval (H-23), as L-0130. Branch claude/architecture-rfc still reuses L-0104 to L-0109, B-26 and C-002 and needs renumbering before it merges (MJ asked, no answer yet).
+**Evidence:** `pnpm db:test` 18 files, 897 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: OQ-17 to OQ-20; renumbering of claude/architecture-rfc; whether A-08 stays owner-only.
 
 ---
 

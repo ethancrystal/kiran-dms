@@ -23,10 +23,12 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Area | Scope (requirement IDs) |
 |---|---|
 | Salons & map | SAL-01…05, 09, 10 · MAP-01, 02, 03, 12 · stage machine with manual override (PIP-02 visits, PIP-07 quick-add, PIP-09 check-in gating) |
-| Routes | PIP-03 manual route building by manager; rep can reorder |
+| Routes | PIP-03 manual route building by manager; rep can reorder; PIP-05/06 thin due-list (D-19) |
 | Orders & invoices | ORD-01…05, 10 (offline orders) |
 | Payments | PAY-01, 02, 03 (generate), 04, 05, 07, 10, 11; manual overdue flags (PAY-08 manual) |
-| Stock | INV-01…06 (manual reorder points) |
+| Stock | INV-01…06 (manual reorder points); INV-11 route-linked bag load (D-19) |
+| Lost demand | DEM-01, DEM-02, DEM-03 (report) (D-18) |
+| Agents | AGT-01, 02, 03, 04, 06 (D-15 to D-17) |
 | Vault | VLT-01…06 |
 | Security | SEC-01…08, 10, 11, 12 |
 | Controls | CTL-01 (receipt via WhatsApp — template-dependent; SMS fallback first if templates lag), 02, 03, 04, 05, 06, 07, 08, 09, 11 (manual list), 15, 16, 17, 18 — the full doc 13 prevention layer; detectors (CTL-14) follow in Phase 2 |

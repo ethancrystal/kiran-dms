@@ -97,3 +97,26 @@ The scorecard (FLD-02, KPIs in doc 02) drives a simple ladder:
 ## 9. What the system must provide (summary of requirements this doc depends on)
 
 FLD-01…05, PIP-01…11, MAP-01…13, PAY-04/05, INV-02…05, CTL-01…18, SEC-03/06/08, RPT-01/03.
+
+## 10. Independent agents (D-15 to D-17)
+
+Kiran runs two field channels side by side:
+
+| | Salaried rep (sections 1 to 9) | Independent agent |
+|---|---|---|
+| Whose stock | Kiran's, until a salon buys it | The agent's, from the moment of purchase |
+| Pays Kiran | Hands over what salons paid, every evening | Pays in full, cash or matched transfer, **before** stock leaves the warehouse (A-07) |
+| Price | Salon list price | Agent price per SKU, set by the owner (AGT-02, OQ-17) |
+| Reports back | Visits, orders, collections, handover, bag counts | **Nothing**: no visits, no handover, no counts |
+| Sees in the app | Own territory's salons (masked), own bag, routes | Own purchases, the agent catalogue with availability (quantities only). Never salons, other agents, cost or supplier |
+| Earns | Salary + commission on banked cash (D-10) | Their own resale margin only |
+| Risk to Kiran | Custody (cash, stock) | Almost none: paid before release, so there is no receivable and nothing to reconcile |
+
+**Who can be an agent:** anyone who wants to (D-17), women included, for example someone running a home-based parlor or serving parlors in their own area. The owner creates every agent account (governance, H-15) with minimum identity data (OQ-20). Agents sign in like reps (email code, approved device).
+
+**What makes an agent purchase safe:** it is a cash-and-carry sale at the warehouse counter. The office records the purchase, cash is counted (or the transfer is matched) before release, the stock movement is `sale_to_agent`, and the agent gets a numbered invoice and receipt on their phone. A shortfall (the agent wanted more than is available) is recorded as lost demand (DEM-02).
+
+**Legal line (A-06):** Kiran pays agents nothing for recruiting other agents: no joining fee, no referral bonus, no override on another agent's purchases. SECP treats MLM, referral marketing and pyramid schemes as unlawful under section 301 of the Companies Act 2017, and its 2025 draft regulations exempt only direct selling where pay comes mainly from sales to end customers. An agent earns from reselling to salons, nothing else.
+
+**Open questions for the owner:** agent price (OQ-17), whether agents may sell to Kiran's direct salons (OQ-18), who is served first when the supplier is short (OQ-19), identity data kept (OQ-20).
+

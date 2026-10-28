@@ -76,10 +76,11 @@ Phase 2: computed.
 For each SKU:
 
 ```
-avg_daily_demand   = units delivered in last 56 days ÷ 56   (seasonality-adjusted later)
+avg_daily_demand   = (units delivered + units lost, DEM-03) in last 56 days ÷ 56   (unconstrained demand; seasonality-adjusted later)
 demand_std         = std dev of weekly demand
 lead_time_days     = from vault (supplier lead time) — exposed to public as a number only
-safety_stock       = z × demand_std × sqrt(lead_time_days / 7)     (z = 1.65 for ~95% service level)
+safety_stock       = z × sqrt((lead_time_days / 7) × demand_std² + (avg_daily_demand × lead_time_std_days)²)
+                     (z = 1.65 for ~95% service level; lead_time_std_days = 0 until the vault has supplier history, D-18)
 reorder_point      = avg_daily_demand × lead_time_days + safety_stock
 target_stock       = reorder_point + avg_daily_demand × review_period_days (7)
 suggested_order    = max(0, target_stock − on_hand_all_locations − on_order + committed_open_orders)
@@ -104,6 +105,30 @@ On hand: warehouse 20 + rep bags 14 = 34; on order 0; committed in undelivered o
 4. Goods arrive → received by a grantee only; labels removed; `goods_receipt` posted → public `receipt` movements and batches appear.
 5. Warehouse count confirms received quantities (variance → vault-side claim with the supplier).
 6. Monday: reps' bag issues reflect the new stock; routes flag salons that were waiting.
+
+## 7a. Route-linked bag load (INV-11, D-19)
+
+The evening before a route day, the system proposes what each rep should carry:
+
+```
+for each SKU on tomorrow's stops:
+  needed      = open orders to deliver from the bag
+              + due reorders on the route × last quantity bought
+              + prospect allowance (owner-set units per prospect stop, default 0)
+  to_issue    = max(0, needed − bag on hand)
+  to_issue    = min(to_issue, warehouse available)          → shortfall recorded (DEM-02, bag_load_shortfall)
+then scale down lowest-priority lines until Σ to_issue × list price ≤ bag value limit (CTL-05)
+```
+
+The manager reviews it and issues it in one step as a two-party `stock_issue`: stock moves only when the rep confirms the count in the morning check-in. Phase 1 builds the issue, the confirmation and the shortfall capture with P1-04; the suggestion itself needs routes, the due-list and open orders, so it lands with P1-17.
+
+## 7b. Lost demand (DEM-01 to DEM-03, D-18)
+
+Demand that could not be served is recorded, never lost:
+
+- **Tap during a visit (DEM-01):** "asked for, could not sell": SKU (or, if Kiran does not carry it, its product group; no free text, H-27), quantity, reason. Works offline.
+- **Automatic (DEM-02):** an order line, a delivery, an agent purchase or a bag load cut short by available stock records the shortfall, with whether it became a backorder or was lost.
+- **Use (DEM-03):** reorder points use unconstrained demand (delivered + lost); the owner sees lost demand by SKU, reason and week; the vault compares what was ordered from the supplier with what arrived (fill rate), which is the evidence for the supplier-shortage problem.
 
 ## 8. Reports
 

@@ -27,8 +27,8 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 | PIP-02 | Log a visit: salon, rep, arrival time, GPS at arrival, outcome code, optional notes/photo. Visits are append-only | M | 1 |
 | PIP-03 | Daily route for a rep: ordered list of stops with reason (reorder due, collection due, at-risk, prospect, delivery) | M | 1 (manual build) / S | 2 (auto-generated) |
 | PIP-04 | Route days per territory (which salons fall on which weekday) | S | 2 |
-| PIP-05 | Cycle estimation per salon × product group from order history; default cycles per product group configurable | S | 2 |
-| PIP-06 | Due-for-reorder tasks generated at due − 3 days; at-risk transition at due + 50% cycle | S | 2 |
+| PIP-05 | Cycle estimation per salon × product group from order history; default cycles per product group configurable | M/S | 1 (thin: product-group default cycle + last purchase, D-19) / 2 (estimated from history) |
+| PIP-06 | Due-for-reorder tasks generated at due − 3 days; at-risk transition at due + 50% cycle | M/S | 1 (thin due-list, D-19) / 2 |
 | PIP-07 | Prospect quick-add from the field (≤ 60 seconds, works offline) | M | 1 |
 | PIP-08 | Territory mapping sweep mode: fast sequential prospect capture with photo and pin; map-based capture and online discovery are specified in the MAP module below | S | 2 |
 | PIP-09 | Rep daily check-in / check-out gating: no orders without check-in; unreconciled handover blocks next day with Mg override | M | 1 |
@@ -100,6 +100,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | INV-08 | Batch and expiry tracking per receipt; FEFO suggestion on issue; expiry alerts | S | 2 |
 | INV-09 | Cycle counts and stock-take mode | S | 2 |
 | INV-10 | Stock valuation report at cost (O/Mg only; cost from vault) | S | 2 |
+| INV-11 | **Route-linked bag load** (D-19): for a rep's next route day, suggest the bag issue per SKU = expected demand of that day's stops (open orders to deliver from the bag, due reorders × last quantity, a small prospect allowance) − current bag stock, capped by warehouse availability and the bag value limit. Shortages are shown and recorded as demand (DEM-02). The manager issues the suggestion in one step through the two-party issue (CTL-05) | M | 1 |
 
 ### VLT — Supplier vault (classified supplier)
 
@@ -189,6 +190,30 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans | M/S | 1–2 |
 | ADM-02 | Company profile for documents (name, logo, address, phone) | M | 1 |
 | ADM-03 | Numbering sequences for invoices and receipts (gapless, per financial year starting 1 July) | M | 1 |
+
+### AGT — Independent agents (D-15 to D-17)
+
+An independent agent buys stock outright and resells it. Title passes at the sale, so agents carry no Kiran stock or cash and report nothing back (no visits, handover or bag counts). Salaried reps keep the custody model of doc 08.
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| AGT-01 | Agent role and onboarding: anyone may apply; the owner creates the account (governance, H-15) with minimum identity data (OQ-20); agents sign in like reps (email code, approved device) | M | 1 |
+| AGT-02 | Agent price per SKU in its own table (`agent_price`, never readable by reps), set by the owner only; a SKU without an agent price is not sold to agents (OQ-17) | M | 1 |
+| AGT-03 | Agent purchase (cash and carry): paid in full by cash at the counter or a matched transfer **before** stock leaves the warehouse; numbered invoice and receipt; stock movement `sale_to_agent`; never on credit (A-07) | M | 1 |
+| AGT-04 | Agent app: own purchases, the catalogue with agent prices and warehouse availability (quantities only), pre-order request. No salon data, no other agents, no cost or supplier (H-01, H-05) | S | 1 |
+| AGT-05 | Agent reorder reminder from the agent's own purchase cycle | S | 2 |
+| AGT-06 | **No recruitment pay**: Kiran pays no commission, bonus or override for enrolling other agents; agent earnings come only from their own resale margin (A-06; SECP, Companies Act 2017 s.301) | M | 1 |
+| AGT-07 | Allocation when the supplier is short: configurable priority between direct salons' open orders and agent purchases (OQ-19) | S | 2 |
+
+### DEM — Lost demand (D-18)
+
+Stock-outs mostly start with supplier shortages, so demand that could not be served is recorded instead of disappearing.
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| DEM-01 | Quick capture during a visit: "asked for, could not sell": SKU (or, for an item Kiran does not carry, its product group; no free text, so no brand names land in `public`, H-27), quantity, reason (`not_in_bag` / `out_of_stock` / `not_in_catalogue` / `price` / `other`), salon. Works offline; append-only; idempotent | M | 1 |
+| DEM-02 | Automatic capture: when an order line, a delivery, an agent purchase or a bag-load suggestion is cut short by available stock (bag or warehouse), the shortfall is recorded with its reason and source, and whether it became a backorder or was lost | M | 1 |
+| DEM-03 | Lost-demand report by SKU, reason, territory and week; unconstrained demand (delivered + lost) feeds reorder points and restock suggestions (doc 10 §6); supplier fill rate shown in the vault | M | 1 / S | 2 |
 
 ## Non-functional requirements
 

@@ -180,7 +180,11 @@ describe("§7.6 backdated client timestamps", () => {
         and t in ('timestamptz'::regtype, 'timestamp'::regtype, 'date'::regtype, 'time'::regtype, 'timetz'::regtype)
       order by 1`);
     // owner_create_user(p_start_date date) is an HR start date, not an event time.
-    expect(rows.map((x) => x.f)).toEqual(["app.owner_create_user"]);
+    // Migration 0008 (P1-04; MJ approval L-0130, H-23): office_propose_stock_issue(p_route_date) is a
+    // planned route day; record_count(p_counted_at_client) and record_demand(p_captured_at_client) store
+    // the phone's time as evidence only, in *_client columns, next to the server's created_at (H-09).
+    expect(rows.map((x) => x.f)).toEqual([
+      "app.office_propose_stock_issue", "app.owner_create_user", "app.record_count", "app.record_demand"]);
   });
 });
 
@@ -191,7 +195,6 @@ describe("QUESTION (not a defect): what the table owner can still do", () => {
       select (app.request_approval(gen_random_uuid(), 'discount', 'order', null, '{}', 'rv3 row to truncate')).status::text s0;
       reset role;
       select count(*)::int a0, (select count(*)::int from control.approval_request) q0, (select count(*)::int from public.device) d0 from control.audit_event;
-      truncate control.approval_request;
       truncate public.device;
       select count(*)::int a1, (select count(*)::int from control.approval_request) q1, (select count(*)::int from public.device) d1 from control.audit_event;
       select ok from control.verify_audit_chain();`);
@@ -201,6 +204,9 @@ describe("QUESTION (not a defect): what the table owner can still do", () => {
     // detection relies on the off-site audit mirror (doc 06 §6). Recorded for MJ only.
     console.log("rv3 owner TRUNCATE:", JSON.stringify(got));
     expect(typeof got.ok).toBe("boolean");
+    // Since migration 0008 (P1-04) stock_movement.approval_id references approval_request, so the
+    // table owner can no longer TRUNCATE approval_request (0A000) (MJ approval L-0130, H-23).
+    expect(await sqlstate("postgres", "truncate control.approval_request")).toBe("0A000");
   });
 
   it("a pending request stays decidable after its maker is suspended", async () => {
