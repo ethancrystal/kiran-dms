@@ -10,7 +10,7 @@ request → decide → authorize, single use. Each RPC is one atomic step.
 | File | Purpose | Expected | TLC result |
 |---|---|---|---|
 | `ApprovalLifecycle.tla` | The spec | — | SANY: parsed, no errors |
-| `ApprovalLifecycle.cfg` | The RFC as proposed, one owner account | No violation | Running when this was committed (L-0109); result in a later entry |
+| `ApprovalLifecycle.cfg` | The RFC as proposed, one owner account | No violation | **No error**: 20,713,620 distinct states, complete search to depth 13, 27 min on 3 workers (fingerprint-collision estimate 8.9E-6) |
 | `TwoOwners.cfg` | Same model with two owner accounts (OQ-03) | No violation | Not yet run (starts after the one-owner run) |
 | `OpenQ5.cfg` | Open question 5: is the checker still active when the approval is used? | `Q5_CheckerActiveAtUse` violated | **Violated**, 5-state trace as predicted |
 | `MutantNoRecheck.cfg` | Route not re-checked at use | `S4_CheckerLevelAtUse` violated | **Violated**, 5-state trace as predicted |
@@ -26,7 +26,7 @@ Each mutant breaks exactly the property its check exists for, and each counterex
 ```bash
 # tla2tools.jar from https://github.com/tlaplus/tlaplus/releases (v1.7.4 or later)
 ./run-all.sh path/to/tla2tools.jar --quick   # parse, mutants, OpenQ5, witnesses: seconds
-./run-all.sh path/to/tla2tools.jar           # also the two clean runs: long: the one-owner run had passed 11.7M distinct states at depth 10 after 10 minutes on 3 workers, still growing
+./run-all.sh path/to/tla2tools.jar           # also the two clean runs: about 27 minutes for the one-owner run on 3 workers, plus the two-owner run
 ```
 
 Or one config at a time:
@@ -65,21 +65,21 @@ Found by reading the spec against the RFC text. Neither makes the design unsafe,
 
 | ID | Property | Type | TLA+ | Status |
 |---|---|---|---|---|
-| TypeOK | Variables stay in their domains | Type | `TypeOK` | Clean run pending |
-| S1 | The maker is never the checker (SEC-11, H-12) | Safety | `S1_MakerNeChecker` | Clean run pending |
-| S2 | Each approval authorizes at most one action | Safety | `S2_SingleUse` | Clean run pending; broken by `MutantReuse` |
-| S3 | Every gated action has an approval that is approved, of the same kind, for the same subject, and covers the server-computed amount | Safety | `S3_GatedActionCovered` | Clean run pending; broken by `MutantNoCoverage` |
-| S4 | The checker's role is at least the route computed **when the approval is used** | Safety | `S4_CheckerLevelAtUse` | Clean run pending; broken by `MutantNoRecheck`. Weaker than the RFC wording (see above) |
-| S5 | A write-off is always checked by an owner | Safety | `S5_WriteOffOwnerChecked` | Clean run pending |
-| S6 | Only office users check; reps never do | Safety | `S6_OnlyOfficeChecks` | Clean run pending |
-| S7 | One authorized action per (kind, consumer), so a replay doesn't add a second | Safety | `S7_OneActionPerConsumer` | Clean run pending |
-| S8 | Reps request only the kinds they are allowed | Safety | `S8_RepKinds` | Clean run pending |
-| S9 | A request has a checker exactly when it is approved or rejected | Structural | `S9_DecidedHasChecker` | Clean run pending |
-| G1 | With one owner account, an owner-made write-off is never approved (open question 2) | Safety, documents a gap | `G1_OwnerWriteOffStuck` | Clean run pending; expected to hold |
+| TypeOK | Variables stay in their domains | Type | `TypeOK` | **Holds** (one owner; two owners pending) |
+| S1 | The maker is never the checker (SEC-11, H-12) | Safety | `S1_MakerNeChecker` | **Holds** (one owner; two owners pending) |
+| S2 | Each approval authorizes at most one action | Safety | `S2_SingleUse` | **Holds** (one owner; two owners pending); broken by `MutantReuse` |
+| S3 | Every gated action has an approval that is approved, of the same kind, for the same subject, and covers the server-computed amount | Safety | `S3_GatedActionCovered` | **Holds** (one owner; two owners pending); broken by `MutantNoCoverage` |
+| S4 | The checker's role is at least the route computed **when the approval is used** | Safety | `S4_CheckerLevelAtUse` | **Holds** (one owner; two owners pending); broken by `MutantNoRecheck`. Weaker than the RFC wording (see above) |
+| S5 | A write-off is always checked by an owner | Safety | `S5_WriteOffOwnerChecked` | **Holds** (one owner; two owners pending) |
+| S6 | Only office users check; reps never do | Safety | `S6_OnlyOfficeChecks` | **Holds** (one owner; two owners pending) |
+| S7 | One authorized action per (kind, consumer), so a replay doesn't add a second | Safety | `S7_OneActionPerConsumer` | **Holds** (one owner; two owners pending) |
+| S8 | Reps request only the kinds they are allowed | Safety | `S8_RepKinds` | **Holds** (one owner; two owners pending) |
+| S9 | A request has a checker exactly when it is approved or rejected | Structural | `S9_DecidedHasChecker` | **Holds** (one owner; two owners pending) |
+| G1 | With one owner account, an owner-made write-off is never approved (open question 2) | Safety, documents a gap | `G1_OwnerWriteOffStuck` | **Holds** (one owner) |
 | Q5 | The checker is still active when the approval is used (open question 5) | Safety, **not promised by the RFC** | `Q5_CheckerActiveAtUse` | **Violated** (`OpenQ5`): `mgr1` approves, is offboarded, the rep uses the approval |
-| P1 | A decided request never changes | Action | `P1_DecidedImmutable` | Clean run pending |
-| P2 | `authorized_action` is append-only | Action | `P2_UsesAppendOnly` | Clean run pending |
-| P3 | The checker level only moves toward owner | Action | `P3_LevelOnlyRises` | Clean run pending |
+| P1 | A decided request never changes | Action | `P1_DecidedImmutable` | **Holds** (one owner; two owners pending) |
+| P2 | `authorized_action` is append-only | Action | `P2_UsesAppendOnly` | **Holds** (one owner; two owners pending) |
+| P3 | The checker level only moves toward owner | Action | `P3_LevelOnlyRises` | **Holds** (one owner; two owners pending) |
 | L* | Liveness ("a request is eventually decided") | Liveness | — | **Not stated on purpose.** Doc 13 §1 says approvals may wait for the owner indefinitely, so no fairness is assumed. |
 
 ## Model checking configuration
@@ -91,7 +91,7 @@ Found by reading the spec against the RFC text. Neither makes the design unsafe,
 - **State constraint:** `UsesBound`, at most 2 recorded uses. That is enough for each mutant's counterexample: reuse needs 2, and the others need 1.
 - **Symmetry:** the reps, managers, requests, subjects and consumers can be swapped for one another. This is sound because only safety properties are checked.
 - **Deadlock checking is off.** Once everything is decided and used, the only remaining steps are threshold changes, which is expected.
-- **Size:** larger than the original guess of 10^5 to 10^7 distinct states after symmetry: the one-owner run passed 11.7M distinct states (depth 10, 5.9M queued) after 10 minutes and was still running; the main cost is the subsets of `uses`. If it runs too long, use `Consumers = {c1}` for every config except `MutantReuse`, or `Subjects = {s1}` (that loses the cross-subject check).
+- **Size:** larger than the original guess of 10^5 to 10^7 distinct states after symmetry: the one-owner run has 20,713,620 distinct states (depth 13); the main cost is the subsets of `uses`. If it runs too long, use `Consumers = {c1}` for every config except `MutantReuse`, or `Subjects = {s1}` (that loses the cross-subject check).
 
 ### Expected counterexamples (traced by hand, all confirmed by TLC)
 
