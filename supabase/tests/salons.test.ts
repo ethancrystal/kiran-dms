@@ -271,7 +271,12 @@ describe("territory change and lost demand", () => {
   });
 
   it("ending a rep's territory removes its salons from that rep at once", async () => {
+    // Reach is checked through app.salon_stages (one salon, any page): app.my_salons returns one
+    // 50-row page, and where S1 falls on it depends on the database collation (en_US on Supabase).
+    const reach = async () => (await run(REP_A, "select to_stage from app.salon_stages($1)", [S1])).rows.length;
+    expect(await reach()).toBeGreaterThan(0);
     await one(MANAGER, "select app.office_end_territory($1, $2, 'moved to territory 2')", [fx.repA.id, T1]);
+    expect(await reach()).toBe(0);
     expect((await run(REP_A, "select id from app.my_salons() where id = $1", [S1])).rows).toEqual([]);
     expect(await sqlstate(REP_A, "select app.reveal_phone($1)", [S1])).toBe("42501");
     expect(
@@ -282,7 +287,7 @@ describe("territory change and lost demand", () => {
     ).toMatch(/final/);
     // Give it back so other files see the original fixture state.
     await one(MANAGER, "select app.office_assign_territory($1, $2)", [fx.repA.id, T1]);
-    expect((await run(REP_A, "select id from app.my_salons() where id = $1", [S1])).rows.length).toBe(1);
+    expect(await reach()).toBeGreaterThan(0);
   });
 
   it("the audit chain still verifies (H-17)", async () => {

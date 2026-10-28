@@ -2660,6 +2660,13 @@ Security checklist (tick honestly):
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: review PR 5, PR 6 and this branch's pull request.
 
+### L-0144 · 2026-10-28 20:40 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · PROGRESS
+**Task:** P1-02 (part a)    **Claim:** — (C-004 released; CI fix on PR 7)
+**What / why:** CI on PR 7 (900ce0f) failed one test on the Supabase stack: "ending a rep's territory removes its salons from that rep at once" (1 failed, 1236 passed). Root cause, in the test: it checked that rep A could see salon S1 again with `app.my_salons() where id = S1`, but `app.my_salons` returns one 50-row page ordered by name, and by then rep A has more than 55 salons. Supabase's database uses the en_US collation, which sorts "[Test] Renamed" after the "[Test] bulk N" salons, so S1 fell past the cap; the local C-collated database sorted it first. The page cap behaved correctly. The test now checks reach through `app.salon_stages(S1)` (one salon, any page) before ending the territory, after ending it and after giving it back; nothing else changed. The local test database is now created with the en_US collation, as on Supabase, so this class of difference shows locally.
+**Evidence:** reproduced first: salons tests on a fresh en_US.UTF-8 database, 1 failed, 19 passed, same assertion as CI. After the fix: `pnpm db:test` on a fresh en_US.UTF-8 database, 19 files, 1237 passed. `salons.test.ts` passes Biome. `pnpm activity:check` OK.
+**Rules touched:** H-23 (own test; no test skipped or loosened), H-24
+**Next / needs:** CI on PR 7.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
