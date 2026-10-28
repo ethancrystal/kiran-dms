@@ -282,7 +282,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-11 | Admin config, company profile, rep profile | ADM-01, 02; FLD-01 | NOT STARTED | — |
 | P1-12 | Security acceptance suite (doc 06 §10, doc 07 §5) + backup restore drill | NFR-07, 12; SEC-10 | NOT STARTED | — |
 | P1-15 | Independent agents: agent role, agent price per SKU, cash-and-carry agent purchase (paid before release, `sale_to_agent`), agent app, no recruitment pay (D-15 to D-17) | AGT-01–04, 06; A-06, A-07 | NOT STARTED | — |
-| P1-16 | Thin due-list and route building: default cycle per product group + last purchase, due tasks, manual route with stop reasons (D-19) | PIP-03, PIP-05/06 (thin) | IN PROGRESS (L-0150) | C-007 |
+| P1-16 | Thin due-list and route building: default cycle per product group + last purchase, due tasks, manual route with stop reasons (D-19) | PIP-03, PIP-05/06 (thin) | DONE (self-reported, L-0153) | — |
 | P1-17 | Route-linked bag load suggestion and automatic lost-demand capture from orders, deliveries and agent purchases; lost-demand report (D-18, D-19) | INV-11; DEM-02, DEM-03 | NOT STARTED | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
-| C-007 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes | P1-16 | PIP-03, PIP-05 (thin), PIP-06 (thin) | `supabase/migrations/20261028080000_routes.sql` (new), `supabase/tests/routes.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 04, 06 | 2026-10-28 21:02 | 2026-10-29 | 2026-10-28 21:02 (L-0150) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -341,6 +340,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-003 | P1-04 | 2026-10-28 10:25 | done | L-0134 |
 | C-004 | P1-02 (part a) | 2026-10-28 20:30 | done | L-0142 |
 | C-006 | P1-02 (part b) | 2026-10-28 20:55 | done | L-0148 |
+| C-007 | P1-16 | 2026-10-28 21:27 | done | L-0154 |
 
 ---
 
@@ -2725,6 +2725,44 @@ Security checklist (tick honestly):
 **What / why:** MJ answered two questions in this session. (1) Where the due-list's last purchase comes from before orders exist: "Office enters it (Recommended)": the office keys in a last purchase date per salon and product group from existing records; deliveries replace it once P1-06 exists (A-09). (2) The verifier test that lists every function taking a date from outside (`reverify3-attacks.test.ts`, section 7.6) gains `app.office_set_last_purchase(p_last_order_on)`, which is outside the L-0138 standing approval: "Approve (Recommended)". The date may not be in the future.
 **Rules touched:** H-23, H-26
 **Next / needs:** migration 0011.
+
+### L-0152 · 2026-10-28 21:27 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes · DEVIATION
+**Task:** P1-16    **Claim:** C-007
+**What / why:** Differences from the documents, and what P1-16 leaves for later tasks. (1) PIP-06 "due-for-reorder tasks": the due-list is computed on read by `app.due_list`, not written as task rows; doc 04's task table comes with P1-10 or Phase 2 timers. (2) PIP-06 "at-risk transition at due + 50% of the cycle": the due-list marks the salon at_risk, but no stage moves yet; the active stages exist only once orders do (P1-06). (3) PIP-05: the cycle is the product group's default; the per-salon estimate from order history is Phase 2 (cycle_days stays null until then). (4) Doc 04 route: start_geo and optimised are not built (route optimisation is MAP-08, Phase 2); route_stop has no expected_amount_due (collections, P1-07) and no outcome_visit_id: whether a stop was visited is read from that day's visits. (5) An office re-plan replaces all of the day's stops, including pins the rep added. (6) Reps cannot remove a stop, only reorder and add. (7) No route days per territory (PIP-04, Phase 2). Docs 04 and 06 updated in this branch (H-25). No free-text note column was added (H-27).
+**Rules touched:** H-25, H-27
+**Next / needs:** P1-17 (route-linked bag load) can now read routes and the due-list; P1-06 deliveries must update cycle_estimate (basis orders).
+
+### L-0153 · 2026-10-28 21:27 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes · DONE
+**Task:** P1-16 (PIP-03 manual route building; PIP-05 and PIP-06 thin, D-19)    **Claim:** C-007
+**What / why:** Migration 0011 `supabase/migrations/20261028080000_routes.sql`: `public.cycle_estimate` (last purchase per salon and product group; office-entered opening date under A-09 and MJ L-0151, never in the future; refused once deliveries keep the row; never deleted), `public.route` (one per rep per day, append-only) and `public.route_stop` (ordered stops with a reason, at most 50, a salon once per route, every stop in the rep's current territories; changes only while the day is today or later, for every role; a reorder changes only the sequence). Functions: `app.office_set_last_purchase`, `app.due_list` (due from next due minus 3 days, overdue from next due, at risk from next due plus half the cycle; parked salons left out; the rep's territories or, for the office, all or one territory; 50 rows, most urgent first; computed on read, so a new default cycle applies at once), `app.office_set_route` (office, today or later, replaces the day's stops), `app.rep_add_stop` (a pin added to today's route, idempotent), `app.rep_reorder_route` (the list must name every stop exactly once) and `app.my_route` (in order, with the salon's nearest due date and whether the rep visited it that day; stops outside the rep's current territories hidden). Reps never read the three tables' salon data directly. Docs 04 and 06 updated; verifier lists changed under L-0138 and L-0151.
+**Evidence:** On claude/p1-16-due-routes at 1c556b0 plus this entry: `pnpm db:test` on a fresh en_US.UTF-8 local Postgres 16 database (KIRAN_TEST_DATABASE_URL), 21 files, 1473 passed (before P1-16: 20 files, 1331). New: `supabase/tests/routes.test.ts`, 22 tests (opening date office-only, no future date, replace, refused once kept by deliveries; due, overdue and at-risk with both edges; territory scoping for reps, the office and one territory; planning ahead; a new default cycle applies at once; parked salons left out; office route with every bad input refused; rep pin added at the end and replayed; reorder needs every stop exactly once; visited flag from that day's visits; stops hidden when the territory ends; reps never read the stop or cycle tables; re-plan replaces the rep's pin; past routes final for postgres; stops change only their place; routes append-only; audit chain verifies) and RLS matrix rows for the three tables across all personas. A mutation check: widening the due window to 4 days fails the edge test. A first full run failed one salons test (rep A held a territory this file had committed); the fix ends this file's assignments when it finishes. `pnpm typecheck` exit 0. `routes.test.ts` passes Biome with the PR 6 configuration. `pnpm activity:check` OK. Not applied to staging.
+**Rules touched:** H-06, H-07, H-08, H-13, H-14, H-16, H-17, H-23, H-27
+**Next / needs:** a different agent verifies P1-16 (section 7: plan a route with another territory's salon, edit a past route, reorder another rep's route, read stops or cycles as a rep, enter a future purchase date).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — three tables, every persona; cycle_estimate and route_stop office-only at the table, route office or own rows
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — route append-only for postgres too; past stops final for postgres; cycle estimates never deleted
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — set route and set last purchase replace; add stop replays; reorder is a permutation
+[x] Audit trigger present; hash chain verifies (H-17) — on all three tables; chain verified at the end of the routes tests
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no such column; no free-text column (H-27)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Test] data only
+[x] Governance powers still owner-only + AAL2 (H-15) — route planning and opening dates are office (manager) operations, per doc 06 section 2
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — verifier tests changed only as MJ approved (L-0138, L-0151); the salons test was not changed
+[x] Docs match code; deviations logged (H-25) — L-0152
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0154 · 2026-10-28 21:27 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes · CLAIM-RELEASED
+**Task:** P1-16    **Claim:** C-007
+**What / why:** C-007 released (done): moved to the released table. The P1-16 board row records DONE (self-reported).
+**Rules touched:** section 3
+**Next / needs:** L-0155.
+
+### L-0155 · 2026-10-28 21:27 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes · HANDOFF
+**Task:** P1-16    **Claim:** — (C-007 released)
+**What / why:** State: P1-16 is on branch claude/p1-16-due-routes, stacked on PR 8; suite green (1473); not applied to staging. Next steps, in order: (1) pull request for this branch, stacked on PR 8; (2) a different agent verifies P1-04, P1-02 parts a and b, and P1-16; (3) P1-06 orders and invoices, whose deliveries must update cycle_estimate (basis orders) and drive the active stages and the at-risk move; (4) P1-17 route-linked bag load, which reads routes and the due-list; (5) P1-15 agents. Gotchas: test files share one database and run in name order, so a file that commits a territory assignment must end it in afterAll (routes.test.ts does); personas cannot call app.karachi_today, so tests compute today in SQL; the test database must use the en_US collation (L-0144).
+**Evidence:** `pnpm db:test` 21 files, 1473 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: review PRs 5 to 8 and this branch's pull request.
 
 ---
 
