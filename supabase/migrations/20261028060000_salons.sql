@@ -260,7 +260,7 @@ language sql stable security definer set search_path = '' as $$
     where a.id = p_area_id and a.active and t.active and a.territory_id in (select app.my_territory_ids()))
 $$;
 
--- '+923001234567' → '+923*******67': enough to recognise, not enough to call.
+-- '+920000001234' → '+920*******34': enough to recognise, not enough to call (synthetic example, H-03).
 create function app.mask_phone(p_phone text) returns text
 language sql immutable set search_path = '' as $$
   select case when p_phone is null then null
