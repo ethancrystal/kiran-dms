@@ -369,6 +369,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-23 | L-0085 O3: exclude any `public/` directory from the B-21 vault exemption (Next.js serves it without sign-in)? (L-0090) | — | Approve (narrows B-21) | MJ | RESOLVED (L-0091: approved) |
 | B-24 | L-0085 O4: also decode added files with a UTF-32 byte-order mark when scanning for secrets? (L-0090) | — | Approve | MJ | RESOLVED (L-0091: approved) |
 | B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
+| B-26 | `scripts/service-role-scan.mjs` counts source and bundle files with one counter (`scanned`, lines 41, 54, 78). CI runs it as `--bundle apps/web/.next/static` with the default `apps` and `packages` roots, so a missing bundle directory fails but an **empty** one passes. Approve requiring at least one scanned file per `--bundle` directory (H-18)? (L-0106) | — (needs a build that emits no text files under `.next/static`) | Leave as is | MJ | PENDING |
 
 ---
 
@@ -2159,6 +2160,27 @@ Security checklist (tick honestly):
 **Evidence:** Baseline on branch claude/architecture-rfc from main 8f789cd: `pnpm install` OK (the environment setup script had failed, so it was run by hand); `pnpm typecheck` clean; `pnpm activity:check` OK; `pnpm db:test` with embedded Postgres fails before any test because initdb refuses to run as root in this container; rerun with KIRAN_TEST_DATABASE_URL pointed at the container's local Postgres 16: 15 files, 470 tests passed.
 **Rules touched:** H-22 (proposals only, no code), H-23, H-24
 **Next / needs:** present candidates; file the chosen RFC as an issue; HANDOFF.
+
+### L-0105 · 2026-10-28 09:08 PKT · Claude · Claude Code · session 01Y3chVt · branch claude/architecture-rfc · PROGRESS
+**Task:** — (architecture review; read-only)    **Claim:** —
+**What / why:** Six candidates for deeper modules were found and presented. Ranked: approval lifecycle, DB test harness, log check as a pure function, audit-row capture, web session gate, device lifecycle, import entry point. The user chose the approval lifecycle. Four independent interface designs were drafted (minimal, flexible, common caller, policy as data), and the user chose the recommended combination: `request_approval` without the caller-chosen checker role, `decide_approval` and `cancel_approval` unchanged, one server-only `app.authorize_action` gate found by the request's client_id, a coded eq/max/min coverage spec per kind, discounts approved per order, the existing `approval.*` app_config thresholds above a coded floor (missing key routes to the owner), and an append-only `control.authorized_action` record that makes each approval single-use. Filed as an RFC issue. No code, migration or doc other than this file changed. The RFC lists five open questions for MJ (expiry; receivable write-off with one owner; who may use an approval; stock adjustment checker reading; checker offboarded before use); they block only the RFC's implementation, so no BLOCKER row is added for them.
+**Evidence:** Issue https://github.com/ethancrystal/kiran-dms/issues/4 created. Claims checked against the code before filing: `control.approval_guard` raises on any update once decided (foundation migration ~L385); `request_approval` replay returns the original without comparing content (~L649-653); thresholds already stored as `approval.*` app_config keys (~L788-794).
+**Rules touched:** H-22 (design only; budgets, hooks and a policy table left out), H-26 (threshold values and matrix unchanged), H-12, H-16
+**Next / needs:** MJ: the RFC's open questions; implementation needs its own claim and a new forward-only migration.
+
+### L-0106 · 2026-10-28 09:10 PKT · Claude · Claude Code · session 01Y3chVt · branch claude/architecture-rfc · BLOCKER
+**Task:** P0-09 (H-18 service-role scan)    **Claim:** —
+**What / why:** B-26 added to section 14 (ACTIVITY section 9 item 8: a finding in existing work). Found during the review: `scripts/service-role-scan.mjs` uses one `scanned` counter for source roots and bundle directories, and fails only when the total is zero. The CI step runs it with `--bundle apps/web/.next/static` and the default `apps` and `packages` roots, so an existing but empty bundle directory passes because the source files were counted. A missing directory still fails (readdirSync error). Not exploitable by an app role and no data exposed, so no SECURITY-INCIDENT. Proposed fix, not made: require at least one scanned file per `--bundle` directory, with a test.
+**Evidence:** Read `scripts/service-role-scan.mjs` lines 39-85 and `.github/workflows/ci.yml` line 79. Not reproduced by running the script on an empty directory.
+**Rules touched:** H-18, H-16
+**Next / needs:** MJ: approve the fix (B-26).
+
+### L-0107 · 2026-10-28 09:12 PKT · Claude · Claude Code · session 01Y3chVt · branch claude/architecture-rfc · HANDOFF
+**Task:** — (architecture review)    **Claim:** — (none taken)
+**What / why:** State: the review is complete and the approval-lifecycle RFC is filed as issue 4. This branch carries only log entries L-0104 to L-0107 and the B-26 row; no code, migration or other doc changed. No pull request was opened. Next steps, in order: (1) MJ answers the RFC's open questions and B-26; (2) whoever implements the RFC claims it, starting with a multi-persona transaction helper in `supabase/tests/helpers/db.ts` (candidate 2), which the RFC's boundary tests need; (3) the new forward-only migration and boundary tests, before any P1-06/07/08 function is written. Gotchas: in this container embedded Postgres cannot initdb as root, so `pnpm db:test` needs KIRAN_TEST_DATABASE_URL pointed at the local Postgres 16 (`service postgresql start`; set the postgres password; `createdb kiran_test`). The environment setup script also fails (it runs npm in /home/user, where there is no package.json); run `pnpm install` in the repo by hand. The agentic-council /deepen command points at a rubric file that does not exist in the plugin; findings used the command's own four criteria.
+**Evidence:** `pnpm activity:check` OK after these entries; `pnpm typecheck` clean and `pnpm db:test` 15 files, 470 passed earlier in this session (L-0104); no code changed since. Issue https://github.com/ethancrystal/kiran-dms/issues/4.
+**Rules touched:** H-22, H-23, H-24
+**Next / needs:** MJ: RFC open questions; B-26.
 
 ---
 
