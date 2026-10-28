@@ -7,7 +7,7 @@
  * depend on other files: bags are created here when they do not exist yet.
  */
 import { randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, OWNER, REP_A, REP_A_WRONG_DEVICE, REP_B, run, SUSPENDED, sqlstate, type Who } from "./helpers/db";
 
 const C = { commit: true };
@@ -69,6 +69,12 @@ beforeAll(async () => {
       PIN.lng,
     ]);
   }
+});
+
+// Leave the reps' territories as other files expect them: end this file's assignments.
+afterAll(async () => {
+  await one(MANAGER, "select app.office_end_territory($1, $2, 'visits tests finished')", [fx.repA.id, T_A]);
+  await one(MANAGER, "select app.office_end_territory($1, $2, 'visits tests finished')", [fx.repB.id, T_B]);
 });
 
 describe("no field work without an open day (PIP-09)", () => {
