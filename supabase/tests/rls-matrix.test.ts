@@ -39,6 +39,9 @@ const P: Record<string, Who> = {
 
 const me = (k: keyof typeof fx) => `'${fx[k].id}'`;
 // The persona's rep bag id as a scalar subquery (null when it has none: the predicate then selects nothing).
+// The persona's current territory ids as a subquery.
+const terr = (k: keyof typeof fx) =>
+  `(select rt.territory_id from public.rep_territory rt where rt.rep_id = ${me(k)} and rt.to_date is null)`;
 const bag = (k: keyof typeof fx) =>
   `(select l.id from public.stock_location l where l.kind = 'rep_bag' and l.owner_user_id = ${me(k)})`;
 
@@ -237,6 +240,137 @@ const MATRIX: Row[] = [
       ownerAal1: `captured_by = ${me("owner")}`,
       suspended: "false",
       service_role: "true",
+    },
+  },
+  // Territories and salons (migration 0009, P1-02 part a). Reps see their current
+  // territories and areas; salon tables are office-only, reps read them through capped
+  // functions (H-14).
+  {
+    table: "public.territory",
+    writeCol: "name",
+    select: {
+      anon: "denied",
+      repA: `id in ${terr("repA")}`,
+      repAWrongDevice: "false",
+      repB: `id in ${terr("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.area",
+    writeCol: "name",
+    select: {
+      anon: "denied",
+      repA: `territory_id in ${terr("repA")}`,
+      repAWrongDevice: "false",
+      repB: `territory_id in ${terr("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.rep_territory",
+    writeCol: "to_date",
+    select: {
+      anon: "denied",
+      repA: `rep_id = ${me("repA")}`,
+      repAWrongDevice: "false",
+      repB: `rep_id = ${me("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.salon",
+    writeCol: "name",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.salon_contact",
+    writeCol: "phone",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.salon_note",
+    writeCol: "body",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.stage_event",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "control.phone_reveal",
+    writeCol: "created_at",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "false",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "denied",
     },
   },
   {

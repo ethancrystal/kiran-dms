@@ -270,7 +270,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | NOT STARTED | — |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a of a to d, L-0137) | C-004 |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-004 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons | P1-02 (part a) | SAL-01 to SAL-03, SAL-09; PIP-01; MAP-03; CTL-18 (duplicate phones) | `supabase/migrations/20261028060000_salons.sql` (new), `supabase/tests/salons.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, docs 04, 06 | 2026-10-28 11:43 | 2026-10-28 (this session) | 2026-10-28 11:43 (L-0137) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -2594,6 +2595,32 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 18 files, 897 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: OQ-17 to OQ-20; renumbering of claude/architecture-rfc; whether A-08 stays owner-only.
+
+### L-0136 · 2026-10-28 11:43 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · PROGRESS
+**Task:** P1-04    **Claim:** — (C-003 released)
+**What / why:** MJ said "Yes" to opening a pull request for P1-04 and starting P1-02. Pull request https://github.com/ethancrystal/kiran-dms/pull/5 opened from claude/p1-04-inventory into feat/p0-foundation (the branch it was cut from; a pull request into main would carry all of C-001's unmerged work); this session watches its CI and reviews.
+**Evidence:** PR 5 created; CI runs on every pull request (ci.yml `on: pull_request`).
+**Rules touched:** section 11
+**Next / needs:** CI result on PR 5; L-0137.
+
+### L-0137 · 2026-10-28 11:43 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · CLAIM
+**Task:** P1-02 (part a: SAL-01 to SAL-03, SAL-09; PIP-01; CTL-18 duplicate-phone flag; MAP-03 notes)    **Claim:** C-004
+**What / why:** P1-02 is split into four parts so each is a reviewable pull request (DEVIATION in the DONE entry): (a) territories, areas, rep territories, salons, contacts with masked phones and logged reveals, append-only notes, stage machine with stage_event as the truth, duplicate-phone flag, demand_signal.salon_id foreign key; (b) visits and rep check-in (PIP-02, PIP-09); (c) verification and contact-change OTPs (CTL-09, CTL-18), which need the SMS adapter; (d) the Excel import write path (SAL-10), credit profile (SAL-04) and timeline (SAL-05), which need orders and money. C-004 covers part (a): new migration `supabase/migrations/20261028060000_salons.sql`, new test file `supabase/tests/salons.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, docs 04, 06 and this file. Branch claude/p1-02-salons is cut from claude/p1-04-inventory (it needs migration 0008 for the demand_signal foreign key), so its pull request stacks on PR 5.
+**Rules touched:** section 3
+**Next / needs:** migration 0009 and tests.
+
+### L-0138 · 2026-10-28 13:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · DECISION
+**Task:** P1-02 (H-23 test change)    **Claim:** C-004
+**What / why:** Migration 0009 tripped the same verifier lists as 0008 (L-0130), plus a re-verifier-3 check that "salons do not exist yet". MJ was asked whether to approve three changes (17 salon functions added to the allowlist; create_salon and add_salon_note added to the client-time list, their times stored only as *_client evidence; the list-dump check changed from "public.salon does not exist" to "a rep reads 0 rows from public.salon", the same H-14 intent) and whether the same three kinds of change are pre-approved for future modules. MJ chose "Approve, and pre-approve (Recommended)". Standing rule from now on: for each new module, adding its functions to the allowlist, adding *_client or planned-date parameters to the client-time list, and turning a "does not exist yet" check into a "rep sees 0 rows" check are approved, each logged citing L-0138; any other change to a verifier-authored test still needs MJ.
+**Rules touched:** H-23
+**Next / needs:** L-0139.
+
+### L-0139 · 2026-10-28 13:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · PROGRESS
+**Task:** P1-02 (part a)    **Claim:** C-004
+**What / why:** Work in progress, committed so nothing is lost (MJ's stop hook asks for every change to be committed and pushed). P1-02 part a is NOT done. In this commit: migration `supabase/migrations/20261028060000_salons.sql` (territories, areas, rep territories, salons, contacts, append-only notes and stage events, phone reveal log, stage-change guard, capped rep reads, demand_signal.salon_id foreign key), `supabase/tests/salons.test.ts`, RLS matrix rows for the eight new tables, and the three verifier-test edits approved in L-0138. Also on this branch's base: PR 5 was retargeted from feat/p0-foundation to main after MJ merged PR 3 (main 98fa114 has the same tree as b61494f, the commit PR 5 was cut from).
+**Evidence:** Before the verifier-test edits: `pnpm db:test` on a fresh local Postgres 16 database, 19 files, 1234 passed and 3 failed, the 3 being exactly the verifier lists L-0138 covers; every salons and RLS matrix test passed. The migration applies cleanly by itself (shim plus 0001 to 0009, psql ON_ERROR_STOP). After the edits the full suite has NOT been run (MJ stopped that run); `pnpm activity:check` OK.
+**Rules touched:** H-23, H-24
+**Next / needs:** run the full suite; update doc 06 section 4 (rep salon reads are capped functions, not views); DONE entry for part a with the security checklist; pull request stacked on PR 5.
 
 ---
 
