@@ -48,6 +48,7 @@ These are proposals to be confirmed and quantified by the owner once the Excel d
 | Shrink overdue book | Overdue receivables as % of total receivables | unknown | < 10% |
 | Zero cash leakage | Unexplained variance at daily handover | unknown | Rs 0, every day |
 | Scale the field team | Reps productive (hitting visit quota) within 2 weeks of hire | n/a | 100% of hires |
+| Grow the agent channel | Monthly sales through independent agents (Rs), D-21 | 0 | set by the owner (OQ-21) |
 
 ### System goals
 
