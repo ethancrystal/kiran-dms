@@ -270,7 +270,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a of a to d, L-0137) | C-004 |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0141; parts b to d not started) | — (C-004 released) |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,13 +332,13 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
-| C-004 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons | P1-02 (part a) | SAL-01 to SAL-03, SAL-09; PIP-01; MAP-03; CTL-18 (duplicate phones) | `supabase/migrations/20261028060000_salons.sql` (new), `supabase/tests/salons.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, docs 04, 06 | 2026-10-28 11:43 | 2026-10-28 (this session) | 2026-10-28 11:43 (L-0137) |
 
 **Released / expired claims** (kept for history; never deleted):
 
 | Claim ID | Task ID | Released (PKT) | Reason (`done` / `abandoned` / `stale`) | Log entry |
 |---|---|---|---|---|
 | C-003 | P1-04 | 2026-10-28 10:25 | done | L-0134 |
+| C-004 | P1-02 (part a) | 2026-10-28 20:30 | done | L-0142 |
 
 ---
 
@@ -2621,6 +2621,44 @@ Security checklist (tick honestly):
 **Evidence:** Before the verifier-test edits: `pnpm db:test` on a fresh local Postgres 16 database, 19 files, 1234 passed and 3 failed, the 3 being exactly the verifier lists L-0138 covers; every salons and RLS matrix test passed. The migration applies cleanly by itself (shim plus 0001 to 0009, psql ON_ERROR_STOP). After the edits the full suite has NOT been run (MJ stopped that run); `pnpm activity:check` OK.
 **Rules touched:** H-23, H-24
 **Next / needs:** run the full suite; update doc 06 section 4 (rep salon reads are capped functions, not views); DONE entry for part a with the security checklist; pull request stacked on PR 5.
+
+### L-0140 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · DEVIATION
+**Task:** P1-02 (part a)    **Claim:** C-004
+**What / why:** Differences from the documents, and what part a leaves for later parts. (1) Doc 06 section 4 described rep reads as views with the page cap in the API layer; they are built as `app.*` functions that check territory, mask phones and cap a page at 50 rows in the database, and the salon tables are office-only at the table. Doc 06 updated in this branch (H-25). (2) CTL-18: until the OTP flow (part c) exists, a primary phone change is office-only (`app.office_set_primary_contact`, reason required, audited, old contact kept inactive); there is no OTP to the new number and no notice to the old one yet. (3) CTL-09: `salon_guard` refuses any change to verification_status, so no salon can be marked verified until part c adds its sanctioned path. (4) SAL-01 frontage photo is not stored yet (no storage bucket); MAP-02 and PIP-07 (60 seconds, offline) are the PWA's job (P1-09); the database side is ready (client-generated ids, created_at_client). (5) Phone reveals are logged but not capped; a daily cap would be a new threshold for MJ (H-26).
+**Rules touched:** H-25, H-26
+**Next / needs:** parts b to d; MJ may ask for a reveal cap.
+
+### L-0141 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · DONE
+**Task:** P1-02 (part a: SAL-01 to SAL-03, SAL-09; PIP-01; MAP-03; CTL-18 duplicate phones)    **Claim:** C-004
+**What / why:** Migration 0009 `supabase/migrations/20261028060000_salons.sql`: territories, areas and rep territories with history (an assignment changes once, by being ended); salons scoped to the rep's current territories; reps add salons only in their own areas and only from field sources, idempotent on the client-generated id; reps move a salon only between their own areas; contacts with phones masked in rep lists and `app.reveal_phone` logged to `control.phone_reveal` (owner-readable); append-only notes and stage events; a trigger that lets a salon's stage change only in the same transaction as a matching stage_event, for every role; rep park with reason, office override with reason; duplicate-phone list for the office (CTL-18 part); the demand_signal.salon_id foreign key deferred by L-0132, and `app.record_demand` now refuses a salon the rep cannot reach. Doc 06 section 4 updated (L-0140). Verifier lists changed as MJ approved and pre-approved (L-0138).
+**Evidence:** On claude/p1-02-salons at baf39b5 (cut from PR 5's head 8ba8d6b): `pnpm db:test` on a fresh local Postgres 16 database (KIRAN_TEST_DATABASE_URL): 19 files, 1237 passed (before part a: 18 files, 897). New: `supabase/tests/salons.test.ts` (territory scoping, field-only sources, replay, 50-row page cap with keyset paging, masked phone and logged reveal, duplicate phones, office-only phone change keeping history, append-only notes, stage events and reveals for postgres too, stage guard, park and override with reasons, ending a territory removes access at once, lost demand foreign key and reach, audit chain verifies) and RLS matrix rows for the eight new tables across ten personas. The migration applies cleanly by itself (shim plus 0001 to 0009, psql ON_ERROR_STOP). `pnpm typecheck` exit 0. `salons.test.ts` passes Biome with the configuration from PR 6. `pnpm activity:check` OK. Not applied to staging.
+**Rules touched:** H-06, H-07, H-08, H-09, H-13, H-14, H-16, H-17, H-23, H-27
+**Next / needs:** a different agent verifies P1-02 part a (section 7: try to read another territory's salons and phones, dump the salon list, change a stage without an event, revive an ended assignment).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — eight tables, ten personas each; salon tables office-only at the table
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — salon_note, stage_event, phone_reveal also refuse UPDATE, DELETE, TRUNCATE for postgres; salons, contacts and assignments are never deleted
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — client-generated ids and client_id; replays tested
+[x] Audit trigger present; hash chain verifies (H-17) — schema-hygiene guard passes; chain verified at the end of the salons tests
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no such column; notes are the documented chit
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Test] data and +920000 phones only; one realistic example phone in a comment was replaced (a3dea3b)
+[x] Governance powers still owner-only + AAL2 (H-15) — territory and stage overrides are office (manager) operations per doc 06 section 2
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — verifier tests changed only as MJ approved (L-0138)
+[x] Docs match code; deviations logged (H-25) — L-0140
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0142 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · CLAIM-RELEASED
+**Task:** P1-02 (part a)    **Claim:** C-004
+**What / why:** C-004 released (done): moved to the released table. P1-02 board row records part a as DONE (self-reported); parts b to d get their own claims.
+**Rules touched:** section 3
+**Next / needs:** L-0143.
+
+### L-0143 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · HANDOFF
+**Task:** P1-02 (part a)    **Claim:** — (C-004 released)
+**What / why:** State: part a is on branch claude/p1-02-salons, stacked on PR 5; suite green (1237); not applied to staging. Next steps, in order: (1) pull request for this branch, stacked on PR 5; (2) a different agent verifies P1-04 and P1-02 part a; (3) P1-02 part b (visits, check-in gating) and P1-16 (thin due-list and manual routes), which need part a; (4) part c once an SMS adapter exists; (5) P1-06 orders. Gotchas: branches claude/p1-02-salons and claude/spec are both cut from PR 5 and both use L-0136 onward (and C-004, C-005); whichever merges second renumbers its own entries; PR 6 adds Biome, after which every new file must pass `pnpm lint`. On this container start Postgres with `service postgresql start` and recreate the test database before each `pnpm db:test`.
+**Evidence:** `pnpm db:test` 19 files, 1237 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: review PR 5, PR 6 and this branch's pull request.
 
 ---
 
