@@ -18,10 +18,14 @@ const TYPE_RULES: Array<[RegExp, SalonType]> = [
   [/\bbridal\b/, "bridal_studio"],
   [/\b(spa|wellness)\b/, "spa_wellness"],
   [/\bunisex\b/, "unisex"],
+  // Both ladies and gents in one label is a unisex salon, not a men's salon (council audit
+  // finding 10: "Ladies & Gents Salon" was read as mens_salon, a lower starting credit limit).
+  [/\b(ladies|lady|women|female)\b.*\b(gents?|mens?|male)\b|\b(gents?|mens?|male)\b.*\b(ladies|lady|women|female)\b/, "unisex"],
   [/\b(barber|hajjam|hajam)\b/, "barber"],
   [/\b(gents?|mens?|male)\b/, "mens_salon"],
   [/\b(ladies|lady|women|female|parlou?r|beauty)\b/, "ladies_parlor"],
-  [/\b(hair\s*studio|studio)\b/, "hair_studio"],
+  // Only a hair studio; a bare "studio" (e.g. "Nail Studio") is not recognised and gets a warning.
+  [/\bhair\s*studio\b/, "hair_studio"],
   [/\bother\b/, "other"],
 ];
 
@@ -128,7 +132,13 @@ export function parseGeo(latRaw: string, lngRaw: string): Result<{ lat: number; 
   return { ok: true, value: { lat, lng } };
 }
 
-// Comparison key for names and areas: case, spacing and punctuation do not matter.
+// Comparison key for headings, names and areas: case, spacing and punctuation do not matter.
+// Invisible characters (format characters such as a zero-width space, a zero-width non-joiner
+// or a soft hyphen, other default-ignorable code points such as the Hangul fillers, and
+// combining marks) are removed, not turned into a word break: "Ph<ZWSP>one" is the same heading
+// as "Phone", so a second such column is a duplicate, never an ignored "column D" (L-0116
+// P0-02 D2). Visible look-alike letters from other scripts are a known limit (L-0061, B-22).
 export function keyOf(s: string): string {
-  return s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return s.normalize("NFKC").replace(/[\p{Cf}\p{Mn}\p{Default_Ignorable_Code_Point}]/gu, "")
+    .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }

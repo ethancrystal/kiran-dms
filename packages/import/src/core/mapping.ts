@@ -7,7 +7,7 @@ import { keyOf } from "./normalize.ts";
 export const FIELDS = {
   name:            { required: true,  aliases: ["salon name", "salon", "name", "parlor name", "parlour name", "parlor", "parlour", "shop name", "shop", "customer", "customer name", "party", "party name", "business name"] },
   type:            { required: false, aliases: ["type", "salon type", "category", "kind"] },
-  area:            { required: true,  aliases: ["area", "locality", "location", "block", "sector", "town", "zone"] },
+  area:            { required: true,  aliases: ["area", "area name", "locality", "location", "block", "sector", "town", "zone"] },
   address:         { required: false, aliases: ["address", "full address", "street", "addr"] },
   phone:           { required: false, aliases: ["phone", "phone no", "phone number", "mobile", "mobile no", "mobile number", "cell", "cell no", "contact no", "contact number", "number", "whatsapp", "tel", "telephone"] },
   contact_name:    { required: false, aliases: ["owner", "owner name", "contact", "contact name", "contact person", "person", "proprietor"] },
@@ -29,7 +29,19 @@ export type MappingResult = {
   unmappedHeaders: string[];   // headers no field claimed (ignored by the import)
   missingRequired: Field[];    // required fields with no column: the dry-run cannot pass
   problems: string[];          // explicit-mapping mistakes (unknown field or header)
+  matchedBy: Partial<Record<Field, MatchKind>>;   // how each mapped field found its column
 };
+
+// "explicit": named by --mapping; "exact": the whole heading is an alias ("Salon Name");
+// "phone": the heading holds a phone word ("Owner Mobile"); "prefix": the heading starts with an
+// alias ("Salon Colour", "Block 13"). Only the first two say the row really is a header row.
+export type MatchKind = "explicit" | "exact" | "phone" | "prefix";
+
+// How many columns of a row are matched exactly or named by --mapping. A data row can match
+// fields by prefix ("Salon Colour" -> name, "Block 13" -> area) or hold a phone word in a note,
+// so those never confirm a header row (L-0116 P0-02 D4).
+export const strongMatches = (m: MappingResult) =>
+  Object.values(m.matchedBy).filter((k) => k === "explicit" || k === "exact").length;
 
 // A header naming a phone ("Contact Mobile", "Owner Mobile", "WhatsApp No") is a phone column,
 // whatever other word it starts with (L-0085 P0-02 D4).
@@ -49,6 +61,20 @@ export const isHeaderWords = (h: string) => {
   const words = keyOf(h).split(" ").filter(Boolean);
   return words.length > 0 && words.length <= 5 && words.every((w) => VOCAB.has(w));
 };
+// A sheet (tab) name is printed only when every word in it is one tabs are commonly called
+// ("Sheet1", "Salon List", "Customers 2026", "Udhaar"); otherwise it is shown by position. The
+// list is narrower than the heading vocabulary on purpose: a ledger with one tab per salon must
+// not put salon names on the console, and "Salon Colour" is made of heading words (H-03,
+// L-0116 P0-02 D3).
+const SHEET_WORDS = new Set([
+  "sheet", "list", "data", "main", "master", "all", "new", "old", "final", "updated", "copy", "record", "records",
+  "salon", "salons", "parlour", "parlours", "parlor", "parlors", "shop", "shops", "customer", "customers", "party", "parties",
+  "area", "areas", "balance", "balances", "udhaar", "udhar", "phone", "phones", "mobile", "contacts", "import", "of", "and",
+]);
+export const isSheetLabel = (name: string) => {
+  const words = keyOf(name).split(" ").filter(Boolean);
+  return words.length > 0 && words.length <= 5 && words.every((w) => SHEET_WORDS.has(w) || /^(sheet)?\d{1,4}$/.test(w));
+};
 export const columnLetter = (i: number) => {
   let s = "";
   for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
@@ -58,6 +84,7 @@ export const columnLetter = (i: number) => {
 export function resolveMapping(headers: string[], explicit: Record<string, string> = {}): MappingResult {
   const problems: string[] = [];
   const mapping: Mapping = {};
+  const matchedBy: Partial<Record<Field, MatchKind>> = {};
   const used = new Set<string>();
   const byKey = new Map(headers.filter((h) => h.trim() !== "").map((h) => [keyOf(h), h] as const));
 
@@ -67,6 +94,7 @@ export function resolveMapping(headers: string[], explicit: Record<string, strin
     if (!actual) { problems.push(`mapping for "${field}" names a column that is not in the file: "${header}"`); continue; }
     if (used.has(actual)) { problems.push(`column "${actual}" is mapped to more than one field`); continue; }
     mapping[field as Field] = actual;
+    matchedBy[field as Field] = "explicit";
     used.add(actual);
   }
 
@@ -81,7 +109,7 @@ export function resolveMapping(headers: string[], explicit: Record<string, strin
           pass === "exact" ? k === alias
           : pass === "phone" ? isPhoneHeader(h)
           : k.startsWith(alias + " ") && (field === "phone" || !isPhoneHeader(h))));
-        if (hit) { mapping[field] = hit[1]; used.add(hit[1]); break; }
+        if (hit) { mapping[field] = hit[1]; matchedBy[field] = pass; used.add(hit[1]); break; }
       }
     }
   }
@@ -94,5 +122,6 @@ export function resolveMapping(headers: string[], explicit: Record<string, strin
     unmappedHeaders: headers.filter((h) => h.trim() !== "" && !used.has(h)),
     missingRequired: FIELD_NAMES.filter((f) => FIELDS[f].required && !mapping[f]),
     problems,
+    matchedBy,
   };
 }

@@ -25,9 +25,16 @@
  *  4. DONE/VERIFIED lacks the security checklist; a VERIFIED entry names no task, names a
  *     task with no DONE entry, or shares a signature (equal, contained, or same
  *     "session <id>") with any DONE entry for a task it names (§7, MJ ruling L-0029);
+ *     4b. a §12 board row (read as GitHub renders the table) changes its Status to anything
+ *     mentioning VERIFIED other than exactly "VERIFIED (L-nnnn)" (a reopen note "was VERIFIED
+ *     L-nnnn" excepted), a changed Status cell has non-ASCII outside the allowlist or Markdown
+ *     marks, a task has two board rows, or the cited entry is not an independent VERIFIED or
+ *     CORRECTION entry naming the task, with the checklist, newer than its latest DONE (L-0116);
  *  5. an added line contains a secret-looking value, supplier/cost wording outside vault
  *     migrations, tests and docs, or an owner-listed sensitive term; or a file whose name
- *     starts with `.env` (other than `.env.example`) is added or changed.
+ *     starts with `.env` (other than `.env.example`) is added or changed. Secret patterns,
+ *     owner terms (lines and paths), the UTF-16/UTF-32 decodings and the `.env` rule also run
+ *     on every commit in the range, merges included as combined diffs (L-0105, L-0116).
  *
  * Usage: node scripts/activity-log-check.mjs [BASE] [HEAD]
  *   BASE defaults to origin/main, then main, then the root commit. HEAD defaults to the worktree.
@@ -217,6 +224,18 @@ let untracked = [];
 if (!head) untracked = split0(git(["ls-files", "--others", "--exclude-standard", "-z"]));
 changed = [...new Set([...changed, ...untracked])];
 for (const f of new Set([...notDeleted, ...untracked])) if (isEnvFile(f)) fail(`${f}: environment files must never be committed (H-20).`);
+// Each commit in the range, not only the net diff: an env file or a secret added in one commit
+// and removed in a later one is still in git history (council audit 2026-10-27, finding 3).
+// The structural rules (1 to 4) stay on the net diff; rule 5 and the env-file rule walk commits.
+// Merge commits are included as combined diffs (--cc): for a merge, git lists only the files and
+// lines that differ from every parent, so content added in a merge resolution is checked while a
+// clean merge adds nothing (L-0116 D5).
+const commitRange = base ? `${base}..${head || "HEAD"}` : null;
+if (commitRange) {
+  for (const f of new Set(split0(git(["log", "--cc", "--no-renames", "--diff-filter=AM", "--name-only", "-z", "--format=", commitRange])).map((p) => p.replace(/^\n+/, "")))) {
+    if (isEnvFile(f)) fail(`${f}: environment files must never be committed, even in an intermediate commit (H-20).`);
+  }
+}
 
 // --- Markdown structure
 function scan(text) {
@@ -444,25 +463,103 @@ for (const e of newEntries) {
 // signed by the agent behind any DONE entry for the task. (Verifiers record verdicts as
 // CORRECTION or VERIFIED entries; before this, rule 4 ran only on entries typed VERIFIED, so no
 // board move to VERIFIED was ever checked. Council audit 2026-10-27, finding 2.)
-const boardOf = (text) => {
-  const out = new Map();
-  let inBoard = false;
-  for (const x of scan(text)) {
-    if (x.code) continue;
-    if (/^## /.test(x.line)) inBoard = /^## 12\. /.test(x.line);
-    const m = inBoard && x.line.match(/^\| ((?:P\d-\d{2})|(?:PLAN-\d{2})) \|/);
-    if (!m) continue;
-    const cells = x.line.split("|");
-    out.set(m[1], (cells[cells.length - 3] ?? "").trim());
+//
+// The board is read the way GitHub renders it (L-0116 D2): a table opens at a header row followed
+// by a delimiter row with the same number of cells and ends at a blank line or a heading; a row
+// may be indented and may omit its outer pipes; cells split on unescaped pipes ("\|" is a pipe
+// inside a cell); the Status column is found by its header, so extra cells (which GitHub drops)
+// and escaped pipes cannot shift it. The task id cell is read after the same normalisation as a
+// status, so "**P0-09**" is P0-09.
+const MD_MARKS_RE = /[*_~`\\]/;
+const normCell = (s) => s.normalize("NFKC").replace(INVISIBLE_G, "").replace(/\\(.)/g, "$1").replace(/[*_~`]/g, "")
+  .replace(/[‐-―−]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
+// Cells of a table row, and how many unescaped pipes it has (a backslash escapes the next character).
+const rowOf = (line) => {
+  const s = line.trim();
+  const cells = [];
+  let cur = "";
+  let pipes = 0;
+  let endsWithPipe = false;
+  for (let i = 0; i < s.length; i++) {
+    endsWithPipe = false;
+    if (s[i] === "\\" && i + 1 < s.length) { cur += s[i] + s[i + 1]; i++; continue; }
+    if (s[i] === "|") { cells.push(cur); cur = ""; pipes++; endsWithPipe = true; continue; }
+    cur += s[i];
   }
-  return out;
+  cells.push(cur);
+  if (s.startsWith("|")) cells.shift();
+  if (endsWithPipe && s.length > 1) cells.pop();
+  return { cells: cells.map((c) => c.trim()), pipes };
+};
+const splitRow = (line) => rowOf(line).cells;
+const hasPipe = (l) => rowOf(l).pipes > 0;
+const isDelimRow = (l) => hasPipe(l) && splitRow(l).every((c) => /^:?-+:?$/.test(c));
+const boardOf = (text) => {
+  const rows = [];   // recognised task rows: { task, status (raw, trimmed; null without a Status column), line }
+  const lines = [];  // every line of §12 outside code, with whether it sits in a table and its row (if a task row)
+  let inBoard = false;
+  let table = null;  // { statusIdx }
+  let prev = null;
+  for (const x of scan(text)) {
+    if (x.code) { table = null; prev = null; continue; }
+    if (/^## /.test(x.line)) { inBoard = /^## 12\. /.test(x.line); table = null; prev = null; continue; }
+    if (!inBoard) continue;
+    const l = x.line;
+    if (l.trim() === "" || /^\s{0,3}#{1,6}(\s|$)/.test(l)) { table = null; prev = null; lines.push({ line: l, inTable: false }); continue; }
+    if (!table && prev !== null && isDelimRow(l) && splitRow(l).length === splitRow(prev).length) {
+      table = { statusIdx: splitRow(prev).findIndex((c) => normCell(c) === "status") };
+      lines.push({ line: l, inTable: true });
+      continue;
+    }
+    let rec = null;
+    if (table || hasPipe(l)) {
+      const cells = splitRow(l);
+      const id = normCell(cells[0] ?? "").toUpperCase();
+      if (/^(P\d-\d{2}|PLAN-\d{2})$/.test(id) && table) {
+        rec = { task: id, status: table.statusIdx >= 0 ? (cells[table.statusIdx] ?? "") : null, line: l };
+        rows.push(rec);
+      }
+    }
+    lines.push({ line: l, inTable: Boolean(table), rec });
+    prev = l;
+  }
+  return { rows, lines };
 };
 if (baseText) {
-  const before = boardOf(baseText);
-  for (const [task, status] of boardOf(headText)) {
-    if (!/^VERIFIED\b/.test(status) || /^VERIFIED\b/.test(before.get(task) ?? "")) continue;
-    const ref = status.match(/^VERIFIED \((L-\d{4})\)/);
-    if (!ref) { fail(`§12 board: ${task} moved to VERIFIED without citing the verifying entry; write "VERIFIED (L-nnnn)".`); continue; }
+  const B12 = boardOf(baseText);
+  const H12 = boardOf(headText);
+  const before = new Map();
+  for (const r of B12.rows) if (!before.has(r.task)) before.set(r.task, r.status);
+  const baseLines = new Set(B12.lines.map((x) => x.line.trim()));
+  // D3: one row per task, so an earlier row cannot hide behind a later one.
+  const seen = new Map();
+  for (const r of H12.rows) seen.set(r.task, (seen.get(r.task) ?? 0) + 1);
+  for (const [task, n] of seen) if (n > 1) fail(`§12 board: ${task} has ${n} rows; each task has exactly one board row (L-0116 D3).`);
+  // A new or changed board line that mentions VERIFIED but is not a task row of a table with a
+  // Status column (a look-alike id, a table without a Status header, a row outside any table).
+  for (const x of H12.lines) {
+    if (baseLines.has(x.line.trim()) || !(x.inTable || hasPipe(x.line))) continue;
+    if (x.rec && x.rec.status !== null) continue;
+    if (/verified/.test(normCell(x.line))) fail(`§12 board: a new or changed line mentions VERIFIED but is not a task row in a table with a Status column: "${x.line.trim().slice(0, 70)}"`);
+  }
+  for (const r of H12.rows) {
+    const { task, status } = r;
+    if (status === null) continue;
+    if (before.has(task) && before.get(task) === status) continue; // unchanged (raw text, nothing looser)
+    // D1: a changed Status cell is plain text: ASCII plus the Task-line allowlist, no Markdown
+    // emphasis, code or escapes, so no rendering of VERIFIED can differ from the text tested here.
+    const odd = [...status].filter((ch) => ch.charCodeAt(0) > 0x7e && !TASK_LINE_ALLOWED.has(ch));
+    if (odd.length) { fail(`§12 board: ${task} has a changed Status cell with disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}); write statuses in plain ASCII (L-0116 D1).`); continue; }
+    if (MD_MARKS_RE.test(status)) { fail(`§12 board: ${task} has a changed Status cell with Markdown emphasis, code or escape characters; write statuses as plain text (L-0116 D1).`); continue; }
+    const ref = status.match(/^VERIFIED \((L-\d{4})\)$/);
+    if (!ref) {
+      // Normalised (NFKC, default-ignorables, emphasis, case): any VERIFIED other than the
+      // canonical form is refused; the one exception is a reopen note "was VERIFIED L-nnnn".
+      if (/verified/.test(normCell(status).replace(/\bwas verified l-\d{4}\b/g, ""))) {
+        fail(`§12 board: ${task} has a changed Status cell that mentions VERIFIED; a move to VERIFIED must read exactly "VERIFIED (L-nnnn)" (a reopened task may say "was VERIFIED L-nnnn").`);
+      }
+      continue;
+    }
     const v = H.entries.find((e) => e.id === ref[1]);
     if (!v) { fail(`§12 board: ${task} cites ${ref[1]} as its verification, but no such entry exists.`); continue; }
     const vBody = v.body.join("\n");
@@ -474,6 +571,10 @@ if (baseText) {
     for (const done of dones) {
       if (sameAgent(done.sig, v.sig)) fail(`§12 board: ${task} is verified by ${v.id}, signed by the same agent as DONE ${done.id} ("${done.sig}"); maker must differ from checker.`);
     }
+    // D4: the verdict must be newer than the task's latest DONE entry (a reopened task needs a
+    // fresh verification; MJ L-0110).
+    const latest = dones.reduce((a, d) => (d.n > a.n ? d : a), dones[0] ?? { n: -1 });
+    if (dones.length && v.n <= latest.n) fail(`§12 board: ${task} cites ${v.id}, which is older than its latest DONE entry ${latest.id}; a verification must come after the work it verifies (L-0116 D4).`);
   }
 }
 
@@ -486,6 +587,33 @@ for (const f of untracked) {
   } catch (e) { fail(`${f}: cannot read untracked file (${e.code ?? e.message}); refusing to pass.`); }
 }
 const unquote = (p) => (p.startsWith('"') && p.endsWith('"') ? JSON.parse(p.replace(/\\([0-7]{3})/g, (_, o) => "\\u00" + parseInt(o, 8).toString(16).padStart(2, "0"))) : p);
+// History pass (finding 3): every added line of every commit in the range gets the hard checks
+// only (secret patterns and owner terms). The supplier-wording and name heuristics stay on the
+// net diff, so a fixed false positive in an earlier commit cannot block a PR forever.
+// Merges are read as combined diffs (--cc): a hunk header with N+1 "@" has N parent columns, and a
+// line counts as added only when every column is "+" (new against every parent), so a clean merge
+// contributes nothing (L-0116 D5). File headers are tracked as state, so "+++ " is skipped only
+// between "diff --…" and the first hunk; an added content line starting "++ " is scanned (D6).
+if (commitRange) {
+  let hfile = "";
+  let hHeader = false;
+  let cols = 1;
+  for (const l of git(["log", "-p", "--cc", "--no-renames", "--text", "--no-ext-diff", "--unified=0", "--format=", commitRange]).split("\n")) {
+    if (l.startsWith("diff --git ")) { const m = l.match(/ ("b\/.+"|b\/.+)$/); hfile = m ? unquote(m[1]).replace(/^"?b\//, "") : ""; hHeader = true; cols = 1; continue; }
+    const dc = l.match(/^diff --(?:cc|combined) (.+)$/);
+    if (dc) { hfile = unquote(dc[1]); hHeader = true; continue; }
+    const hunk = l.match(/^(@{2,}) /);
+    if (hunk) { hHeader = false; cols = hunk[1].length - 1; continue; }
+    if (hHeader) {
+      if (l.startsWith("+++ ") && l.slice(4) !== "/dev/null") hfile = unquote(l.slice(4)).replace(/^b\//, "");
+      continue;
+    }
+    if (!l.startsWith("+".repeat(cols))) continue;
+    const text = l.slice(cols);
+    for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${hfile}: a commit in the range adds a line matching secret pattern ${re} (git history keeps it even if a later commit removes it; rotate the secret).`);
+    if (termIn(text)) fail(`${hfile}: a commit in the range adds a line containing an owner-listed sensitive term (H-01).`);
+  }
+}
 let file = "";
 let inHeader = false;
 for (const l of diff.split("\n")) {
@@ -523,17 +651,13 @@ const readAdded = (f) => {
     return execFileSync("git", ["show", `${head}:${f}`], { stdio: ["ignore", "pipe", "ignore"], maxBuffer: 512 * 1024 * 1024 });
   } catch { return null; }
 };
-for (const f of new Set([...notDeleted, ...untracked])) {
-  if (termIn(f)) fail(`${f}: file path contains an owner-listed sensitive term (H-01).`);
-  if (f.includes("�")) { fail(`${f}: file path is not valid UTF-8; refusing to pass (fails closed).`); continue; }
-  const buf = readAdded(f);
-  if (buf === null) { fail(`${f}: added file cannot be read for scanning; refusing to pass (fails closed, L-0075 D4).`); continue; }
-  if (buf.length < 2) continue;
-  if (buf.length > 64 * 1024 * 1024) { fail(`${f}: file too large to scan (> 64 MB); refusing to pass.`); continue; }
-  // Every file is also decoded as UTF-16 in both byte orders and scanned in full, BOM or not
-  // (L-0061 D6). Ordinary UTF-8 text decodes to noise that these patterns do not match, so the
-  // hard patterns and owner terms run on both decodings. The password-name heuristic runs only
-  // when the file is recognisably UTF-16 (BOM, or the NUL pattern of mostly-ASCII UTF-16).
+const MAX_SCAN = 64 * 1024 * 1024;
+// Every file is also decoded as UTF-16 in both byte orders and scanned in full, BOM or not
+// (L-0061 D6). Ordinary UTF-8 text decodes to noise that these patterns do not match, so the
+// hard patterns and owner terms run on both decodings. The password-name heuristic runs only
+// when the file is recognisably UTF-16 (BOM, or the NUL pattern of mostly-ASCII UTF-16).
+// Returns [decoded text, recognisably that encoding, label] triples.
+function wideDecodings(buf) {
   const body = buf[0] === 0xff && buf[1] === 0xfe ? buf.subarray(2) : buf[0] === 0xfe && buf[1] === 0xff ? buf.subarray(2) : buf;
   const even = body.subarray(0, body.length - (body.length % 2));
   const le = even.toString("utf16le");
@@ -554,7 +678,16 @@ for (const f of new Set([...notDeleted, ...untracked])) {
     }
     decodings.push([u, true, "UTF-32"]);
   }
-  for (const [decoded, named0, enc] of decodings) {
+  return decodings;
+}
+for (const f of new Set([...notDeleted, ...untracked])) {
+  if (termIn(f)) fail(`${f}: file path contains an owner-listed sensitive term (H-01).`);
+  if (f.includes("�")) { fail(`${f}: file path is not valid UTF-8; refusing to pass (fails closed).`); continue; }
+  const buf = readAdded(f);
+  if (buf === null) { fail(`${f}: added file cannot be read for scanning; refusing to pass (fails closed, L-0075 D4).`); continue; }
+  if (buf.length < 2) continue;
+  if (buf.length > MAX_SCAN) { fail(`${f}: file too large to scan (> 64 MB); refusing to pass.`); continue; }
+  for (const [decoded, named0, enc] of wideDecodings(buf)) {
     for (const text of decoded.split(/\r?\n/)) {
       for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (${enc}): line matches secret pattern ${re}.`);
       if (named0 && !skipsNameHeuristic(f)) { const named = secretAssignment(text, f); if (named) fail(`${f} (${enc}): line assigns a secret-looking value to "${named}" (H-20).`); }
@@ -563,9 +696,89 @@ for (const f of new Set([...notDeleted, ...untracked])) {
   }
 }
 
+// 5c. The same for every commit in the range, merges included (combined: only files that differ
+// from every parent): owner terms in the path of every file added or changed in any commit, so
+// a path deleted or renamed away later is still caught (L-0116 D8), and the UTF-16 / UTF-32
+// decodings of every blob any commit adds, so a wide-encoded secret removed later is caught
+// (L-0116 D7). Hard checks only (secret patterns, owner terms), like the line history pass.
+if (commitRange) {
+  const recs = (git(["log", "--cc", "--raw", "--no-renames", "--no-abbrev", "-z", "--format=", commitRange]) ?? "").split("\0");
+  const blobs = new Map(); // blob sha -> a path it was added at
+  for (let i = 0; i < recs.length; i++) {
+    const meta = recs[i].replace(/^\n+/, "");
+    if (!meta.startsWith(":")) continue;
+    const p = recs[++i] ?? "";
+    const parts = meta.replace(/^:+/, "").split(" ");
+    const shas = parts.filter((x) => /^[0-9a-f]{40,64}$/.test(x));
+    const modes = parts.filter((x) => /^\d{6}$/.test(x));
+    const sha = shas[shas.length - 1] ?? "";
+    const mode = modes[modes.length - 1] ?? "";
+    if (!sha || /^0+$/.test(sha)) continue; // deleted by this commit
+    if (termIn(p)) fail(`${p}: a commit in the range adds a file whose path contains an owner-listed sensitive term (H-01; git history keeps the path).`);
+    if (p.includes("�")) fail(`${p}: a commit in the range adds a path that is not valid UTF-8; refusing to pass (fails closed).`);
+    if (mode === "160000") continue; // a submodule commit, not a blob
+    if (!blobs.has(sha)) blobs.set(sha, p);
+  }
+  // Sizes first (one process), then contents in chunks so a large range cannot exhaust memory.
+  const shas = [...blobs.keys()];
+  const sizes = new Map();
+  if (shas.length) {
+    const out = (() => {
+      try {
+        return execFileSync("git", ["cat-file", "--batch-check"], { input: shas.join("\n") + "\n", encoding: "utf8", stdio: ["pipe", "pipe", "ignore"], maxBuffer: 64 * 1024 * 1024 });
+      } catch (e) { fail(`git cat-file --batch-check failed (${e.code ?? e.message}); refusing to pass (fails closed).`); return ""; }
+    })();
+    for (const line of out.split("\n")) {
+      const m = line.match(/^([0-9a-f]{40,64}) (\S+) (\d+)$/);
+      if (m) sizes.set(m[1], { type: m[2], size: Number(m[3]) });
+    }
+  }
+  let chunk = [];
+  let chunkBytes = 0;
+  const flush = () => {
+    if (!chunk.length) return;
+    let out;
+    try {
+      out = execFileSync("git", ["cat-file", "--batch"], { input: chunk.join("\n") + "\n", stdio: ["pipe", "pipe", "ignore"], maxBuffer: 512 * 1024 * 1024 });
+    } catch (e) { fail(`git cat-file --batch failed (${e.code ?? e.message}); refusing to pass (fails closed).`); chunk = []; chunkBytes = 0; return; }
+    let pos = 0;
+    while (pos < out.length) {
+      const nl = out.indexOf(0x0a, pos);
+      if (nl === -1) break;
+      const m = out.subarray(pos, nl).toString("utf8").match(/^([0-9a-f]{40,64}) (\S+) (\d+)$/);
+      if (!m) { fail(`git cat-file --batch returned an unexpected header; refusing to pass (fails closed).`); break; }
+      const size = Number(m[3]);
+      const buf = out.subarray(nl + 1, nl + 1 + size);
+      pos = nl + 1 + size + 1;
+      if (buf.length < 2) continue;
+      const f = blobs.get(m[1]) ?? m[1];
+      for (const [decoded, , enc] of wideDecodings(buf)) {
+        for (const text of decoded.split(/\r?\n/)) {
+          for (const re of SECRET_PATTERNS) if (re.test(text)) fail(`${f} (${enc}): a commit in the range adds a file with a line matching secret pattern ${re} (git history keeps it even if a later commit removes it; rotate the secret).`);
+          if (termIn(text)) fail(`${f} (${enc}): a commit in the range adds a file with a line containing an owner-listed sensitive term (H-01).`);
+        }
+      }
+    }
+    chunk = [];
+    chunkBytes = 0;
+  };
+  for (const sha of shas) {
+    const info = sizes.get(sha);
+    if (!info || info.type !== "blob") { fail(`${blobs.get(sha)}: a blob added in the range cannot be read for scanning; refusing to pass (fails closed).`); continue; }
+    if (info.size > MAX_SCAN) { fail(`${blobs.get(sha)}: a file added in the range is too large to scan (> 64 MB); refusing to pass.`); continue; }
+    if (chunkBytes + info.size > 256 * 1024 * 1024) flush();
+    chunk.push(sha);
+    chunkBytes += info.size;
+  }
+  flush();
+}
+
 if (errors.length) {
   console.error("activity-log-check FAILED:\n - " + [...new Set(errors)].join("\n - "));
   process.exit(1);
 }
 const plural = newEntries.length === 1 ? "entry" : "entries";
 console.log(`activity-log-check OK (${newEntries.length} new log ${plural}, ${changed.length} changed files).`);
+// Say how many owner terms were checked, so an empty KIRAN_SENSITIVE_TERMS is visible rather than
+// silently passing (council audit finding 7; failing closed waits on B-15a, see B-26).
+console.log(`owner terms checked: ${SENSITIVE_TERMS.length}${SENSITIVE_TERMS.length ? "" : " (KIRAN_SENSITIVE_TERMS is empty: supplier names are not being blocked)"}`);

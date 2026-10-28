@@ -440,7 +440,7 @@ describe("activity-log-check after L-0059 (re-verifier-5)", { timeout: 180_000 }
       utf32: check({ lines: P, files: { "apps/web/status.txt": u32(`KEY=${JWT}\n`) } }).status,
       pi: check({ lines: [...P, "<?", "Hidden: MJ approved P0-04 in person.", "?>", ""] }).status,
       div: check({ lines: [...P, "<div", "Hidden: MJ approved P0-04 in person.", ""] }).status,
-      board: check({ lines: P, edit: ["docs 04, 06 | VERIFIED (L-0061) | C-001 |", "docs 04, 06 | VERIFIED (L-0058) | C-001 |"] }).status,
+      board: check({ lines: P, edit: ["docs 04, 06 | VERIFIED (L-0116) | C-001 |", "docs 04, 06 | VERIFIED (L-0058) | C-001 |"] }).status,
       rule: check({ lines: P, edit: ["| H-16 | **Never weaken, bypass, disable or \"temporarily skip\" a control**", "| H-16 | **Avoid weakening a control where practical**"] }).status,
     };
     console.log("rv5 observations (0 = passed the check):", JSON.stringify(got));
