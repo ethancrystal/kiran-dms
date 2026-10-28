@@ -282,7 +282,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-11 | Admin config, company profile, rep profile | ADM-01, 02; FLD-01 | NOT STARTED | — |
 | P1-12 | Security acceptance suite (doc 06 §10, doc 07 §5) + backup restore drill | NFR-07, 12; SEC-10 | NOT STARTED | — |
 | P1-15 | Independent agents: agent role, agent price per SKU, cash-and-carry agent purchase (paid before release, `sale_to_agent`), agent app, no recruitment pay (D-15 to D-17) | AGT-01–04, 06; A-06, A-07 | NOT STARTED | — |
-| P1-16 | Thin due-list and route building: default cycle per product group + last purchase, due tasks, manual route with stop reasons (D-19) | PIP-03, PIP-05/06 (thin) | NOT STARTED | — |
+| P1-16 | Thin due-list and route building: default cycle per product group + last purchase, due tasks, manual route with stop reasons (D-19) | PIP-03, PIP-05/06 (thin) | IN PROGRESS (L-0150) | C-007 |
 | P1-17 | Route-linked bag load suggestion and automatic lost-demand capture from orders, deliveries and agent purchases; lost-demand report (D-18, D-19) | INV-11; DEM-02, DEM-03 | NOT STARTED | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-007 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes | P1-16 | PIP-03, PIP-05 (thin), PIP-06 (thin) | `supabase/migrations/20261028080000_routes.sql` (new), `supabase/tests/routes.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 04, 06 | 2026-10-28 21:02 | 2026-10-29 | 2026-10-28 21:02 (L-0150) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -393,6 +394,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-06 | Kiran pays agents nothing for recruiting other agents (no joining fee, referral bonus or override); agent earnings come only from their own resale margin. SECP treats MLM and referral marketing as unlawful (Companies Act 2017 s.301) | L-0128 | Legal exposure for the company | open |
 | A-07 | Agent purchases are paid in full (cash counted or transfer matched) before stock leaves the warehouse; agents never buy on credit | L-0128 | Receivables and custody risk the agent model is meant to avoid | open |
 | A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
+| A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); deliveries replace it once P1-06 exists. The cycle is the product group's default (D-19) | L-0150 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
 
 ---
 
@@ -2711,6 +2713,18 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 20 files, 1331 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: review PR 5, PR 6, PR 7 and this branch's pull request.
+
+### L-0150 · 2026-10-28 21:02 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes · CLAIM
+**Task:** P1-16 (thin due-list and manual routes: PIP-03, PIP-05 and PIP-06 thin, D-19)    **Claim:** C-007
+**What / why:** MJ: "start P1-16 due-list and routes". C-007 added to section 13. Areas: a new migration `supabase/migrations/20261028080000_routes.sql`, a new test file `supabase/tests/routes.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists under MJ's standing approval (L-0138), and docs 04 and 06. Branch claude/p1-16-due-routes is cut from claude/p1-02b-visits (PR 8), because a route stop shows whether the rep has visited it that day; its pull request stacks on PR 8. Assumption A-09 (section 15): there are no orders yet (P1-06), so the last purchase per salon and product group comes from an office-entered opening baseline (for example from MJ's existing salon records), which deliveries will update once P1-06 exists.
+**Rules touched:** section 3, section 15
+**Next / needs:** migration 0011 and tests.
+
+### L-0151 · 2026-10-28 21:15 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-16-due-routes · DECISION
+**Task:** P1-16    **Claim:** C-007
+**What / why:** MJ answered two questions in this session. (1) Where the due-list's last purchase comes from before orders exist: "Office enters it (Recommended)": the office keys in a last purchase date per salon and product group from existing records; deliveries replace it once P1-06 exists (A-09). (2) The verifier test that lists every function taking a date from outside (`reverify3-attacks.test.ts`, section 7.6) gains `app.office_set_last_purchase(p_last_order_on)`, which is outside the L-0138 standing approval: "Approve (Recommended)". The date may not be in the future.
+**Rules touched:** H-23, H-26
+**Next / needs:** migration 0011.
 
 ---
 

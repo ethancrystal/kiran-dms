@@ -189,9 +189,14 @@ describe("§7.6 backdated client timestamps", () => {
     // add_salon_note(p_created_at_client) store the phone's time as evidence only (H-09).
     // Migration 0010 (P1-02 part b; MJ standing approval L-0138): log_visit(p_arrived_at_client),
     // rep_check_in(p_at_client) and rep_check_out(p_at_client) store the phone's time as evidence only.
+    // Migration 0011 (P1-16): due_list(p_on), my_route(p_day), office_set_route(p_day) and
+    // rep_reorder_route(p_day) take a planned day (standing approval L-0138); routes are written only for
+    // today or later. office_set_last_purchase(p_last_order_on) is an office-entered opening date that
+    // may not be in the future (MJ approval L-0151).
     expect(rows.map((x) => x.f)).toEqual([
-      "app.add_salon_note", "app.create_salon", "app.log_visit", "app.office_propose_stock_issue", "app.owner_create_user",
-      "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out"]);
+      "app.add_salon_note", "app.create_salon", "app.due_list", "app.log_visit", "app.my_route",
+      "app.office_propose_stock_issue", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
+      "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out", "app.rep_reorder_route"]);
   });
 });
 
