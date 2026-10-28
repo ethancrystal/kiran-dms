@@ -328,7 +328,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 20:00 (L-0124) |
+| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -2491,6 +2491,34 @@ Security checklist (tick honestly):
 **Evidence:** `supabase/tests/reverify10-attacks.test.ts` O1 case.
 **Rules touched:** §7
 **Next / needs:** MJ: choose (a) or (b), or leave as is.
+
+### L-0125 · 2026-10-28 21:10 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DECISION
+**Task:** P0-06 (H-23 test change)    **Claim:** C-001
+**What / why:** CI on 2a4da30 failed three tests on the Supabase CLI stack. Two are builder tests (L-0126). The third is round 10's "DEFECT CHECK (H-13): a table in graphql_public..." in `supabase/tests/reverify10-attacks.test.ts`: there the migration role has no CREATE right on graphql_public, so planting a table errors with "permission denied" before anything is checked, whatever the code does. MJ approved, choosing "Approve the change" to the question "May I change that one verifier test so that, where the migration role has no CREATE right on graphql_public, it asserts that refusal instead (as my own test now does), leaving the rest of the test unchanged?". Done: that case checks the privilege first; where it is missing, it asserts the refusal (42501). The other-owner case and the rest of the file are unchanged, apart from importing sqlstate.
+**Rules touched:** H-23
+**Next / needs:** L-0126.
+
+### L-0126 · 2026-10-28 21:15 PKT · Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) · DONE
+**Task:** P0-06, P0-09    **Claim:** C-001
+**What / why:** The two builder tests that failed only on CI.
+- `schema-hygiene.test.ts` (P0-06): the graphql_public planted cases run only where the migration role can create objects in that schema (the local embedded Postgres runs as superuser). On the Supabase stack, where it cannot, the test asserts the refusal, which is what stops a migration putting a relation there.
+- `log-check-rulings.test.ts` (P0-09): the merge-history test asked git for the current branch name, which in CI's detached checkout is the literal HEAD, so it never left the side branch and the merge had nothing to commit. It now names its case branch first.
+- No change to the checker or the guards themselves.
+**Evidence:** CI run on 2a4da30: "Tests 3 failed, 509 passed (512)", with "permission denied for schema graphql_public" and "git commit -q -m merge side" as the causes. Locally after the fix: "schema-hygiene log-check-rulings: Test Files 2 passed (2), Tests 31 passed (31)". The full suite was re-run after these entries; counts in the commit message. CI on this push will confirm the Supabase-stack branch.
+**Rules touched:** H-23
+**Next / needs:** —
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — no schema change
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — not applicable
+[x] Audit trigger present; hash chain verifies (H-17) — unchanged
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — on the Supabase stack the graphql_public case now asserts the platform refusal instead of planting
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
 
 ---
 

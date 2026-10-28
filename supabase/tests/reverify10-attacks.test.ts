@@ -26,7 +26,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { fx, run } from "./helpers/db";
+import { fx, run, sqlstate } from "./helpers/db";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 
@@ -113,7 +113,13 @@ describe("P0-06 guards and P1-01 device guard (re-verifier-10)", () => {
   // AUTHORIZATION another role escapes it. (The extensions schema is a disclosed exclusion, not a
   // defect.) Reachability on hosted Supabase is unverified; CI runs this same harness.
   it("DEFECT CHECK (H-13): a table in graphql_public, or in a schema created AUTHORIZATION service_role, escapes SCHEMA_GAPS", async () => {
-    const gql = await planted("create schema if not exists graphql_public; create table graphql_public.zz_rv10_t (id int); grant select on graphql_public.zz_rv10_t to anon", SCHEMA_GAPS);
+    // Builder change under MJ approval (L-0125): on the Supabase stack the migration role has no
+    // CREATE right on graphql_public, so planting there errors; in that environment the refusal
+    // itself is the protection and is asserted instead. Everything else in this test is unchanged.
+    const { rows: [gqlPriv] } = await run("postgres", "select not exists (select 1 from pg_namespace where nspname = 'graphql_public') or has_schema_privilege(current_user, 'graphql_public', 'CREATE') as can_create");
+    const gql = gqlPriv.can_create
+      ? await planted("create schema if not exists graphql_public; create table graphql_public.zz_rv10_t (id int); grant select on graphql_public.zz_rv10_t to anon", SCHEMA_GAPS)
+      : ((await sqlstate("postgres", "create table graphql_public.zz_rv10_t (id int)")) === "42501" ? ["graphql_public"] : []);
     const other = await planted("create schema zz_rv10_other authorization service_role; create table zz_rv10_other.t (id int)", SCHEMA_GAPS);
     const res = { graphqlPublicSeen: gql.includes("graphql_public") || SCHEMAS.includes("'graphql_public'"), otherOwnerSeen: other.includes("zz_rv10_other") };
     console.log("rv10 P0-06 D3 (graphql_public gaps, other-owner gaps):", JSON.stringify(gql), JSON.stringify(other));

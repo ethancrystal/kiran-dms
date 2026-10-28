@@ -242,7 +242,10 @@ const utf16 = (s: string, order: "le" | "be", bom: boolean) => {
 };
 // A side branch merged with --no-ff; resolve() may add files to the merge commit itself.
 const mergeWith = (resolve: (g: Git, write: Write) => void, removeAfter: string[] = []) => (g: Git, write: Write) => {
-  const caseBranch = g("rev-parse", "--abbrev-ref", "HEAD").trim();
+  // Name the case branch first: CI clones a detached commit, where --abbrev-ref HEAD is the
+  // literal "HEAD" and checking it out again would stay on the side branch.
+  const caseBranch = "rulings-case";
+  g("checkout", "-q", "-B", caseBranch);
   g("checkout", "-q", "-B", "rulings-side");
   write("apps/web/side.txt", "side\n");
   g("add", "-A"); g("commit", "-q", "-m", "side");

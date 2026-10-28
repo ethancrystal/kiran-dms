@@ -3,7 +3,7 @@
  * future migration (H-08, H-13, H-17, H-18, doc 07 §2).
  */
 import { describe, expect, it } from "vitest";
-import { run } from "./helpers/db";
+import { run, sqlstate } from "./helpers/db";
 
 const SCHEMAS = "('public', 'control', 'supplier_vault', 'app', 'vault_api')";
 const notExtension = `not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')`;
@@ -133,6 +133,16 @@ describe("schema hygiene", () => {
       .toEqual(["zz_planted_o"]);
     expect(await planted("create schema zz_planted_a; create table zz_planted_a.t (id int); alter schema zz_planted_a owner to authenticated", SCHEMA_GAPS))
       .toEqual(["zz_planted_a"]);
+    // On the Supabase stack (CI) graphql_public belongs to the platform and the migration role has
+    // no CREATE right there, so a migration cannot put a relation in it at all: assert that refusal.
+    // Where the migration role can create there (the local embedded Postgres runs as superuser),
+    // plant the relations and check the guard sees them.
+    const { rows: [priv] } = await run("postgres", `select not exists (select 1 from pg_namespace where nspname = 'graphql_public')
+      or has_schema_privilege(current_user, 'graphql_public', 'CREATE') as can_create`);
+    if (!priv.can_create) {
+      expect(await sqlstate("postgres", "create table graphql_public.zz_planted_t (id int)")).toBe("42501");
+      return;
+    }
     const gql = "create schema if not exists graphql_public";
     expect(await planted(`${gql}; create table graphql_public.zz_planted_t (id int)`, SCHEMA_GAPS)).toEqual(["graphql_public"]);
     expect(await planted(`${gql}; create view graphql_public.zz_planted_v with (security_invoker) as select 1 as x`, SCHEMA_GAPS)).toEqual(["graphql_public"]);
