@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-005 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec | — (project spec, lint and browser-test tooling) | — | `SPEC.md` (new); later `biome.json`, `.github/workflows/ci.yml` lint job, Playwright config and tests under `apps/web/` | 2026-10-28 13:14 | 2026-10-29 | 2026-10-28 13:14 (L-0137) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -2596,76 +2597,44 @@ Security checklist (tick honestly):
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: OQ-17 to OQ-20; renumbering of claude/architecture-rfc; whether A-08 stays owner-only.
 
-### L-0136 · 2026-10-28 11:43 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · PROGRESS
-**Task:** P1-04    **Claim:** — (C-003 released)
-**What / why:** MJ said "Yes" to opening a pull request for P1-04 and starting P1-02. Pull request https://github.com/ethancrystal/kiran-dms/pull/5 opened from claude/p1-04-inventory into feat/p0-foundation (the branch it was cut from; a pull request into main would carry all of C-001's unmerged work); this session watches its CI and reviews.
-**Evidence:** PR 5 created; CI runs on every pull request (ci.yml `on: pull_request`).
-**Rules touched:** section 11
-**Next / needs:** CI result on PR 5; L-0137.
+### L-0136 · 2026-10-28 13:14 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · DECISION
+**Task:** — (project spec; no requirement IDs)    **Claim:** C-005 (L-0137)
+**What / why:** MJ ran the spec protocol ("check current and write new if needed"). Finding: there is no SPEC.md; docs 00 to 13, CLAUDE.md and this file cover objective, commands, structure and boundaries, but there is no code style for TypeScript or React, no lint in CI, and no test of the web app or the offline PWA. MJ's answers, quoted: shape "single" (SPEC.md is a short index; docs 00 to 13 stay the single source of truth, H-25); linter and formatter "yes"; Playwright browser tests for the rep PWA in Phase 1 "yes"; branch "top" (on a branch on top of PR 5); audience "not aai agents but sales agents of my company", read as: the people the system serves are Kiran's sales agents (salaried reps and independent agents, D-15), so the spec's objective is written around them. Biome is the chosen linter and formatter (one tool; this session's recommendation, not objected to). Numbering note: this branch is cut from PR 5's head (claude/p1-04-inventory, 8ba8d6b) like claude/p1-02-salons, which also uses L-0136 to L-0139 and C-004; whichever merges second renumbers its own entries (both are this session's).
+**Rules touched:** H-25, H-22
+**Next / needs:** L-0137.
 
-### L-0137 · 2026-10-28 11:43 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · CLAIM
-**Task:** P1-02 (part a: SAL-01 to SAL-03, SAL-09; PIP-01; CTL-18 duplicate-phone flag; MAP-03 notes)    **Claim:** C-004
-**What / why:** P1-02 is split into four parts so each is a reviewable pull request (DEVIATION in the DONE entry): (a) territories, areas, rep territories, salons, contacts with masked phones and logged reveals, append-only notes, stage machine with stage_event as the truth, duplicate-phone flag, demand_signal.salon_id foreign key; (b) visits and rep check-in (PIP-02, PIP-09); (c) verification and contact-change OTPs (CTL-09, CTL-18), which need the SMS adapter; (d) the Excel import write path (SAL-10), credit profile (SAL-04) and timeline (SAL-05), which need orders and money. C-004 covers part (a): new migration `supabase/migrations/20261028060000_salons.sql`, new test file `supabase/tests/salons.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, docs 04, 06 and this file. Branch claude/p1-02-salons is cut from claude/p1-04-inventory (it needs migration 0008 for the demand_signal foreign key), so its pull request stacks on PR 5.
+### L-0137 · 2026-10-28 13:14 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · CLAIM
+**Task:** — (project spec)    **Claim:** C-005
+**What / why:** C-005 added to section 13 for `SPEC.md` at the repo root and this file. The Biome setup, the CI lint job and the Playwright harness are later steps under this claim, after MJ confirms the spec.
 **Rules touched:** section 3
-**Next / needs:** migration 0009 and tests.
+**Next / needs:** write SPEC.md; MJ confirms it before tooling is added.
 
-### L-0138 · 2026-10-28 13:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · DECISION
-**Task:** P1-02 (H-23 test change)    **Claim:** C-004
-**What / why:** Migration 0009 tripped the same verifier lists as 0008 (L-0130), plus a re-verifier-3 check that "salons do not exist yet". MJ was asked whether to approve three changes (17 salon functions added to the allowlist; create_salon and add_salon_note added to the client-time list, their times stored only as *_client evidence; the list-dump check changed from "public.salon does not exist" to "a rep reads 0 rows from public.salon", the same H-14 intent) and whether the same three kinds of change are pre-approved for future modules. MJ chose "Approve, and pre-approve (Recommended)". Standing rule from now on: for each new module, adding its functions to the allowlist, adding *_client or planned-date parameters to the client-time list, and turning a "does not exist yet" check into a "rep sees 0 rows" check are approved, each logged citing L-0138; any other change to a verifier-authored test still needs MJ.
-**Rules touched:** H-23
-**Next / needs:** L-0139.
+### L-0138 · 2026-10-28 13:15 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · PROGRESS
+**Task:** — (project spec)    **Claim:** C-005
+**What / why:** `SPEC.md` added at the repo root: a short index over docs 00 to 13, CLAUDE.md and this file, in six parts (objective written around Kiran's salaried reps and independent agents; commands; project structure; code style; testing strategy; boundaries). It adds no requirement: where it and a doc disagree, the doc wins (H-25). New commitments, both from MJ in L-0136: Biome as linter and formatter with a CI lint job, and Playwright browser tests for the rep PWA; both marked planned. It also records MJ's standing pre-approval of three kinds of verifier-test change for new modules (given in this session; logged on branch claude/p1-02-salons).
+**Evidence:** every relative link in SPEC.md resolves to a file on this branch (checked with a script); `pnpm activity:check` OK. No code changed.
+**Rules touched:** H-25
+**Next / needs:** MJ confirms SPEC.md; then Biome config, the CI lint job and the Playwright harness under C-005.
 
-### L-0139 · 2026-10-28 13:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · PROGRESS
-**Task:** P1-02 (part a)    **Claim:** C-004
-**What / why:** Work in progress, committed so nothing is lost (MJ's stop hook asks for every change to be committed and pushed). P1-02 part a is NOT done. In this commit: migration `supabase/migrations/20261028060000_salons.sql` (territories, areas, rep territories, salons, contacts, append-only notes and stage events, phone reveal log, stage-change guard, capped rep reads, demand_signal.salon_id foreign key), `supabase/tests/salons.test.ts`, RLS matrix rows for the eight new tables, and the three verifier-test edits approved in L-0138. Also on this branch's base: PR 5 was retargeted from feat/p0-foundation to main after MJ merged PR 3 (main 98fa114 has the same tree as b61494f, the commit PR 5 was cut from).
-**Evidence:** Before the verifier-test edits: `pnpm db:test` on a fresh local Postgres 16 database, 19 files, 1234 passed and 3 failed, the 3 being exactly the verifier lists L-0138 covers; every salons and RLS matrix test passed. The migration applies cleanly by itself (shim plus 0001 to 0009, psql ON_ERROR_STOP). After the edits the full suite has NOT been run (MJ stopped that run); `pnpm activity:check` OK.
-**Rules touched:** H-23, H-24
-**Next / needs:** run the full suite; update doc 06 section 4 (rep salon reads are capped functions, not views); DONE entry for part a with the security checklist; pull request stacked on PR 5.
+### L-0139 · 2026-10-28 13:19 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · PROGRESS
+**Task:** — (project spec)    **Claim:** C-005
+**What / why:** MJ asked for more work on SPEC.md ("work more on it"). Added five sections, all drawn from the existing docs (no new requirement): 2 where we are (a status snapshot that defers to the board); 3 five sales-agent journeys (rep's day, prospecting, independent agent purchase, manager loading bags, owner's morning), each with acceptance lines tied to requirement IDs; 4 the Phase 1 feature map (feature, requirements, how it is proven, status) and the doc 06 section 10 launch security checklist; 5 field constraints (NFR-01 to 03, 09, 10; 60-second field actions); 11 decisions waiting on MJ. Sections renumbered and internal references updated.
+**Evidence:** every relative link resolves (16 checked by script); all 50 requirement IDs cited in SPEC.md exist in doc 03 (checked by script; one wrong citation found and fixed: the handover is PAY-05 and CTL-03, not PAY-10); `pnpm activity:check` OK. No code changed.
+**Rules touched:** H-25
+**Next / needs:** MJ confirms SPEC.md; then Biome, the CI lint job and the Playwright harness under C-005.
 
-### L-0140 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · DEVIATION
-**Task:** P1-02 (part a)    **Claim:** C-004
-**What / why:** Differences from the documents, and what part a leaves for later parts. (1) Doc 06 section 4 described rep reads as views with the page cap in the API layer; they are built as `app.*` functions that check territory, mask phones and cap a page at 50 rows in the database, and the salon tables are office-only at the table. Doc 06 updated in this branch (H-25). (2) CTL-18: until the OTP flow (part c) exists, a primary phone change is office-only (`app.office_set_primary_contact`, reason required, audited, old contact kept inactive); there is no OTP to the new number and no notice to the old one yet. (3) CTL-09: `salon_guard` refuses any change to verification_status, so no salon can be marked verified until part c adds its sanctioned path. (4) SAL-01 frontage photo is not stored yet (no storage bucket); MAP-02 and PIP-07 (60 seconds, offline) are the PWA's job (P1-09); the database side is ready (client-generated ids, created_at_client). (5) Phone reveals are logged but not capped; a daily cap would be a new threshold for MJ (H-26).
+### L-0140 · 2026-10-28 13:24 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · DECISION
+**Task:** — (project spec; P1-15 agent scope)    **Claim:** C-005
+**What / why:** MJ answered three questions on the independent-agent channel, quoted: success measure "1 monthly sales"; agent purchases in the owner's morning digest "2 yes"; agents reporting back "3 optional pre-order only". Recorded as doc 12 D-21 (the channel is measured by monthly sales through agents, in rupees), D-22 (the digest lists every agent purchase and flags unusually large ones) and D-23 (an optional pre-order request is the only thing an agent sends back). Docs changed to match: doc 01 goals (new row), doc 03 CTL-15 and AGT-04, doc 08 section 10, doc 13 section 8 (new digest item 8, Agents), SPEC.md (objective, J3, J5, section 11). MJ gave no target figure and no "unusually large" threshold, so both are open questions with safe defaults rather than invented values: OQ-21 (target; default none, the figure is reported monthly) and OQ-22 (threshold; default no flag, every agent purchase is listed anyway). No doc 13 section 9 threshold changed (H-26).
 **Rules touched:** H-25, H-26
-**Next / needs:** parts b to d; MJ may ask for a reveal cap.
+**Next / needs:** MJ: OQ-21, OQ-22; MJ confirms SPEC.md.
 
-### L-0141 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · DONE
-**Task:** P1-02 (part a: SAL-01 to SAL-03, SAL-09; PIP-01; MAP-03; CTL-18 duplicate phones)    **Claim:** C-004
-**What / why:** Migration 0009 `supabase/migrations/20261028060000_salons.sql`: territories, areas and rep territories with history (an assignment changes once, by being ended); salons scoped to the rep's current territories; reps add salons only in their own areas and only from field sources, idempotent on the client-generated id; reps move a salon only between their own areas; contacts with phones masked in rep lists and `app.reveal_phone` logged to `control.phone_reveal` (owner-readable); append-only notes and stage events; a trigger that lets a salon's stage change only in the same transaction as a matching stage_event, for every role; rep park with reason, office override with reason; duplicate-phone list for the office (CTL-18 part); the demand_signal.salon_id foreign key deferred by L-0132, and `app.record_demand` now refuses a salon the rep cannot reach. Doc 06 section 4 updated (L-0140). Verifier lists changed as MJ approved and pre-approved (L-0138).
-**Evidence:** On claude/p1-02-salons at baf39b5 (cut from PR 5's head 8ba8d6b): `pnpm db:test` on a fresh local Postgres 16 database (KIRAN_TEST_DATABASE_URL): 19 files, 1237 passed (before part a: 18 files, 897). New: `supabase/tests/salons.test.ts` (territory scoping, field-only sources, replay, 50-row page cap with keyset paging, masked phone and logged reveal, duplicate phones, office-only phone change keeping history, append-only notes, stage events and reveals for postgres too, stage guard, park and override with reasons, ending a territory removes access at once, lost demand foreign key and reach, audit chain verifies) and RLS matrix rows for the eight new tables across ten personas. The migration applies cleanly by itself (shim plus 0001 to 0009, psql ON_ERROR_STOP). `pnpm typecheck` exit 0. `salons.test.ts` passes Biome with the configuration from PR 6. `pnpm activity:check` OK. Not applied to staging.
-**Rules touched:** H-06, H-07, H-08, H-09, H-13, H-14, H-16, H-17, H-23, H-27
-**Next / needs:** a different agent verifies P1-02 part a (section 7: try to read another territory's salons and phones, dump the salon list, change a stage without an event, revive an ended assignment).
-
-Security checklist (tick honestly):
-[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — eight tables, ten personas each; salon tables office-only at the table
-[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — salon_note, stage_event, phone_reveal also refuse UPDATE, DELETE, TRUNCATE for postgres; salons, contacts and assignments are never deleted
-[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — client-generated ids and client_id; replays tested
-[x] Audit trigger present; hash chain verifies (H-17) — schema-hygiene guard passes; chain verified at the end of the salons tests
-[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no such column; notes are the documented chit
-[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Test] data and +920000 phones only; one realistic example phone in a comment was replaced (a3dea3b)
-[x] Governance powers still owner-only + AAL2 (H-15) — territory and stage overrides are office (manager) operations per doc 06 section 2
-[x] No control weakened, skipped or "temporarily" disabled (H-16) — verifier tests changed only as MJ approved (L-0138)
-[x] Docs match code; deviations logged (H-25) — L-0140
-[x] Tests actually run; real results recorded (H-23, H-24)
-
-### L-0142 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · CLAIM-RELEASED
-**Task:** P1-02 (part a)    **Claim:** C-004
-**What / why:** C-004 released (done): moved to the released table. P1-02 board row records part a as DONE (self-reported); parts b to d get their own claims.
-**Rules touched:** section 3
-**Next / needs:** L-0143.
-
-### L-0143 · 2026-10-28 20:30 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · HANDOFF
-**Task:** P1-02 (part a)    **Claim:** — (C-004 released)
-**What / why:** State: part a is on branch claude/p1-02-salons, stacked on PR 5; suite green (1237); not applied to staging. Next steps, in order: (1) pull request for this branch, stacked on PR 5; (2) a different agent verifies P1-04 and P1-02 part a; (3) P1-02 part b (visits, check-in gating) and P1-16 (thin due-list and manual routes), which need part a; (4) part c once an SMS adapter exists; (5) P1-06 orders. Gotchas: branches claude/p1-02-salons and claude/spec are both cut from PR 5 and both use L-0136 onward (and C-004, C-005); whichever merges second renumbers its own entries; PR 6 adds Biome, after which every new file must pass `pnpm lint`. On this container start Postgres with `service postgresql start` and recreate the test database before each `pnpm db:test`.
-**Evidence:** `pnpm db:test` 19 files, 1237 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
-**Rules touched:** section 11, H-23, H-24
-**Next / needs:** MJ: review PR 5, PR 6 and this branch's pull request.
-
-### L-0144 · 2026-10-28 20:40 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02-salons · PROGRESS
-**Task:** P1-02 (part a)    **Claim:** — (C-004 released; CI fix on PR 7)
-**What / why:** CI on PR 7 (900ce0f) failed one test on the Supabase stack: "ending a rep's territory removes its salons from that rep at once" (1 failed, 1236 passed). Root cause, in the test: it checked that rep A could see salon S1 again with `app.my_salons() where id = S1`, but `app.my_salons` returns one 50-row page ordered by name, and by then rep A has more than 55 salons. Supabase's database uses the en_US collation, which sorts "[Test] Renamed" after the "[Test] bulk N" salons, so S1 fell past the cap; the local C-collated database sorted it first. The page cap behaved correctly. The test now checks reach through `app.salon_stages(S1)` (one salon, any page) before ending the territory, after ending it and after giving it back; nothing else changed. The local test database is now created with the en_US collation, as on Supabase, so this class of difference shows locally.
-**Evidence:** reproduced first: salons tests on a fresh en_US.UTF-8 database, 1 failed, 19 passed, same assertion as CI. After the fix: `pnpm db:test` on a fresh en_US.UTF-8 database, 19 files, 1237 passed. `salons.test.ts` passes Biome. `pnpm activity:check` OK.
-**Rules touched:** H-23 (own test; no test skipped or loosened), H-24
-**Next / needs:** CI on PR 7.
+### L-0141 · 2026-10-28 14:19 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · PROGRESS
+**Task:** — (lint and browser-test tooling, SPEC.md sections 8 and 9)    **Claim:** C-005
+**What / why:** MJ confirmed SPEC.md ("Spec is okay proceed"). Added: Biome 2.3.15 (`biome.jsonc`; root scripts `pnpm lint` = `biome ci`, `pnpm format`); Playwright 1.63.0 in apps/web (`playwright.config.ts`, a low-end Android profile at 360 by 640 px, production build with placeholder public settings, no real project contacted) with a first spec `apps/web/e2e/rep-login.spec.ts`; CI jobs `lint` and `e2e`; `.gitignore` entries for Playwright output; SPEC.md, CLAUDE.md and AGENTS.md (kept identical, Appendix A) updated with the new commands and statuses. Legacy files: 30 existing files (C-001's areas, several verifier-authored, H-23) do not yet pass Biome; reformatting them here would change verifier tests and C-001's code, so `biome.jsonc` lists them as legacy (no formatting or import order, two rules warn). Every other file and every new file gets the full checks. Follow-up, not done here: clean up the legacy list with C-001, and MJ's approval for the verifier tests. One real finding left as a warning in legacy files: four buttons in apps/web login and MFA pages have no type attribute (lint/a11y/useButtonType). One permanent exception: noControlCharactersInRegex is off for scripts/activity-log-check.mjs, whose job is to find control characters. Formatting changed only this session's own file `supabase/tests/inventory.test.ts` (layout and import order).
+**Evidence:** `pnpm lint` exit 0. `pnpm -C apps/web test:e2e`: 4 passed (sign-in page fits 360 px with Urdu labels; a refused code request shows the alert and stays retryable; 199.9 KB gzipped JavaScript transferred, budget 300 KB, NFR-02; security headers present). The first run failed one test: Next.js adds its own empty role=alert route announcer, so the locator matched two elements; the test now matches the alert by its message (a test fix; the page behaved correctly). `pnpm typecheck` exit 0. `inventory.test.ts` after formatting: 1 file, 25 passed on a fresh local Postgres 16. Full `pnpm db:test` not re-run (no other database file changed). `pnpm activity:check` OK.
+**Rules touched:** H-23, H-25, H-18
+**Next / needs:** pull request for claude/spec stacked on PR 5; CI confirms the new lint and e2e jobs.
 
 ---
 

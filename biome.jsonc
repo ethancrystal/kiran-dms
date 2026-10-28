@@ -1,0 +1,89 @@
+{
+  // Lint and format for every TypeScript/JavaScript file (SPEC.md §8, MJ L-0136).
+  // `pnpm lint` runs `biome ci` (fails on errors); `pnpm format` writes fixes.
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "apps/**",
+      "packages/**",
+      "scripts/**",
+      "supabase/tests/**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/*.tsbuildinfo"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 130 },
+  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" } },
+  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      // The activity-log check exists to find control characters (ACTIVITY Appendix C rule 2).
+      "includes": ["scripts/activity-log-check.mjs"],
+      "linter": { "rules": { "suspicious": { "noControlCharactersInRegex": "off" } } }
+    },
+    {
+      // LEGACY: files that existed before Biome (2026-10-28) and do not yet pass it. Most are in
+      // C-001's areas, and several are verifier-authored tests that change only with MJ's approval
+      // (H-23), so they are excused from formatting and import order, and these rules only warn.
+      // Remove a file from this list once it is cleaned up (follow-up under ACTIVITY L-0141).
+      // Every file not listed here, including every new file, gets the full checks.
+      "includes": [
+        "apps/web/app/app/login/page.tsx",
+        "apps/web/app/app/page.tsx",
+        "apps/web/app/globals.css",
+        "apps/web/app/office/login/page.tsx",
+        "apps/web/app/office/mfa/page.tsx",
+        "apps/web/app/office/page.tsx",
+        "apps/web/app/page.tsx",
+        "apps/web/lib/supabase/browser.ts",
+        "apps/web/lib/supabase/server.ts",
+        "apps/web/proxy.ts",
+        "apps/web/tsconfig.json",
+        "packages/import/src/cli.ts",
+        "packages/import/src/core/csv.ts",
+        "packages/import/src/core/mapping.ts",
+        "packages/import/src/core/normalize.ts",
+        "packages/import/src/core/validate.ts",
+        "packages/import/src/read.ts",
+        "packages/import/src/xlsx-raw.ts",
+        "packages/import/tests/dry-run.test.ts",
+        "scripts/activity-log-check.mjs",
+        "supabase/tests/foundation.test.ts",
+        "supabase/tests/helpers/db.ts",
+        "supabase/tests/log-check-rulings.test.ts",
+        "supabase/tests/reverify-attacks.test.ts",
+        "supabase/tests/reverify2-attacks.test.ts",
+        "supabase/tests/reverify3-attacks.test.ts",
+        "supabase/tests/reverify5-attacks.test.ts",
+        "supabase/tests/reverify9-attacks.test.ts",
+        "supabase/tests/reverify10-attacks.test.ts",
+        "supabase/tests/rls-matrix.test.ts",
+        "supabase/tests/service-role-scan.test.ts",
+        "supabase/tests/setup/fixtures.ts",
+        "supabase/tests/setup/global-setup.ts",
+        "supabase/tests/verifier-attacks.test.ts",
+        "packages/import/tests/reverify9-import.test.ts",
+        "packages/import/tests/reverify10-import.test.ts",
+        "scripts/service-role-scan.mjs",
+        "scripts/staging-smoke.mjs",
+        "supabase/tests/device-guard.test.ts",
+        "supabase/tests/reverify4-attacks.test.ts",
+        "supabase/tests/reverify6-attacks.test.ts",
+        "supabase/tests/reverify7-attacks.test.ts",
+        "supabase/tests/reverify8-attacks.test.ts",
+        "supabase/tests/schema-hygiene.test.ts"
+      ],
+      "formatter": { "enabled": false },
+      "assist": { "actions": { "source": { "organizeImports": "off" } } },
+      "linter": {
+        "rules": {
+          "a11y": { "useButtonType": "warn" },
+          "suspicious": { "useIterableCallbackReturn": "warn" }
+        }
+      }
+    }
+  ]
+}

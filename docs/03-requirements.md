@@ -149,7 +149,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | CTL-12 | Returns go to a quarantine location, require photo and manager acceptance at the warehouse, and only then re-enter sellable stock | S | 2 |
 | CTL-13 | Commission is calculated on **collected and banked** cash, never on invoiced value; clawback on write-offs; new-salon bonus only after the salon's second paid order | S | 2 |
 | CTL-14 | Anomaly detection jobs (doc 13 §7) run nightly and feed the owner digest: location/time anomalies, burst-recording, round-number patterns, repeated variances, rep-change churn, duplicate devices, mock-location signals | S | 2 |
-| CTL-15 | Daily owner exception digest (in-app and WhatsApp): every override, adjustment, variance, discount, credit note, unblock, new device, failed sync, vault read, and anomaly flag from the last 24 h | M | 1 |
+| CTL-15 | Daily owner exception digest (in-app and WhatsApp): every override, adjustment, variance, discount, credit note, unblock, new device, failed sync, vault read, anomaly flag and agent purchase (with a flag on unusually large ones, D-22, OQ-22) from the last 24 h | M | 1 |
 | CTL-16 | Company bank account details used on invoices are owner-only to change, require MFA re-authentication, and trigger a notification to all owner contacts | M | 1 |
 | CTL-17 | Intraday cash cap: when a rep's cash in hand exceeds a configurable threshold (default Rs 50,000), the app blocks new orders until a handover or bank deposit is recorded; the manager is notified | M | 1 |
 | CTL-18 | Salon contact-phone changes require an OTP confirmed on the **new** number and send a notice to the **old** number ("reply NO if this wasn't you"); every change appears in the owner digest; the same phone on more than one salon is flagged | M | 1 |
@@ -200,7 +200,7 @@ An independent agent buys stock outright and resells it. Title passes at the sal
 | AGT-01 | Agent role and onboarding: anyone may apply; the owner creates the account (governance, H-15) with minimum identity data (OQ-20); agents sign in like reps (email code, approved device) | M | 1 |
 | AGT-02 | Agent price per SKU in its own table (`agent_price`, never readable by reps), set by the owner only; a SKU without an agent price is not sold to agents (OQ-17) | M | 1 |
 | AGT-03 | Agent purchase (cash and carry): paid in full by cash at the counter or a matched transfer **before** stock leaves the warehouse; numbered invoice and receipt; stock movement `sale_to_agent`; never on credit (A-07) | M | 1 |
-| AGT-04 | Agent app: own purchases, the catalogue with agent prices and warehouse availability (quantities only), pre-order request. No salon data, no other agents, no cost or supplier (H-01, H-05) | S | 1 |
+| AGT-04 | Agent app: own purchases, the catalogue with agent prices and warehouse availability (quantities only), and an **optional pre-order request**, the only thing an agent ever sends back (D-23). No salon data, no other agents, no cost or supplier (H-01, H-05) | S | 1 |
 | AGT-05 | Agent reorder reminder from the agent's own purchase cycle | S | 2 |
 | AGT-06 | **No recruitment pay**: Kiran pays no commission, bonus or override for enrolling other agents; agent earnings come only from their own resale margin (A-06; SECP, Companies Act 2017 s.301) | M | 1 |
 | AGT-07 | Allocation when the supplier is short: configurable priority between direct salons' open orders and agent purchases (OQ-19) | S | 2 |
