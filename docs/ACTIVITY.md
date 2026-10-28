@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (part a DONE self-reported, L-0159; part b in progress, L-0162; part c not started) | C-009 |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0159, L-0164; part c not started) | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
-| C-009 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries | P1-06 (part b) | ORD-03, ORD-04, ADM-03 | `supabase/migrations/20261028100000_deliveries.sql` (new), `supabase/tests/deliveries.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 04, 06 | 2026-10-28 22:32 | 2026-10-29 | 2026-10-28 22:32 (L-0162) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -343,6 +342,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-006 | P1-02 (part b) | 2026-10-28 20:55 | done | L-0148 |
 | C-007 | P1-16 | 2026-10-28 21:27 | done | L-0154 |
 | C-008 | P1-06 (part a) | 2026-10-28 22:00 | done | L-0160 |
+| C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0165 |
 
 ---
 
@@ -2822,6 +2822,44 @@ Security checklist (tick honestly):
 **What / why:** MJ: "start P1-06 part b delivery and invoices". C-009 added to section 13. Scope: deliveries of confirmed orders, full or partial, by the rep from its own bag or by the office from a warehouse, with the name of the person who received the goods and GPS (MJ L-0157); one `sale` stock movement per line, under the existing negative-stock guard; one immutable invoice per delivery numbered with `app.next_doc_number('INV')` inside the same transaction; the order moving to partially delivered or delivered; the salon's cycle estimate kept by deliveries (basis orders, P1-16 handoff); a salon with 3 delivered orders moving from active new to active regular (doc 02). Areas: a new migration `supabase/migrations/20261028100000_deliveries.sql`, a new test file `supabase/tests/deliveries.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists (L-0138), docs 04 and 06. Branch claude/p1-06b-deliveries is cut from claude/p1-06a-orders (PR 10); its pull request stacks on PR 10.
 **Rules touched:** section 3
 **Next / needs:** migration 0013.
+
+### L-0163 · 2026-10-28 22:39 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries · DEVIATION
+**Task:** P1-06 (part b)    **Claim:** C-009
+**What / why:** Differences from the documents, and what part b leaves for later. (1) The salon's acknowledgment is the receiver's name with GPS and server time (MJ L-0157); no OTP and no signature image yet (doc 04 salon_ack). (2) A rep delivers only from its own bag; warehouse goods reach a rep's salon either through the two-party issue into the bag first (P1-17 suggests it from the route) or as an office delivery from the warehouse, whose GPS is optional and which has no rep day. (3) No installment schedule is generated from the invoice yet: PAY-01 is P1-07; the invoice carries the plan. Exposure is still A-10 (confirmed installment orders), not invoiced minus paid. (4) delivered → closed (fully paid) comes with payments (P1-07). (5) No returns or credit notes (ORD-06, Phase 2), so a part-delivered or delivered order cannot be cancelled or reversed. (6) Shortfalls at delivery are not yet recorded as lost demand (DEM-02 is P1-17). (7) The invoice document (ORD-05) is part c. (8) cycle_estimate.basis_orders counts deliveries per product group, not distinct orders. Docs 04 and 06 updated in this branch (H-25).
+**Rules touched:** H-25
+**Next / needs:** part c (invoice document), P1-07 (schedules, payments, exposure), P1-17 (bag load, delivery shortfall demand).
+
+### L-0164 · 2026-10-28 22:39 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries · DONE
+**Task:** P1-06 (part b: ORD-03 delivered states, ORD-04, ADM-03)    **Claim:** C-009
+**What / why:** Migration 0013 `supabase/migrations/20261028100000_deliveries.sql`: append-only `public.delivery` (receiver's name, GPS, distance from the salon pin, mock-location flag, server and phone time, the rep's day), append-only `public.delivery_line` (the order line's prices) and immutable `public.invoice` (number `INV-<FY>-<seq>` from `app.next_doc_number('INV')` in the same transaction; one per delivery). One internal path, `app.deliver`: what is left per line, given lines summed and capped at what is left, units promised to pending issues not available, one `sale` stock movement per line under the negative-stock guard, the invoice, the order to partially delivered or delivered, the cycle estimates kept by deliveries (basis orders), and a third delivered order moving an active new salon to active regular. Callers: `app.rep_deliver` (the order's rep, open day, own territory, own bag, GPS and receiver's name required, idempotent on client_id with the same invoice on replay) and `app.office_deliver` (office, active warehouse, GPS optional). Read: `app.order_remaining`. No temporary tables inside SECURITY DEFINER functions.
+**Evidence:** On claude/p1-06b-deliveries at f45fdcc plus this entry: `pnpm db:test` on a fresh en_US.UTF-8 local Postgres 16 database (KIRAN_TEST_DATABASE_URL), 23 files, 1789 passed (before part b: 22 files, 1655). New: `supabase/tests/deliveries.test.ts`, 14 tests (full delivery moves stock, one numbered invoice, order delivered, distance recorded; replay returns the same invoice, same client_id on another order refused; part deliveries get consecutive numbers and the last completes the order; lines not on the order, more than left, missing name or GPS refused; held, cancelled and delivered orders refused; a short bag refuses and takes no number; only the order's rep, checked in, delivers; the office cannot use the rep path; office delivery from a warehouse only, by the office only; deliveries keep the cycle estimate and the opening date is then refused; a third delivered order makes the salon regular; part-delivered orders cannot be cancelled; reps read only their own deliveries and invoices; deliveries, lines and invoices immutable for postgres; audit chain verifies) and RLS matrix rows for the three tables across all personas. Every test runs in one rolled-back transaction that loads rep A's bag, so no bag or day is left for the inventory and visits tests. Opening warehouse stock in the test is a receipt row inserted as postgres (goods receipts are the vault, P1-05). One mutation check: allowing one unit more than is left fails its test. `pnpm typecheck` exit 0. `deliveries.test.ts` passes Biome with the PR 6 configuration. `pnpm activity:check` OK. Not applied to staging.
+**Rules touched:** H-06, H-07, H-08, H-09, H-10, H-11, H-13, H-14, H-16, H-17, H-23
+**Next / needs:** a different agent verifies P1-06 part b (section 7: deliver more than ordered or than the bag holds, deliver another rep's order, change an invoice, find a gap in the numbers after a refused delivery).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — three tables, every persona; a rep reads those of its own orders
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — delivery, delivery_line and invoice append-only for postgres too
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — client_id per delivery; replay returns the same invoice; no temporary tables
+[x] Audit trigger present; hash chain verifies (H-17) — on all three tables; chain verified at the end of the deliveries tests
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — list and unit prices only
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Test] and [Dummy] data; the receiver's name in tests is a made-up first name
+[x] Governance powers still owner-only + AAL2 (H-15) — none added
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — the negative-stock guard and pending-issue reservation apply to deliveries; verifier tests changed only as MJ pre-approved (L-0138)
+[x] Docs match code; deviations logged (H-25) — L-0163
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0165 · 2026-10-28 22:39 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries · CLAIM-RELEASED
+**Task:** P1-06 (part b)    **Claim:** C-009
+**What / why:** C-009 released (done): moved to the released table. The P1-06 board row records part b as DONE (self-reported); part c gets its own claim.
+**Rules touched:** section 3
+**Next / needs:** L-0166.
+
+### L-0166 · 2026-10-28 22:39 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries · HANDOFF
+**Task:** P1-06 (part b)    **Claim:** — (C-009 released)
+**What / why:** State: part b is on branch claude/p1-06b-deliveries, stacked on PR 10; suite green (1789); not applied to staging. Next steps, in order: (1) pull request for this branch, stacked on PR 10; (2) a different agent verifies P1-04, P1-02 parts a and b, P1-16 and P1-06 parts a and b; (3) P1-06 part c, the invoice document (ORD-05: from public data only, never cost or supplier); (4) P1-07 money: installment schedules from invoices, payments, receipts, handover, and exposure as invoiced minus paid (replacing A-10); (5) P1-17 route-linked bag load and delivery-shortfall demand. Gotchas: deliveries.test.ts runs before inventory.test.ts in name order, so it must never commit a bag for rep A (inventory creates it); test opening stock is a receipt row inserted as postgres until goods receipts exist.
+**Evidence:** `pnpm db:test` 23 files, 1789 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: review PRs 5 to 10 and this branch's pull request.
 
 ---
 
