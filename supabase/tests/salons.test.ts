@@ -7,20 +7,41 @@
  */
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, MANAGER_AAL1, OWNER, REP_A, REP_A_WRONG_DEVICE, REP_B, run, sqlstate, SUSPENDED, type Who } from "./helpers/db";
+import {
+  errorOf,
+  fx,
+  MANAGER,
+  MANAGER_AAL1,
+  OWNER,
+  REP_A,
+  REP_A_WRONG_DEVICE,
+  REP_B,
+  run,
+  SUSPENDED,
+  sqlstate,
+  type Who,
+} from "./helpers/db";
 
 const C = { commit: true };
 const id = () => randomUUID();
 const tag = () => randomUUID().slice(0, 8);
 const one = async (who: Who, sql: string, params: unknown[] = []) => (await run(who, sql, params, C)).rows[0];
 
-const T1 = id(), T2 = id(), A1 = id(), A1b = id(), A2 = id();
+const T1 = id(),
+  T2 = id(),
+  A1 = id(),
+  A1b = id(),
+  A2 = id();
 const PHONE = "+920000001234";
 let S1: string; // repA's salon in T1
 
 const createSalon = (who: Who, sid: string, area: string, phone: string | null = null, source = "map_pin") =>
-  one(who, `select (app.create_salon($1, $2, 'ladies_parlor', $3, $4::public.salon_source, null, 24.9, 67.1, 3,
-             '[Test] Owner', $5, '[Test] first chit')).*`, [sid, `[Test] Salon ${tag()}`, area, source, phone]);
+  one(
+    who,
+    `select (app.create_salon($1, $2, 'ladies_parlor', $3, $4::public.salon_source, null, 24.9, 67.1, 3,
+             '[Test] Owner', $5, '[Test] first chit')).*`,
+    [sid, `[Test] Salon ${tag()}`, area, source, phone],
+  );
 
 beforeAll(async () => {
   await one(MANAGER, "select app.office_upsert_territory($1, $2)", [T1, `[Test] Territory 1 ${tag()}`]);
@@ -51,7 +72,9 @@ describe("territories (PIP-01)", () => {
 
   it("an assignment changes once, by being ended; nobody deletes it", async () => {
     expect(await sqlstate("postgres", "delete from public.rep_territory")).toBe("42501");
-    expect(await sqlstate("postgres", "update public.rep_territory set from_date = from_date - 1 where to_date is null")).toBe("42501");
+    expect(await sqlstate("postgres", "update public.rep_territory set from_date = from_date - 1 where to_date is null")).toBe(
+      "42501",
+    );
   });
 });
 
@@ -60,11 +83,19 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
     const again = await createSalon(REP_A, S1, A1, PHONE);
     expect(again.id).toBe(S1);
     expect(again.stage).toBe("prospect");
-    expect(await errorOf(REP_A, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [id(), A2])).toMatch(/own territories/);
-    expect(await errorOf(REP_A, "select app.create_salon($1, 'x salon', 'barber', $2, 'excel_import')", [id(), A1])).toMatch(/field only/);
+    expect(await errorOf(REP_A, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [id(), A2])).toMatch(
+      /own territories/,
+    );
+    expect(await errorOf(REP_A, "select app.create_salon($1, 'x salon', 'barber', $2, 'excel_import')", [id(), A1])).toMatch(
+      /field only/,
+    );
     expect(await sqlstate(REP_B, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [S1, A2])).toBe("23505");
-    expect(await sqlstate(REP_A_WRONG_DEVICE, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [id(), A1])).toBe("42501");
-    expect(await sqlstate(SUSPENDED, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [id(), A1])).toBe("42501");
+    expect(
+      await sqlstate(REP_A_WRONG_DEVICE, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [id(), A1]),
+    ).toBe("42501");
+    expect(await sqlstate(SUSPENDED, "select app.create_salon($1, 'x salon', 'barber', $2, 'map_pin')", [id(), A1])).toBe(
+      "42501",
+    );
   });
 
   it("reps cannot read salon tables directly; they read their own list through the capped function", async () => {
@@ -79,8 +110,13 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
   });
 
   it("a page holds at most 50 salons, whatever the caller asks for", async () => {
-    await run(REP_A, `select app.create_salon(gen_random_uuid(), '[Test] bulk ' || g, 'barber', $1, 'sweep')
-                      from generate_series(1, 55) g`, [A1b], C);
+    await run(
+      REP_A,
+      `select app.create_salon(gen_random_uuid(), '[Test] bulk ' || g, 'barber', $1, 'sweep')
+                      from generate_series(1, 55) g`,
+      [A1b],
+      C,
+    );
     const page = (await run(REP_A, "select id, name from app.my_salons(null, null, 500)")).rows;
     expect(page.length).toBe(50);
     const last = page[49];
@@ -107,7 +143,9 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
 
 describe("phones: masked in lists, revealed one at a time and logged (doc 06 §4)", () => {
   it("a rep reveals a phone of its own territory's salon, and the owner sees the reveal", async () => {
-    const before = Number((await run("postgres", "select count(*) n from control.phone_reveal where salon_id = $1", [S1])).rows[0].n);
+    const before = Number(
+      (await run("postgres", "select count(*) n from control.phone_reveal where salon_id = $1", [S1])).rows[0].n,
+    );
     const r = await one(REP_A, "select app.reveal_phone($1) p", [S1]);
     expect(r.p).toBe(PHONE);
     const log = (await run(OWNER, "select actor_id from control.phone_reveal where salon_id = $1", [S1])).rows;
@@ -130,9 +168,17 @@ describe("phones: masked in lists, revealed one at a time and logged (doc 06 §4
   });
 
   it("only the office changes a primary phone, with a reason; the old contact stays as history", async () => {
-    expect(await sqlstate(REP_A, "select app.office_set_primary_contact($1, 'x', '+920000009999', 'new number')", [S1])).toBe("42501");
-    await one(MANAGER, "select app.office_set_primary_contact($1, '[Test] Owner', '+920000009999', 'salon called the office')", [S1]);
-    const all = (await run(MANAGER, "select phone, is_primary, active from public.salon_contact where salon_id = $1 order by created_at", [S1])).rows;
+    expect(await sqlstate(REP_A, "select app.office_set_primary_contact($1, 'x', '+920000009999', 'new number')", [S1])).toBe(
+      "42501",
+    );
+    await one(MANAGER, "select app.office_set_primary_contact($1, '[Test] Owner', '+920000009999', 'salon called the office')", [
+      S1,
+    ]);
+    const all = (
+      await run(MANAGER, "select phone, is_primary, active from public.salon_contact where salon_id = $1 order by created_at", [
+        S1,
+      ])
+    ).rows;
     expect(all).toEqual([
       { phone: PHONE, is_primary: false, active: false },
       { phone: "+920000009999", is_primary: true, active: true },
@@ -165,8 +211,12 @@ describe("notes are append-only (MAP-03)", () => {
 
 describe("stages: stage_event is the truth (SAL-03, doc 02)", () => {
   it("the stage cannot change without a stage_event, for any role", async () => {
-    expect(await errorOf("postgres", "update public.salon set stage = 'active_regular' where id = $1", [S1])).toMatch(/stage_event/);
-    expect(await errorOf("postgres", "update public.salon set verification_status = 'verified' where id = $1", [S1])).toMatch(/CTL-09/);
+    expect(await errorOf("postgres", "update public.salon set stage = 'active_regular' where id = $1", [S1])).toMatch(
+      /stage_event/,
+    );
+    expect(await errorOf("postgres", "update public.salon set verification_status = 'verified' where id = $1", [S1])).toMatch(
+      /CTL-09/,
+    );
   });
 
   it("a rep parks an acquisition-stage salon with a reason, and cannot push it forward", async () => {
@@ -193,20 +243,43 @@ describe("territory change and lost demand", () => {
   it("lost demand names only a salon the rep can reach, and must name a real salon", async () => {
     const group = id();
     await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [group, `[Dummy] Group ${tag()}`]);
-    expect(await sqlstate(REP_B, "select app.record_demand($1, null, $2, 1, 'not_in_catalogue', $3)", [id(), group, S1])).toBe("42501");
-    const ok = await one(REP_A, "select (app.record_demand($1, null, $2, 1, 'not_in_catalogue', $3)).salon_id s", [id(), group, S1]);
+    expect(await sqlstate(REP_B, "select app.record_demand($1, null, $2, 1, 'not_in_catalogue', $3)", [id(), group, S1])).toBe(
+      "42501",
+    );
+    const ok = await one(REP_A, "select (app.record_demand($1, null, $2, 1, 'not_in_catalogue', $3)).salon_id s", [
+      id(),
+      group,
+      S1,
+    ]);
     expect(ok.s).toBe(S1);
-    expect(await sqlstate(MANAGER, `insert into public.demand_signal (client_id, product_group_id, qty, reason, source, salon_id, captured_by)
-      values ($1, $2, 1, 'not_in_catalogue', 'visit_tap', $3, $4)`, [id(), group, id(), fx.manager.id])).toBe("42501");
-    expect(await sqlstate("postgres", `insert into public.demand_signal (client_id, product_group_id, qty, reason, source, salon_id, captured_by)
-      values ($1, $2, 1, 'not_in_catalogue', 'visit_tap', $3, $4)`, [id(), group, id(), fx.manager.id])).toBe("23503");
+    expect(
+      await sqlstate(
+        MANAGER,
+        `insert into public.demand_signal (client_id, product_group_id, qty, reason, source, salon_id, captured_by)
+      values ($1, $2, 1, 'not_in_catalogue', 'visit_tap', $3, $4)`,
+        [id(), group, id(), fx.manager.id],
+      ),
+    ).toBe("42501");
+    expect(
+      await sqlstate(
+        "postgres",
+        `insert into public.demand_signal (client_id, product_group_id, qty, reason, source, salon_id, captured_by)
+      values ($1, $2, 1, 'not_in_catalogue', 'visit_tap', $3, $4)`,
+        [id(), group, id(), fx.manager.id],
+      ),
+    ).toBe("23503");
   });
 
   it("ending a rep's territory removes its salons from that rep at once", async () => {
     await one(MANAGER, "select app.office_end_territory($1, $2, 'moved to territory 2')", [fx.repA.id, T1]);
     expect((await run(REP_A, "select id from app.my_salons() where id = $1", [S1])).rows).toEqual([]);
     expect(await sqlstate(REP_A, "select app.reveal_phone($1)", [S1])).toBe("42501");
-    expect(await errorOf("postgres", "update public.rep_territory set to_date = null where rep_id = $1 and territory_id = $2", [fx.repA.id, T1])).toMatch(/final/);
+    expect(
+      await errorOf("postgres", "update public.rep_territory set to_date = null where rep_id = $1 and territory_id = $2", [
+        fx.repA.id,
+        T1,
+      ]),
+    ).toMatch(/final/);
     // Give it back so other files see the original fixture state.
     await one(MANAGER, "select app.office_assign_territory($1, $2)", [fx.repA.id, T1]);
     expect((await run(REP_A, "select id from app.my_salons() where id = $1", [S1])).rows.length).toBe(1);
