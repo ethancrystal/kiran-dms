@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | NOT STARTED | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (part a, L-0156; parts b, c not started) | C-008 |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-008 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders | P1-06 (part a) | SAL-04, ORD-01 to ORD-03, ORD-10, CTL-07, CTL-08 | `supabase/migrations/20261028090000_orders.sql` (new), `supabase/tests/orders.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 03, 04, 06 | 2026-10-28 21:41 | 2026-10-29 | 2026-10-28 21:41 (L-0156) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -395,6 +396,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-07 | Agent purchases are paid in full (cash counted or transfer matched) before stock leaves the warehouse; agents never buy on credit | L-0128 | Receivables and custody risk the agent model is meant to avoid | open |
 | A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
 | A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); deliveries replace it once P1-06 exists. The cycle is the product group's default (D-19) | L-0150 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
+| A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0157). Part b and P1-07 replace it with invoiced minus paid | L-0156 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
 
 ---
 
@@ -2763,6 +2765,18 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 21 files, 1473 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: review PRs 5 to 8 and this branch's pull request.
+
+### L-0156 · 2026-10-28 21:41 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · CLAIM
+**Task:** P1-06 (part a: SAL-04 credit profile, ORD-01 to ORD-03, ORD-10, CTL-07, CTL-08)    **Claim:** C-008
+**What / why:** MJ: "start P1-06 orders and invoices". P1-06 is split like P1-02: part a (this claim) is the salon credit profile and its change log, orders with lines at list price, the credit check, discount approvals, holds and rechecks for offline orders, and cancellation; part b is delivery (bag or warehouse), stock movements, gapless invoices, the salon's acknowledgment, stage and cycle updates; part c is the invoice document (ORD-05). C-008 added to section 13. Areas: a new migration `supabase/migrations/20261028090000_orders.sql`, a new test file `supabase/tests/orders.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists (L-0138), docs 04 and 06. Branch claude/p1-06a-orders is cut from claude/p1-16-due-routes (PR 9); its pull request stacks on PR 9. Assumption A-10 (section 15).
+**Rules touched:** section 3, section 15
+**Next / needs:** L-0157, then migration 0012.
+
+### L-0157 · 2026-10-28 21:41 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · DECISION
+**Task:** P1-06    **Claim:** C-008
+**What / why:** MJ answered three questions in this session. (1) Delivery acknowledgment in Phase 1: "Name + GPS now (Recommended)": the rep records the name of the person who received the goods, with GPS and server time; an OTP to the salon is added when an SMS adapter exists (part b). (2) Who gives installment terms and a credit limit while salon verification (P1-02 part c) is not built: "Owner sets by hand (Recommended)": the owner sets a salon's plan eligibility and limit with a reason, logged as a credit event; a manager may only raise a limit by at most 50% or unblock, at most 2 times per salon per month (doc 09 section 2, config keys credit.manager_override.*). (3) The conflict between doc 03 ORD-02 (a Blocked salon gets no order) and doc 09 section 2 (Blocked: cash only until settled): "Doc 09 (Recommended)": a blocked salon may still order cash on delivery; cash orders do not count against the credit limit; installment orders must fit within it. Doc 03 ORD-02 is updated in this branch to match (H-25).
+**Rules touched:** H-25, H-26
+**Next / needs:** migration 0012.
 
 ---
 
