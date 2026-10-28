@@ -12,9 +12,12 @@
     "activity:check": "node scripts/activity-log-check.mjs",
     "typecheck": "tsc -p supabase/tests/tsconfig.json --noEmit && pnpm -r --if-present typecheck",
     "staging:smoke": "node scripts/staging-smoke.mjs",
-    "service-role:scan": "node scripts/service-role-scan.mjs"
+    "service-role:scan": "node scripts/service-role-scan.mjs",
+    "lint": "biome ci",
+    "format": "biome check --write"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.15",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
     "embedded-postgres": "17.9.0-beta.16",

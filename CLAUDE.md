@@ -34,6 +34,8 @@ pnpm db:test -- -t "name"   # single test
 pnpm activity:check   # same check CI runs on docs/ACTIVITY.md
 pnpm -C apps/web dev  # Next.js dev server
 pnpm typecheck
+pnpm lint             # Biome lint + format check (same as CI); `pnpm format` writes fixes
+pnpm -C apps/web test:e2e   # Playwright rep PWA tests on a low-end phone profile (builds the app first)
 ```
 
 `KIRAN_TEST_DATABASE_URL` (never the generic `DATABASE_URL`) overrides the embedded Postgres (e.g. `supabase start` → `postgresql://postgres:postgres@127.0.0.1:54322/postgres`).

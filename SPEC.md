@@ -144,8 +144,9 @@ pnpm -r --if-present test           # package unit tests (packages/import)
 pnpm activity:check                 # the ACTIVITY.md check CI runs
 pnpm -C apps/web dev                # web app on :3000 (/app rep PWA, /office)
 pnpm -C apps/web build              # production build (CI also scans the bundle, H-18)
-pnpm lint                           # Biome lint + format check            (planned, §8)
-pnpm -C apps/web test:e2e           # Playwright rep PWA tests             (planned, §9)
+pnpm lint                           # Biome lint + format check (CI job `lint`, §8)
+pnpm format                         # write Biome fixes
+pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app first (CI job `e2e`, §9)
 ```
 
 - **Test database URL:** set `KIRAN_TEST_DATABASE_URL`, never the generic `DATABASE_URL`, to use a real database. For example, `supabase start` gives `postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
@@ -171,7 +172,7 @@ The data model is in [doc 04](docs/04-domain-model.md) and the architecture in [
 **Formatting and lint: Biome** (MJ, L-0136).
 - One `biome.json` at the root, `pnpm lint` and a CI `lint` job that fails the pull request.
 - Run `biome check --write` before committing.
-- *Status: planned; added as the next step under C-005.*
+- *Status: in place* (`biome.jsonc`, Biome 2.3.15). Files that existed before Biome and do not yet pass it are listed as **legacy** in `biome.jsonc` and excused from formatting and import order until cleaned up; every other file, and every new one, must pass.
 
 **TypeScript**
 - `strict` on.
@@ -203,7 +204,7 @@ The data model is in [doc 04](docs/04-domain-model.md) and the architecture in [
 | **Invariant and attack tests** | Controls hold under attack: append-only, maker ≠ checker, no negative stock, single-use approvals, territory isolation, replays | `supabase/tests/*.test.ts` | Running in CI |
 | **Schema hygiene** | Every table has RLS and an audit trigger; every SECURITY DEFINER function pins `search_path`; anon can execute nothing | `supabase/tests/schema-hygiene.test.ts` | Running in CI |
 | **Package unit tests** | Import mapping and normalisers | `packages/import/tests/` | Running in CI |
-| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline order, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Planned**: harness under C-005; flows grow with P1-09 |
+| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline order, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen with Urdu labels, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order, payment and lost-demand flows are added with P1-09 |
 | **Field test** | Offline capture in a basement salon with no signal (Phase 1 exit criterion 6) | Pilot, [doc 11](docs/11-roadmap.md) | Phase 1 pilot |
 
 **Rules for tests:**

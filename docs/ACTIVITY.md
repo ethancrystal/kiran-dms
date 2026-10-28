@@ -2628,6 +2628,13 @@ Security checklist (tick honestly):
 **Rules touched:** H-25, H-26
 **Next / needs:** MJ: OQ-21, OQ-22; MJ confirms SPEC.md.
 
+### L-0141 · 2026-10-28 14:19 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · PROGRESS
+**Task:** — (lint and browser-test tooling, SPEC.md sections 8 and 9)    **Claim:** C-005
+**What / why:** MJ confirmed SPEC.md ("Spec is okay proceed"). Added: Biome 2.3.15 (`biome.jsonc`; root scripts `pnpm lint` = `biome ci`, `pnpm format`); Playwright 1.63.0 in apps/web (`playwright.config.ts`, a low-end Android profile at 360 by 640 px, production build with placeholder public settings, no real project contacted) with a first spec `apps/web/e2e/rep-login.spec.ts`; CI jobs `lint` and `e2e`; `.gitignore` entries for Playwright output; SPEC.md, CLAUDE.md and AGENTS.md (kept identical, Appendix A) updated with the new commands and statuses. Legacy files: 30 existing files (C-001's areas, several verifier-authored, H-23) do not yet pass Biome; reformatting them here would change verifier tests and C-001's code, so `biome.jsonc` lists them as legacy (no formatting or import order, two rules warn). Every other file and every new file gets the full checks. Follow-up, not done here: clean up the legacy list with C-001, and MJ's approval for the verifier tests. One real finding left as a warning in legacy files: four buttons in apps/web login and MFA pages have no type attribute (lint/a11y/useButtonType). One permanent exception: noControlCharactersInRegex is off for scripts/activity-log-check.mjs, whose job is to find control characters. Formatting changed only this session's own file `supabase/tests/inventory.test.ts` (layout and import order).
+**Evidence:** `pnpm lint` exit 0. `pnpm -C apps/web test:e2e`: 4 passed (sign-in page fits 360 px with Urdu labels; a refused code request shows the alert and stays retryable; 199.9 KB gzipped JavaScript transferred, budget 300 KB, NFR-02; security headers present). The first run failed one test: Next.js adds its own empty role=alert route announcer, so the locator matched two elements; the test now matches the alert by its message (a test fix; the page behaved correctly). `pnpm typecheck` exit 0. `inventory.test.ts` after formatting: 1 file, 25 passed on a fresh local Postgres 16. Full `pnpm db:test` not re-run (no other database file changed). `pnpm activity:check` OK.
+**Rules touched:** H-23, H-25, H-18
+**Next / needs:** pull request for claude/spec stacked on PR 5; CI confirms the new lint and e2e jobs.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
