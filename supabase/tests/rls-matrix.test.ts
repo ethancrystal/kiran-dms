@@ -411,7 +411,7 @@ const MATRIX: Row[] = [
   // data); cycle estimates and stops are salon data, office-only at the table (H-14).
   {
     table: "public.cycle_estimate",
-    writeCol: "note",
+    writeCol: "last_order_on",
     select: {
       anon: "denied",
       repA: "false",
@@ -443,7 +443,7 @@ const MATRIX: Row[] = [
   },
   {
     table: "public.route_stop",
-    writeCol: "note",
+    writeCol: "reason",
     select: {
       anon: "denied",
       repA: "false",

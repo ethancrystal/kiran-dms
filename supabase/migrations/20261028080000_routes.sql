@@ -27,7 +27,6 @@ create table public.cycle_estimate (
   cycle_days       integer check (cycle_days between 1 and 365),   -- null: the product group's default (Phase 1)
   basis            public.cycle_basis not null default 'opening',
   basis_orders     integer not null default 0 check (basis_orders >= 0),
-  note             text check (length(note) <= 300),
   set_by           uuid not null references public.user_profile (id),
   set_at           timestamptz not null default now(),
   primary key (salon_id, product_group_id)
@@ -54,7 +53,6 @@ create table public.route_stop (
   sequence   integer not null check (sequence between 1 and 50),
   salon_id   uuid not null references public.salon (id),
   reason     public.route_stop_reason not null,
-  note       text check (length(note) <= 200),
   added_by   uuid not null references public.user_profile (id),
   created_at timestamptz not null default now(),
   unique (route_id, salon_id),
@@ -87,8 +85,8 @@ begin
     raise exception using errcode = '42501', message = 'a past route is final';
   end if;
   if tg_op = 'UPDATE' and
-     (new.id, new.route_id, new.salon_id, new.reason, new.note, new.added_by, new.created_at)
-     is distinct from (old.id, old.route_id, old.salon_id, old.reason, old.note, old.added_by, old.created_at) then
+     (new.id, new.route_id, new.salon_id, new.reason, new.added_by, new.created_at)
+     is distinct from (old.id, old.route_id, old.salon_id, old.reason, old.added_by, old.created_at) then
     raise exception using errcode = '42501', message = 'a route stop changes only its place in the route';
   end if;
   return case when tg_op = 'DELETE' then old else new end;
@@ -117,19 +115,17 @@ language sql stable security definer set search_path = '' as $$
     where s.id = p_salon_id)
 $$;
 
--- [{salon_id, reason, note?}, ...] → ordered rows; a bad uuid or reason raises 22P02.
+-- [{salon_id, reason}, ...] → ordered rows; a bad uuid or reason raises 22P02.
 create function app.parse_route_stops(p_stops jsonb)
-returns table (ord integer, salon_id uuid, reason public.route_stop_reason, note text)
+returns table (ord integer, salon_id uuid, reason public.route_stop_reason)
 language sql immutable set search_path = '' as $$
-  select e.ord::integer, (e.val ->> 'salon_id')::uuid, (e.val ->> 'reason')::public.route_stop_reason,
-         nullif(btrim(e.val ->> 'note'), '')
+  select e.ord::integer, (e.val ->> 'salon_id')::uuid, (e.val ->> 'reason')::public.route_stop_reason
   from jsonb_array_elements(p_stops) with ordinality as e(val, ord)
 $$;
 
 -- ---------------------------------------------------------------- due-list ----
 -- A-09: the office records a salon's last purchase in a product group until deliveries do.
-create function app.office_set_last_purchase(p_salon_id uuid, p_product_group_id uuid, p_last_order_on date,
-                                             p_note text default null)
+create function app.office_set_last_purchase(p_salon_id uuid, p_product_group_id uuid, p_last_order_on date)
 returns public.cycle_estimate
 language plpgsql security definer set search_path = '' as $$
 declare v public.cycle_estimate;
@@ -150,10 +146,10 @@ begin
     perform app.raise_denied('this cycle is kept by deliveries; an opening date no longer applies');
   end if;
   perform app.set_purpose('opening last purchase');
-  insert into public.cycle_estimate as c (salon_id, product_group_id, last_order_on, note, set_by)
-  values (p_salon_id, p_product_group_id, p_last_order_on, nullif(btrim(p_note), ''), auth.uid())
+  insert into public.cycle_estimate as c (salon_id, product_group_id, last_order_on, set_by)
+  values (p_salon_id, p_product_group_id, p_last_order_on, auth.uid())
   on conflict (salon_id, product_group_id) do update
-    set last_order_on = excluded.last_order_on, note = excluded.note, set_by = excluded.set_by, set_at = now()
+    set last_order_on = excluded.last_order_on, set_by = excluded.set_by, set_at = now()
   returning * into v;
   return v;
 end $$;
@@ -228,14 +224,14 @@ begin
   on conflict (rep_id, day) do nothing;
   select * into v from public.route where rep_id = p_rep_id and day = p_day for update;
   delete from public.route_stop where route_id = v.id;
-  insert into public.route_stop (route_id, sequence, salon_id, reason, note, added_by)
-  select v.id, i.ord, i.salon_id, i.reason, i.note, auth.uid() from app.parse_route_stops(p_stops) i;
+  insert into public.route_stop (route_id, sequence, salon_id, reason, added_by)
+  select v.id, i.ord, i.salon_id, i.reason, auth.uid() from app.parse_route_stops(p_stops) i;
   return v;
 end $$;
 
 -- Doc 08 §2, MAP-08 thin: the rep adds a salon from the map to today's route, at the end.
 -- Idempotent: a salon already on the route returns its stop.
-create function app.rep_add_stop(p_salon_id uuid, p_note text default null)
+create function app.rep_add_stop(p_salon_id uuid)
 returns public.route_stop
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -259,8 +255,8 @@ begin
   if v_n >= 50 then
     raise exception using errcode = '22023', message = 'a route has at most 50 stops';
   end if;
-  insert into public.route_stop (route_id, sequence, salon_id, reason, note, added_by)
-  values (r.id, v_n + 1, p_salon_id, 'pin_selected', nullif(btrim(p_note), ''), auth.uid())
+  insert into public.route_stop (route_id, sequence, salon_id, reason, added_by)
+  values (r.id, v_n + 1, p_salon_id, 'pin_selected', auth.uid())
   returning * into v;
   return v;
 end $$;
@@ -300,10 +296,10 @@ end $$;
 -- whether the rep has visited it that day. Stops outside the rep's current territories are hidden.
 create function app.my_route(p_day date default null)
 returns table (stop_id uuid, sequence integer, salon_id uuid, salon_name text, area_name text, stage public.salon_stage,
-               reason public.route_stop_reason, note text, lat numeric, lng numeric, next_due_on date,
+               reason public.route_stop_reason, lat numeric, lng numeric, next_due_on date,
                visited boolean, last_outcome public.visit_outcome)
 language sql stable security definer set search_path = '' as $$
-  select st.id, st.sequence, s.id, s.name, a.name, s.stage, st.reason, st.note, s.lat, s.lng,
+  select st.id, st.sequence, s.id, s.name, a.name, s.stage, st.reason, s.lat, s.lng,
          (select min(c.last_order_on + coalesce(c.cycle_days, g.default_cycle_days))
             from public.cycle_estimate c join public.product_group g on g.id = c.product_group_id
            where c.salon_id = s.id and g.active),
@@ -343,13 +339,13 @@ grant select on public.cycle_estimate, public.route, public.route_stop to authen
 
 revoke execute on function
   control.cycle_estimate_guard(), control.route_stop_guard(), app.rep_holds_salon(uuid, uuid), app.parse_route_stops(jsonb),
-  app.office_set_last_purchase(uuid, uuid, date, text), app.due_list(date, uuid),
-  app.office_set_route(uuid, date, jsonb), app.rep_add_stop(uuid, text), app.rep_reorder_route(date, uuid[]),
+  app.office_set_last_purchase(uuid, uuid, date), app.due_list(date, uuid),
+  app.office_set_route(uuid, date, jsonb), app.rep_add_stop(uuid), app.rep_reorder_route(date, uuid[]),
   app.my_route(date)
   from public, anon, authenticated, service_role;
 
 grant execute on function
-  app.office_set_last_purchase(uuid, uuid, date, text), app.due_list(date, uuid),
-  app.office_set_route(uuid, date, jsonb), app.rep_add_stop(uuid, text), app.rep_reorder_route(date, uuid[]),
+  app.office_set_last_purchase(uuid, uuid, date), app.due_list(date, uuid),
+  app.office_set_route(uuid, date, jsonb), app.rep_add_stop(uuid), app.rep_reorder_route(date, uuid[]),
   app.my_route(date)
   to authenticated;

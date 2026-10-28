@@ -6,7 +6,7 @@
  * rolled-back transactions. Dates are relative to the Karachi day the suite runs on.
  */
 import { randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, REP_A, REP_A_WRONG_DEVICE, REP_B, run, SUSPENDED, sqlstate, type Who } from "./helpers/db";
 
 const C = { commit: true };
@@ -84,12 +84,14 @@ beforeAll(async () => {
     [S1, G2, 1],
     [SB, G1, 20],
   ] as const) {
-    await one(MANAGER, `select app.office_set_last_purchase($1, $2, ${TODAY} - $3::integer, 'from the old ledger')`, [
-      sid,
-      g,
-      ago,
-    ]);
+    await one(MANAGER, `select app.office_set_last_purchase($1, $2, ${TODAY} - $3::integer)`, [sid, g, ago]);
   }
+});
+
+// Leave the reps' territories as other files expect them: end this file's assignments.
+afterAll(async () => {
+  await one(MANAGER, "select app.office_end_territory($1, $2, 'routes tests finished')", [fx.repA.id, T_A]);
+  await one(MANAGER, "select app.office_end_territory($1, $2, 'routes tests finished')", [fx.repB.id, T_B]);
 });
 
 describe("opening last purchase (A-09, MJ L-0151)", () => {
@@ -237,7 +239,7 @@ describe("routes (PIP-03)", () => {
       [S2, "reorder_due"],
       [S1, "reorder_due"],
     ]);
-    const a = await one(REP_A, "select (app.rep_add_stop($1, 'saw the board lit')).*", [S3]);
+    const a = await one(REP_A, "select (app.rep_add_stop($1)).*", [S3]);
     expect(a.sequence).toBe(3);
     expect(a.reason).toBe("pin_selected");
     expect((await one(REP_A, "select (app.rep_add_stop($1)).id", [S3])).id).toBe(a.id);
