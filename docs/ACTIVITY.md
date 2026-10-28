@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (part a DONE self-reported, L-0159; parts b, c not started) | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (part a DONE self-reported, L-0159; part b in progress, L-0162; part c not started) | C-009 |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-009 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries | P1-06 (part b) | ORD-03, ORD-04, ADM-03 | `supabase/migrations/20261028100000_deliveries.sql` (new), `supabase/tests/deliveries.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 04, 06 | 2026-10-28 22:32 | 2026-10-29 | 2026-10-28 22:32 (L-0162) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -2815,6 +2816,12 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 22 files, 1655 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: review PRs 5 to 9 and this branch's pull request.
+
+### L-0162 · 2026-10-28 22:32 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06b-deliveries · CLAIM
+**Task:** P1-06 (part b: ORD-03 delivered states, ORD-04 delivery with stock movement and invoice, ADM-03 gapless numbering)    **Claim:** C-009
+**What / why:** MJ: "start P1-06 part b delivery and invoices". C-009 added to section 13. Scope: deliveries of confirmed orders, full or partial, by the rep from its own bag or by the office from a warehouse, with the name of the person who received the goods and GPS (MJ L-0157); one `sale` stock movement per line, under the existing negative-stock guard; one immutable invoice per delivery numbered with `app.next_doc_number('INV')` inside the same transaction; the order moving to partially delivered or delivered; the salon's cycle estimate kept by deliveries (basis orders, P1-16 handoff); a salon with 3 delivered orders moving from active new to active regular (doc 02). Areas: a new migration `supabase/migrations/20261028100000_deliveries.sql`, a new test file `supabase/tests/deliveries.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists (L-0138), docs 04 and 06. Branch claude/p1-06b-deliveries is cut from claude/p1-06a-orders (PR 10); its pull request stacks on PR 10.
+**Rules touched:** section 3
+**Next / needs:** migration 0013.
 
 ---
 
