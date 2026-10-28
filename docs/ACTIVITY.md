@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-005 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec | — (project spec, lint and browser-test tooling) | — | `SPEC.md` (new); later `biome.json`, `.github/workflows/ci.yml` lint job, Playwright config and tests under `apps/web/` | 2026-10-28 13:14 | 2026-10-29 | 2026-10-28 13:14 (L-0137) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -2594,6 +2595,25 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 18 files, 897 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: OQ-17 to OQ-20; renumbering of claude/architecture-rfc; whether A-08 stays owner-only.
+
+### L-0136 · 2026-10-28 13:14 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · DECISION
+**Task:** — (project spec; no requirement IDs)    **Claim:** C-005 (L-0137)
+**What / why:** MJ ran the spec protocol ("check current and write new if needed"). Finding: there is no SPEC.md; docs 00 to 13, CLAUDE.md and this file cover objective, commands, structure and boundaries, but there is no code style for TypeScript or React, no lint in CI, and no test of the web app or the offline PWA. MJ's answers, quoted: shape "single" (SPEC.md is a short index; docs 00 to 13 stay the single source of truth, H-25); linter and formatter "yes"; Playwright browser tests for the rep PWA in Phase 1 "yes"; branch "top" (on a branch on top of PR 5); audience "not aai agents but sales agents of my company", read as: the people the system serves are Kiran's sales agents (salaried reps and independent agents, D-15), so the spec's objective is written around them. Biome is the chosen linter and formatter (one tool; this session's recommendation, not objected to). Numbering note: this branch is cut from PR 5's head (claude/p1-04-inventory, 8ba8d6b) like claude/p1-02-salons, which also uses L-0136 to L-0139 and C-004; whichever merges second renumbers its own entries (both are this session's).
+**Rules touched:** H-25, H-22
+**Next / needs:** L-0137.
+
+### L-0137 · 2026-10-28 13:14 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · CLAIM
+**Task:** — (project spec)    **Claim:** C-005
+**What / why:** C-005 added to section 13 for `SPEC.md` at the repo root and this file. The Biome setup, the CI lint job and the Playwright harness are later steps under this claim, after MJ confirms the spec.
+**Rules touched:** section 3
+**Next / needs:** write SPEC.md; MJ confirms it before tooling is added.
+
+### L-0138 · 2026-10-28 13:15 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · PROGRESS
+**Task:** — (project spec)    **Claim:** C-005
+**What / why:** `SPEC.md` added at the repo root: a short index over docs 00 to 13, CLAUDE.md and this file, in six parts (objective written around Kiran's salaried reps and independent agents; commands; project structure; code style; testing strategy; boundaries). It adds no requirement: where it and a doc disagree, the doc wins (H-25). New commitments, both from MJ in L-0136: Biome as linter and formatter with a CI lint job, and Playwright browser tests for the rep PWA; both marked planned. It also records MJ's standing pre-approval of three kinds of verifier-test change for new modules (given in this session; logged on branch claude/p1-02-salons).
+**Evidence:** every relative link in SPEC.md resolves to a file on this branch (checked with a script); `pnpm activity:check` OK. No code changed.
+**Rules touched:** H-25
+**Next / needs:** MJ confirms SPEC.md; then Biome config, the CI lint job and the Playwright harness under C-005.
 
 ---
 
