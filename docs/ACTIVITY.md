@@ -2615,6 +2615,13 @@ Security checklist (tick honestly):
 **Rules touched:** H-25
 **Next / needs:** MJ confirms SPEC.md; then Biome config, the CI lint job and the Playwright harness under C-005.
 
+### L-0139 · 2026-10-28 13:19 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec · PROGRESS
+**Task:** — (project spec)    **Claim:** C-005
+**What / why:** MJ asked for more work on SPEC.md ("work more on it"). Added five sections, all drawn from the existing docs (no new requirement): 2 where we are (a status snapshot that defers to the board); 3 five sales-agent journeys (rep's day, prospecting, independent agent purchase, manager loading bags, owner's morning), each with acceptance lines tied to requirement IDs; 4 the Phase 1 feature map (feature, requirements, how it is proven, status) and the doc 06 section 10 launch security checklist; 5 field constraints (NFR-01 to 03, 09, 10; 60-second field actions); 11 decisions waiting on MJ. Sections renumbered and internal references updated.
+**Evidence:** every relative link resolves (16 checked by script); all 50 requirement IDs cited in SPEC.md exist in doc 03 (checked by script; one wrong citation found and fixed: the handover is PAY-05 and CTL-03, not PAY-10); `pnpm activity:check` OK. No code changed.
+**Rules touched:** H-25
+**Next / needs:** MJ confirms SPEC.md; then Biome, the CI lint job and the Playwright harness under C-005.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
