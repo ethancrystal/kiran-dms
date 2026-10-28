@@ -187,9 +187,11 @@ describe("§7.6 backdated client timestamps", () => {
     // the phone's time as evidence only, in *_client columns, next to the server's created_at (H-09).
     // Migration 0009 (P1-02a; MJ approval L-0138): create_salon(p_created_at_client) and
     // add_salon_note(p_created_at_client) store the phone's time as evidence only (H-09).
+    // Migration 0010 (P1-02 part b; MJ standing approval L-0138): log_visit(p_arrived_at_client),
+    // rep_check_in(p_at_client) and rep_check_out(p_at_client) store the phone's time as evidence only.
     expect(rows.map((x) => x.f)).toEqual([
-      "app.add_salon_note", "app.create_salon", "app.office_propose_stock_issue", "app.owner_create_user",
-      "app.record_count", "app.record_demand"]);
+      "app.add_salon_note", "app.create_salon", "app.log_visit", "app.office_propose_stock_issue", "app.owner_create_user",
+      "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out"]);
   });
 });
 

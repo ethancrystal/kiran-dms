@@ -373,6 +373,40 @@ const MATRIX: Row[] = [
       service_role: "denied",
     },
   },
+  // Rep day and visits (migration 0010, P1-02 part b). A rep sees its own days; visits are
+  // salon data, office-only at the table (H-14).
+  {
+    table: "public.rep_day",
+    writeCol: "close_reason",
+    select: {
+      anon: "denied",
+      repA: `rep_id = ${me("repA")}`,
+      repAWrongDevice: "false",
+      repB: `rep_id = ${me("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.visit",
+    writeCol: "notes",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",

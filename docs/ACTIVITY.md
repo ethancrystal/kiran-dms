@@ -270,7 +270,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0141; parts b to d not started) | — (C-004 released) |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0141; part b in progress, L-0145; parts c, d not started) | C-006 |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
+| C-006 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits | P1-02 (part b) | PIP-02, PIP-09 | `supabase/migrations/20261028070000_visits.sql` (new), `supabase/tests/visits.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 04, 06 | 2026-10-28 20:47 | 2026-10-29 | 2026-10-28 20:47 (L-0145) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -2666,6 +2667,12 @@ Security checklist (tick honestly):
 **Evidence:** reproduced first: salons tests on a fresh en_US.UTF-8 database, 1 failed, 19 passed, same assertion as CI. After the fix: `pnpm db:test` on a fresh en_US.UTF-8 database, 19 files, 1237 passed. `salons.test.ts` passes Biome. `pnpm activity:check` OK.
 **Rules touched:** H-23 (own test; no test skipped or loosened), H-24
 **Next / needs:** CI on PR 7.
+
+### L-0145 · 2026-10-28 20:47 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits · CLAIM
+**Task:** P1-02 (part b: PIP-02 visits, PIP-09 check-in and check-out gating)    **Claim:** C-006
+**What / why:** MJ: "start P1-02 part b visits and check-in". C-006 added to section 13. Areas: a new migration `supabase/migrations/20261028070000_visits.sql`, a new test file `supabase/tests/visits.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists under MJ's standing approval (L-0138), and docs. Branch claude/p1-02b-visits is cut from claude/p1-02-salons (PR 7, green), so its pull request stacks on PR 7; entries continue that branch's numbering.
+**Rules touched:** section 3
+**Next / needs:** migration 0010 and tests.
 
 ---
 
