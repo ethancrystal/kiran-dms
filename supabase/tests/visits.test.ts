@@ -179,7 +179,10 @@ describe("history cannot be rewritten (H-06, H-07)", () => {
   it("visits refuse UPDATE, DELETE and TRUNCATE for every role, including postgres", async () => {
     expect(await sqlstate("postgres", "update public.visit set outcome = 'order'")).toBe("42501");
     expect(await sqlstate("postgres", "delete from public.visit")).toBe("42501");
-    expect(await sqlstate("postgres", "truncate public.visit")).toBe("42501");
+    // Plain TRUNCATE is refused by the sales_order foreign key (0A000, migration 0012); CASCADE reaches
+    // the append-only trigger.
+    expect(await sqlstate("postgres", "truncate public.visit")).toBe("0A000");
+    expect(await sqlstate("postgres", "truncate public.visit cascade")).toBe("42501");
   });
 
   it("a closed day is final; days are never deleted", async () => {
