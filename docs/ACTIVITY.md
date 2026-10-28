@@ -270,7 +270,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0141; part b in progress, L-0145; parts c, d not started) | C-006 |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0141; part b DONE self-reported, L-0147; parts c, d not started) | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
-| C-006 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits | P1-02 (part b) | PIP-02, PIP-09 | `supabase/migrations/20261028070000_visits.sql` (new), `supabase/tests/visits.test.ts` (new), rows added to `supabase/tests/rls-matrix.test.ts`, verifier lists (L-0138), docs 04, 06 | 2026-10-28 20:47 | 2026-10-29 | 2026-10-28 20:47 (L-0145) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -340,6 +339,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 |---|---|---|---|---|
 | C-003 | P1-04 | 2026-10-28 10:25 | done | L-0134 |
 | C-004 | P1-02 (part a) | 2026-10-28 20:30 | done | L-0142 |
+| C-006 | P1-02 (part b) | 2026-10-28 20:55 | done | L-0148 |
 
 ---
 
@@ -2673,6 +2673,44 @@ Security checklist (tick honestly):
 **What / why:** MJ: "start P1-02 part b visits and check-in". C-006 added to section 13. Areas: a new migration `supabase/migrations/20261028070000_visits.sql`, a new test file `supabase/tests/visits.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists under MJ's standing approval (L-0138), and docs. Branch claude/p1-02b-visits is cut from claude/p1-02-salons (PR 7, green), so its pull request stacks on PR 7; entries continue that branch's numbering.
 **Rules touched:** section 3
 **Next / needs:** migration 0010 and tests.
+
+### L-0146 · 2026-10-28 20:55 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits · DEVIATION
+**Task:** P1-02 (part b)    **Claim:** C-006
+**What / why:** Differences from the documents, and what part b leaves for later tasks. (1) PIP-09 check-out needs the evening bag count (a daily_close stock_count since check-in, INV-05) but not yet a cash handover; that check joins when cash collection exists (P1-07). (2) Doc 08 rule 7, three visits without an order moving a salon to parked, is not automatic yet: it needs orders (P1-06). Reps can still park with a reason. (3) No visit photo yet (no storage bucket), as for the salon frontage in part a. (4) The distance from the salon pin and the phone's mock-location flag are recorded on every visit, but nothing warns or blocks on them yet; the geofence warning is Phase 2 (PIP-11, doc 13 R8). (5) GPS at check-in is optional (the bag count is the gate); every visit needs GPS. (6) An earlier day left open blocks check-in until the office force-closes it with a reason; there is no automatic midnight close.
+**Rules touched:** H-25, H-26
+**Next / needs:** the cash handover gate in P1-07; the automatic park rule in P1-06; MJ may want an automatic close or a geofence threshold (both new thresholds, H-26).
+
+### L-0147 · 2026-10-28 20:55 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits · DONE
+**Task:** P1-02 (part b: PIP-02 visits, PIP-09 check-in and check-out gating)    **Claim:** C-006
+**What / why:** Migration 0010 `supabase/migrations/20261028070000_visits.sql`: `public.rep_day` (one per rep per Karachi day; open, closed or force_closed; a guard lets a day change only by closing, and a closed day is final for every role) and append-only `public.visit` (server time, GPS required, distance from the salon pin, mock-location flag, outcome, short note). `app.rep_check_in` (rep on the approved device only; records the morning bag count and its variance against the system figure; a replay returns the same day; refused when today is already closed or an earlier day is still open), `app.rep_check_out` (needs the evening bag count since check-in), `app.office_force_close_rep_day` (office, reason required), `app.log_visit` (needs an open day and a salon in the rep's current territories; idempotent on client_id, and the same client_id with other content is refused; sample or quote moves a prospect or visited salon to trial, and any outcome except not_present moves a prospect to visited, each through a stage_event), and the reads `app.my_day` and `app.salon_visits` (territory-checked, 50 rows). Reps never read the visit table. Doc 04 rows and doc 06 section 4 updated; verifier lists changed under MJ's standing approval (L-0138: allowlist names and client-time parameters only).
+**Evidence:** On claude/p1-02b-visits at 79bbbe3 plus this entry: `pnpm db:test` on a fresh en_US.UTF-8 local Postgres 16 database (KIRAN_TEST_DATABASE_URL), 20 files, 1331 passed (before part b: 19 files, 1237). New: `supabase/tests/visits.test.ts` (no visit before check-in; office, wrong device and suspended refused; bag variance; replay; stale earlier day blocks check-in until a force close with a reason, which the rep cannot do; distance 0 at the pin and 1112 m at 0.01 degrees; mock flag; stage moves; another territory refused; capped reads; check-out gated on the evening count; no visit or new check-in after close; visit and rep_day refuse UPDATE, DELETE and TRUNCATE for postgres; audit chain verifies) and RLS matrix rows for rep_day and visit across all personas. `pnpm typecheck` exit 0. `visits.test.ts` passes Biome with the PR 6 configuration. `pnpm activity:check` OK. Not applied to staging.
+**Rules touched:** H-06, H-07, H-08, H-09, H-13, H-14, H-16, H-17, H-23, H-27
+**Next / needs:** a different agent verifies P1-02 part b (section 7: log a visit without a day, reopen a closed day, visit another territory's salon, read the visit table as a rep, replay a client_id with other content).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — two tables, every persona; visit office-only at the table, rep_day office or own rows
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — visit refuses UPDATE, DELETE, TRUNCATE for postgres too; rep_day is never deleted and a closed day is final
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — client_id on visits, one day per rep per date on check-in; replays tested
+[x] Audit trigger present; hash chain verifies (H-17) — schema-hygiene guard passes; chain verified at the end of the visits tests
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — no such column
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Test] data and synthetic coordinates only
+[x] Governance powers still owner-only + AAL2 (H-15) — force close is an office (manager) operation with a reason, per doc 06 section 2
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — verifier tests changed only as MJ pre-approved (L-0138)
+[x] Docs match code; deviations logged (H-25) — L-0146
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0148 · 2026-10-28 20:55 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits · CLAIM-RELEASED
+**Task:** P1-02 (part b)    **Claim:** C-006
+**What / why:** C-006 released (done): moved to the released table. P1-02 board row records part b as DONE (self-reported); parts c and d get their own claims.
+**Rules touched:** section 3
+**Next / needs:** L-0149.
+
+### L-0149 · 2026-10-28 20:55 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-02b-visits · HANDOFF
+**Task:** P1-02 (part b)    **Claim:** — (C-006 released)
+**What / why:** State: part b is on branch claude/p1-02b-visits, stacked on PR 7; suite green (1331); not applied to staging. Next steps, in order: (1) pull request for this branch, stacked on PR 7; (2) a different agent verifies P1-04 and P1-02 parts a and b; (3) P1-16 (thin due-list and manual routes), which can now use rep days and visits; (4) P1-06 orders, then the automatic park rule (L-0146); (5) part c once an SMS adapter exists. Gotchas: a rep has one day per Karachi date, so tests that check a rep in must own that rep's day for the run (visits.test.ts does); the test database must be created with the en_US collation (L-0144); this branch does not yet have PR 6's Biome file, so lint new files with that configuration until PR 6 merges.
+**Evidence:** `pnpm db:test` 20 files, 1331 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: review PR 5, PR 6, PR 7 and this branch's pull request.
 
 ---
 
