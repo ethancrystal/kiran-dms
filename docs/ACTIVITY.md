@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | NOT STARTED | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (part a DONE self-reported, L-0159; parts b, c not started) | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -341,6 +341,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-004 | P1-02 (part a) | 2026-10-28 20:30 | done | L-0142 |
 | C-006 | P1-02 (part b) | 2026-10-28 20:55 | done | L-0148 |
 | C-007 | P1-16 | 2026-10-28 21:27 | done | L-0154 |
+| C-008 | P1-06 (part a) | 2026-10-28 22:00 | done | L-0160 |
 
 ---
 
@@ -395,6 +396,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-07 | Agent purchases are paid in full (cash counted or transfer matched) before stock leaves the warehouse; agents never buy on credit | L-0128 | Receivables and custody risk the agent model is meant to avoid | open |
 | A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
 | A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); deliveries replace it once P1-06 exists. The cycle is the product group's default (D-19) | L-0150 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
+| A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0157). Part b and P1-07 replace it with invoiced minus paid | L-0156 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
 
 ---
 
@@ -2763,6 +2765,56 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 21 files, 1473 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: review PRs 5 to 8 and this branch's pull request.
+
+### L-0156 · 2026-10-28 21:41 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · CLAIM
+**Task:** P1-06 (part a: SAL-04 credit profile, ORD-01 to ORD-03, ORD-10, CTL-07, CTL-08)    **Claim:** C-008
+**What / why:** MJ: "start P1-06 orders and invoices". P1-06 is split like P1-02: part a (this claim) is the salon credit profile and its change log, orders with lines at list price, the credit check, discount approvals, holds and rechecks for offline orders, and cancellation; part b is delivery (bag or warehouse), stock movements, gapless invoices, the salon's acknowledgment, stage and cycle updates; part c is the invoice document (ORD-05). C-008 added to section 13. Areas: a new migration `supabase/migrations/20261028090000_orders.sql`, a new test file `supabase/tests/orders.test.ts`, rows added to `supabase/tests/rls-matrix.test.ts`, the verifier lists (L-0138), docs 04 and 06. Branch claude/p1-06a-orders is cut from claude/p1-16-due-routes (PR 9); its pull request stacks on PR 9. Assumption A-10 (section 15).
+**Rules touched:** section 3, section 15
+**Next / needs:** L-0157, then migration 0012.
+
+### L-0157 · 2026-10-28 21:41 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · DECISION
+**Task:** P1-06    **Claim:** C-008
+**What / why:** MJ answered three questions in this session. (1) Delivery acknowledgment in Phase 1: "Name + GPS now (Recommended)": the rep records the name of the person who received the goods, with GPS and server time; an OTP to the salon is added when an SMS adapter exists (part b). (2) Who gives installment terms and a credit limit while salon verification (P1-02 part c) is not built: "Owner sets by hand (Recommended)": the owner sets a salon's plan eligibility and limit with a reason, logged as a credit event; a manager may only raise a limit by at most 50% or unblock, at most 2 times per salon per month (doc 09 section 2, config keys credit.manager_override.*). (3) The conflict between doc 03 ORD-02 (a Blocked salon gets no order) and doc 09 section 2 (Blocked: cash only until settled): "Doc 09 (Recommended)": a blocked salon may still order cash on delivery; cash orders do not count against the credit limit; installment orders must fit within it. Doc 03 ORD-02 is updated in this branch to match (H-25).
+**Rules touched:** H-25, H-26
+**Next / needs:** migration 0012.
+
+### L-0158 · 2026-10-28 22:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · DEVIATION
+**Task:** P1-06 (part a)    **Claim:** C-008
+**What / why:** Differences from the documents, and what part a leaves for later. (1) Only reps take orders; doc 06's "on behalf (flagged)" office orders come later. (2) Exposure is the total of confirmed installment orders until invoices and payments exist (A-10). (3) No automatic credit rules yet (doc 09 section 2: graduation, automatic raise and cut, automatic block on 30 days overdue): they need payments and ageing (P1-07); `credit.rules` in config is not read yet, and the owner sets terms by hand (MJ L-0157). (4) A credit block does not move the salon's stage; a salon whose stage is blocked also counts as blocked. (5) The price list is the SKU's current list price, copied onto each line; effective dates and per-salon prices are ORD-07 (Phase 2). (6) One discount approval covers the whole order, instead of doc 04's discount_approval_id per line. (7) An order needs an open day when it reaches the server, so the phone must sync before check-out (check-out needs the network too). (8) Listing overrides in the daily digest (CTL-08) is P1-08. (9) Cancelling after delivery, and at-risk salons returning to active regular, need deliveries (part b). Docs 03, 04 and 06 updated in this branch (H-25).
+**Rules touched:** H-25, H-26
+**Next / needs:** part b (delivery, stock, gapless invoices); P1-07 replaces A-10 and turns on the credit rules.
+
+### L-0159 · 2026-10-28 22:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · DONE
+**Task:** P1-06 (part a: SAL-04, ORD-01 to ORD-03, ORD-10, CTL-07, CTL-08)    **Claim:** C-008
+**What / why:** Migration 0012 `supabase/migrations/20261028090000_orders.sql`: `public.salon_credit` (plan eligibility, limit, blocked; a guard lets it change only with a matching credit_event in the same transaction; never deleted), append-only `public.credit_event`, `public.sales_order` (parties and amounts immutable, status forward only, cancelled and closed final) and append-only `public.sales_order_line` (list price copied, unit price at most list). Functions: `app.owner_set_credit` (owner only, with reason), `app.office_raise_limit` (manager at most 50% over an existing limit, within 2 per salon per month; owner any), `app.office_set_blocked` (block by any office user; a manager's unblock counts toward the cap), `app.create_order` (rep, open day, own territory, active priced SKUs, idempotent on client_id; a discount requests one approval, from the owner above 10% or Rs 5,000 or when the threshold is missing; never refused for credit: a failed check leaves a draft with its holds), `app.recheck_order` (the order's rep or the office; ORD-10), `app.office_release_credit_hold` (manager only within 50% over the limit and never above the salon's eligibility, each check applied on its own; counts toward the cap; owner any), `app.cancel_order` (the rep its own draft, the office before delivery, reason required, pending discount request cancelled), and the reads `app.salon_credit_status` and `app.my_orders`. A confirmed order makes the salon active (doc 02). Config thresholds fail closed when missing.
+**Evidence:** On claude/p1-06a-orders at de373c4 plus this entry: `pnpm db:test` on a fresh en_US.UTF-8 local Postgres 16 database (KIRAN_TEST_DATABASE_URL), 22 files, 1655 passed (before part a: 21 files, 1473). New: `supabase/tests/orders.test.ts`, 22 tests (owner-only terms; no profile change without an event, for postgres too; manager raise at most 50%, never from zero, owner any; cap of 2 per salon per month, owner not capped; unblock counts; reps read terms only through the function; open day needed; office takes no orders; cash order confirmed at once, salon active, replay, same client_id with other content refused; other territory and seven kinds of bad line refused; installments within limit confirmed, over limit and above eligibility held; blocked salon buys cash but gets no installments; recheck after a raise confirms; manager release within 50%, beyond refused, above eligibility refused, owner any; a blocked order asking for a higher plan cannot be released by a manager; release counts toward the cap; discount held until a manager approves, rejection shown, own approval impossible; owner decides above 10% or Rs 5,000; rep cancels its own draft and the discount request with it; only the office cancels a confirmed order; cancelled is final; amounts, lines and status history fixed for postgres; reps see only their own orders; audit chain verifies) and RLS matrix rows for the four tables across all personas. Every order test runs in one rolled-back transaction, so no rep day is left for the visits tests. One mutation check: removing the separate plan check from the manager release fails its test (this was a defect found in self-review before the first run, together with a race between two orders of one salon, now serialised by locking the salon; the lock has no concurrent test). A first full run failed one visits test: a plain TRUNCATE of visit is now refused by the new sales_order.visit_id foreign key (0A000) before the append-only trigger runs; the test now expects 0A000 for the plain form and 42501 for TRUNCATE CASCADE, which reaches the trigger (a stronger check, not a looser one). A second full run failed 15 tests in three files because vitest ran last run's failures first, so visits.test.ts committed rep A's closed day, the rep bags and territory assignments before the inventory, orders and salons tests: the suite now runs files in name order every time (`supabase/tests/vitest.config.ts`, a name-order sequencer) and the visits tests end their territory assignments when they finish; the green run was made with the stale vitest cache that caused the failure. `pnpm typecheck` exit 0. `orders.test.ts` passes Biome with the PR 6 configuration. `pnpm activity:check` OK. Not applied to staging.
+**Rules touched:** H-06, H-07, H-08, H-09, H-10, H-12, H-13, H-14, H-16, H-17, H-23
+**Next / needs:** a different agent verifies P1-06 part a (section 7: take an installment order over the limit, release it as a manager beyond the cap or above eligibility, approve one's own discount, change an order's amount, cancel another rep's order).
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) — four tables, every persona; credit office-only at the table, orders and lines office or own
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) — credit_event and order lines append-only for postgres too; orders never deleted, amounts fixed; credit profile only with an event
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) — create_order on client_id; replays and conflicting replays tested
+[x] Audit trigger present; hash chain verifies (H-17) — on all four tables; chain verified at the end of the orders tests
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) — list and unit prices only; no cost column
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) — [Test] and [Dummy] data and dummy prices only
+[x] Governance powers still owner-only + AAL2 (H-15) — plan eligibility and any limit set only by the owner; manager raises, unblocks and releases capped (doc 09 section 2); maker never checker (approval machinery, H-12)
+[x] No control weakened, skipped or "temporarily" disabled (H-16) — config thresholds fail closed; verifier tests changed only as MJ pre-approved (L-0138)
+[x] Docs match code; deviations logged (H-25) — L-0158
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0160 · 2026-10-28 22:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · CLAIM-RELEASED
+**Task:** P1-06 (part a)    **Claim:** C-008
+**What / why:** C-008 released (done): moved to the released table. The P1-06 board row records part a as DONE (self-reported); parts b and c get their own claims.
+**Rules touched:** section 3
+**Next / needs:** L-0161.
+
+### L-0161 · 2026-10-28 22:00 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-06a-orders · HANDOFF
+**Task:** P1-06 (part a)    **Claim:** — (C-008 released)
+**What / why:** State: part a is on branch claude/p1-06a-orders, stacked on PR 9; suite green (1655); not applied to staging. Next steps, in order: (1) pull request for this branch, stacked on PR 9; (2) a different agent verifies P1-04, P1-02 parts a and b, P1-16 and P1-06 part a; (3) P1-06 part b: delivery from the bag or the warehouse (stock_movement kind sale), gapless invoices with app.next_doc_number, the name-and-GPS acknowledgment (MJ L-0157), partial delivery, cycle_estimate updates (basis orders) and at-risk salons back to active; (4) part c, the invoice document; (5) P1-07 money, which replaces A-10. Gotchas: test files run in name order (vitest.config.ts sequencer); tests that need a rep's day must not commit it (the visits tests own today's day): orders.test.ts opens it inside one rolled-back transaction and switches persona with set_config; files that commit a territory assignment end it in afterAll.
+**Evidence:** `pnpm db:test` 22 files, 1655 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: review PRs 5 to 9 and this branch's pull request.
 
 ---
 
