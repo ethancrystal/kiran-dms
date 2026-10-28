@@ -2153,6 +2153,13 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 
+### L-0104 · 2026-10-28 08:59 PKT · Claude · Claude Code · session 01Y3chVt · branch claude/architecture-rfc · SESSION-START
+**Task:** — (architecture review: deep-module refactor RFCs; read-only, no requirement IDs)    **Claim:** — (no code, migration or doc change planned; C-001 areas are only read)
+**What / why:** The user of this session asked for an architecture review that proposes module-deepening refactors as GitHub issue RFCs. Read this file in full (rules, board, claims, blockers, assumptions, last 20 entries). No claim is taken: the output is an issue, not a change to code. Any refactor that follows needs its own claim, and a change to a migration-defined function or policy goes through a new forward-only migration. No production, secrets, supplier or personal data are involved. Timestamps here are the container clock in PKT; L-0099 to L-0103 carry later times from another session.
+**Evidence:** Baseline on branch claude/architecture-rfc from main 8f789cd: `pnpm install` OK (the environment setup script had failed, so it was run by hand); `pnpm typecheck` clean; `pnpm activity:check` OK; `pnpm db:test` with embedded Postgres fails before any test because initdb refuses to run as root in this container; rerun with KIRAN_TEST_DATABASE_URL pointed at the container's local Postgres 16: 15 files, 470 tests passed.
+**Rules touched:** H-22 (proposals only, no code), H-23, H-24
+**Next / needs:** present candidates; file the chosen RFC as an issue; HANDOFF.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
