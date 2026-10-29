@@ -33,13 +33,13 @@ Counts at the moment of a violation (for example 21,611 distinct states for `Mut
 
 ## How to run
 
-Needs Java 17 or later and `bash`. On Windows, use WSL; a `/mnt/c/...` checkout works because `run-all.sh` copies the files to a temp directory.
+Needs Java and `bash` (tested with OpenJDK 25; TLA+ tools v1.7.4 document Java 11 or later). On Windows, use WSL; a `/mnt/c/...` checkout works because `run-all.sh` copies the files to a temp directory.
 
 ```bash
 ./fetch-tools.sh ./tla-tools            # downloads tla2tools.jar v1.7.4 into a new directory, checks sha256
 ./run-all.sh ./tla-tools/tla2tools.jar --quick    # parse, mutants, OpenQ5, witnesses (about 2 min)
 ./run-all.sh ./tla-tools/tla2tools.jar --medium   # plus TwoOwnersSmall and TwoOwnersMid (tens of minutes)
-./run-all.sh ./tla-tools/tla2tools.jar            # plus the two clean runs (hours; needs a large host)
+./run-all.sh ./tla-tools/tla2tools.jar --full     # plus the two clean runs (hours; needs a large host)
 ```
 
 Pinned jar: `tla2tools.jar` v1.7.4, 2,274,532 bytes, sha256 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`. `TLC_WORKERS` and `TLC_JAVA_OPTS` (for example `-Xmx1500m`) tune the runs. On a 2-vCPU, 3.9 GB WSL host with the machine short of memory, `--medium` is the practical top, and the full configs would take many hours.

@@ -3,13 +3,14 @@
 # result with the expected one. Exits 1 if anything differs, crashes or prints no result.
 # Usage: run-all.sh path/to/tla2tools.jar [--quick | --medium | --full]
 #   tla2tools.jar: TLA+ tools v1.7.4 or later (fetch-tools.sh downloads the pinned one).
-#   --quick   parse, the three mutants, OpenQ5 and the witnesses: seconds to a minute or two.
+#   --quick   (default) parse, the three mutants, OpenQ5 and the witnesses: a minute or two.
 #   --medium  --quick plus TwoOwnersSmall and TwoOwnersMid: tens of minutes on a small host.
-#   --full    (default) --medium plus the two clean runs ApprovalLifecycle and TwoOwners: hours.
+#   --full    --medium plus the two clean runs ApprovalLifecycle and TwoOwners: hours, and the
+#             state directories are removed after each run (they can reach gigabytes).
 # Environment: TLC_WORKERS (default auto), TLC_JAVA_OPTS (default empty, e.g. "-Xmx1g").
 set -euo pipefail
 JAR=$(realpath "${1:?path to tla2tools.jar}")
-MODE=${2:---full}
+MODE=${2:---quick}
 case "$MODE" in --quick|--medium|--full) ;; *) echo "unknown mode $MODE"; exit 2 ;; esac
 WORKERS=${TLC_WORKERS:-auto}
 SPEC_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -30,6 +31,7 @@ tlc() { # $1 config name, $2 module, $3 expected result
   # shellcheck disable=SC2086
   java -XX:+UseParallelGC ${TLC_JAVA_OPTS:-} -cp "$JAR" tlc2.TLC -workers "$WORKERS" -metadir "states-$1" \
        -config "$1.cfg" "$2" > "$1.log" 2>&1 || true
+  rm -rf "states-$1"   # TLC's state directory; the log is kept
   check "$1" "$3" "$(result_of "$1")"
 }
 

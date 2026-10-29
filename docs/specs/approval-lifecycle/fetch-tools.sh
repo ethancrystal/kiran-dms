@@ -10,7 +10,7 @@ EXPECT_SIZE=2274532
 DIR=${1:-./tla-tools-1.7.4}
 for t in curl sha256sum stat; do command -v "$t" >/dev/null || { echo "missing tool: $t" >&2; exit 2; }; done
 mkdir "$DIR"   # fails if it already exists
-if ! curl -fL --proto '=https' --tlsv1.2 -sS -o "$DIR/tla2tools.jar" "$URL"; then rm -rf "$DIR"; echo "download failed" >&2; exit 1; fi
+if ! curl -fL --proto '=https' --proto-redir '=https' --tlsv1.2 -sS -o "$DIR/tla2tools.jar" "$URL"; then rm -rf "$DIR"; echo "download failed" >&2; exit 1; fi
 SIZE=$(stat -c %s "$DIR/tla2tools.jar")
 SHA=$(sha256sum "$DIR/tla2tools.jar" | cut -d' ' -f1)
 if [ "$SIZE" != "$EXPECT_SIZE" ] || [ "$SHA" != "$EXPECT_SHA" ]; then
