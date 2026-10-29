@@ -120,7 +120,7 @@ describe("delivering from the bag (ORD-04, MJ L-0163)", () => {
       deliver(d, o),
       [
         "postgres",
-        `select i.number ~ '^INV-27-[0-9]{6}$' numbered, i.subtotal_paisa::int sub, i.total_paisa::int total, i.plan::text plan,
+        `select i.number ~ ('^INV-' || lpad(app.fiscal_year((now() at time zone 'Asia/Karachi')::date)::text, 2, '0') || '-[0-9]{6}$') numbered, i.subtotal_paisa::int sub, i.total_paisa::int total, i.plan::text plan,
                 o.status::text order_status, dl.status::text delivery_status, dl.received_by_name, dl.distance_from_pin_m dist,
                 app.on_hand(${BAG_A}, '${SKU1}')::int bag_sku1,
                 (select count(*)::int from public.stock_movement m where m.source_type = 'delivery' and m.source_id = dl.id and m.kind = 'sale') moves

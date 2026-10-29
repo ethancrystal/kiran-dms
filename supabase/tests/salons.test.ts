@@ -6,7 +6,7 @@
  * break a control.
  */
 import { randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   errorOf,
   fx,
@@ -53,6 +53,12 @@ beforeAll(async () => {
   await one(MANAGER, "select app.office_assign_territory($1, $2)", [fx.repB.id, T2]);
   S1 = id();
   await createSalon(REP_A, S1, A1, PHONE);
+});
+
+// Leave the reps' territories as other files expect them: end this file's assignments.
+afterAll(async () => {
+  await one(MANAGER, "select app.office_end_territory($1, $2, 'salons tests finished')", [fx.repA.id, T1]);
+  await one(MANAGER, "select app.office_end_territory($1, $2, 'salons tests finished')", [fx.repB.id, T2]);
 });
 
 describe("territories (PIP-01)", () => {
