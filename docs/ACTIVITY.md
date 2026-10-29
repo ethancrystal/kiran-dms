@@ -270,7 +270,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started) | — |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165) | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
-| C-005 | Claude · Claude Code · session 01Y3chVrxi5r · branch claude/spec | — (project spec, lint and browser-test tooling) | — | `SPEC.md` (new); later `biome.json`, `.github/workflows/ci.yml` lint job, Playwright config and tests under `apps/web/` | 2026-10-28 13:14 | 2026-10-29 | 2026-10-28 13:14 (L-0137) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -344,6 +343,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-007 | P1-16 | 2026-10-28 21:27 | done | L-0160 |
 | C-008 | P1-06 (part a) | 2026-10-28 22:00 | done | L-0166 |
 | C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0171 |
+| C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
 
 ---
 
@@ -365,7 +365,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-10 | **OQ-16** real product catalogue (names, sizes, weights, packs) | P1-04 data load | `[Dummy]` products only (H-04) | MJ | PENDING |
 | B-11 | **OQ-14** owner's willingness to run the daily digest/handover routine | Effectiveness of the control layer | Build all controls regardless | MJ | PENDING |
 | B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | RESOLVED (L-0019: staging) |
-| B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring `activity-log-check`, `db-tests`, `typecheck` is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
+| B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring the five check names given verbatim in L-0175 (the earlier names `activity-log-check`, `db-tests`, `typecheck` do not match GitHub's check names) is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
 | B-14 | How do reps get the plan list and taxonomies (visit outcomes, product groups, salon types)? Doc 06 §2 gives reps no access to "installment templates, credit rules, config" (verifier Q1) | P1-02 rep visit logging, P1-06 ordering | Reps see no config; Phase 1 RPCs return only what a given screen needs (e.g. allowed plans for one salon) | MJ | PENDING |
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
 | B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | (a) RESOLVED L-0040; (b) PENDING |
@@ -380,6 +380,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-25 | Which Supabase project did the Vercel Supabase integration connect to `kiran-dms`? Rotate the service-role and secret keys and the database password if it is staging (the values sat in Vercel env for a while). (L-0100) | P0-04 staging deploy | Treat as staging; rotate | MJ | PENDING |
 | B-26 | Council findings 4 to 6 reopen verified P0-06 and P1-01 (view-aware guards, device revocation trigger as migration 0007 applied to staging, audit-trigger guard); finding 7 in full (fail on an empty owner-term list in CI) right after B-15a. (L-0108) | P0-06, P1-01, P0-09 | Approve both | MJ | PART RESOLVED (4 to 6: L-0110); finding 7 after B-15a |
 | B-27 | A board row may cite a CORRECTION that rejects the task (L-0116 O1): require a checkable per-task verdict line in the cited entry, or allow only VERIFIED-type entries? (L-0124) | P0-09 | Per-task verdict line | MJ | PENDING |
+| B-28 | Reps park salons (doc 02, `app.rep_park_salon`) while the doc 06 section 2 matrix says reps cannot change a stage manually (L-0175) | — (P1-02 part a built) | Keep rep parking as doc 02 says | MJ | PENDING |
 
 ---
 
@@ -397,8 +398,8 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-06 | Kiran pays agents nothing for recruiting other agents (no joining fee, referral bonus or override); agent earnings come only from their own resale margin. SECP treats MLM and referral marketing as unlawful (Companies Act 2017 s.301) | L-0128 | Legal exposure for the company | open |
 | A-07 | Agent purchases are paid in full (cash counted or transfer matched) before stock leaves the warehouse; agents never buy on credit | L-0128 | Receivables and custody risk the agent model is meant to avoid | open |
 | A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
-| A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); deliveries replace it once P1-06 exists. The cycle is the product group's default (D-19) | L-0156 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
-| A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0163). Part b and P1-07 replace it with invoiced minus paid | L-0162 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
+| A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); since P1-06 part b (L-0170) deliveries replace it. The cycle is the product group's default (D-19) | L-0156, L-0174 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
+| A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0163). P1-07 replaces it with invoiced minus paid (part b did not, L-0174) | L-0162 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
 
 ---
 
@@ -2900,6 +2901,44 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm db:test` 23 files, 1789 passed; `pnpm typecheck` exit 0; `pnpm activity:check` OK (this session, before commit).
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: review PRs 5 to 10 and this branch's pull request.
+
+### L-0173 · 2026-10-29 07:34 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-integrate-main · DECISION
+**Task:** — (integration of the merged pull requests into main; no requirement IDs)    **Claim:** — (C-005 is released in L-0177)
+**What / why:** MJ merged pull requests 5 to 11. Each was stacked on the branch below it, so only PR 5 (P1-04) reached main; PRs 6 to 11 landed in claude/p1-04-inventory, claude/p1-02-salons, claude/p1-02b-visits, claude/p1-16-due-routes and claude/p1-06a-orders. Asked how the work should reach main, MJ chose "One PR to main (Recommended)", described as: one branch from the top of the stack with spec and main merged in, the log entries lost in the merge restored, the stack's entries renumbered after spec's (L-0142 onward), the full suite run, one pull request to main. This branch, claude/p1-integrate-main, is that branch; it contains origin/main, so the pull request only adds. Repaired here: (1) the merge commit 57e5efe (claude/p1-04-inventory into claude/p1-02-salons, resolved by hand on GitHub) kept only spec's side of ACTIVITY.md and dropped P1-02 part a's nine entries, which made activity-log-check fail on PR 7; they are back as L-0142 to L-0150. (2) Spec's L-0136 to L-0141 and the stack's L-0136 to L-0166 used the same numbers, as announced in the part a HANDOFF (L-0149): the stack's entries are renumbered by adding 6, so old L-0136 to L-0166 are new L-0142 to L-0172, and every reference in docs, migration comments and test comments moved with them. The texts of PRs 7 to 11 and earlier chat messages quote the old numbers; read them with this mapping. Spec's entries keep L-0136 to L-0141. Nothing was added, dropped or reworded except one sentence in L-0149 (old L-0143): the collision it describes is now history, so it reads "both used L-0136 onward". Entries up to L-0135 are byte-identical to main. For the record: the numbering note inside spec's L-0136 (claude/p1-02-salons also uses L-0136 to L-0139) is historical, those entries are now L-0142 to L-0145; and L-0170 (old L-0164) was edited in place once, in commit ff9a080, to remove angle brackets the log checker rejects, before any base had accepted it. Side effects disclosed for H-23: comment text in two verifier-authored test files (reverify3-attacks.test.ts, verifier-attacks.test.ts) changed only in the cited entry number, on lines the stack added under MJ's approval (L-0144); three strings in migration 0013 (a table comment and two error messages) cite MJ L-0163 instead of L-0157; no environment has applied the earlier text (staging has 7 migrations) and no test asserts them. An independent read-only audit (six auditors; findings re-checked by skeptics) found no content lost: HEAD's tree equals the tree rebuilt from main, spec and the shifted stack, the log is L-0001 to L-0172 once each, and all 119 references point at the right entry. It also found two defects in the stack's own tests, fixed here: deliveries.test.ts compared the invoice number with a literal INV-27, which would fail from 1 July 2027 when the financial-year label becomes 28 (the label is now computed in SQL); and salons.test.ts, unlike the four other module tests, left its two territory assignments in place (it now ends them in afterAll). The audit's docs-drift lens also listed documentation that the merged code contradicts; its skeptic checks were cut off by a usage limit, so those findings are unverified and are handled in L-0176.
+**Evidence:** `pnpm db:test` on a fresh en_US.UTF-8 Postgres 16 database before the two test fixes: 23 files, 1789 passed (b6f2a3a); after them: 23 files, 1789 passed. `pnpm lint` exit 0 (0 errors; 31 warnings and 42 infos, all in legacy-listed files). `pnpm typecheck` exit 0. `pnpm -C apps/web test:e2e`: 4 passed. `pnpm activity:check` OK. Not applied to staging.
+**Rules touched:** H-23, H-24, H-25, section 4 (the renumbered entries exist only on unmerged branches; main has none of them)
+**Next / needs:** MJ: review and merge the pull request. After the merge the stacked branches hold the same entries under the old numbers and must not be merged: claude/p1-04-inventory, claude/p1-02-salons, claude/p1-02b-visits, claude/p1-16-due-routes, claude/p1-06a-orders, claude/p1-06b-deliveries, claude/spec can be deleted. Never stack a pull request on a feature branch again: its merge lands in that branch, not in main.
+
+### L-0174 · 2026-10-29 07:34 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-integrate-main · ASSUMPTION
+**Task:** P1-16 and P1-06    **Claim:** —
+**What / why:** Section 15 asks for a log ASSUMPTION entry per assumption; A-09 and A-10 were cited from CLAIM entries (L-0156, L-0162) and A-10 was never stated in the log. A-09: until orders existed, the due-list's last purchase per salon and product group was an office-entered opening date; since P1-06 part b (L-0170) deliveries replace it (basis orders) and the opening path then refuses. A-10: a salon's credit exposure is the total of its confirmed installment orders, cash orders do not count (MJ L-0163); P1-06 part b did not replace this with invoiced minus paid (L-0169, item 3), P1-07 will. The two rows in section 15 now say so.
+**Rules touched:** section 15
+**Next / needs:** P1-07.
+
+### L-0175 · 2026-10-29 07:34 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-integrate-main · BLOCKER
+**Task:** P1-02 (part a), found by the integration audit    **Claim:** —
+**What / why:** Doc 02 (Parked: a rep marks it with a reason) and the built function app.rep_park_salon (migration 0009) let a rep move a prospect, visited or trial salon to parked. The permission matrix in doc 06 section 2 says "Change salon stage manually: Rep —". The matrix is under MJ's approval (H-26) and part a was built on doc 02's reading without a BLOCKER. Default meanwhile: keep rep parking, as doc 02 says (row B-28). Also recorded, not blocking: app.reveal_phone has no OTP step-up (doc 06 section 3) until the OTP work; and the matrix row "log visits, orders, deliveries, payments: manager on behalf" is built only for deliveries (office_deliver), visits and orders are rep-only. Branch protection (B-13) is still not on and the docs name the checks wrongly: GitHub matches the check name, so the five to require are, verbatim: activity-log-check (ACTIVITY.md Appendix C) | migrations + RLS matrix (local Supabase stack) | typecheck + service-role scan | lint + format (Biome) | rep PWA browser tests (Playwright). Without a rule on the branch a pull request merges whatever its checks say, as PR 7 did one second after its log check failed.
+**Rules touched:** H-26
+**Next / needs:** MJ: may reps park a salon (amend the doc 06 row) or should it be removed? And turn on branch protection with the five names.
+
+### L-0176 · 2026-10-29 07:34 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-integrate-main · DEVIATION
+**Task:** documentation of the merged work    **Claim:** —
+**What / why:** The audit's docs-drift lens (23 findings, mostly unverified because its skeptics hit a usage limit) says documentation contradicts the merged code. Examples: doc 04 rows for territory, salon, salon_contact, salon_note and stage_event (columns, an enum), invariants 4 and 5 (cash orders are not credit-checked; one discount approval per order), the rep_day note (only the office closes an earlier day), views versus capped functions (docs 04 and 05); SPEC.md status snapshot and docs/00-README.md ("nothing is built yet"); ORD-03 (a rep cancels its own draft), DEM-01 (six reasons), ORD-01 (list price), doc 02 Visited (any outcome but not present); docs 08 and 10 on the delivery acknowledgment. H-25 requires the docs to follow the code. They are not changed in this pull request, which only lands the merged work; a follow-up pull request from main corrects them after re-checking each against the SQL.
+**Rules touched:** H-25
+**Next / needs:** follow-up documentation pull request from main.
+
+### L-0177 · 2026-10-29 07:34 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-integrate-main · CLAIM-RELEASED
+**Task:** — (SPEC.md, Biome, Playwright tests and CI jobs lint and e2e)    **Claim:** C-005
+**What / why:** C-005 released (done): the work merged with PR 6; the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0178.
+
+### L-0178 · 2026-10-29 07:34 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/p1-integrate-main · HANDOFF
+**Task:** — (integration)    **Claim:** — (C-005 released)
+**What / why:** State: claude/p1-integrate-main holds everything built so far (P1-04, P1-02 parts a and b, P1-16, P1-06 parts a and b, spec tooling) on top of main; suite green (1789); not applied to staging; nothing but P1-04 is on main until the pull request merges. Next steps, in order: (1) MJ reviews and merges the pull request; delete the stacked branches; (2) a different agent verifies P1-04, P1-02 parts a and b, P1-16 and P1-06 parts a and b (section 7); (3) the documentation pull request (L-0176); (4) P1-06 part c, P1-07, P1-17, P1-15, P1-05. Gotchas: test files run in name order and share one database, so a file that commits territory assignments must end them in afterAll; the test database needs the en_US collation; the local activity check pairs the worktree log with any ref you give it.
+**Evidence:** see L-0173.
+**Rules touched:** section 11, H-23, H-24
+**Next / needs:** MJ: L-0175 questions; review the pull request.
 
 ---
 
