@@ -120,6 +120,7 @@ The digest arrives at 07:00 and is designed to be read top-down:
 5. **Anomaly flags** by severity.
 6. **Vault reads** (who, what, purpose).
 7. **Reps:** checked in / not; visits and productive visits per rep; new prospects.
+8. **Agents:** every agent purchase (agent, items, amount, paid by cash or transfer) and a flag on any unusually large one (D-22, OQ-22); pre-orders waiting.
 
 Plus weekly: the random balance-confirmation list (call 3–5 salons per rep yourself — it takes 20 minutes and is the single most effective control in this document), and monthly: joint stock-take and a bank-portal check against the system's deposits.
 

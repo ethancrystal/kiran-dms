@@ -24,6 +24,9 @@
 | D-18 | 2026-10-28 | The main stock-out cause is **supplier shortage**: lost demand is recorded (DEM-01 to DEM-03), supplier fill rate is tracked in the vault, and safety stock accounts for supply variability (doc 10 §6) | MJ, L-0128: "stockout as the supplier sometimes get short of product" | Confirmed |
 | D-19 | 2026-10-28 | A thin **due-list** (default cycle per product group + last purchase) and the **route-linked bag load** (INV-11) move into Phase 1 | MJ, L-0128: "yes" | Confirmed |
 | D-20 | 2026-10-28 | Phase 1 building starts **before Gate 0 is signed** (ACTIVITY §8 exception); Phase 0 human-only items continue in parallel. Maker ≠ checker for the build (§7) and every control (H-16) are unchanged | MJ, L-0128: "Move on from verification to actually building things now" | Confirmed |
+| D-21 | 2026-10-28 | The agent channel is measured by **monthly sales through independent agents, in rupees** (doc 01 goals) | MJ, ACTIVITY L-0140: "monthly sales" | Confirmed |
+| D-22 | 2026-10-28 | The owner's morning digest lists **every agent purchase** and flags unusually large ones (CTL-15, doc 13 §8) | MJ, L-0140: "yes" | Confirmed |
+| D-23 | 2026-10-28 | Agents report nothing back except an **optional pre-order**: no visits, handover, counts or list of salons they serve (AGT-04) | MJ, L-0140: "optional pre-order only" | Confirmed |
 
 ## Open questions
 
@@ -48,6 +51,8 @@
 | OQ-18 | Channel conflict: may agents sell to salons that are Kiran's direct accounts, and is there a resale price floor? | Rep commissions, salon prices | Owner | Before agent 2 (default: no rule in the system; agents report nothing) |
 | OQ-19 | When the supplier is short, who is served first: direct salons' open orders or agent purchases? | Allocation (AGT-07) | Owner | Phase 1 (default: direct salons' open orders first; agents buy from what remains) |
 | OQ-20 | Which identity data do we keep for an agent (name and phone only, or CNIC too)? | Onboarding, H-27 minimum data | Owner | Before agent 1 (default: name and phone only) |
+| OQ-21 | Monthly target for sales through independent agents (Rs) | Agent channel goal (D-21, doc 01) | Owner | Before agent 1 (default: no target; the figure is reported monthly) |
+| OQ-22 | What makes an agent purchase "unusually large" for the digest flag (an amount, or a multiple of that agent's usual purchase)? | Digest flag (D-22) | Owner | Before agent 1 (default: no flag; every agent purchase is listed anyway) |
 | OQ-16 | **Real product catalogue**: product names, variants/shades, sizes (ml/L, g/kg), net weights, pack types, units per carton, barcodes, shelf life. All product data in doc 10 is dummy until this arrives | SKU master, price list, reorder points, cycle defaults | MJ | Phase 0 (import) |
 
 ## How to use this file

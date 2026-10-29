@@ -107,7 +107,7 @@ Kiran runs two field channels side by side:
 | Whose stock | Kiran's, until a salon buys it | The agent's, from the moment of purchase |
 | Pays Kiran | Hands over what salons paid, every evening | Pays in full, cash or matched transfer, **before** stock leaves the warehouse (A-07) |
 | Price | Salon list price | Agent price per SKU, set by the owner (AGT-02, OQ-17) |
-| Reports back | Visits, orders, collections, handover, bag counts | **Nothing**: no visits, no handover, no counts |
+| Reports back | Visits, orders, collections, handover, bag counts | **Nothing required**: no visits, handover, counts or salon list. Optionally a pre-order request (D-23) |
 | Sees in the app | Own territory's salons (masked), own bag, routes | Own purchases, the agent catalogue with availability (quantities only). Never salons, other agents, cost or supplier |
 | Earns | Salary + commission on banked cash (D-10) | Their own resale margin only |
 | Risk to Kiran | Custody (cash, stock) | Almost none: paid before release, so there is no receivable and nothing to reconcile |
