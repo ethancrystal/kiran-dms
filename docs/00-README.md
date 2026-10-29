@@ -2,7 +2,7 @@
 
 **Kiran Company** distributes hair styling and hair care products to salons and beauty parlors across Karachi. Today the business runs on Excel, cash and memory. This planning set defines **Kiran DMS** — a Distribution Management System that combines a salon CRM, a field-sales pipeline, order-to-cash with installments, and inventory/restocking — built so that the company can hire door-to-door sales reps and grow without losing control of cash, stock, the salon list, or the identity of its supplier.
 
-Status: **Planning v1 — 2026-10-25.** Nothing is built yet. These documents are the brief for the build.
+Status: **Planning v1 — 2026-10-25.** The build is under way: Phase 1 started before Gate 0 on MJ's decision (D-20), and the live status is the board in [ACTIVITY.md](ACTIVITY.md) §12. These documents remain the brief and the source of truth for the build; [SPEC.md](../SPEC.md) at the repo root is a short index into them.
 
 > ## Building this system? Read [ACTIVITY.md](ACTIVITY.md) first — it is mandatory.
 > It is the build protocol (hard rules, definition of done, phase gates) and the live record (status board, claims, blockers, append-only log) that every agent, AI or human, must follow and update. Work without a log entry there is treated as not done.

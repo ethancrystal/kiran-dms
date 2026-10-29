@@ -9,8 +9,8 @@ Plans are templates the owner edits (ADM-01). Proposed defaults:
 | Code | Name | Schedule (day 0 = delivery) | Who qualifies |
 |---|---|---|---|
 | `CASH` | Cash on delivery | 100% day 0 | Everyone |
-| `INST2` | Two installments | 50% day 0 · 50% day 15 | Verified salons with limit ≥ order value |
-| `INST4` | Four installments | 25% day 0 · 25% day 10 · 25% day 20 · 25% day 30 | Verified salons with ≥ 3 on-time cycles, limit ≥ order value |
+| `INST2` | Two installments | 50% day 0 · 50% day 15 | Verified salons with limit ≥ order value (interim: until verification is built, salons the owner has made eligible by hand, MJ ACTIVITY L-0163) |
+| `INST4` | Four installments | 25% day 0 · 25% day 10 · 25% day 20 · 25% day 30 | Verified salons with ≥ 3 on-time cycles, limit ≥ order value (interim: as for `INST2`) |
 
 Notes:
 - The owner may choose a variant with 0% at delivery (e.g., 4 × 25% at days 7/14/21/28). The template drives everything; no code change.

@@ -8,7 +8,7 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| SAL-01 | Create a salon with: name, type (ladies' parlor / men's salon / unisex / bridal studio / barber / hair studio / spa or wellness centre offering hair services / home-based parlor / beauty academy or training institute / other), address, area, GPS pin, phone(s), owner/contact name, chairs (size), photo of frontage, notes, source (`map_pin` / `nearby_search` / `sweep` / `excel_import` / `referral` / `manual`). "Salon" means **any business anywhere in Karachi that offers hair care, hair treatment or hair beauty to end users** | M | 1 |
+| SAL-01 | Create a salon with: name, type (ladies' parlor / men's salon / unisex / bridal studio / barber / hair studio / spa or wellness centre offering hair services / home-based parlor / beauty academy or training institute / other), address, area, GPS pin, phone(s), owner/contact name, chairs (size), photo of frontage (stored once storage exists, ACTIVITY L-0146), notes, source (`map_pin` / `nearby_search` / `sweep` / `excel_import` / `referral` / `manual`). "Salon" means **any business anywhere in Karachi that offers hair care, hair treatment or hair beauty to end users** | M | 1 |
 | SAL-02 | Each salon belongs to exactly one territory; territory derives from area or is set manually by Mg | M | 1 |
 | SAL-03 | Salon has a pipeline stage (see doc 02) maintained by the system; Mg/O can override with a mandatory reason | M | 1 |
 | SAL-04 | Salon has a credit profile: plan eligibility (cash only / 2 / 4), credit limit (PKR), current exposure, overdue status | M | 1 |
@@ -24,14 +24,14 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
 | PIP-01 | Define territories as named sets of areas; assign one or more territories to a rep | M | 1 |
-| PIP-02 | Log a visit: salon, rep, arrival time, GPS at arrival, outcome code, optional notes/photo. Visits are append-only | M | 1 |
+| PIP-02 | Log a visit: salon, rep, arrival time, GPS at arrival, outcome code, optional notes/photo (the photo is stored once storage exists, ACTIVITY L-0152). Visits are append-only | M | 1 |
 | PIP-03 | Daily route for a rep: ordered list of stops with reason (reorder due, collection due, at-risk, prospect, delivery) | M | 1 (manual build) / S | 2 (auto-generated) |
 | PIP-04 | Route days per territory (which salons fall on which weekday) | S | 2 |
 | PIP-05 | Cycle estimation per salon × product group from order history; default cycles per product group configurable | M/S | 1 (thin: product-group default cycle + last purchase, D-19) / 2 (estimated from history) |
 | PIP-06 | Due-for-reorder tasks generated at due − 3 days; at-risk transition at due + 50% cycle | M/S | 1 (thin due-list, D-19) / 2 |
 | PIP-07 | Prospect quick-add from the field (≤ 60 seconds, works offline) | M | 1 |
 | PIP-08 | Territory mapping sweep mode: fast sequential prospect capture with photo and pin; map-based capture and online discovery are specified in the MAP module below | S | 2 |
-| PIP-09 | Rep daily check-in / check-out gating: no orders without check-in; unreconciled handover blocks next day with Mg override | M | 1 |
+| PIP-09 | Rep daily check-in / check-out gating: no orders without check-in; unreconciled handover blocks next day with Mg override. Phase 1 so far (P1-02 part b): an earlier day left open blocks check-in until the office force-closes it with a reason; the handover condition joins with P1-07 | M | 1 |
 | PIP-10 | Visit outcome taxonomy editable by O/Mg | S | 2 |
 | PIP-11 | Geofence warning when "arrived" is tapped > 300 m from salon pin (logged, not blocking) | S | 2 |
 
@@ -59,9 +59,9 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| ORD-01 | Create an order for a salon: lines (SKU, qty, unit price from active price list), discounts within rep's allowed % (default 0), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
+| ORD-01 | Create an order for a salon: lines (SKU, qty, unit price from active price list; in Phase 1 the SKU's current list price, copied onto the line, and price lists with dates are ORD-07), discounts within rep's allowed % (default 0), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
 | ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0163). Hard stop for reps; Mg/O can override with reason | M | 1 |
-| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O | M | 1 |
+| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery: by the rep for its own draft, by Mg/O with a reason for a draft or confirmed order | M | 1 |
 | ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
 | ORD-05 | Invoice/receipt PDF or image: Kiran branding, salon, lines, totals, payment plan schedule, receipt numbers. **Never** shows supplier or cost | M | 1 |
 | ORD-06 | Returns: full/partial return of delivered goods with reason; stock movement back to location; credit note | S | 2 |
@@ -143,7 +143,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | CTL-06 | Stock adjustments and write-offs require a reason and photo; any adjustment, write-off, credit note or receivable write-off above a configurable threshold requires owner approval; all are in the daily digest | M | 1 |
 | CTL-07 | Rep discount authority defaults to 0%; any price below list requires in-app manager approval before the invoice is issued; price-list changes are owner-only | M | 1 |
 | CTL-08 | Credit limit overrides and salon unblocking by the manager are logged with reason, capped per salon per month, and listed in the daily digest | M | 1 |
-| CTL-09 | New salon verification: a salon is "verified" only after an OTP sent to the salon's phone is confirmed and a manager has spoken to the salon; unverified salons are cash-only and earn no new-salon bonus | M | 1 |
+| CTL-09 | New salon verification: a salon is "verified" only after an OTP sent to the salon's phone is confirmed and a manager has spoken to the salon; unverified salons are cash-only and earn no new-salon bonus. Interim (MJ, ACTIVITY L-0163): until verification is built, the owner sets plan eligibility and limit by hand | M | 1 |
 | CTL-10 | Monthly statement to every salon with a balance, from the system, with a one-tap "this is wrong" reply that creates an owner-visible dispute | S | 2 |
 | CTL-11 | Weekly random balance-confirmation sample: the system picks N salons per rep; owner or manager calls and records the salon's stated balance; mismatches open a case | M | 1 (manual list) / S | 2 (automated WhatsApp confirm) |
 | CTL-12 | Returns go to a quarantine location, require photo and manager acceptance at the warehouse, and only then re-enter sellable stock | S | 2 |
@@ -211,7 +211,7 @@ Stock-outs mostly start with supplier shortages, so demand that could not be ser
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| DEM-01 | Quick capture during a visit: "asked for, could not sell": SKU (or, for an item Kiran does not carry, its product group; no free text, so no brand names land in `public`, H-27), quantity, reason (`not_in_bag` / `out_of_stock` / `not_in_catalogue` / `price` / `other`), salon. Works offline; append-only; idempotent | M | 1 |
+| DEM-01 | Quick capture during a visit: "asked for, could not sell": SKU (or, for an item Kiran does not carry, its product group; no free text, so no brand names land in `public`, H-27), quantity, reason (`not_in_bag` / `out_of_stock` / `not_in_catalogue` / `price` / `supply_short` (office only) / `other`), salon. Works offline; append-only; idempotent | M | 1 |
 | DEM-02 | Automatic capture: when an order line, a delivery, an agent purchase or a bag-load suggestion is cut short by available stock (bag or warehouse), the shortfall is recorded with its reason and source, and whether it became a backorder or was lost | M | 1 |
 | DEM-03 | Lost-demand report by SKU, reason, territory and week; unconstrained demand (delivered + lost) feeds reorder points and restock suggestions (doc 10 §6); supplier fill rate shown in the vault | M | 1 / S | 2 |
 

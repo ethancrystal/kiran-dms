@@ -21,8 +21,10 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
 | `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |
 | `apps/web/` | Next.js app: `/app` (rep PWA) and `/office` (owner/manager). |
-| `packages/shared/` | **Planned, not built yet** (P1-02): types generated from the DB, validation schemas, i18n strings (en, ur). Today the import normalisers live in `packages/import/src/core/`. |
+| `packages/shared/` | **Planned, not built yet** (first needed by the offline PWA, P1-09; P1-02 parts a and b shipped without it): types generated from the DB, validation schemas, i18n strings (en, ur). Today the import normalisers live in `packages/import/src/core/`. |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes nothing to any database. |
+| `SPEC.md` | Entry-point index: objective, journeys, feature map, code style, boundaries. The docs win on any disagreement. |
+| `biome.jsonc`, `.github/workflows/ci.yml` | Lint and format config (with the legacy list) and the five CI jobs. |
 | `scripts/` | CI helpers, incl. `activity-log-check.mjs` (ACTIVITY.md Appendix C). |
 
 ## Commands
@@ -38,11 +40,11 @@ pnpm lint             # Biome lint + format check (same as CI); `pnpm format` wr
 pnpm -C apps/web test:e2e   # Playwright rep PWA tests on a low-end phone profile (builds the app first)
 ```
 
-`KIRAN_TEST_DATABASE_URL` (never the generic `DATABASE_URL`) overrides the embedded Postgres (e.g. `supabase start` → `postgresql://postgres:postgres@127.0.0.1:54322/postgres`).
+`KIRAN_TEST_DATABASE_URL` (never the generic `DATABASE_URL`) overrides the embedded Postgres (e.g. `supabase start` → `postgresql://postgres:postgres@127.0.0.1:54322/postgres`). Create that database with the en_US.UTF-8 collation; test files share it and run in file-name order (SPEC.md §6).
 
 ## Database conventions (from docs 04, 06, 07, ACTIVITY §5)
 
-- Schemas: `public` (RLS-scoped business data), `control` (approvals, audit, anomalies), `supplier_vault` (classified supplier data; **not** exposed via PostgREST), `vault_api` (grant-checked functions), `app` (RPC write path + helpers). Supabase's own `vault` schema (supabase_vault) is why the supplier schema is named `supplier_vault` — see doc 12, D-13.
+- Schemas: `public` (RLS-scoped business data), `control` (approvals, audit, anomalies, phone-reveal log), `supplier_vault` (classified supplier data; **not** exposed via PostgREST), `vault_api` (grant-checked functions), `app` (RPC write path + helpers). Supabase's own `vault` schema (supabase_vault) is why the supplier schema is named `supplier_vault` — see doc 12, D-13.
 - Every table: `enable row level security` + `force row level security` in the same migration; deny by default.
 - Money/stock/stage/credit/approval writes only via `security definer` functions in `app.*` with `set search_path = ''`, idempotency `client_id`, role + device + rep_day checks.
 - Append-only tables (doc 04 invariant 1): INSERT + SELECT only; a trigger also raises on UPDATE/DELETE.

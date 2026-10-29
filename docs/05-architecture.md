@@ -26,8 +26,8 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 ```
 ┌──────────────────────── Rep phone (PWA) ───────────────────────┐
 │ Next.js client · IndexedDB cache + outbox · service worker     │
-│ Reads: RLS-filtered views (own territories, masked phones)     │
-│ Writes: RPC calls (create_visit, create_order, record_payment) │
+│ Reads: capped app.* functions (own territories, masked phones) │
+│ Writes: RPC calls (log_visit, create_order, record_payment)    │
 └───────────────┬────────────────────────────────────────────────┘
                 │ HTTPS (anon key + user JWT; AAL/device checked)
 ┌───────────────▼─────────────── Supabase ───────────────────────┐
@@ -53,7 +53,7 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 4. **Vault isolation** (doc 07): separate schema, not exposed via PostgREST, column encryption, function-only access, separate access log.
 5. **Idempotent mutations.** Every offline-captured mutation carries a client-generated UUID; the RPC is idempotent on it, so retries after flaky sync never double-record a payment or an order.
 6. **Server time is truth; client time is evidence.** Both stored. Large gaps are an anomaly signal.
-7. **Everything a rep sees is a view**, not a base table: phones masked, page size capped (50), no `select *` on salons across territories, no export endpoints.
+7. **Reps read salon data only through capped `app.*` functions**, never a salon table: phones masked, page size capped (50), no `select *` on salons across territories, no export endpoints. A rep may read its own rows of a few operational tables directly (doc 06 §4).
 
 ## Offline-first design for the rep app
 

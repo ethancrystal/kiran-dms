@@ -36,7 +36,7 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 
 **Non-goals for now:** accounting, payroll, consumer e-commerce and multi-city features ([doc 01](docs/01-business-context.md)).
 
-## 2. Where we are (2026-10-28)
+## 2. Where we are (2026-10-29)
 
 The live record is the ACTIVITY status board (§12); this is a snapshot and the board wins.
 
@@ -46,8 +46,10 @@ The live record is the ACTIVITY status board (§12); this is a snapshot and the 
 | 0 | Decisions, territories and pilot rep, vendor sign-ups, Excel real-file run, Gate 0 (P0-01, 02, 03, 07, 10) | **Waiting on MJ** (§11) |
 | 1 | P1-01 foundation (roles, devices, audit chain, approvals) | VERIFIED |
 | 1 | P1-04 inventory + lost-demand capture | DONE (self-reported), [PR 5](https://github.com/ethancrystal/kiran-dms/pull/5), CI green |
-| 1 | P1-02 part a: territories, salons, masked phones, stage events | In progress, branch `claude/p1-02-salons` |
-| 1 | P1-02 b–d, P1-03, P1-05 to P1-17 | Not started; order in ACTIVITY §12.1 |
+| 1 | P1-02 parts a and b: territories, salons, masked phones, stage events; rep days, visits, check-in gating | DONE (self-reported, L-0147, L-0153) |
+| 1 | P1-16 due-list and manual routes | DONE (self-reported, L-0159) |
+| 1 | P1-06 parts a and b: credit profile, orders, discount approvals, deliveries, gapless invoices | DONE (self-reported, L-0165, L-0170); part c (invoice document) not started |
+| 1 | P1-02 c–d, P1-03, P1-05, P1-06 c, P1-07 to P1-15, P1-17 | Not started; order in ACTIVITY §12.1 |
 
 Phase 1 started before Gate 0 by MJ's decision (D-20).
 
@@ -96,19 +98,20 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 |---|---|---|---|
 | Foundation: roles, MFA at the database, devices, audit chain, approvals | SEC-01 to 05, 07, 11, 12 | RLS matrix, verifier attack suites | VERIFIED (P1-01) |
 | Inventory, two-party bag custody, counts, adjustments, lost-demand tap | INV-01 to 06, CTL-05, DEM-01 | `inventory.test.ts`, RLS matrix | DONE self-reported (P1-04) |
-| Territories, salons, masked phones, notes, stage events | SAL-01 to 03, 09, PIP-01, MAP-03 | `salons.test.ts`, RLS matrix | In progress (P1-02a) |
-| Visits and check-in gating | PIP-02, PIP-09 | DB tests + Playwright J1 | Not started (P1-02b) |
+| Territories, salons, masked phones, notes, stage events | SAL-01 to 03, 09, PIP-01, MAP-03 | `salons.test.ts`, RLS matrix | DONE self-reported (P1-02a, L-0147) |
+| Visits and check-in gating | PIP-02, PIP-09 | `visits.test.ts`, RLS matrix (Playwright J1 not written yet) | DONE self-reported (P1-02b, L-0153) |
 | Salon OTP verification, phone-change OTP | CTL-09, CTL-18 | DB tests (SMS adapter stubbed) | Not started (P1-02c) |
-| Excel import write path, credit profile, timeline | SAL-10, SAL-04, SAL-05 | DB tests, import tests | Not started (P1-02d) |
+| Excel import write path, timeline | SAL-10, SAL-05 | DB tests, import tests | Not started (P1-02d); the credit profile (SAL-04) moved to P1-06a |
 | Rep map | MAP-01, 02, 12 | Playwright | Not started (P1-03) |
 | Vault: suppliers, POs, goods receipts, fill rate | VLT-01 to 06, D-18 | Vault leakage tests (doc 07 §5) | Not started (P1-05) |
-| Orders, invoices, deliveries, automatic shortfall capture | ORD-01 to 05, 10, DEM-02 | DB tests + Playwright J1 | Not started (P1-06) |
+| Credit profile, orders, discount approvals, deliveries, gapless invoices | SAL-04 (eligibility, limit, block; overdue status waits for P1-07), ORD-01 to 04, 10; CTL-07, CTL-08 (digest listing in P1-08) | `orders.test.ts`, `deliveries.test.ts`, RLS matrix | DONE self-reported (P1-06a L-0165, P1-06b L-0170) |
+| Invoice document | ORD-05 | DB tests | Not started (P1-06c) |
 | Money: payments, receipts, cash ledger, handover | PAY-01 to 05, 07, 10, 11; CTL-01 to 04, 17 | DB tests | Not started (P1-07) |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | Not started (P1-08) |
 | Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03, ORD-10 | **Playwright** + field test | Not started (P1-09) |
 | Dashboards, admin | RPT-01, 02; MSG-03; ADM-01, 02; FLD-01 | Playwright | Not started (P1-10, P1-11) |
 | Independent agents | AGT-01 to 04, 06 | DB tests + Playwright J3 | Not started (P1-15) |
-| Due-list and manual routes | PIP-03, PIP-05/06 thin | DB tests | Not started (P1-16) |
+| Due-list and manual routes | PIP-03, PIP-05/06 thin | `routes.test.ts`, RLS matrix | DONE self-reported (P1-16, L-0159) |
 | Route-linked bag load, lost-demand report | INV-11, DEM-02, DEM-03 | DB tests + Playwright J4 | Not started (P1-17) |
 | Security acceptance suite + restore drill | doc 06 §10, doc 07 §5, NFR-10 | launch security checklist below | Not started (P1-12) |
 
@@ -151,6 +154,8 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 
 - **Test database URL:** set `KIRAN_TEST_DATABASE_URL`, never the generic `DATABASE_URL`, to use a real database. For example, `supabase start` gives `postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
 - **Running as root:** embedded Postgres cannot start as root, so point the URL at a fresh local database and recreate it before every run.
+- **Collation:** create that database with the en_US.UTF-8 collation, as Supabase does (`create database kiran_test template template0 locale 'en_US.UTF-8'`). The embedded Postgres uses the C locale, which hides ordering differences (ACTIVITY L-0150).
+- **Test order:** test files share one database and run in file-name order (`supabase/tests/vitest.config.ts`); a file that commits territory assignments ends them in `afterAll`.
 - **Staging:** nothing is applied to staging or production by hand (H-19). Migrations reach them through CI only.
 
 ## 7. Project structure
@@ -170,7 +175,7 @@ The data model is in [doc 04](docs/04-domain-model.md) and the architecture in [
 ## 8. Code style
 
 **Formatting and lint: Biome** (MJ, L-0136).
-- One `biome.json` at the root, `pnpm lint` and a CI `lint` job that fails the pull request.
+- One `biome.jsonc` at the root, `pnpm lint` and a CI `lint` job that fails the pull request.
 - Run `biome check --write` before committing.
 - *Status: in place* (`biome.jsonc`, Biome 2.3.15). Files that existed before Biome and do not yet pass it are listed as **legacy** in `biome.jsonc` and excused from formatting and import order until cleaned up; every other file, and every new one, must pass.
 
@@ -209,7 +214,7 @@ The data model is in [doc 04](docs/04-domain-model.md) and the architecture in [
 
 **Rules for tests:**
 - **No test is ever skipped or loosened** to get green (H-23).
-- **Verifier-authored tests** change only with MJ's approval. Three kinds of change for a new module are pre-approved (MJ, 2026-10-28): adding its functions to the allowlist, adding `*_client` or planned-date parameters to the client-time list, and turning a "does not exist yet" check into a "rep sees 0 rows" check. Each is logged.
+- **Verifier-authored tests** change only with MJ's approval. Three kinds of change for a new module are pre-approved (MJ, 2026-10-28, ACTIVITY L-0144): adding its functions to the allowlist, adding `*_client` or planned-date parameters to the client-time list, and turning a "does not exist yet" check into a "rep sees 0 rows" check. Each is logged.
 - **Each control gets a test that tries to break it**, not only one that uses it.
 - **The Definition of Done** is in ACTIVITY §6.
 - **A different agent or MJ marks work VERIFIED**, never its builder (§7).
@@ -260,3 +265,8 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | D-08: manager vs owner governance split | Permission matrix | Owner-only governance (doc 06 §2) |
 | A-08: rep bag limits owner-only (may be relaxed to the manager) | — | Owner only |
 | Renumbering of branch `claude/architecture-rfc` | Merging it | Not merged |
+| B-13: branch protection on `main` with the five CI check names (ACTIVITY L-0175) | Binding CI | A pull request merges whatever its checks say |
+| B-28: may reps park a salon (doc 02) against the doc 06 matrix (rep: no manual stage change) | Matrix wording | Rep parking stays, as doc 02 says |
+| A-09, A-10: opening last purchase; exposure as confirmed installment orders | P1-07 | As stated in ACTIVITY §15 |
+| Pin required for a map-created salon? (ACTIVITY L-0182) | A database check | Not required (offline quick add may lack GPS) |
+| Phone-reveal cap; automatic day close; geofence threshold (ACTIVITY L-0146, L-0152) | New thresholds (H-26) | No cap; office force-close only; distance recorded, not enforced |

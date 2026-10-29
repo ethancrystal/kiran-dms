@@ -31,7 +31,7 @@ Every salon in the system is in exactly one **stage** at any time. Stage changes
 | Stage | Definition | Enters when | Exits when | Owner of the next action |
 |---|---|---|---|---|
 | **Prospect** | A real salon in a mapped territory that has never bought | Added by rep in the field, or imported from a mapping sweep | First visit logged | Rep |
-| **Visited** | At least one visit logged; intro done, contact captured | Visit with outcome "intro" | Sample/trial given or quote recorded | Rep |
+| **Visited** | At least one visit logged; intro done, contact captured | A visit logged with any outcome except "not present" (a sample or quote goes straight to Trial) | Sample/trial given or quote recorded | Rep |
 | **Trial** | Sample given or a small trial pack offered/quoted | Visit outcome "sample" or "quote" | First order, or 3 visits without order → **Parked** | Rep |
 | **Active – New** | First order placed (any size) | First order confirmed | 3 orders completed → **Active – Regular**; or 60 days with no second order → **At Risk** | Rep |
 | **Active – Regular** | ≥3 orders; cycle known | Third order | Missed cycle by >50% of cycle length → **At Risk** | System generates tasks; rep executes |
