@@ -26,7 +26,7 @@ Who: **MJ or the owner, never an agent.** Where: the Supabase dashboard of the K
 
    This works exactly once. A second call fails with "an owner already exists".
 4. Sign in at `/office/login` and enrol TOTP on the next screen. Store the authenticator's recovery codes offline.
-5. From then on, the owner creates every other account through the app (`app.owner_create_user`). Each one needs an auth user first: email + password for a manager, phone number for a rep.
+5. From then on, the owner creates every other account through the app (`app.owner_create_user`). Each one needs an auth user first: email + password for a manager, an email address for a rep (reps sign in with an emailed code, step 4).
 6. A second owner account for continuity (OQ-03): create it the same way through `app.owner_create_user` with role `owner`, then suspend it with `app.owner_set_status` until needed.
 
 What the database guarantees afterwards: only the owner, at AAL2, can create users, change roles, suspend accounts, grant vault access, or change configuration. Each of those actions writes an audit row.

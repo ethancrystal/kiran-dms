@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c not started) | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c not started; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -344,6 +344,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-008 | P1-06 (part a) | 2026-10-28 22:00 | done | L-0166 |
 | C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0171 |
 | C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
+| C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
 
 ---
 
@@ -381,6 +382,8 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-26 | Council findings 4 to 6 reopen verified P0-06 and P1-01 (view-aware guards, device revocation trigger as migration 0007 applied to staging, audit-trigger guard); finding 7 in full (fail on an empty owner-term list in CI) right after B-15a. (L-0108) | P0-06, P1-01, P0-09 | Approve both | MJ | PART RESOLVED (4 to 6: L-0110); finding 7 after B-15a |
 | B-27 | A board row may cite a CORRECTION that rejects the task (L-0116 O1): require a checkable per-task verdict line in the cited entry, or allow only VERIFIED-type entries? (L-0124) | P0-09 | Per-task verdict line | MJ | PENDING |
 | B-28 | Reps park salons (doc 02, `app.rep_park_salon`) while the doc 06 section 2 matrix says reps cannot change a stage manually (L-0175) | — (P1-02 part a built) | Keep rep parking as doc 02 says | MJ | PENDING |
+| B-29 | Rulebook wording behind the built code (L-0182): H-14 says reps read through views with no base-table access, but reps read salon data through `app.*` functions and read their own rows of a few operational tables; H-06 lists fewer append-only tables than are built; H-07 allows soft-delete flags only on configuration entities, but `salon_contact.active` retires phones | — (rule text only) | Code as built; doc 04 and doc 06 describe it | MJ | PENDING |
+| B-30 | Must a salon created from the map have a pin (lat and lng)? Doc 04 said so; the database does not enforce it, and the offline quick add (PIP-07) may lack GPS (L-0182) | A database check | Not required | MJ | PENDING |
 
 ---
 
@@ -2939,6 +2942,51 @@ Security checklist (tick honestly):
 **Evidence:** see L-0173.
 **Rules touched:** section 11, H-23, H-24
 **Next / needs:** MJ: L-0175 questions; review the pull request.
+
+### L-0179 · 2026-10-29 12:15 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · SESSION-START
+**Task:** — (documentation follow-up, L-0176)    **Claim:** —
+**What / why:** Checklist: (1) read this file in full, including the rules, board, claims, blockers, assumptions and the last 20 entries; (2) read docs 00, 02 to 06, 08 to 10, 12, 13, SPEC.md, the runbooks and the gate-0 checklist, the documents this task edits; (3) no active claim touches docs (C-001 holds scripts, migrations, tests, apps and runbooks of its own; this task edits two runbook sentences only, both about later tasks); (4) blockers B-13 and B-28 touch this task and are not changed by it; (5) baseline on branch claude/docs-drift-fix cut from main at 331fee4 (PR 12 merged); (6) local only: a throwaway Postgres 16 on this machine, nothing applied to staging, no production access.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm db:test` on a fresh en_US.UTF-8 database: 23 files, 1789 passed; `pnpm -r --if-present test`: packages/import 50 passed.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0180.
+
+### L-0180 · 2026-10-29 12:15 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · CLAIM
+**Task:** — (documentation follows the merged code, L-0176)    **Claim:** C-010
+**What / why:** MJ merged PR 12 and said to go ahead with the documentation pull request (L-0176). Scope: text only, no SQL, test or app code. Areas: SPEC.md, CLAUDE.md and AGENTS.md (identical, repository map only, Appendix A text untouched), docs 00, 02, 03, 04, 05, 06, 08, 09, 10, 13, the gate-0 checklist, the two runbooks, and in this file the P1-06 board row, two new blocker rows and the claim tables. The audit's 23 docs-drift findings are re-checked one by one against the SQL on main before any edit; findings already handled in PR 12 (L-0173 to L-0177) are not repeated. Planned finish today.
+**Rules touched:** section 3, H-25
+**Next / needs:** L-0181.
+
+### L-0181 · 2026-10-29 12:20 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · CORRECTION
+**Task:** P1-02 (parts a and b), P1-06 (part a), P1-16    **Claim:** —
+**What / why:** Corrects L-0147: its checklist line Docs match code was ticked, but doc 04 was not updated for migration 0009. The territory row said status (the column is active), the salon row said geo, frontage_photo_url and is_honeytoken (the columns are lat and lng; the other two are not built), salon_note said photo_url and lacked client_id, salon_contact lacked active, and stage_event listed 5 of the 7 trigger values (created and visit were missing). Only the frontage photo had been logged (L-0146, item 4). Also corrects citations that cannot be edited where they stand (migrations are frozen once merged, entries are append-only): the routes migration 0011 cites doc 08 section 2 for adding pins and reordering the route, it is section 3; the visits migration 0010 cites doc 08 section 3 for rule 7, it is section 4, item 7; L-0152 item 2 calls three visits without an order moving a salon to parked doc 08 rule 7, it is doc 02, Trial row; the visits migration message and table comment saying a rep may close an earlier open day are wrong, only the office force-closes it (app.rep_check_out closes today only); the orders migration 0012 header says part b replaces exposure, it did not (A-10, L-0174). If the rep-facing message matters it changes in a later forward migration.
+**Rules touched:** section 4, H-25
+**Next / needs:** L-0182.
+
+### L-0182 · 2026-10-29 12:20 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · BLOCKER
+**Task:** — (documentation follow-up)    **Claim:** C-010
+**What / why:** Two questions for MJ, raised while re-checking the docs; neither blocks building, both keep the code as built meanwhile. B-29: the rulebook text behind three built behaviours. H-14 says reps read through views and have no base-table access; the build uses capped app functions for salon data (DEVIATION L-0146, item 1) and own-row policies on rep_day, route, sales_order and its lines, delivery, delivery_line, invoice and the bag's stock rows. H-06 lists fewer append-only tables than are built (missing stock_count, demand_signal, route, sales_order_line, delivery, delivery_line, phone_reveal; adding them only tightens the rule). H-07 allows soft-delete flags only on configuration entities, while salon_contact.active retires a phone and keeps its history. Rule text is MJ's to change, so it is unchanged here; doc 04 and doc 06 now describe the code. B-30: doc 04 said a salon created from the map must have a pin; the database only requires lat and lng to be both set or both null, and the offline quick add (PIP-07) may have no GPS fix. Doc 04 now says so; a check constraint waits for MJ.
+**Rules touched:** section 9, H-25, H-26
+**Next / needs:** MJ: B-29 (reword H-06, H-07, H-14?) and B-30 (require a pin?).
+
+### L-0183 · 2026-10-29 12:21 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · PROGRESS
+**Task:** — (documentation follows the merged code, L-0176)    **Claim:** C-010
+**What / why:** Each audit finding was re-checked against the SQL on main before editing; edits are text only. Fixed: SPEC.md section 2 and feature map (statuses, SAL-04 moved to P1-06a, DEM-02 left with P1-17, invoice document row, biome.jsonc, the en_US collation and file-name test order, L-0144 cited, open MJ items in section 11); docs/00-README.md (the build is under way, D-20; SPEC.md linked); doc 04 rows for territory, area, salon, salon_note, salon_contact, stage_event, cycle_estimate, salon_credit, rep_day, sku, stock_movement (a broken table cell), stock_count, reorder_rule, stock_issue, a new phone_reveal row, invariants 1, 4, 5 and 12, and the closing note on views; doc 05 read path and principle 7; doc 06 section 4 (the illustrative policy, which reads are capped, which tables reps read directly); doc 03 SAL-01, PIP-02, PIP-09, ORD-01, ORD-03, CTL-09, DEM-01 (supply_short, office only); doc 02 Visited; doc 09 eligibility interim; docs 08, 10, 13 delivery acknowledgment (receiver's name, GPS, server time in Phase 1); gate-0 checklist (after Gate 0, the five check names); Excel and owner runbooks; CLAUDE.md and AGENTS.md repository map (kept identical). The P1-06 board row now lists SAL-04 and names its leftovers. Not changed: the doc 06 section 2 matrix (B-28) and rulebook text (B-29), both MJ's.
+**Evidence:** `git diff --stat origin/main` shows only Markdown files; `cmp CLAUDE.md AGENTS.md` exit 0; `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm activity:check` OK; no SQL, test or app file changed, so the 1789-test baseline (L-0179) stands.
+**Rules touched:** H-25
+**Next / needs:** L-0184.
+
+### L-0184 · 2026-10-29 12:21 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · CLAIM-RELEASED
+**Task:** — (documentation follows the merged code)    **Claim:** C-010
+**What / why:** C-010 released (done): the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0185.
+
+### L-0185 · 2026-10-29 12:21 PKT · Claude · Claude Code · session 01Y3chVrxi5r · branch claude/docs-drift-fix · HANDOFF
+**Task:** — (documentation follow-up)    **Claim:** — (C-010 released)
+**What / why:** State: branch claude/docs-drift-fix, from main at 331fee4, text only; pull request to main. Next steps, in order: (1) MJ reviews and merges it; (2) MJ answers B-28, B-29, B-30 and turns on branch protection with the five check names (B-13); (3) a different agent verifies P1-04, P1-02 parts a and b, P1-16 and P1-06 parts a and b (section 7); (4) P1-06 part c, the invoice document (ORD-05). Gotchas: never stack a pull request on a feature branch (L-0173); the stacked branches from PRs 5 to 11 can be deleted.
+**Evidence:** see L-0183.
+**Rules touched:** section 11
+**Next / needs:** MJ: review the pull request; B-28, B-29, B-30, B-13.
 
 ---
 

@@ -66,7 +66,7 @@ Daily: rep bag expected vs counted (stock close)   Weekly: random spot check   M
 
 - **Bag value limit** per rep (probation lower) caps exposure (CTL-05).
 - **Issue** and **return to warehouse** are two-party: manager records, rep confirms in-app.
-- **Delivery** creates the movement at the moment of handing over, with the salon's acknowledgment (OTP to salon phone or signature) so a salon cannot later claim non-delivery and a rep cannot claim a delivery that did not happen.
+- **Delivery** creates the movement at the moment of handing over, with the salon's acknowledgment (OTP to salon phone or signature; Phase 1: the receiver's name with GPS and server time (MJ, ACTIVITY L-0163); the OTP comes with the SMS adapter) so a salon cannot later claim non-delivery and a rep cannot claim a delivery that did not happen.
 - **Adjustments** never happen from a rep's phone; variances become `adjustment` movements only through approval (CTL-06).
 
 ## 7. Performance management
