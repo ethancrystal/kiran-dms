@@ -48,8 +48,8 @@ The live record is the ACTIVITY status board (§12); this is a snapshot and the 
 | 1 | P1-04 inventory + lost-demand capture | DONE (self-reported), [PR 5](https://github.com/ethancrystal/kiran-dms/pull/5), CI green |
 | 1 | P1-02 parts a and b: territories, salons, masked phones, stage events; rep days, visits, check-in gating | DONE (self-reported, L-0147, L-0153) |
 | 1 | P1-16 due-list and manual routes | DONE (self-reported, L-0159) |
-| 1 | P1-06 parts a and b: credit profile, orders, discount approvals, deliveries, gapless invoices | DONE (self-reported, L-0165, L-0170); part c (invoice document) not started |
-| 1 | P1-02 c–d, P1-03, P1-05, P1-06 c, P1-07 to P1-15, P1-17 | Not started; order in ACTIVITY §12.1 |
+| 1 | P1-06 parts a and b: credit profile, orders, discount approvals, deliveries, gapless invoices | DONE (self-reported, L-0165, L-0170); part c, the invoice document's data, DONE (self-reported, L-0199) |
+| 1 | P1-02 c–d, P1-03, P1-05, P1-07 to P1-15, P1-17 | Not started; order in ACTIVITY §12.1 |
 
 Phase 1 started before Gate 0 by MJ's decision (D-20).
 
@@ -105,7 +105,7 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 | Rep map | MAP-01, 02, 12 | Playwright | Not started (P1-03) |
 | Vault: suppliers, POs, goods receipts, fill rate | VLT-01 to 06, D-18 | Vault leakage tests (doc 07 §5) | Not started (P1-05) |
 | Credit profile, orders, discount approvals, deliveries, gapless invoices | SAL-04 (eligibility, limit, block; overdue status waits for P1-07), ORD-01 to 04, 10; CTL-07, CTL-08 (digest listing in P1-08) | `orders.test.ts`, `deliveries.test.ts`, RLS matrix | DONE self-reported (P1-06a L-0165, P1-06b L-0170) |
-| Invoice document | ORD-05 | DB tests | Not started (P1-06c) |
+| Invoice document | ORD-05 | `invoice-document.test.ts` | Data DONE self-reported (P1-06c, L-0199); the PDF renderer and receipt numbers (P1-07) are not built |
 | Money: payments, receipts, cash ledger, handover | PAY-01 to 05, 07, 10, 11; CTL-01 to 04, 17 | DB tests | Not started (P1-07) |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | Not started (P1-08) |
 | Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03, ORD-10 | **Playwright** + field test | Not started (P1-09) |

@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c not started; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c, the invoice document's data, DONE self-reported, L-0199, its PDF renderer not built; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -346,6 +346,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
 | C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
 | C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
+| C-016 | P1-06 (part c, invoice document data) | 2026-11-01 10:49 | done | L-0200 |
 
 ---
 
@@ -404,6 +405,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
 | A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); since P1-06 part b (L-0170) deliveries replace it. The cycle is the product group's default (D-19) | L-0156, L-0174 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
 | A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0163). P1-07 replaces it with invoiced minus paid (part b did not, L-0174) | L-0162 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
+| A-11 | Installment amounts (docs silent): each installment is floor(total × pct / 100) in paisa and the last takes the remainder, so the installments add up to the invoice total exactly; due dates are the delivery's Karachi date plus the template's day offset | L-0198 | Up to a few paisa move between installments; P1-07 reuses `app.plan_schedule` | open |
 
 ---
 
@@ -3070,6 +3072,58 @@ Security checklist (tick honestly):
 **Evidence:** `GET /repos/ethancrystal/kiran-dms/rulesets/26299367` (read back after MJ's save): rules deletion, non_fast_forward, required_status_checks with the six contexts above, integration id 15368 (GitHub Actions) on each, bypass_actors empty; `GET /repos/ethancrystal/kiran-dms`: private false; check-run names on the head of pull request 16 (commit 8452252): the same six. An earlier read, minutes before, showed the ruleset with only the first two rules and none of the checks, and a screenshot from MJ showed five checks without the migrations one; the final read above is the only one relied on.
 **Rules touched:** H-19, H-23, H-24
 **Next / needs:** MJ: decide on the approval rule (Appendix C sentence); scan the history for supplier names and secrets, and fill KIRAN_SENSITIVE_TERMS, now that the repository is public.
+
+### L-0196 · 2026-11-01 10:25 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · SESSION-START
+**Task:** P1-06 part c (ORD-05)    **Claim:** C-016 (L-0197)
+**What / why:** MJ chose P1-06 part c in chat on 2026-11-01. Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full and this file's sections 1 to 15 and entries L-0176 to L-0195; the older log was searched by task ID and not read in full (the size question in L-0192 is still MJ's); (2) read docs 00, SPEC.md, doc 03 ORD-05, doc 04 invoice row, doc 05 (PDF in an Edge Function), doc 07 §3, doc 08 §3, doc 09 §1 and §8, migrations 0003, 0012 and 0013, and the delivery and verifier tests; (3) C-001 holds `supabase/migrations/` and `supabase/tests/` for its own files only; this claim adds new files and one allowlist line; open PR 15 adds migration 20261101000000 and log entries, PR 14 log entries only; neither touches invoices, app_config or the allowlist; (4) blockers B-06 (bank accounts: placeholders) and B-14 (reps see no config) bear on this task, neither changes; (5) branch claude/session-start-4e62df at main 711f741, worktree clean, `pnpm agent:preflight` OK; (6) local only, embedded Postgres, no staging or production access.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm lint` exit 0 (0 errors, 33 warnings, all in existing files); `pnpm typecheck` exit 0. `pnpm db:test` baseline: running in parts on the embedded Postgres (this host is short of memory, see L-0116 item 7); results in a later PROGRESS entry, not assumed.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0197.
+
+### L-0197 · 2026-11-01 10:25 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · CLAIM
+**Task:** P1-06 part c (ORD-05)    **Claim:** C-016
+**What / why:** Scope: the data of the invoice document, from `public` only (doc 07 §3): `app.invoice_document(invoice_id)` returns branding, salon, lines, totals, the plan's installment schedule, the receipts list and the bilingual paper-receipt and official-account notices (doc 08 §3 rules 1 and 6); `app.plan_schedule` computes the schedule from `plan.templates` for P1-07 to reuse; two placeholder config keys, `company.profile` and `company.bank_accounts` (B-06, clearly fake). Excluded, stated now: the PDF or image renderer (doc 05 Edge Function), receipt numbers (receipts are P1-07; the list is empty), SMS or WhatsApp sending (P1-07), the bank-detail lock (CTL-16, P1-08). Areas as in the C-016 row.
+**Rules touched:** section 3, H-01, H-05
+**Next / needs:** build, test, DONE with evidence.
+
+### L-0198 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · ASSUMPTION
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-016
+**What / why:** A-11 added to section 15. Docs 09 and 04 give installment percentages but no rounding rule for a total that does not divide evenly in paisa. Chosen: each installment is floor(total × pct / 100) and the last takes the remainder, so the installments always add up to the invoice total exactly; due dates are the delivery's Karachi date plus the template's day offset. `app.plan_schedule` also refuses a template whose percentages do not add up to 100. Also stated: the baseline entry L-0196 recorded `pnpm db:test` as running; it completed with 23 files, 1789 passed, 1530 s, before any file of this change existed (the `--` in `pnpm db:test -- {files}` made vitest run every file).
+**Rules touched:** section 1 (gaps), H-10
+**Next / needs:** MJ to confirm or reject A-11 at the gate.
+
+### L-0199 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · DONE
+**Task:** P1-06 part c (ORD-05; CTL-01 and doc 08 §3 rules 1 and 6 notices; doc 07 §3)    **Claim:** C-016
+**What / why:** Migration `20261101100000_invoice_document.sql` (0014): `app.invoice_document(invoice_id)` returns the document's data as one JSON value (version, number, financial year, company, bank accounts, salon name, address and area, delivery receiver and time, plan, lines, totals, schedule, receipts, and the Urdu and English notices that paper receipts are not valid and that only company accounts are paid); its rep (own orders, approved device, active) and the office at AAL2 get it, anyone else and an unknown id get null; stable, writes nothing. `app.plan_schedule(plan, total, start)` is internal (no grant) for P1-07 to reuse. Config keys `company.profile` and `company.bank_accounts` added as clearly fake placeholders (B-06), not visible to reps (B-14). Not built, as the claim said: the PDF or image renderer (doc 05 Edge Function), receipt numbers (receipts are P1-07; the list is empty), sending by SMS or WhatsApp, the bank-detail lock (CTL-16, P1-08). The verifier allowlist gained `invoice_document`, a change kind MJ pre-approved (L-0144, kind 1). Docs: doc 04 invoice row, doc 06 §4, SPEC.md §2 and §4, the P1-06 board row.
+**Security checklist:**
+- [x] Requirement implemented as written, for the document's data; the renderer and receipt numbers are named above as not built
+- [x] Migration forward-only, new file; applied to a fresh embedded Postgres by every test run below. Not applied to staging
+- [ ] RLS and matrix: not applicable (no table added; rls-matrix passes)
+- [ ] Append-only: not applicable (nothing written)
+- [ ] Idempotency and replay: not applicable (read only; a test proves no audit row is written)
+- [x] Audit chain unaffected (no write)
+- [x] No vault leakage: the functions' source names no vault schema or function; no key anywhere in the document names a cost, supplier, margin, lot or purchase order; tests for both
+- [ ] Offline: not applicable to a read (P1-09)
+- [x] Money in integer paisa; rounding tested (33,333 paisa over INST4 → 8,333 × 3 + 8,334; seven awkward totals × three plans always add up)
+- [x] Lint, typecheck and the affected test files pass locally; the full suite runs in CI (see Evidence)
+- [x] Docs match code (H-25)
+- [x] Diff read: no secrets, no real data; fixtures `[Test]` and `[Dummy]`
+**Evidence:** `pnpm exec vitest run --config supabase/tests/vitest.config.ts invoice-document`: 10 passed. Mutation checks, each on a temporary edit of the migration that was then restored: remainder on the first installment, 2 tests fail; `app.is_office()` replaced by true, 1 fails; the rep's own-order condition dropped, 1 fails; `app.self_ok()` dropped, 1 fails. The first run of the access test did not catch the first mutation (the test looked the invoice up under the reader's RLS, so other readers passed a null id); fixed by looking the id up as postgres, and an unapproved-device reader was added for the last mutation. After the change, the five files it can affect (invoice-document, verifier-attacks, schema-hygiene, rls-matrix, foundation): 5 files, 1542 passed, 25.8 s, embedded Postgres 17 (C locale). The full suite was **not** re-run locally after the change (it takes about 25 minutes on this host); CI's required check "migrations + RLS matrix" runs it on the pull request. Baseline before the change: 23 files, 1789 passed (L-0198). `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0. Commit and PR: see L-0201.
+**Rules touched:** H-01, H-05, H-10, H-13, H-23, H-24, H-25
+**Next / needs:** a different agent verifies (section 7); L-0200.
+
+### L-0200 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · CLAIM-RELEASED
+**Task:** P1-06 part c    **Claim:** C-016
+**What / why:** C-016 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0201.
+
+### L-0201 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · HANDOFF
+**Task:** P1-06 part c    **Claim:** — (C-016 released)
+**What / why:** State: branch claude/session-start-4e62df from main at 711f741, one commit, pull request to main; P1-06 part c is DONE (self-reported) for the document's data, not verified. Next, in order: (1) CI's full suite on the pull request must pass; MJ reviews and merges; (2) a different agent verifies part c (section 7), including that no vault field can reach the document; (3) MJ: A-11 (rounding), B-06 (real bank accounts, entered by the owner through `owner_set_config`); (4) later tasks that complete ORD-05: the renderer (doc 05 Edge Function, a dependency decision) and receipt numbers in `receipts` with P1-07, which should reuse `app.plan_schedule`. Gotchas: `pnpm db:test -- {files}` ignores the file filter and runs everything; use `pnpm exec vitest run --config supabase/tests/vitest.config.ts {files}`. A test that looks up a row as the reader under RLS can hide the very denial it means to test. Open PRs 14 and 15 also append log entries; whichever merges later renumbers its entries (L-0173).
+**Evidence:** see L-0199; `pnpm activity:check main HEAD` run before the push.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; A-11; B-06.
 
 ---
 
