@@ -3,7 +3,8 @@
 // addresses, "[Test]" names, a random password per run. Never point this at a hosted project:
 // it refuses any database URL that is not on 127.0.0.1 or localhost.
 //
-// Sign-in accounts are written straight into the local auth schema, so no service-role key is
+// Sign-in accounts are written straight into the local auth schema (every token column set to
+// an empty string: GoTrue cannot read a user row whose token columns are null), so no service-role key is
 // used anywhere (H-18). Profiles go through the same functions the app uses
 // (app.bootstrap_owner as postgres, then app.owner_create_user as the owner at AAL2), exactly as
 // supabase/tests/setup/fixtures.ts does.
@@ -38,10 +39,11 @@ try {
     await c.query(
       `insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
          raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-         confirmation_token, recovery_token, email_change, email_change_token_new)
+         confirmation_token, recovery_token, email_change, email_change_token_new,
+         email_change_token_current, phone_change, phone_change_token, reauthentication_token)
        values ('00000000-0000-0000-0000-000000000000', $1, 'authenticated', 'authenticated', $2,
          extensions.crypt($3, extensions.gen_salt('bf')), now(),
-         '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '')`,
+         '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '')`,
       [p.id, p.email, password],
     );
     await c.query(
