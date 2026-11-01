@@ -52,6 +52,22 @@ pnpm -C apps/web test:e2e   # Playwright rep PWA tests on a low-end phone profil
 
 `KIRAN_TEST_DATABASE_URL` (never the generic `DATABASE_URL`) overrides the embedded Postgres (e.g. `supabase start` → `postgresql://postgres:postgres@127.0.0.1:54322/postgres`). Create that database with the en_US.UTF-8 collation; test files share it and run in file-name order (SPEC.md §6).
 
+## Agent skills
+
+These files configure the engineering skills (Matt Pocock's skills plugin). They are reference material: they never override this file, `docs/AGENT-COMPLIANCE-PROTOCOL.md` or `docs/ACTIVITY.md` (claims, status lifecycle, blockers, hard rules).
+
+### Issue tracker
+
+Linear, workspace `kiran`, team Kiran (`KIR`); GitHub holds code and pull requests only. No supplier, cost or personal data in tickets (H-01 to H-03). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context: `CONTEXT-MAP.md` at the root (seven contexts plus the shared kernel), one `docs/contexts/<name>/CONTEXT.md` per context, created lazily. See `docs/agents/domain.md`.
+
 ## Database conventions (from docs 04, 06, 07, ACTIVITY §5)
 
 - Schemas: `public` (RLS-scoped business data), `control` (approvals, audit, anomalies, phone-reveal log), `supplier_vault` (classified supplier data; **not** exposed via PostgREST), `vault_api` (grant-checked functions), `app` (RPC write path + helpers). Supabase's own `vault` schema (supabase_vault) is why the supplier schema is named `supplier_vault` — see doc 12, D-13.
