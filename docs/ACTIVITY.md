@@ -247,6 +247,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 |---|---|---|---|
 | PLAN-01 | Planning set docs `00`–`13` written to `Kiran Company/plan/` | DONE | 2026-10-25 |
 | PLAN-02 | This protocol (ACTIVITY.md) | DONE | 2026-10-25 |
+| PLAN-03 | Unified business-domain architecture brief and diagram | IN PROGRESS | 2026-11-02 |
 
 ### Phase 0 — Foundations
 
@@ -331,6 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
+| C-018 | ChatGPT GPT-6 session gpt6-business-domain-20261102 branch docs/business-domain-expansion | PLAN-03 | — | docs/14-unified-business-domain-prompt.md, docs/diagrams/business-domain.mmd, docs/00-README.md, docs/12-decisions-and-open-questions.md, SPEC.md, AGENTS.md, CLAUDE.md, docs/ACTIVITY.md | 2026-11-02 02:22 | 2026-11-02 03:30 | 2026-11-02 02:41 (L-0211) |
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
 
 **Released / expired claims** (kept for history; never deleted):
@@ -3184,6 +3186,26 @@ Security checklist (tick honestly):
 **Evidence:** see L-0206; `pnpm activity:check main HEAD` run before the push.
 **Rules touched:** section 11
 **Next / needs:** MJ: review and merge; A-11, A-12; B-06.
+
+### L-0209 · 2026-11-02 02:22 PKT · ChatGPT · GPT-6 · session gpt6-business-domain-20261102 · branch docs/business-domain-expansion · SESSION-START
+**Task:** PLAN-03 (unified business-domain architecture brief and diagram)    **Claim:** C-018
+**What / why:** Read AGENTS.md, CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md in full, docs/ACTIVITY.md sections 1 to 15 and the last 20 log entries, docs/00-README.md, docs/03-requirements.md, docs/04-domain-model.md, docs/06-security-plan.md, docs/07-supplier-confidentiality.md, docs/08-field-sales-and-rep-controls.md, docs/11-roadmap.md, docs/12-decisions-and-open-questions.md, and SPEC.md. Checked current mainline, branch, clean worktree, current claims and blockers. The original local checkout at C:/Users/moizjmj/K has pre-existing changes and remains untouched; this worktree is isolated from it.
+**Evidence:** Worktree C:/Users/moizjmj/K/.claude/worktrees/business-domain-expansion, branch docs/business-domain-expansion, base 1a1c51a023a134d189a770da997650a7bbfe34fd; pnpm install --frozen-lockfile exit 0; pnpm agent:preflight exit 0; pnpm lint exit 0 (65 files, 33 warnings, 42 infos); pnpm typecheck exit 0. pnpm db:test started; output showed passing deliveries (14), device-guard (4), foundation (40), inventory (25), invoice-document (23), but process remained running without final Vitest summary or exit code at session start. Not reported as passed.
+**Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
+**Next / needs:** L-0210.
+
+### L-0210 · 2026-11-02 02:22 PKT · ChatGPT · GPT-6 · session gpt6-business-domain-20261102 · branch docs/business-domain-expansion · CLAIM
+**Task:** PLAN-03 (unified business-domain architecture brief and diagram)    **Claim:** C-018
+**What / why:** Claiming a documentation-only scope to map the existing Kiran DMS domains and define their integration boundaries. Files: docs/14-unified-business-domain-prompt.md, docs/diagrams/business-domain.mmd, docs/00-README.md, docs/12-decisions-and-open-questions.md, SPEC.md, AGENTS.md, CLAUDE.md, and this activity record. Excludes application code, database migrations, test changes, staging, production, supplier data and real personal data. The document will distinguish current confirmed behavior from proposed investor workflows and owner decisions.
+**Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
+**Next / needs:** Prepare the domain diagram and scoped implementation brief; preserve the current phase gates and unresolved decisions.
+
+### L-0211 · 2026-11-02 02:41 PKT · ChatGPT · GPT-6 · session gpt6-business-domain-20261102 · branch docs/business-domain-expansion · HANDOFF
+**Task:** PLAN-03 (unified business-domain architecture brief and diagram)    **Claim:** C-018
+**What / why:** The cross-domain brief and Mermaid diagram are in the isolated business-domain worktree. The brief separates Owner, Manager, salaried Rep, Independent Agent, Investor, Salon and Supplier; distinguishes confirmed behaviour from proposed scope; defines the domain journeys and security boundaries; and records investor agreement decisions without choosing a return formula. AGENTS.md and CLAUDE.md require agents to read the brief for affected domain work. SPEC.md and docs/00-README.md link it. D-24 records Investor as separate from Agent; OQ-23 to OQ-30 record decisions still required before live investor workflows. The original C:/Users/moizjmj/K worktree and its pre-existing changes remain untouched. No application code, migrations, production data or external systems were changed.
+**Evidence:** Branch docs/business-domain-expansion at base 1a1c51a023a134d189a770da997650a7bbfe34fd. Files: docs/14-unified-business-domain-prompt.md (397 lines); docs/diagrams/business-domain.mmd. pnpm agent:preflight exit 0; pnpm activity:check exit 0 (210 new log entries, 119 changed files); git diff --check exit 0. pnpm lint exit 0 (65 files, 33 warnings and 42 infos) and pnpm typecheck exit 0, recorded at L-0209. pnpm db:test was started in this session; the latest output shows five files passed (deliveries 14, device-guard 4, foundation 40, inventory 25, invoice-document 23), but no final Vitest summary or process exit code was received, so the full suite is not claimed as passed. All changes remain local and uncommitted; no push or merge was performed.
+**Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
+**Next / needs:** Finish or rerun pnpm db:test and capture its final summary before merging. MJ reviews D-24 and OQ-23 to OQ-30 when prioritising the investor domain. Keep all current phase gates and open commercial decisions intact.
 
 ---
 

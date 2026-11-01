@@ -8,6 +8,8 @@ Run `pnpm agent:preflight` before implementation. Do not work directly on `main`
 
 The authoritative task lifecycle, hard rules, status board, claims, blockers, phase gates, evidence format, and handoff requirements remain in `docs/ACTIVITY.md`. If instructions conflict, follow its authority hierarchy and stop/log a blocker rather than guessing.
 
+**Cross-domain brief:** For work involving supplier/procurement, salons/customers, salaried Reps, Independent Agents, Investors/capital, office administration, or workflows spanning these areas, read `docs/14-unified-business-domain-prompt.md` in full before planning or editing. It supplements the existing planning set; it does not authorise a new role, permission, portal, financial term, phase change or production action.
+
 Before doing ANYTHING in this repository you MUST:
 1. Read docs/ACTIVITY.md in full (rules, status board, claims, blockers, log).
 2. Log a SESSION-START entry, claim your task, and follow every hard rule (H-01…H-27).
@@ -24,7 +26,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 | Path | What |
 |---|---|
-| `docs/` | The planning set (`00`–`13`) and `ACTIVITY.md` (build protocol + live log). Source of truth. |
+| `docs/` | The planning set (`00`–`14`), `ACTIVITY.md` (build protocol + live log), `diagrams/`. Source of truth. |
 | `supabase/migrations/` | Forward-only SQL migrations: schemas, tables, RLS, SECURITY DEFINER functions, triggers. |
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
 | `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |

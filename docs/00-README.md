@@ -28,6 +28,7 @@ A mobile-first web app (installable PWA) for reps in the field and a back-office
 | 11 | [Roadmap](11-roadmap.md) | Phases, MVP scope, milestones, acceptance criteria |
 | 12 | [Decisions and open questions](12-decisions-and-open-questions.md) | Decision log and everything still to be settled |
 | 13 | [Anti-fraud and control framework](13-anti-fraud-controls.md) | Every way a rep, manager, salon or outsider could cheat — and the control that stops or catches it |
+| 14 | [Unified business domains and agent execution brief](14-unified-business-domain-prompt.md) | How supplier, salon, rep, agent, investor and office domains connect; boundaries, proposed investor scope, security and execution rules |
 | — | [**ACTIVITY (mandatory for builders)**](ACTIVITY.md) | Build protocol, hard rules, definition of done, phase gates, status board, claims, blockers, append-only activity log |
 
 ## Fixed decisions (do not re-open without updating doc 12)
