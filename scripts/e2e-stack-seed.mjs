@@ -46,9 +46,9 @@ try {
     );
     await c.query(
       `insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-       values (gen_random_uuid(), $1, $1::text, jsonb_build_object('sub', $1::text, 'email', $2::text, 'email_verified', true),
+       values (gen_random_uuid(), $1::uuid, $3::text, jsonb_build_object('sub', $3::text, 'email', $2::text, 'email_verified', true),
                'email', now(), now(), now())`,
-      [p.id, p.email],
+      [p.id, p.email, p.id],
     );
   }
 

@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
-import { RepDay } from "./rep-day";
 
 type Session = {
   full_name: string;
@@ -80,7 +79,11 @@ export default function RepHome() {
           )}
         </div>
       )}
-      {state.kind === "ready" && state.session.device_status === "approved" && <RepDay />}
+      {state.kind === "ready" && state.session.device_status === "approved" && (
+        <a className="btn" href="/app/day">
+          Start your day · <span lang="ur">دن شروع کریں</span>
+        </a>
+      )}
     </main>
   );
 }

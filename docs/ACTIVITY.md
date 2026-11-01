@@ -3131,6 +3131,13 @@ Security checklist (tick honestly):
 **Rules touched:** H-09, H-14, H-23, H-24
 **Next / needs:** CI result on PR 15; then slice 3 (salons).
 
+### L-0205 · 2026-11-01 07:43 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** P0-09 (agent instructions in AGENTS.md and CLAUDE.md)    **Claim:** —
+**What / why:** MJ asked, in chat on 2026-11-01, to check the repository against his revised master execution prompt and to put it into CLAUDE.md and AGENTS.md. Done: the full prompt is saved verbatim as `docs/audit-2026-10-31/master-prompt-2026-11-01.md` (with a short header saying the execution map was built from an earlier version whose section numbers differ), and both CLAUDE.md and AGENTS.md gain the same new closing section, "Master execution prompt: standing rules", which summarises the standing rules and points to that file and the execution map. The Appendix A block at the top of both files is unchanged, and the two files stay byte-identical. No claim row was taken: C-014 holds this branch and is active (files changed at 07:34 PKT), and this entry touches none of its code areas; only these two root files, the new doc and this log. The other session's uncommitted changes (`apps/web/app/app/page.tsx`, `apps/web/app/app/day/`, `apps/web/e2e-stack/office.spec.ts`, `scripts/e2e-stack-seed.mjs`) were left exactly as they were. Check of the prompt against the log, for the record: its priority 0 (update_salon partial edit, L-0198 checklist, P1-02 plain-text cell) is done in commit 1e63ad9; priority 1 (B-18) is RESOLVED in L-0200, but migration 0014 is not applied to staging (not merged); priority 2 (execution map) exists; priorities 3 and 4 (slice 1 and the e2e-stack CI job) are built (L-0203, commit f69bae4) but not DONE, because the e2e-stack job result on PR 15 is not recorded in this log.
+**Evidence:** `cmp CLAUDE.md AGENTS.md`: identical, 69 lines each; `node scripts/activity-log-check.mjs main HEAD` before this entry: OK (69 new log entries, 65 changed files); after it: see the next run. Not committed and not pushed (no approval for that in this session). PR 15's CI result not read: GitHub access from this session was refused.
+**Rules touched:** section 3, section 4, H-23, H-24, H-25
+**Next / needs:** MJ: commit these three files with the next commit on this branch; the C-014 session continues slice 3.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)

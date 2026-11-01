@@ -199,6 +199,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
 
   await page.reload();
   await expect(page.getByText("This phone is approved.")).toBeVisible();
+  await page.getByRole("link", { name: /Start your day/ }).click();
+  await page.waitForURL(/\/app\/day$/);
   await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
   // The rep has no bag yet, so the morning count is empty; check in.
   await page.getByRole("button", { name: "Check in" }).click();
