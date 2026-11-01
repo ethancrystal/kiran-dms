@@ -34,7 +34,10 @@ export const HOOK_MATCHER = "startup|clear|compact";
 export const HOOK_COMMAND = "node";
 export const HOOK_ARGS = ["${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs", "--hook"];
 
-const STARTUP_SECTION = "## 2. Required startup sequence";
+const REQUIRED_SECTIONS = [
+  ["## 2. Required startup sequence", "its mandatory startup sequence"],
+  ["## 11. Untrusted content and prompt-injection defence", "its untrusted-content and prompt-injection section"],
+];
 
 const REQUIRED_FILES = [
   "AGENTS.md",
@@ -156,8 +159,10 @@ export function validatePolicyFiles(root) {
   }
 
   const policy = readText(root, POLICY_PATH);
-  if (policy !== null && !policy.includes(STARTUP_SECTION)) {
-    errors.push(`${POLICY_PATH} is missing its mandatory startup sequence`);
+  if (policy !== null) {
+    for (const [heading, what] of REQUIRED_SECTIONS) {
+      if (!policy.includes(heading)) errors.push(`${POLICY_PATH} is missing ${what}`);
+    }
   }
 
   return errors;

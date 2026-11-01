@@ -27,7 +27,8 @@ const goodHook = () => ({
   },
 });
 
-const minimalPolicy = "# Protocol\n\n## 2. Required startup sequence\n\nRule.\n";
+const minimalPolicy =
+  "# Protocol\n\n## 2. Required startup sequence\n\nRule.\n\n## 11. Untrusted content and prompt-injection defence\n\nRule.\n";
 
 /** A minimal, fully installed policy set in a temp directory. */
 function fixture({ policy = minimalPolicy, realScript = false } = {}) {
@@ -156,6 +157,18 @@ test("rejects a missing, invalid, relative, shell-form or filtered SessionStart 
     assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("is not valid JSON")));
     rmSync(join(f.root, ".claude/settings.json"));
     assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("Required file is missing: .claude/settings.json")));
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("rejects a protocol that has lost its startup or prompt-injection section", () => {
+  const f = fixture();
+  try {
+    f.write("docs/AGENT-COMPLIANCE-PROTOCOL.md", "# Protocol\n\n## 2. Required startup sequence\n");
+    assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("missing its untrusted-content and prompt-injection section")));
+    f.write("docs/AGENT-COMPLIANCE-PROTOCOL.md", "# Protocol\n\n## 11. Untrusted content and prompt-injection defence\n");
+    assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("missing its mandatory startup sequence")));
   } finally {
     f.cleanup();
   }
