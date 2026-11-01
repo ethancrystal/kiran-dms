@@ -3228,6 +3228,13 @@ Security checklist (tick honestly):
 **Rules touched:** section 4
 **Next / needs:** CI on PR 15.
 
+### L-0217 · 2026-11-01 09:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 3 of the execution map: salons, rep side; plus the SessionStart hook)    **Claim:** C-014 (widened to slice 3, same areas)
+**What / why:** Rep salon screens, all through existing app.* functions (no migration): `/app/salons` (app.my_salons, own territories, 50 a page with Show more, phones masked, a filter over the loaded page), `/app/salons/new` (app.create_salon; the id is made once so a retry is the same salon; the pin is the phone's GPS when given, never guessed; source map_pin with a pin, manual without), `/app/salons/[id]` (header, contact with Show number through app.reveal_phone, record a visit through app.log_visit with GPS required as PIP-02 says, notes through app.salon_notes and app.add_salon_note, visits, stage history, park with a reason through app.rep_park_salon); route stops link to the salon. The real-stack rep test now also covers J2: the office gives the rep a territory and area, the rep adds a salon, sees stage prospect and its stage history, adds a note, and finds the salon in the list after a reload. Also, at MJ's request, the PR 16 SessionStart hook is installed in the K checkout (`.claude/settings.json`, untracked there); run by hand it prints the preflight and exits 0, and `node scripts/agent-preflight.test.mjs` passes. That checkout is on feat/p0-foundation, which lacks `scripts/agent-preflight.mjs`, so the hook reports a missing file there until it moves to main. Office salon screens (list, history, overrides) and the map are still to do in this slice.
+**Evidence:** `pnpm lint` exit 0; `pnpm -C apps/web typecheck` exit 0; `pnpm -C apps/web test:e2e` 4 passed (production build with the new pages). NOT RUN: e2e-stack on this commit (CI). The previous CI run (head 30a0eb8) passed every job except e2e-stack, whose owner sign-in was refused; the seed fix 6bc1288 (empty token columns) awaits its CI run.
+**Rules touched:** H-14, H-23, H-24
+**Next / needs:** CI on PR 15; then office salon screens.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)

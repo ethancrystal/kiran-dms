@@ -187,7 +187,10 @@ export function RepDay() {
                 {route.map((s, i) => (
                   <li key={s.stop_id} className={s.visited ? "done" : undefined}>
                     <div>
-                      <strong>{s.salon_name ?? "Unnamed salon"}</strong> <span className="muted">{s.area_name}</span>
+                      <a href={`/app/salons/${s.salon_id}`}>
+                        <strong>{s.salon_name ?? "Unnamed salon"}</strong>
+                      </a>{" "}
+                      <span className="muted">{s.area_name}</span>
                       <br />
                       <span className="badge">{pretty(s.reason)}</span> <span className="badge">{pretty(s.stage)}</span>
                       {s.visited && (

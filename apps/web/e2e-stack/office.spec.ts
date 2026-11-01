@@ -209,6 +209,36 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByRole("heading", { name: /Due for a visit/ })).toBeVisible();
   // A second check-in is not offered; the day is open.
   await expect(page.getByRole("button", { name: "Check in" })).toHaveCount(0);
+  // J2 salon acquisition (slice 3): the office gives the rep a territory, the rep adds a salon.
+  await office.getByRole("link", { name: "Territories" }).click();
+  const tname = `[Test] South ${Date.now()}`;
+  await office.getByLabel("New territory").fill(tname);
+  await office.getByRole("button", { name: "Add territory" }).click();
+  const card = office.locator("section", { has: office.getByRole("heading", { name: tname }) });
+  await card.getByLabel(`New area in ${tname}`).fill("[Test] Market");
+  await card.getByRole("button", { name: "Add area" }).click();
+  await expect(card.getByText("[Test] Market")).toBeVisible();
+  await card.getByLabel("Assign a rep").selectOption({ label: rep.name });
+  await card.getByRole("button", { name: "Assign" }).click();
+  await expect(office.getByText(`${rep.name} now covers ${tname}.`)).toBeVisible();
+
+  await page.goto("/app/salons/new");
+  const salonName = `[Test] Salon ${Date.now()}`;
+  await page.getByLabel("Salon name").fill(salonName);
+  await page.getByRole("button", { name: "Add salon" }).click();
+  await page.waitForURL(/\/app\/salons\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { name: salonName })).toBeVisible();
+  await expect(page.getByText("prospect").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stage history" })).toBeVisible();
+  await page.getByLabel("New note").fill("[Test] owner asked for a price list");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(page.getByText("Note added.")).toBeVisible();
+  await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();
+  // The salon is in the rep's list after a reload (data survives, from the database).
+  await page.goto("/app/salons");
+  await expect(page.getByRole("link", { name: salonName })).toBeVisible();
+
+  await page.goto("/app/day");
   await page.getByRole("button", { name: /Finish the day/ }).click();
   await page.getByRole("button", { name: "Save count and check out" }).click();
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
