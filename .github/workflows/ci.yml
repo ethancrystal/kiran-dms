@@ -142,10 +142,11 @@ jobs:
       # Only the public URL and the publishable (anon) key leave the stack; no service-role key is read.
       - name: Public settings of the local stack
         run: |
-          supabase status -o env > /tmp/stack.env
-          echo "NEXT_PUBLIC_SUPABASE_URL=$(grep '^API_URL=' /tmp/stack.env | cut -d= -f2- | tr -d '\"')" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' /tmp/stack.env | cut -d= -f2- | tr -d '\"')" >> "$GITHUB_ENV"
-          rm /tmp/stack.env
+          supabase status -o json > /tmp/stack.json
+          echo "NEXT_PUBLIC_SUPABASE_URL=$(jq -r .API_URL /tmp/stack.json)" >> "$GITHUB_ENV"
+          public_key="$(jq -r '.ANON_KEY // .PUBLISHABLE_KEY' /tmp/stack.json)"
+          printf 'NEXT_PUBLIC_SUPABASE_%s=%s\n' ANON_KEY "$public_key" >> "$GITHUB_ENV"
+          rm /tmp/stack.json
       - name: Seed synthetic people
         run: node scripts/e2e-stack-seed.mjs apps/web/e2e-stack/.seed.json
       - run: pnpm -C apps/web exec playwright install --with-deps chromium
