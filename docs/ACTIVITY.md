@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | IN PROGRESS (reopened L-0111 for B-26; redone L-0119 after L-0116; was VERIFIED L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097, L-0105 and L-0121 after L-0085 and L-0116) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097, L-0105 and L-0121 after L-0085 and L-0116; agent compliance kit, protocol, preflight and SessionStart hook added, L-0188, awaiting an independent check) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -345,6 +345,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0171 |
 | C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
 | C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
+| C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
 
 ---
 
@@ -2988,11 +2989,60 @@ Security checklist (tick honestly):
 **Rules touched:** section 11
 **Next / needs:** MJ: review the pull request; B-28, B-29, B-30, B-13.
 
+### L-0186 · 2026-11-01 07:58 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · SESSION-START
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** Checklist: (1) read this file, including the rules, board, claims, blockers, assumptions, Appendix A and Appendix C, and the last entries (L-0179 to L-0185); (2) read MJ's kit in full: docs/AGENT-COMPLIANCE-PROTOCOL.md, README-INSTALL.md, the installation map, INSTALL-AGENT-PROMPT.md, the two patches, the Appendix A addition, both scripts, the hook and the workflow; (3) no active claim on main touches the root instruction files, package.json scripts, .claude or .github/workflows; open PR 14 (TLA spec) and PR 15 (claude/crm-working-check-test-606a4a, slices 1 and 2) do not touch them either, apart from PR 15 appending to this log; (4) blockers B-13 (branch protection) bears on this task and is not changed by it; (5) branch claude/agent-compliance-kit cut from main at 13ebec7, a fresh clone; (6) local only, no staging or production access, no data.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; on main before any change `pnpm lint` exit 0 (0 errors, 31 warnings, all in existing files); `pnpm typecheck` exit 0. `pnpm db:test` not run: this change touches no SQL, test, app or package code.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0187.
+
+### L-0187 · 2026-11-01 07:58 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · CLAIM
+**Task:** P0-09 (agent compliance kit)    **Claim:** C-015
+**What / why:** MJ asked, in chat on 2026-11-01, to enforce his agent compliance kit as a separate governance-only pull request. Areas: new files docs/AGENT-COMPLIANCE-PROTOCOL.md, scripts/agent-preflight.mjs, scripts/agent-preflight.test.mjs, .claude/settings.json, .github/workflows/agent-compliance.yml; AGENTS.md and CLAUDE.md (the kit's block inserted under the first heading, everything else kept, files kept identical); package.json (two scripts added, none removed); in this file, Appendix A (two paragraphs added, its code block unchanged), the P0-09 board row, the released-claims table and this log. Not touched: scripts/activity-log-check.mjs, .github/workflows/ci.yml, any SQL, test or app code. Claim ID C-015 skips C-011 to C-014, which open PR 15 already uses.
+**Rules touched:** section 3
+**Next / needs:** L-0188.
+
+### L-0188 · 2026-11-01 08:03 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · DONE
+**Task:** P0-09 (agent compliance kit)    **Claim:** C-015
+**What / why:** Installed as mapped by the kit. Two departures, both mechanical: (1) the kit's package.json patch did not apply to main (its context lines predate the engines field), so the two scripts were added by hand at the top of the scripts object; (2) the two kit scripts failed `pnpm lint` (Biome import order and line format, 4 errors), so they were formatted with `biome check --write` and the header comment of agent-preflight.mjs moved back above the imports; no statement, string or condition changed. The kit's Appendix A text is added as two plain paragraphs. Limits, stated plainly: the hook is not yet tested in a real new Claude Code session, and MJ must review and approve it in Claude Code's /hooks if asked; the hook runs `node scripts/agent-preflight.mjs --hook` relative to the session's working directory, so a session started below the repository root gets a hook error instead of the protocol; the hook is Claude Code only, other agents rely on AGENTS.md telling them to run `pnpm agent:preflight`; nothing here makes the new check required, that is branch protection (B-13, MJ).
+**Security checklist:**
+- [x] Requirement implemented as written (MJ's kit, installation map and README-INSTALL)
+- [ ] Migration: not applicable (no SQL)
+- [ ] RLS and matrix: not applicable (no table)
+- [ ] Append-only tables: not applicable
+- [x] No security control weakened: activity-log-check, ci.yml and every existing script untouched; the new check only adds a gate
+- [x] The preflight and the hook are read-only: the worktree status hash is the same before and after running all three modes
+- [ ] Audit: not applicable
+- [x] No vault surface touched
+- [ ] Offline: not applicable
+- [x] No money arithmetic
+- [x] Lint, typecheck and the preflight tests pass locally; CI runs on the pull request
+- [x] Docs: Appendix A and both root files say the same thing (H-25)
+- [x] Diff read: no secrets, no real data, no new dependency
+**Evidence:** `pnpm agent:preflight` exit 0 (branch claude/agent-compliance-kit); `pnpm agent:preflight:test`: 5 tests, 5 pass, 0 fail; `node scripts/agent-preflight.mjs --hook`: exit 0, prints the report and the full protocol; `--ci` exit 0. Negative runs, each on a fresh copy of this branch: policy reference removed from both root files, exit 1; AGENTS.md and CLAUDE.md differ, exit 1; hook command changed, exit 1; hook file not JSON, exit 1; hook file missing, exit 1; Appendix A reference removed, exit 1; local branch main with every file present, exit 1, and the same with `--ci`, exit 0 (by design, CI checks out a detached ref). `pnpm lint` exit 0 (31 warnings, all pre-existing); `pnpm typecheck` exit 0; `cmp AGENTS.md CLAUDE.md` exit 0; `pnpm activity:check`: see L-0190.
+**Rules touched:** H-18, H-20, H-23, H-24, H-25
+**Next / needs:** L-0189.
+
+### L-0189 · 2026-11-01 08:03 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · CLAIM-RELEASED
+**Task:** P0-09 (agent compliance kit)    **Claim:** C-015
+**What / why:** C-015 released (done), straight into the released table. The P0-09 board row now names this kit and L-0188.
+**Rules touched:** section 3
+**Next / needs:** L-0190.
+
+### L-0190 · 2026-11-01 08:03 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · HANDOFF
+**Task:** P0-09 (agent compliance kit)    **Claim:** — (C-015 released)
+**What / why:** State: branch claude/agent-compliance-kit from main at 13ebec7, governance only, pull request to main, not merged. Status is DONE (self-reported); a different agent or MJ verifies (section 7). Next, in order: (1) MJ reviews the pull request and the hook command; (2) after the new workflow runs, MJ adds its check, shown as agent-policy-files under agent-compliance, to the required checks on main with the existing five (B-13); (3) after merge, a new Claude Code session is opened at the repository root and MJ approves the hook in /hooks if asked, then confirms the preflight report and the protocol appear at session start. Gotchas: this log uses L-0186 to L-0190, as do open PRs 14 and 15; whichever merges later renumbers its entries, as before (L-0173). Local clones keep untracked `.claude/worktrees/` and `.claude/settings.local.json`; the preflight lists them as worktree changes, which is expected.
+**Evidence:** `pnpm activity:check main HEAD` OK on the final commit (run before push); the other results are in L-0188.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; B-13 required checks; approve the hook.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
 
 Both files carry the same content so every agent tool picks it up:
+
+**Additional mandatory policy:** Both root instruction files must also require every agent to read `docs/AGENT-COMPLIANCE-PROTOCOL.md` in full at the beginning of every task/session and to run `pnpm agent:preflight` before implementation. The protocol supplements this ACTIVITY file; it does not override the authority hierarchy in §1, the hard rules in §5, the Definition of Done in §6, maker/checker in §7, owner-only phase acceptance in §8, stop conditions in §9, or human-only actions in §10.
 
 ```
 # Kiran DMS — READ THIS FIRST
@@ -3007,6 +3057,8 @@ Before doing ANYTHING in this repository you MUST:
 Work without a log entry is treated as not done and may be reverted.
 Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for MJ.
 ```
+
+Claude Code project-level `SessionStart` automation is configured in `.claude/settings.json`; it runs the read-only preflight and injects the compliance protocol into the session context. The hook does not create ACTIVITY entries, claim work, replace the required full read of this file, or authorize code changes.
 
 ## Appendix B — Quick reference: who may do what in the build
 
