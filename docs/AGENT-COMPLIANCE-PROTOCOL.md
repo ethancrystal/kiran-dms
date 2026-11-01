@@ -1,6 +1,6 @@
 # KIRAN DMS — MANDATORY AGENT COMPLIANCE PROTOCOL
 
-**Status:** Proposed repository policy for installation by MJ  
+**Status:** Repository policy, installed at MJ's instruction (`docs/ACTIVITY.md` L-0188)  
 **Scope:** Every AI coding agent, human contributor, subagent, verifier, and automated implementation workflow working in `ethancrystal/kiran-dms`.
 
 This document supplements the existing repository rulebook. It does not replace it and does not grant authority to change business decisions, security controls, permissions, thresholds, production systems, or phase gates.
@@ -32,7 +32,7 @@ Before reading, writing, testing, migrating, deploying, or running commands that
 8. Establish the required baseline on a feature branch, following `docs/ACTIVITY.md` §2. Record each command and its actual result.
 9. Append a correctly signed `SESSION-START` entry and create a non-overlapping claim before making changes.
 
-A `SessionStart` hook may automatically inject this protocol into Claude Code's context. That injection does **not** waive the requirement to read `docs/ACTIVITY.md` and task-specific source documents, inspect the worktree, record a session, or claim the task.
+A `SessionStart` hook reminds Claude Code of this file and reports the branch and worktree state (section 10). That injection does **not** waive the requirement to read `docs/ACTIVITY.md` and task-specific source documents, inspect the worktree, record a session, or claim the task.
 
 If the task cannot be claimed without overlap, do not edit the overlapping area. Log or report the blocker and select an unrelated task only if authorized by the project workflow.
 
@@ -152,8 +152,8 @@ No evidence means no completion claim.
 
 The repository preflight and CI checks are tripwires, not proof of comprehension or correct business behavior.
 
-- `pnpm agent:preflight` checks that required policy files exist, root agent instructions reference them, the root instructions remain synchronized, and the local branch is suitable for work. It reports working-tree changes without modifying them.
-- The Claude Code `SessionStart` hook runs the preflight and injects the full compliance protocol into the session context. It does not write to the repository or create activity-log entries.
+- `pnpm agent:preflight` checks that required policy files exist, root agent instructions reference them, the root instructions remain synchronized, `docs/ACTIVITY.md` Appendix A references this file, local Claude Code state (`.claude/settings.local.json`, `.claude/worktrees/`) is git-ignored, and the local branch is suitable for work. It reports working-tree changes without modifying them.
+- The Claude Code `SessionStart` hook runs `node ${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs --hook` (exec form, so it works from any starting directory and under Git Bash or PowerShell) on startup, `/clear` and compaction, but not on resume, where the conversation already holds its output. It prints about 600 characters: branch, a capped worktree summary, the preflight result and a pointer to the two files to read. It deliberately does not paste this protocol or `CLAUDE.md`: both are read in full anyway, so pasting them would load the same text twice. It always exits 0 (a failing SessionStart hook only shows a notice, which would hide the warning) and writes nothing to the repository.
 - The `agent-compliance` GitHub Actions workflow validates that the policy files, instructions, hook configuration, and preflight tests remain installed.
 - The existing `activity-log-check` remains the authority for its documented append-only/activity-log checks.
 - CI cannot prove that an agent understood every requirement, that every visible control is functionally correct, or that all security properties are safe. Those require source review, negative tests, independent verification, and MJ's approvals.

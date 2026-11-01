@@ -2,10 +2,16 @@
   "hooks": {
     "SessionStart": [
       {
+        "matcher": "startup|clear|compact",
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/agent-preflight.mjs --hook"
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs",
+              "--hook"
+            ],
+            "timeout": 30
           }
         ]
       }

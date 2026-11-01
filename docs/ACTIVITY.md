@@ -3036,6 +3036,20 @@ Security checklist (tick honestly):
 **Rules touched:** section 11
 **Next / needs:** MJ: review and merge; B-13 required checks; approve the hook.
 
+### L-0191 · 2026-11-01 08:13 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · CORRECTION
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** Corrects L-0188, whose description of the hook and scripts no longer holds after MJ asked (2026-11-01) for the ChatGPT-written kit to be checked and for nothing to be duplicated or loaded needlessly. Problems found in the kit and fixed in this branch: (1) the hook ran a relative shell command, `node scripts/agent-preflight.mjs --hook`, which fails from any directory but the repository root; it is now exec form, `node` with `${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs --hook`, with a 30 s timeout, matcher `startup|clear|compact` (not `resume`, where the conversation already holds the output); (2) the hook pasted the whole protocol, 12 KB, on every start, although CLAUDE.md already makes the agent read that file in full: Claude Code caps hook output at 10,000 characters and swaps anything longer for a file path the agent is not told to read, so the kit's hook would have been cut off and the text loaded twice; the hook now prints about 600 characters (branch, worktree capped at 8 lines, preflight result, which files to read) and no protocol text, and the "MANDATORY NEXT ACTIONS" list that repeated CLAUDE.md is gone from every mode; (3) the hook exited 1 on a failed preflight, which Claude Code shows as a one-line notice and so hides the warning; it now always exits 0 and the warning is in the output, while `pnpm agent:preflight` still exits 1; (4) the Appendix A check looked for the protocol path anywhere in ACTIVITY.md, so any other mention passed it; it now reads only the Appendix A section; (5) `.claude/settings.local.json` and `.claude/worktrees/` were not git-ignored, so a worktree (a full checkout, which a local clone here already holds) could be committed by `git add -A`; both are now in `.gitignore` and the preflight checks for them; (6) tests: 5 became 11, adding CLI runs against throwaway git repositories (main versus feature branch, `--ci`, `--hook` size and exit code, read-only proof with user changes present, a check that the hook output repeats no line of the protocol or CLAUDE.md); (7) the workflow gained `timeout-minutes: 5`. Unchanged: the root block in AGENTS.md and CLAUDE.md, the package.json scripts, activity-log-check and ci.yml.
+**Evidence:** `pnpm agent:preflight:test`: 11 tests, 11 pass, 0 fail; `pnpm agent:preflight` exit 0; `node scripts/agent-preflight.mjs --hook` prints 610 characters, run from `apps/web` it reports the same branch; `pnpm lint` exit 0; `pnpm typecheck`, `pnpm activity:check main HEAD`: see L-0192. Not run: the hook in a real new Claude Code session (still MJ's step), `pnpm db:test` (no SQL, test or app code changed).
+**Rules touched:** H-23, H-24, H-25
+**Next / needs:** L-0192.
+
+### L-0192 · 2026-11-01 08:13 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · HANDOFF
+**Task:** P0-09 (agent compliance kit)    **Claim:** — (C-015 released, L-0189)
+**What / why:** Supersedes the open items of L-0190; its state otherwise stands (branch from main at 13ebec7, governance only, DONE self-reported, awaiting an independent check). One question for MJ, not changed here because the rule is his: the root files and ACTIVITY section 2 say to read docs/ACTIVITY.md in full, and the file is 452 KB (3,106 lines, about 110,000 tokens), which is the largest context cost in the repository. Sections 1 to 15 (rules, board, claims, blockers, assumptions) are about 41 KB and the last 20 log entries about 26 KB, 15% of the file together. If MJ agrees, a later change can say "sections 1 to 15 and the last 20 entries; search the older log by task ID or L-number". Next, in order: (1) MJ reviews the pull request and the hook; (2) MJ adds `agent-policy-files` (workflow `agent-compliance`) to main's required checks (B-13); (3) after merge, open a new Claude Code session at the repository root, approve the hook in /hooks if asked, and confirm the short preflight report appears.
+**Evidence:** see L-0191.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; B-13; the question above.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -3058,7 +3072,7 @@ Work without a log entry is treated as not done and may be reverted.
 Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for MJ.
 ```
 
-Claude Code project-level `SessionStart` automation is configured in `.claude/settings.json`; it runs the read-only preflight and injects the compliance protocol into the session context. The hook does not create ACTIVITY entries, claim work, replace the required full read of this file, or authorize code changes.
+Claude Code project-level `SessionStart` automation is configured in `.claude/settings.json`; it runs the read-only preflight and adds a short report (branch, worktree, wiring, and which files to read) to the session context; it does not paste the protocol, so nothing is loaded twice. The hook does not create ACTIVITY entries, claim work, replace the required full read of this file, or authorize code changes.
 
 ## Appendix B — Quick reference: who may do what in the build
 

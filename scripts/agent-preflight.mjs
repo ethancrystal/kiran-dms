@@ -1,29 +1,56 @@
 #!/usr/bin/env node
 /**
- * Kiran DMS agent preflight.
- * A read-only tripwire: checks governance files/references and reports branch/worktree state.
- * It cannot prove that an agent read or understood the documents.
+ * Kiran DMS agent preflight (docs/AGENT-COMPLIANCE-PROTOCOL.md §10).
+ * A read-only tripwire: checks the governance files and references, and reports branch and
+ * worktree state. It writes nothing and cannot prove that an agent read or understood anything.
+ *
+ * Modes:
+ *   (none)  local startup: exit 1 on any finding, including work on local main or master
+ *   --ci    GitHub Actions: same file checks; the branch is not checked (CI checks out a detached ref)
+ *   --hook  Claude Code SessionStart: always exit 0 (a failing SessionStart hook only shows a notice);
+ *           prints a short report and tells the agent what to read. It does not paste the protocol:
+ *           the protocol must be read in full anyway, so pasting it would load it twice.
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const POLICY_PATH = "docs/AGENT-COMPLIANCE-PROTOCOL.md";
+export const POLICY_PATH = "docs/AGENT-COMPLIANCE-PROTOCOL.md";
 const ACTIVITY_PATH = "docs/ACTIVITY.md";
+const APPENDIX_A_HEADING = "## Appendix A";
+
+// Claude Code caps a hook's plain stdout at 10,000 characters (longer output becomes a file path the
+// agent is not told to read). The hook is far below this; the test suite keeps it under 2,500.
+export const HOOK_OUTPUT_LIMIT = 2500;
+
+// The SessionStart hook in .claude/settings.json, in exec form: no shell, so it behaves the same
+// under Git Bash and PowerShell on Windows, and ${CLAUDE_PROJECT_DIR} makes it independent of the
+// directory the session starts in. Not on "resume": a resumed conversation already holds the
+// earlier output, so firing again would only duplicate it.
+export const HOOK_MATCHER = "startup|clear|compact";
+export const HOOK_COMMAND = "node";
+export const HOOK_ARGS = ["${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs", "--hook"];
+
+const STARTUP_SECTION = "## 2. Required startup sequence";
+
 const REQUIRED_FILES = [
   "AGENTS.md",
   "CLAUDE.md",
   POLICY_PATH,
   ACTIVITY_PATH,
   ".claude/settings.json",
+  ".gitignore",
   "package.json",
   "scripts/agent-preflight.mjs",
   "scripts/agent-preflight.test.mjs",
   ".github/workflows/agent-compliance.yml",
 ];
+
+// Local Claude Code state that must never be committed (worktrees are full checkouts).
+const REQUIRED_IGNORES = [".claude/settings.local.json", ".claude/worktrees/"];
 
 function readText(root, relativePath) {
   try {
@@ -31,6 +58,33 @@ function readText(root, relativePath) {
   } catch {
     return null;
   }
+}
+
+/** Text of the "## Appendix A" section, up to the next "## " heading; null when absent. */
+export function appendixA(activity) {
+  const lines = activity.split("\n");
+  const start = lines.findIndex((line) => line.startsWith(APPENDIX_A_HEADING));
+  if (start === -1) return null;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.startsWith("## "));
+  return [lines[start], ...(end === -1 ? rest : rest.slice(0, end))].join("\n");
+}
+
+function hookIsInstalled(settings) {
+  const groups = settings?.hooks?.SessionStart;
+  if (!Array.isArray(groups)) return false;
+  return groups.some(
+    (group) =>
+      group.matcher === HOOK_MATCHER &&
+      (group.hooks ?? []).some(
+        (hook) =>
+          hook.type === "command" &&
+          hook.command === HOOK_COMMAND &&
+          Array.isArray(hook.args) &&
+          hook.args.length === HOOK_ARGS.length &&
+          hook.args.every((arg, i) => arg === HOOK_ARGS[i]),
+      ),
+  );
 }
 
 export function validatePolicyFiles(root) {
@@ -48,12 +102,8 @@ export function validatePolicyFiles(root) {
     ["CLAUDE.md", claude],
   ]) {
     if (contents === null) continue;
-    if (!contents.includes(POLICY_PATH)) {
-      errors.push(`${name} does not reference ${POLICY_PATH}`);
-    }
-    if (!contents.includes(ACTIVITY_PATH)) {
-      errors.push(`${name} does not reference ${ACTIVITY_PATH}`);
-    }
+    if (!contents.includes(POLICY_PATH)) errors.push(`${name} does not reference ${POLICY_PATH}`);
+    if (!contents.includes(ACTIVITY_PATH)) errors.push(`${name} does not reference ${ACTIVITY_PATH}`);
     if (!contents.includes("pnpm agent:preflight")) {
       errors.push(`${name} does not instruct agents to run pnpm agent:preflight`);
     }
@@ -63,8 +113,10 @@ export function validatePolicyFiles(root) {
   }
 
   const activity = readText(root, ACTIVITY_PATH);
-  if (activity !== null && !activity.includes(POLICY_PATH)) {
-    errors.push(`${ACTIVITY_PATH} Appendix A must reference ${POLICY_PATH}`);
+  if (activity !== null) {
+    const appendix = appendixA(activity);
+    if (appendix === null) errors.push(`${ACTIVITY_PATH} has no "${APPENDIX_A_HEADING}" section`);
+    else if (!appendix.includes(POLICY_PATH)) errors.push(`${ACTIVITY_PATH} Appendix A must reference ${POLICY_PATH}`);
   }
 
   const packageJsonText = readText(root, "package.json");
@@ -82,32 +134,37 @@ export function validatePolicyFiles(root) {
     }
   }
 
-  const hookText = readText(root, ".claude/settings.json");
-  if (hookText !== null) {
+  const settingsText = readText(root, ".claude/settings.json");
+  if (settingsText !== null) {
     try {
-      const settings = JSON.parse(hookText);
-      const hooks = settings?.hooks?.SessionStart ?? [];
-      const commandFound = hooks.some((entry) =>
-        (entry.hooks ?? []).some((hook) => hook.type === "command" && hook.command === "node scripts/agent-preflight.mjs --hook"),
-      );
-      if (!commandFound) {
-        errors.push(".claude/settings.json must have a SessionStart command hook for node scripts/agent-preflight.mjs --hook");
+      if (!hookIsInstalled(JSON.parse(settingsText))) {
+        errors.push(
+          `.claude/settings.json must have a SessionStart command hook: matcher "${HOOK_MATCHER}", command "${HOOK_COMMAND}", args ${JSON.stringify(HOOK_ARGS)}`,
+        );
       }
     } catch {
       errors.push(".claude/settings.json is not valid JSON");
     }
   }
 
+  const gitignore = readText(root, ".gitignore");
+  if (gitignore !== null) {
+    const lines = new Set(gitignore.split(/\r?\n/).map((line) => line.trim()));
+    for (const pattern of REQUIRED_IGNORES) {
+      if (!lines.has(pattern)) errors.push(`.gitignore must contain the line ${pattern}`);
+    }
+  }
+
   const policy = readText(root, POLICY_PATH);
-  if (policy !== null && !policy.includes("## 2. Required startup sequence")) {
+  if (policy !== null && !policy.includes(STARTUP_SECTION)) {
     errors.push(`${POLICY_PATH} is missing its mandatory startup sequence`);
   }
 
   return errors;
 }
 
-export function validateBranch(branch, { ci = false, hook = false } = {}) {
-  if (ci || hook) return [];
+export function validateBranch(branch, { ci = false } = {}) {
+  if (ci) return [];
   if (!branch) return ["Git branch could not be determined; do not work from a detached HEAD."];
   if (branch === "main" || branch === "master") {
     return [`Current branch is '${branch}'. Switch to an authorized feature branch before making changes.`];
@@ -115,63 +172,84 @@ export function validateBranch(branch, { ci = false, hook = false } = {}) {
   return [];
 }
 
-function git(args) {
-  const result = spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
+function git(root, args) {
+  const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
   if (result.error || result.status !== 0) {
     return { ok: false, text: (result.stderr || result.error?.message || "git command failed").trim() };
   }
-  return { ok: true, text: result.stdout.trim() };
+  return { ok: true, text: result.stdout.trimEnd() };
+}
+
+const MAX_WORKTREE_LINES = 8;
+
+/**
+ * The report shared by every mode. Deliberately short: CLAUDE.md is already in an agent's context,
+ * so this states facts the agent cannot get from it (branch, worktree, wiring) and nothing it repeats.
+ */
+export function buildReport(root, { ci = false, hook = false } = {}) {
+  const errors = validatePolicyFiles(root);
+  const branchResult = git(root, ["branch", "--show-current"]);
+  const statusResult = git(root, ["status", "--short"]);
+  const branch = branchResult.ok ? branchResult.text.trim() : "";
+
+  if (!branchResult.ok) errors.push(`Unable to inspect current Git branch: ${branchResult.text}`);
+  if (!statusResult.ok) errors.push(`Unable to inspect Git worktree: ${statusResult.text}`);
+  errors.push(...validateBranch(branch, { ci }));
+
+  const mode = ci ? "CI" : hook ? "SessionStart" : "local";
+  const out = [`KIRAN DMS AGENT PREFLIGHT (${mode}, read-only). Branch: ${branch || "UNKNOWN (detached HEAD?)"}`];
+  if (statusResult.ok) {
+    const lines = statusResult.text ? statusResult.text.split("\n") : [];
+    if (lines.length === 0) out.push("Worktree: clean.");
+    else {
+      out.push(`Worktree: ${lines.length} change(s); not yours to discard, preserve them:`);
+      out.push(...lines.slice(0, MAX_WORKTREE_LINES));
+      if (lines.length > MAX_WORKTREE_LINES) out.push(`... and ${lines.length - MAX_WORKTREE_LINES} more (git status)`);
+    }
+  }
+  if (errors.length) {
+    out.push("PREFLIGHT BLOCKED. Edit nothing until each item is fixed or logged as a BLOCKER for MJ:");
+    for (const error of errors) out.push(`- ${error}`);
+  } else {
+    out.push("PREFLIGHT OK: governance files and references are in place.");
+  }
+  return { lines: out, errors };
+}
+
+/**
+ * SessionStart context. It does not paste the protocol or repeat CLAUDE.md: the protocol and
+ * ACTIVITY.md must be read in full anyway (CLAUDE.md says so), so pasting any of it here would load
+ * the same text twice.
+ */
+export function buildHookContext(root) {
+  const { lines, errors } = buildReport(root, { hook: true });
+  lines.push(
+    `Read ${POLICY_PATH} and ${ACTIVITY_PATH} before any edit, then log SESSION-START and CLAIM (as CLAUDE.md says). Re-run pnpm agent:preflight once you are on your feature branch.`,
+  );
+  return { text: lines.join("\n"), errors };
 }
 
 function run() {
   const args = new Set(process.argv.slice(2));
   const ci = args.has("--ci");
   const hook = args.has("--hook");
-  const errors = validatePolicyFiles(ROOT);
-  const branchResult = git(["branch", "--show-current"]);
-  const statusResult = git(["status", "--short"]);
-  const branch = branchResult.ok ? branchResult.text : "";
-
-  if (!branchResult.ok) errors.push(`Unable to inspect current Git branch: ${branchResult.text}`);
-  if (!statusResult.ok) errors.push(`Unable to inspect Git worktree: ${statusResult.text}`);
-  errors.push(...validateBranch(branch, { ci, hook }));
-
-  const output = [];
-  output.push("KIRAN DMS — AGENT PREFLIGHT (READ-ONLY)");
-  output.push(`Mode: ${ci ? "CI validation" : hook ? "Claude Code SessionStart" : "local startup"}`);
-  output.push(`Branch: ${branch || "UNKNOWN"}`);
-  if (statusResult.ok) {
-    output.push(
-      statusResult.text ? `Worktree changes detected (inspect before editing):\n${statusResult.text}` : "Worktree: clean",
-    );
-  }
-  if (errors.length) {
-    output.push("PREFLIGHT: BLOCKED");
-    for (const error of errors) output.push(`- ${error}`);
-  } else {
-    output.push("PREFLIGHT: required governance files and references are present.");
-  }
-  output.push("");
-  output.push("MANDATORY NEXT ACTIONS:");
-  output.push(
-    "1. Read docs/AGENT-COMPLIANCE-PROTOCOL.md in full (this content is injected below in Claude Code SessionStart mode).",
-  );
-  output.push("2. Read docs/ACTIVITY.md in full, including the last 20 entries, claims, blockers, decisions and status board.");
-  output.push("3. Read docs/00-README.md, SPEC.md and the source documents for the task requirements.");
-  output.push("4. Preserve all existing work; check active claims; record SESSION-START and CLAIM before edits.");
-  output.push("5. Do not work on main. Do not touch staging/production or real data without explicit MJ authorization.");
-  output.push("This script does not create log entries, modify files, or prove that the agent understood the policy.");
-
   if (hook) {
-    const policy = readText(ROOT, POLICY_PATH);
-    if (policy) output.push("\n===== FULL MANDATORY AGENT COMPLIANCE PROTOCOL =====\n", policy);
+    const { text } = buildHookContext(ROOT);
+    process.stdout.write(`${text}\n`);
+    return; // exit 0: a non-zero SessionStart exit shows only a notice and would hide this context
   }
-
-  process.stdout.write(`${output.join("\n")}\n`);
-  if (errors.length && !hook) process.exitCode = 1;
-  if (errors.length && hook)
-    process.stderr.write("SessionStart context loaded with a preflight warning; resolve blockers before editing.\n");
+  const { lines, errors } = buildReport(ROOT, { ci });
+  process.stdout.write(`${lines.join("\n")}\n`);
+  if (errors.length) process.exitCode = 1;
 }
 
-const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
-if (invokedPath === fileURLToPath(import.meta.url)) run();
+function samePath(a, b) {
+  try {
+    const [x, y] = [realpathSync(a), realpathSync(b)];
+    return process.platform === "win32" ? x.toLowerCase() === y.toLowerCase() : x === y;
+  } catch {
+    return false;
+  }
+}
+
+if (process.argv[1] && samePath(process.argv[1], fileURLToPath(import.meta.url))) run();
