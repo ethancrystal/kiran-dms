@@ -260,7 +260,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | P0-06 | RLS policy test harness (role × table × operation) running in CI, initially empty | NFR-12 | IN PROGRESS (reopened L-0111 for B-26; redone L-0119 after L-0116; was VERIFIED L-0030) | C-001 |
 | P0-07 | Vendor sign-ups and WhatsApp template approvals (human-only, §10); adapters stubbed | doc 05, OQ-11 | NOT STARTED | — |
 | P0-08 | Configuration definitions with owner: installment templates, credit rules, product groups, cycles, visit outcomes (use doc 09/10 defaults marked `[default-unconfirmed]`) | ADM-01, OQ-06/07 | VERIFIED (L-0030) | C-001 |
-| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097, L-0105 and L-0121 after L-0085 and L-0116) | C-001 |
+| P0-09 | **Enforce this protocol:** `AGENTS.md` + `CLAUDE.md` at repo root (Appendix A); CI check that fails a PR which changes code without appending to the log, or which modifies/removes existing log lines (Appendix C) | this file | DONE (self-reported; redone in L-0089, L-0093, L-0097, L-0105 and L-0121 after L-0085 and L-0116; agent compliance kit, protocol, preflight and SessionStart hook added, L-0188, awaiting an independent check) | C-001 |
 | P0-10 | Gate 0 sign-off by MJ | §8 | NOT STARTED | — |
 
 ### Phase 1 — MVP: the Khata, the Bag, and the Controls
@@ -345,6 +345,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0171 |
 | C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
 | C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
+| C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
 
 ---
 
@@ -366,7 +367,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-10 | **OQ-16** real product catalogue (names, sizes, weights, packs) | P1-04 data load | `[Dummy]` products only (H-04) | MJ | PENDING |
 | B-11 | **OQ-14** owner's willingness to run the daily digest/handover routine | Effectiveness of the control layer | Build all controls regardless | MJ | PENDING |
 | B-12 | Is Supabase project `iurvazdyxzlspegygldo` staging or production? Approve the MCP server and authenticate. Consider `read_only=true` meanwhile | P0-04, P0-05, P0-06, any DB work | Treat as production (H-19): connect only, no migrations, SQL or data reads | MJ | RESOLVED (L-0019: staging) |
-| B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring the five check names given verbatim in L-0175 (the earlier names `activity-log-check`, `db-tests`, `typecheck` do not match GitHub's check names) is still to be turned on | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | PENDING |
+| B-13 | Remote created (`ethancrystal/kiran-dms`, L-0018); branch protection on `main` requiring the five check names given verbatim in L-0175 (the earlier names `activity-log-check`, `db-tests`, `typecheck` do not match GitHub's check names) is still to be turned on; MJ turned it on 2026-11-01 as the ruleset prot, after making the repository public (GitHub offered no protection on a private repository on the free plan, L-0194): the five names plus `agent-policy-files` (workflow `agent-compliance`) are required, read back in L-0195; no approval rule is set, and the pull request 15 office browser check is to be added when it merges | P0-09 enforcement | Run `pnpm db:test` and `pnpm activity:check` locally before every handoff | MJ | RESOLVED (L-0195) |
 | B-14 | How do reps get the plan list and taxonomies (visit outcomes, product groups, salon types)? Doc 06 §2 gives reps no access to "installment templates, credit rules, config" (verifier Q1) | P1-02 rep visit logging, P1-06 ordering | Reps see no config; Phase 1 RPCs return only what a given screen needs (e.g. allowed plans for one salon) | MJ | PENDING |
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
 | B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | (a) RESOLVED L-0040; (b) PENDING |
@@ -2988,11 +2989,95 @@ Security checklist (tick honestly):
 **Rules touched:** section 11
 **Next / needs:** MJ: review the pull request; B-28, B-29, B-30, B-13.
 
+### L-0186 · 2026-11-01 07:58 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · SESSION-START
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** Checklist: (1) read this file, including the rules, board, claims, blockers, assumptions, Appendix A and Appendix C, and the last entries (L-0179 to L-0185); (2) read MJ's kit in full: docs/AGENT-COMPLIANCE-PROTOCOL.md, README-INSTALL.md, the installation map, INSTALL-AGENT-PROMPT.md, the two patches, the Appendix A addition, both scripts, the hook and the workflow; (3) no active claim on main touches the root instruction files, package.json scripts, .claude or .github/workflows; open PR 14 (TLA spec) and PR 15 (claude/crm-working-check-test-606a4a, slices 1 and 2) do not touch them either, apart from PR 15 appending to this log; (4) blockers B-13 (branch protection) bears on this task and is not changed by it; (5) branch claude/agent-compliance-kit cut from main at 13ebec7, a fresh clone; (6) local only, no staging or production access, no data.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; on main before any change `pnpm lint` exit 0 (0 errors, 31 warnings, all in existing files); `pnpm typecheck` exit 0. `pnpm db:test` not run: this change touches no SQL, test, app or package code.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0187.
+
+### L-0187 · 2026-11-01 07:58 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · CLAIM
+**Task:** P0-09 (agent compliance kit)    **Claim:** C-015
+**What / why:** MJ asked, in chat on 2026-11-01, to enforce his agent compliance kit as a separate governance-only pull request. Areas: new files docs/AGENT-COMPLIANCE-PROTOCOL.md, scripts/agent-preflight.mjs, scripts/agent-preflight.test.mjs, .claude/settings.json, .github/workflows/agent-compliance.yml; AGENTS.md and CLAUDE.md (the kit's block inserted under the first heading, everything else kept, files kept identical); package.json (two scripts added, none removed); in this file, Appendix A (two paragraphs added, its code block unchanged), the P0-09 board row, the released-claims table and this log. Not touched: scripts/activity-log-check.mjs, .github/workflows/ci.yml, any SQL, test or app code. Claim ID C-015 skips C-011 to C-014, which open PR 15 already uses.
+**Rules touched:** section 3
+**Next / needs:** L-0188.
+
+### L-0188 · 2026-11-01 08:03 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · DONE
+**Task:** P0-09 (agent compliance kit)    **Claim:** C-015
+**What / why:** Installed as mapped by the kit. Two departures, both mechanical: (1) the kit's package.json patch did not apply to main (its context lines predate the engines field), so the two scripts were added by hand at the top of the scripts object; (2) the two kit scripts failed `pnpm lint` (Biome import order and line format, 4 errors), so they were formatted with `biome check --write` and the header comment of agent-preflight.mjs moved back above the imports; no statement, string or condition changed. The kit's Appendix A text is added as two plain paragraphs. Limits, stated plainly: the hook is not yet tested in a real new Claude Code session, and MJ must review and approve it in Claude Code's /hooks if asked; the hook runs `node scripts/agent-preflight.mjs --hook` relative to the session's working directory, so a session started below the repository root gets a hook error instead of the protocol; the hook is Claude Code only, other agents rely on AGENTS.md telling them to run `pnpm agent:preflight`; nothing here makes the new check required, that is branch protection (B-13, MJ).
+**Security checklist:**
+- [x] Requirement implemented as written (MJ's kit, installation map and README-INSTALL)
+- [ ] Migration: not applicable (no SQL)
+- [ ] RLS and matrix: not applicable (no table)
+- [ ] Append-only tables: not applicable
+- [x] No security control weakened: activity-log-check, ci.yml and every existing script untouched; the new check only adds a gate
+- [x] The preflight and the hook are read-only: the worktree status hash is the same before and after running all three modes
+- [ ] Audit: not applicable
+- [x] No vault surface touched
+- [ ] Offline: not applicable
+- [x] No money arithmetic
+- [x] Lint, typecheck and the preflight tests pass locally; CI runs on the pull request
+- [x] Docs: Appendix A and both root files say the same thing (H-25)
+- [x] Diff read: no secrets, no real data, no new dependency
+**Evidence:** `pnpm agent:preflight` exit 0 (branch claude/agent-compliance-kit); `pnpm agent:preflight:test`: 5 tests, 5 pass, 0 fail; `node scripts/agent-preflight.mjs --hook`: exit 0, prints the report and the full protocol; `--ci` exit 0. Negative runs, each on a fresh copy of this branch: policy reference removed from both root files, exit 1; AGENTS.md and CLAUDE.md differ, exit 1; hook command changed, exit 1; hook file not JSON, exit 1; hook file missing, exit 1; Appendix A reference removed, exit 1; local branch main with every file present, exit 1, and the same with `--ci`, exit 0 (by design, CI checks out a detached ref). `pnpm lint` exit 0 (31 warnings, all pre-existing); `pnpm typecheck` exit 0; `cmp AGENTS.md CLAUDE.md` exit 0; `pnpm activity:check`: see L-0190.
+**Rules touched:** H-18, H-20, H-23, H-24, H-25
+**Next / needs:** L-0189.
+
+### L-0189 · 2026-11-01 08:03 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · CLAIM-RELEASED
+**Task:** P0-09 (agent compliance kit)    **Claim:** C-015
+**What / why:** C-015 released (done), straight into the released table. The P0-09 board row now names this kit and L-0188.
+**Rules touched:** section 3
+**Next / needs:** L-0190.
+
+### L-0190 · 2026-11-01 08:03 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · HANDOFF
+**Task:** P0-09 (agent compliance kit)    **Claim:** — (C-015 released)
+**What / why:** State: branch claude/agent-compliance-kit from main at 13ebec7, governance only, pull request to main, not merged. Status is DONE (self-reported); a different agent or MJ verifies (section 7). Next, in order: (1) MJ reviews the pull request and the hook command; (2) after the new workflow runs, MJ adds its check, shown as agent-policy-files under agent-compliance, to the required checks on main with the existing five (B-13); (3) after merge, a new Claude Code session is opened at the repository root and MJ approves the hook in /hooks if asked, then confirms the preflight report and the protocol appear at session start. Gotchas: this log uses L-0186 to L-0190, as do open PRs 14 and 15; whichever merges later renumbers its entries, as before (L-0173). Local clones keep untracked `.claude/worktrees/` and `.claude/settings.local.json`; the preflight lists them as worktree changes, which is expected.
+**Evidence:** `pnpm activity:check main HEAD` OK on the final commit (run before push); the other results are in L-0188.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; B-13 required checks; approve the hook.
+
+### L-0191 · 2026-11-01 08:13 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · CORRECTION
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** Corrects L-0188, whose description of the hook and scripts no longer holds after MJ asked (2026-11-01) for the ChatGPT-written kit to be checked and for nothing to be duplicated or loaded needlessly. Problems found in the kit and fixed in this branch: (1) the hook ran a relative shell command, `node scripts/agent-preflight.mjs --hook`, which fails from any directory but the repository root; it is now exec form, `node` with `${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs --hook`, with a 30 s timeout, matcher `startup|clear|compact` (not `resume`, where the conversation already holds the output); (2) the hook pasted the whole protocol, 12 KB, on every start, although CLAUDE.md already makes the agent read that file in full: Claude Code caps hook output at 10,000 characters and swaps anything longer for a file path the agent is not told to read, so the kit's hook would have been cut off and the text loaded twice; the hook now prints about 600 characters (branch, worktree capped at 8 lines, preflight result, which files to read) and no protocol text, and the "MANDATORY NEXT ACTIONS" list that repeated CLAUDE.md is gone from every mode; (3) the hook exited 1 on a failed preflight, which Claude Code shows as a one-line notice and so hides the warning; it now always exits 0 and the warning is in the output, while `pnpm agent:preflight` still exits 1; (4) the Appendix A check looked for the protocol path anywhere in ACTIVITY.md, so any other mention passed it; it now reads only the Appendix A section; (5) `.claude/settings.local.json` and `.claude/worktrees/` were not git-ignored, so a worktree (a full checkout, which a local clone here already holds) could be committed by `git add -A`; both are now in `.gitignore` and the preflight checks for them; (6) tests: 5 became 11, adding CLI runs against throwaway git repositories (main versus feature branch, `--ci`, `--hook` size and exit code, read-only proof with user changes present, a check that the hook output repeats no line of the protocol or CLAUDE.md); (7) the workflow gained `timeout-minutes: 5`. Unchanged: the root block in AGENTS.md and CLAUDE.md, the package.json scripts, activity-log-check and ci.yml.
+**Evidence:** `pnpm agent:preflight:test`: 11 tests, 11 pass, 0 fail; `pnpm agent:preflight` exit 0; `node scripts/agent-preflight.mjs --hook` prints 610 characters, run from `apps/web` it reports the same branch; `pnpm lint` exit 0; `pnpm typecheck`, `pnpm activity:check main HEAD`: see L-0192. Not run: the hook in a real new Claude Code session (still MJ's step), `pnpm db:test` (no SQL, test or app code changed).
+**Rules touched:** H-23, H-24, H-25
+**Next / needs:** L-0192.
+
+### L-0192 · 2026-11-01 08:13 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · HANDOFF
+**Task:** P0-09 (agent compliance kit)    **Claim:** — (C-015 released, L-0189)
+**What / why:** Supersedes the open items of L-0190; its state otherwise stands (branch from main at 13ebec7, governance only, DONE self-reported, awaiting an independent check). One question for MJ, not changed here because the rule is his: the root files and ACTIVITY section 2 say to read docs/ACTIVITY.md in full, and the file is 452 KB (3,106 lines, about 110,000 tokens), which is the largest context cost in the repository. Sections 1 to 15 (rules, board, claims, blockers, assumptions) are about 41 KB and the last 20 log entries about 26 KB, 15% of the file together. If MJ agrees, a later change can say "sections 1 to 15 and the last 20 entries; search the older log by task ID or L-number". Next, in order: (1) MJ reviews the pull request and the hook; (2) MJ adds `agent-policy-files` (workflow `agent-compliance`) to main's required checks (B-13); (3) after merge, open a new Claude Code session at the repository root, approve the hook in /hooks if asked, and confirm the short preflight report appears.
+**Evidence:** see L-0191.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; B-13; the question above.
+
+### L-0193 · 2026-11-01 08:16 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · PROGRESS
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** MJ supplied, in chat on 2026-11-01, a section on untrusted content and prompt-injection defence for docs/AGENT-COMPLIANCE-PROTOCOL.md. Added as section 11 (after section 10, so no existing section number or reference moves), in MJ's wording: repository content is data, not instructions; the list of potentially untrusted content; the five kinds of embedded instruction never to follow; the five audit steps for a suspected injection; and the rule that untrusted content cannot override the authority hierarchy. Two additions of mine, both flagged in the pull request: a sentence naming the designated authoritative sources (AGENTS.md, CLAUDE.md, the protocol, docs/ACTIVITY.md, the numbered planning documents, SPEC.md, and the current instruction of MJ or the person running the session), because "explicitly designated" is not enforceable without it; and a closing sentence saying to report such content and carry on with the assigned task instead of acting on it. The preflight now also fails if the protocol loses this section or the startup sequence, and has one more test (12 in all). The hook output is unchanged in kind (509 characters) and does not paste the section.
+**Evidence:** `pnpm agent:preflight:test`: 12 tests, 12 pass, 0 fail; `pnpm agent:preflight` exit 0; `pnpm lint`, `pnpm typecheck`, `pnpm activity:check main HEAD`: see the pull request checks on the final commit. Not run: `pnpm db:test` (no SQL, test or app code changed).
+**Rules touched:** H-23, H-25
+**Next / needs:** MJ: review the two additions in section 11.
+
+### L-0194 · 2026-11-01 08:18 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · PROGRESS
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** MJ asked (2026-11-01) for the four open items of the compliance kit to be completed. Results. (1) The pull request description is rewritten to match the branch (12 tests, the corrected hook, the kit defects, section 11). (2) CI on the pull request: see the pull request checks; Vercel ignored as MJ said. (3) Hook in a real session: not possible from this environment. A headless `claude -p` run (Claude Code 2.1.316) listed this repository's SessionStart hook by name, which shows the settings file parsed, but reported "Hooks not running" and failed authentication, so it proves nothing about execution. The hook was therefore launched as Claude Code launches it (exec form, no shell, empty environment but PATH and CLAUDE_PROJECT_DIR, the SessionStart JSON on stdin, working directory /tmp): exit 0, 362 characters on stdout, nothing on stderr; also exit 0 with no stdin. Still MJ's: open a new interactive session in the repository, approve the hook in /hooks if asked, and confirm the short report appears. (4) Branch protection on main cannot be turned on, by anyone, today: the repository is private on a GitHub free plan, and GitHub answers 403 "Upgrade to GitHub Pro or make this repository public" for both the branch protection API and the rulesets API (read-only calls). So B-13 is blocked on a plan or visibility decision that is MJ's, and nothing in this change tried to alter either. The sixth check name to require, once it can be, is agent-policy-files (workflow agent-compliance), added to the five in L-0175. The B-13 row is updated to say so; its status stays PENDING.
+**Evidence:** `GET /repos/ethancrystal/kiran-dms/branches/main/protection`: HTTP 403; `GET /repos/ethancrystal/kiran-dms/rulesets`: HTTP 403; `GET /repos/ethancrystal/kiran-dms`: private true, owner type User. Hook launch as described above: exit 0. `pnpm agent:preflight:test` 12 of 12 pass on the previous commit; lint, typecheck and activity:check are re-run on this commit before the push.
+**Rules touched:** H-19, H-23, H-24
+**Next / needs:** MJ: decide whether to upgrade the GitHub plan or make the repository public (B-13); approve the hook in /hooks.
+
+### L-0195 · 2026-11-01 08:36 PKT · Claude · Sonnet 5.5 · session cowork-01Y3chvu · branch claude/agent-compliance-kit · PROGRESS
+**Task:** P0-09 (agent compliance kit)    **Claim:** —
+**What / why:** MJ made the repository public and set a ruleset on main in the GitHub settings, in chat on 2026-11-01. Nothing here changed any GitHub setting: the proxy this session runs behind refuses writes to the rulesets API, so MJ did it by hand. Read back by this session on 2026-11-01 (read-only API calls): ruleset prot, enforcement active, target the default branch, no bypass actors; rules: deletion blocked, force-push (non-fast-forward) blocked, and required status checks, with the up-to-date requirement off, six checks all from GitHub Actions: activity-log-check (ACTIVITY.md Appendix C), typecheck + service-role scan, lint + format (Biome), rep PWA browser tests (Playwright), migrations + RLS matrix (local Supabase stack), and agent-policy-files. Each name matches, character for character, a check run GitHub reports on the head commit of pull request 16. B-13 is therefore resolved for the check names (the five of L-0175 plus agent-policy-files). Two things it does not cover, stated so they are not assumed: (1) Appendix C says merges to main require one reviewer who is not the author; the ruleset has no pull-request or approval rule, so that sentence is not enforced (a required check already stops direct pushes, so changes still go through a pull request, but nobody else has to approve); MJ's call, and an approval rule would stop the repository owner merging their own pull requests; (2) the office browser check from open pull request 15 (real local Supabase stack) is not in the list, because it is not on main yet; it should be added when that pull request merges. Also noted: making the repository public makes every document and the whole git history readable by anyone; the log check reports KIRAN_SENSITIVE_TERMS as empty, so supplier names are not being blocked, and this session did not scan the history.
+**Evidence:** `GET /repos/ethancrystal/kiran-dms/rulesets/26299367` (read back after MJ's save): rules deletion, non_fast_forward, required_status_checks with the six contexts above, integration id 15368 (GitHub Actions) on each, bypass_actors empty; `GET /repos/ethancrystal/kiran-dms`: private false; check-run names on the head of pull request 16 (commit 8452252): the same six. An earlier read, minutes before, showed the ruleset with only the first two rules and none of the checks, and a screenshot from MJ showed five checks without the migrations one; the final read above is the only one relied on.
+**Rules touched:** H-19, H-23, H-24
+**Next / needs:** MJ: decide on the approval rule (Appendix C sentence); scan the history for supplier names and secrets, and fill KIRAN_SENSITIVE_TERMS, now that the repository is public.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
 
 Both files carry the same content so every agent tool picks it up:
+
+**Additional mandatory policy:** Both root instruction files must also require every agent to read `docs/AGENT-COMPLIANCE-PROTOCOL.md` in full at the beginning of every task/session and to run `pnpm agent:preflight` before implementation. The protocol supplements this ACTIVITY file; it does not override the authority hierarchy in §1, the hard rules in §5, the Definition of Done in §6, maker/checker in §7, owner-only phase acceptance in §8, stop conditions in §9, or human-only actions in §10.
 
 ```
 # Kiran DMS — READ THIS FIRST
@@ -3007,6 +3092,8 @@ Before doing ANYTHING in this repository you MUST:
 Work without a log entry is treated as not done and may be reverted.
 Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for MJ.
 ```
+
+Claude Code project-level `SessionStart` automation is configured in `.claude/settings.json`; it runs the read-only preflight and adds a short report (branch, worktree, wiring, and which files to read) to the session context; it does not paste the protocol, so nothing is loaded twice. The hook does not create ACTIVITY entries, claim work, replace the required full read of this file, or authorize code changes.
 
 ## Appendix B — Quick reference: who may do what in the build
 

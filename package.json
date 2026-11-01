@@ -8,6 +8,8 @@
   },
   "type": "module",
   "scripts": {
+    "agent:preflight": "node scripts/agent-preflight.mjs",
+    "agent:preflight:test": "node --test scripts/agent-preflight.test.mjs",
     "db:test": "vitest run --config supabase/tests/vitest.config.ts",
     "activity:check": "node scripts/activity-log-check.mjs",
     "typecheck": "tsc -p supabase/tests/tsconfig.json --noEmit && pnpm -r --if-present typecheck",

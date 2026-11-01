@@ -1,5 +1,13 @@
 # Kiran DMS — READ THIS FIRST
 
+## Mandatory agent compliance protocol
+
+Before ANY repository work, every agent MUST read `docs/AGENT-COMPLIANCE-PROTOCOL.md` in full and follow it, in addition to reading `docs/ACTIVITY.md` in full. Do not treat a session-start hook or preflight result as a substitute for the required source-document review, session log, or task claim.
+
+Run `pnpm agent:preflight` before implementation. Do not work directly on `main`. Preserve all pre-existing changes. A failed preflight is a stop condition; do not bypass it.
+
+The authoritative task lifecycle, hard rules, status board, claims, blockers, phase gates, evidence format, and handoff requirements remain in `docs/ACTIVITY.md`. If instructions conflict, follow its authority hierarchy and stop/log a blocker rather than guessing.
+
 Before doing ANYTHING in this repository you MUST:
 1. Read docs/ACTIVITY.md in full (rules, status board, claims, blockers, log).
 2. Log a SESSION-START entry, claim your task, and follow every hard rule (H-01…H-27).

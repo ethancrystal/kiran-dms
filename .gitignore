@@ -21,3 +21,6 @@ import-reports/
 # Playwright output (apps/web e2e)
 playwright-report/
 test-results/
+# Claude Code local state: personal settings and worktree checkouts (never commit)
+.claude/settings.local.json
+.claude/worktrees/
