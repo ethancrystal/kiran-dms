@@ -20,4 +20,7 @@ next-env.d.ts
 import-reports/
 # Playwright output (apps/web e2e)
 playwright-report/
+playwright-report-stack/
+# Synthetic people seeded into a local stack per test run (scripts/e2e-stack-seed.mjs)
+apps/web/e2e-stack/.seed.json
 test-results/

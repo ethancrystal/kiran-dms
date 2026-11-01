@@ -116,3 +116,48 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
           retention-days: 7
+
+  e2e-stack:
+    name: office browser tests (Playwright, local Supabase stack)
+    runs-on: ubuntu-latest
+    env:
+      # Local CLI stack only: fixed, public development settings, not secrets.
+      KIRAN_STACK_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      KIRAN_STACK_MAILPIT_URL: http://127.0.0.1:54324
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      # Auth, PostgREST (through the API gateway) and the mail catcher stay up: the pages call the
+      # real app.* functions with real sessions (execution map, gate G2). Migrations apply on start.
+      - name: Start Supabase (db, auth, rest, gateway, mail)
+        run: supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      # Only the public URL and the publishable (anon) key leave the stack; no service-role key is read.
+      - name: Public settings of the local stack
+        run: |
+          supabase status -o env > /tmp/stack.env
+          echo "NEXT_PUBLIC_SUPABASE_URL=$(grep '^API_URL=' /tmp/stack.env | cut -d= -f2- | tr -d '\"')" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' /tmp/stack.env | cut -d= -f2- | tr -d '\"')" >> "$GITHUB_ENV"
+          rm /tmp/stack.env
+      - name: Seed synthetic people
+        run: node scripts/e2e-stack-seed.mjs apps/web/e2e-stack/.seed.json
+      - run: pnpm -C apps/web exec playwright install --with-deps chromium
+      - run: pnpm -C apps/web exec playwright test -c playwright.stack.config.ts
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-stack
+          path: apps/web/playwright-report-stack
+          retention-days: 7
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup

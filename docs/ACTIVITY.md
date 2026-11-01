@@ -331,8 +331,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
-
+| C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slice 1 of the execution map: office shell) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/page.tsx` (show the sign-in code), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0202) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -349,6 +348,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-011 | — (independent check of the CRM modules built so far, L-0186) | 2026-10-31 22:50 | done | L-0188 |
 | C-012 | — (section 7 attack pass and Phase 1 audit, L-0190) | 2026-11-01 01:40 | done | L-0194 |
 | C-013 | P1-02 (fix: partial `update_salon`, migration 0014) | 2026-11-01 02:05 | done | L-0199 |
+| C-001 | P0-02, P0-04, P0-05 (and the apps/web, scripts, tests areas it held) | 2026-11-01 02:20 | stale | L-0201 |
 
 ---
 
@@ -3104,6 +3104,25 @@ Security checklist (tick honestly):
 **Evidence:** `list_migrations`: 13 versions, 20261024223304 to 20261028100000, matching the repository file names. SQL on staging: 36 tables in public, control, supplier_vault, 0 without forced RLS; 111 functions in schema app; 0 SECURITY DEFINER functions in app or control without a pinned search_path; md5 of `pg_get_functiondef(app.rep_deliver)` 8cf68d56656b39425b6cf5f459cceb6b; 0 salons. Security advisors: the two known INFO items (audit_chain_head, doc_counter have no policies) and a new WARN, 74 functions in app are SECURITY DEFINER and executable by authenticated through /rest/v1/rpc; that is the design (H-08: every write goes through these functions, each checks role, device and territory itself) and it appears because app is now exposed.
 **Rules touched:** H-08, H-19
 **Next / needs:** MJ: owner account with TOTP on staging (gate-0 checklist), so a signed-in call can be tested.
+
+### L-0201 · 2026-11-01 02:20 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** P0-02, P0-04, P0-05    **Claim:** C-001
+**What / why:** C-001 released as stale (section 3): its last activity was 2026-10-28 21:15 (L-0126), more than 24 hours ago, and slice 1 (MJ's master prompt, execution map) needs `apps/web`. Checked before releasing: the K checkout (branch feat/p0-foundation at b61494f) has an uncommitted change to docs/ACTIVITY.md and two untracked files, `packages/import/tests/reverify11-import.test.ts` and `supabase/tests/reverify11-attacks.test.ts`; they are left exactly as they are, and their author may re-claim them. Last entries of C-001 read (L-0125, L-0126). The board rows P0-02, P0-04, P0-05 keep their status; only the claim column frees up.
+**Rules touched:** section 3
+**Next / needs:** L-0202.
+
+### L-0202 · 2026-11-01 02:21 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** — (slice 1 of `docs/audit-2026-10-31/execution-map.md`: office shell)    **Claim:** C-014
+**What / why:** MJ asked to map every step of the master prompt and execute them in order; the map is `docs/audit-2026-10-31/execution-map.md`. Slice 1: an office layout with role-aware navigation and sign-out; `/office/devices` (pending first; approve and revoke through `app.approve_device`, `app.revoke_device`); `/office/team` (owner adds a profile for an existing sign-in through `app.owner_create_user`, and suspends, reactivates or offboards through `app.owner_set_status`); `/office/territories` (territories, areas, rep assignments through the existing `office_*` functions); the rep home shows the sign-in code a new user gives the owner. No migration; every RPC exists. Plus a CI job that starts a local Supabase stack (Auth, PostgREST, Postgres), seeds synthetic personas, builds the app against it and runs Playwright: this machine has no Docker, so those tests run only in CI. Areas as in C-014.
+**Rules touched:** section 3, H-14, H-15, H-16
+**Next / needs:** build, then DONE with evidence.
+
+### L-0203 · 2026-11-01 03:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1 of the execution map: office shell)    **Claim:** C-014
+**What / why:** Built, not yet DONE: the browser tests that prove it against a real backend run only in CI, and nothing is pushed yet. Pages (all through RLS reads and existing app.* functions; no migration): `/office` shell in a route group with role-aware navigation, sign-out, and a no-profile state that shows the person's sign-in code; `/office` overview with counts of pending phones, active people and active territories; `/office/devices` (waiting, approved, revoked; approve with an optional note, reject or revoke with a reason; the database refuses self-approval and re-approval of a revoked id); `/office/team` (owner: add a person from their sign-in code with `app.owner_create_user`, suspend, reactivate, offboard with a reason through `app.owner_set_status`; a manager sees the list and a note, no controls, and the database refuses the calls anyway); `/office/territories` (add, deactivate, reactivate territories and areas; assign an active rep; end an assignment with a reason); `/app` shows the sign-in code to a person without a profile. Shared: `apps/web/lib/rpc.ts` (calls app.* and shows the database's own message), `apps/web/components/confirm-action.tsx` (reason-confirm, loading, error, empty states), office styles in globals.css (tables collapse to cards under 40rem). Real-stack tests: `scripts/e2e-stack-seed.mjs` (refuses any non-local database; writes synthetic sign-ins straight into the local auth schema, so no service-role key is used; profiles through app.bootstrap_owner and app.owner_create_user as fixtures.ts does), `apps/web/playwright.stack.config.ts` (refuses a non-local Supabase URL), `apps/web/e2e-stack/office.spec.ts` (8 tests: owner password plus TOTP computed from the enrolment key; anonymous visit sent to sign-in; approve a phone; territory, area, assign, end with reason; suspend and reactivate the manager, no controls on the owner row; a newcomer sees the sign-in code, the owner adds them, they get in; a manager sees no owner controls; a rep signs in with the e-mail code from the local mail catcher and is told to wait for approval). New CI job `e2e-stack` starts the local stack with Auth, PostgREST, the gateway and the mail catcher, passes only the public URL and anon key on, seeds, builds and runs those tests.
+**Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm service-role:scan`: OK, 42 files; the CI file parses as YAML; `pnpm -C apps/web test:e2e`: 4 passed (existing rep login tests, production build with the new pages); `pnpm activity:check main HEAD` OK. NOT RUN: `e2e-stack` (needs Docker, which this machine lacks; runs in CI after a push MJ approves) and the seed script (it needs GoTrue's auth schema). Office pages were not opened in a browser here (they need a signed-in TOTP session).
+**Rules touched:** H-14, H-15, H-16, H-18, H-23, H-24
+**Next / needs:** MJ: approve pushing this branch and opening a pull request so CI runs `e2e-stack`; then DONE with the CI result, or fixes if it fails.
 
 ---
 
