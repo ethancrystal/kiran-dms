@@ -38,12 +38,22 @@ on conflict (key) do nothing;
 -- ----------------------------------------------------------------- schedule -----
 -- The installments of a plan for a total, from the plan template. Internal (no grant): called
 -- by the invoice document, and by P1-07 for the amounts due.
+-- Every row of the template is checked before any arithmetic (L-0204): an object whose `pct` and
+-- `day_offset` are JSON numbers, `pct` above 0, `day_offset` a whole number of days from 0 and
+-- never earlier than the row before (the last row takes the rounding remainder, A-11, so row
+-- order must be due order, A-12), and the percentages add up to exactly 100. A template that
+-- fails is refused, never silently cast: a missing `pct` would otherwise drop out of the sum and
+-- yield an installment of no amount, and a negative one would pass a total of 100.
 create function app.plan_schedule(p_plan public.plan_code, p_total_paisa bigint, p_start date)
 returns table (inst_no integer, inst_count integer, due_on date, pct_of_total numeric, amount_paisa bigint)
 language plpgsql stable security definer set search_path = '' as $$
 declare
   v_sched jsonb;
-  v_sum   numeric;
+  v_row   jsonb;
+  v_pct   numeric;
+  v_day   numeric;
+  v_prev  numeric := 0;
+  v_sum   numeric := 0;
 begin
   if p_total_paisa is null or p_total_paisa <= 0 or p_start is null then
     raise exception using errcode = '22023', message = 'a schedule needs a positive total and a start date';
@@ -54,13 +64,34 @@ begin
   if v_sched is null or jsonb_typeof(v_sched) <> 'array' or jsonb_array_length(v_sched) = 0 then
     raise exception using errcode = '22023', message = 'no installment schedule is configured for this plan';
   end if;
-  select sum((e.v ->> 'pct')::numeric) into v_sum from jsonb_array_elements(v_sched) e(v);
-  if v_sum is distinct from 100 then
+  for v_row in select e.v from jsonb_array_elements(v_sched) e(v) loop
+    -- jsonb_typeof is null for a missing key and 'null' for a JSON null; JSON numbers are finite.
+    if jsonb_typeof(v_row) is distinct from 'object'
+       or jsonb_typeof(v_row -> 'pct') is distinct from 'number'
+       or jsonb_typeof(v_row -> 'day_offset') is distinct from 'number' then
+      raise exception using errcode = '22023',
+        message = 'each installment of this plan needs a numeric pct and day_offset';
+    end if;
+    v_pct := (v_row ->> 'pct')::numeric;
+    v_day := (v_row ->> 'day_offset')::numeric;
+    if v_pct <= 0 then
+      raise exception using errcode = '22023', message = 'each installment percentage of this plan must be above 0';
+    end if;
+    if v_day < 0 or v_day <> trunc(v_day) or v_day > 2147483647 then
+      raise exception using errcode = '22023', message = 'each installment day_offset of this plan must be a whole number of days from 0';
+    end if;
+    if v_day < v_prev then
+      raise exception using errcode = '22023', message = 'the installments of this plan must be in due order';
+    end if;
+    v_prev := v_day;
+    v_sum := v_sum + v_pct;
+  end loop;
+  if v_sum <> 100 then
     raise exception using errcode = '22023', message = 'the installment percentages of this plan do not add up to 100';
   end if;
   return query
   with s as (
-    select e.n::integer n, (e.v ->> 'pct')::numeric pct, (e.v ->> 'day_offset')::integer off
+    select e.n::integer n, (e.v ->> 'pct')::numeric pct, (e.v ->> 'day_offset')::numeric::integer off
     from jsonb_array_elements(v_sched) with ordinality e(v, n)
   ), f as (
     select s.n, s.pct, s.off, (count(*) over ())::integer cnt, floor(p_total_paisa * s.pct / 100)::bigint base

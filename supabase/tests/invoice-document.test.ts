@@ -226,6 +226,52 @@ describe("the invoice document (ORD-05)", () => {
     );
     expect(msg).toMatch(/do not add up to 100/);
   });
+
+  // L-0204: every row of a template is checked before any arithmetic; each of these was accepted
+  // (or silently cast) before, and each passes or dodges the total-of-100 check on its own.
+  const withSchedule = (schedule: string) =>
+    `update public.app_config set value = jsonb_set(value, '{0,schedule}', '${schedule}'::jsonb) where key = 'plan.templates';
+     select * from app.plan_schedule('CASH', 100000, date '2026-11-03');`;
+  it.each([
+    ["a negative percentage in a total of 100", '[{"pct": -10, "day_offset": 0}, {"pct": 110, "day_offset": 15}]', /above 0/],
+    ["a zero percentage", '[{"pct": 0, "day_offset": 0}, {"pct": 100, "day_offset": 15}]', /above 0/],
+    [
+      "a missing pct (it dropped out of the sum)",
+      '[{"pct": 100, "day_offset": 0}, {"day_offset": 15}]',
+      /numeric pct and day_offset/,
+    ],
+    ["a missing day_offset", '[{"pct": 100}]', /numeric pct and day_offset/],
+    ["a JSON null", '[{"pct": 100, "day_offset": null}]', /numeric pct and day_offset/],
+    ["a percentage given as a string", '[{"pct": "100", "day_offset": 0}]', /numeric pct and day_offset/],
+    ["a row that is not an object", "[100]", /numeric pct and day_offset/],
+    ["a negative day_offset", '[{"pct": 100, "day_offset": -1}]', /whole number of days/],
+    [
+      "a fractional day_offset (it was truncated)",
+      '[{"pct": 50, "day_offset": 0}, {"pct": 50, "day_offset": 7.5}]',
+      /whole number of days/,
+    ],
+    ["a day_offset past the integer range", '[{"pct": 100, "day_offset": 1e12}]', /whole number of days/],
+    ["installments out of due order", '[{"pct": 50, "day_offset": 15}, {"pct": 50, "day_offset": 0}]', /due order/],
+    ["percentages over 100", '[{"pct": 60, "day_offset": 0}, {"pct": 60, "day_offset": 15}]', /do not add up to 100/],
+  ])("refuses a plan template with %s", async (_name, schedule, message) => {
+    expect(await errorOf("postgres", withSchedule(schedule))).toMatch(message);
+    expect(await sqlstate("postgres", withSchedule(schedule))).toBe("22023");
+  });
+
+  it("accepts a valid template the owner may write: 0% at delivery, fractional percentages, 7.0 as a day count", async () => {
+    const results = (await run(
+      "postgres",
+      withSchedule('[{"pct": 33.5, "day_offset": 7}, {"pct": 33.5, "day_offset": 14.0}, {"pct": 33, "day_offset": 28}]'),
+    )) as unknown as Multi;
+    const rows = results.at(-1)?.rows ?? [];
+    expect(rows.map((r) => [r.inst_no, r.inst_count, String(r.amount_paisa)])).toEqual([
+      [1, 3, "33500"],
+      [2, 3, "33500"],
+      [3, 3, "33000"],
+    ]);
+    const due = rows.map((r) => new Date(r.due_on as string).getTime());
+    expect(due.map((d) => d - due[0])).toEqual([0, 7 * 86_400_000, 21 * 86_400_000]);
+  });
 });
 
 describe("who may read it", () => {

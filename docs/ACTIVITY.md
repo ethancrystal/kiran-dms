@@ -274,7 +274,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c, the invoice document's data, DONE self-reported, L-0199, its PDF renderer not built; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c, the invoice document's data, DONE self-reported, L-0199, plan template check added L-0206, its PDF renderer not built; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -347,6 +347,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
 | C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
 | C-016 | P1-06 (part c, invoice document data) | 2026-11-01 10:49 | done | L-0200 |
+| C-017 | P1-06 (part c, plan template validation) | 2026-11-01 12:07 | done | L-0207 |
 
 ---
 
@@ -406,6 +407,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); since P1-06 part b (L-0170) deliveries replace it. The cycle is the product group's default (D-19) | L-0156, L-0174 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
 | A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0163). P1-07 replaces it with invoiced minus paid (part b did not, L-0174) | L-0162 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
 | A-11 | Installment amounts (docs silent): each installment is floor(total × pct / 100) in paisa and the last takes the remainder, so the installments add up to the invoice total exactly; due dates are the delivery's Karachi date plus the template's day offset | L-0198 | Up to a few paisa move between installments; P1-07 reuses `app.plan_schedule` | open |
+| A-12 | Plan templates (docs silent on validation): `app.plan_schedule` refuses a template unless every row is an object whose `pct` and `day_offset` are JSON numbers, `pct` is above 0 (a 0% row is refused; a plan with nothing at delivery starts at a later day instead, doc 09 §1), `day_offset` is a whole number of days from 0, no row is due before the one above it, and the rows add up to exactly 100 | L-0205 | An owner template with a 0% row or rows out of date order is refused until rewritten; nothing is stored or charged wrongly | open |
 
 ---
 
@@ -3124,6 +3126,64 @@ Security checklist (tick honestly):
 **Evidence:** see L-0199; `pnpm activity:check main HEAD` run before the push.
 **Rules touched:** section 11
 **Next / needs:** MJ: review and merge; A-11; B-06.
+
+### L-0202 · 2026-11-01 11:57 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · SESSION-START
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017 (L-0203)
+**What / why:** The person running this session asked in chat (2026-11-01) to apply the `app.plan_schedule` template validation fix that an earlier session found by reading the code but could not apply (no writable checkout). Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15 and appendices, and entries L-0180 to L-0201; the older log was not read in full (the size question in L-0192 is still MJ's); (2) read CLAUDE.md, migration 0003 (`plan.templates` defaults), migration 0014, the invoice-document tests, doc 09 §1 and the doc 04 invoice row; (3) claims: C-001 holds `supabase/migrations/` and `supabase/tests/` for its own files only; C-016 (the author of migration 0014 and its test file) was released in L-0200, so no active claim covers them; (4) blockers B-05 (installment schedule shape, OQ-06) and B-14 bear on the task, neither changes; (5) branch claude/session-start-4e62df at 3b36ce7 (the unmerged P1-06 part c commit, one ahead of main 711f741), worktree clean, `pnpm agent:preflight` OK; (6) local only: a Postgres 17 started by hand from the embedded-postgres binaries and reached through `KIRAN_TEST_DATABASE_URL` (the embedded runner cannot initdb as root on this host), C locale; no staging or production access. Migration 0014 is not merged and not applied to staging (L-0199), so it is corrected in place rather than by a new migration.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm agent:preflight` PREFLIGHT OK; `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0; `pnpm exec vitest run --config supabase/tests/vitest.config.ts invoice-document`: 1 file, 10 passed. The full-suite baseline is running on a separate fresh database; its result goes in a later entry, not assumed.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0203.
+
+### L-0203 · 2026-11-01 11:57 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · CLAIM
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** Scope: `app.plan_schedule` in migration 0014 checks every row of the plan template before any arithmetic, and the invoice-document tests gain regression cases. Areas: `supabase/migrations/20261101100000_invoice_document.sql` (the `plan_schedule` function only), `supabase/tests/invoice-document.test.ts`, the doc 04 invoice row, and in this file the claims and assumptions tables and the P1-06 board row. Excluded: `app.invoice_document`, grants, `app.owner_set_config` (it still stores any JSON the owner writes; the check is at use), duplicate plan codes in the template list, P1-07.
+**Rules touched:** section 3, H-10, H-16
+**Next / needs:** L-0204.
+
+### L-0204 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · CORRECTION
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** Corrects L-0199. `app.plan_schedule` checked only that the template's percentages summed to 100 and then cast each row, so a template the owner can write with `app.owner_set_config` produced a wrong schedule without an error: a negative percentage that still totals 100 (-10 and 110) gave a negative installment; a row with no `pct` dropped out of the sum and gave an installment of 0; a 0% row gave a 0 installment; a fractional `day_offset` (7.5) was silently cast; a string `pct` ("100") was accepted; rows out of date order put the rounding remainder (A-11) on an installment that is not the last one due; and a whole day count written as 14.0 failed the integer cast. Fixed in migration 0014 itself (not merged, not applied to staging, L-0199): every row must be an object whose `pct` and `day_offset` are JSON numbers, `pct` above 0, `day_offset` a whole number of days from 0 up to the integer limit and not before the row above, and the sum exactly 100; anything else is refused with SQLSTATE 22023 and a message naming the rule. The rounding (A-11), the grants and `app.invoice_document` are unchanged. Found by code reading in an earlier session that had no writable checkout; reproduced here by the tests in L-0206 failing against the old function.
+**Rules touched:** H-10, H-16, H-23
+**Next / needs:** L-0205, L-0206.
+
+### L-0205 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · ASSUMPTION
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** A-12 added to section 15. Docs 04 and 09 do not say what makes a plan template valid. Restrictive reading (section 1): a 0% row is refused (doc 09 §1's plan with nothing at delivery starts its first row at a later day, as in 4 × 25% at days 7, 14, 21 and 28, which passes), and rows must be in due order because the last row takes the remainder (A-11) and P1-07 allocates oldest first (PAY-11). The defaults in migration 0003 pass.
+**Rules touched:** section 1 (gaps)
+**Next / needs:** MJ to confirm or reject A-12 at the gate, with A-11 and OQ-06 (B-05).
+
+### L-0206 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · DONE
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** `app.plan_schedule` validates every template row (L-0204); 13 tests added to `supabase/tests/invoice-document.test.ts`: 12 refused templates (negative, zero, missing and string `pct`; missing, null, negative, fractional and out-of-range `day_offset`; a row that is not an object; rows out of due order; a sum over 100), each asserting the message and SQLSTATE 22023, and one valid template (33.5, 33.5 and 33 at days 7, 14.0 and 28) that splits 100,000 paisa into 33,500, 33,500 and 33,000 due 0, 7 and 21 days after the first. Doc 04 invoice row updated (H-25).
+**Security checklist:**
+- [x] Requirement implemented as written; the template check is an assumption (A-12), logged
+- [x] Migration forward-only: 0014 is unmerged and unapplied outside local test databases (L-0199), corrected in place; applied to a fresh database by every run below
+- [ ] RLS and matrix: not applicable (no table added or changed; rls-matrix passes)
+- [ ] Append-only: not applicable (nothing written)
+- [ ] Idempotency and replay: not applicable (read only)
+- [x] Audit chain unaffected (no write)
+- [x] No vault leakage: the function still names no vault schema or function (the existing source test passes)
+- [ ] Offline: not applicable (P1-09)
+- [x] Money in integer paisa; rounding unchanged and still tested (seven awkward totals × three plans add up)
+- [x] Lint, typecheck and the full database suite pass locally (see Evidence); CI not yet run on this commit
+- [x] Docs match code (H-25)
+- [x] Diff read: no secrets, no real data
+**Evidence:** Database: a Postgres 17.9 server started from the embedded-postgres binaries as a non-root user, C locale, reached through `KIRAN_TEST_DATABASE_URL`, one fresh database per run. Baseline before the change, on the old function (its source checked in the database afterwards): `pnpm exec vitest run --config supabase/tests/vitest.config.ts`: 24 files, 1799 passed, 183 s. Mutation check: the new test file run against the old migration: 12 failed, 11 passed (each refusal case, and the valid template because 14.0 failed the integer cast); against the new migration: 23 passed. After the change, full suite on a fresh database: 24 files, 1812 passed (1799 + 13), 180 s. `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0. An earlier run had a typecheck error in the new test (an untyped `due_on`), fixed before the run above. Commit: the branch head after 3b36ce7, see L-0208.
+**Rules touched:** H-10, H-16, H-23, H-24, H-25
+**Next / needs:** a different agent verifies (section 7); L-0207.
+
+### L-0207 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · CLAIM-RELEASED
+**Task:** P1-06 part c    **Claim:** C-017
+**What / why:** C-017 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0208.
+
+### L-0208 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · HANDOFF
+**Task:** P1-06 part c    **Claim:** — (C-017 released)
+**What / why:** State: branch claude/session-start-4e62df, one new commit on 3b36ce7, pushed; P1-06 part c, including the template check, is DONE (self-reported), not verified. Next, in order: (1) CI's required checks must pass on the branch head; MJ reviews and merges; (2) a different agent verifies part c (section 7), now including that a bad template is refused rather than mis-scheduled; (3) MJ: A-11, A-12, B-06. Gotchas: on a host where the shell runs as root, the embedded Postgres cannot initdb (the error reads "Postgres init script exited with code 1"); start the same binaries as a non-root user and set `KIRAN_TEST_DATABASE_URL`, with a fresh database per run, because the runner skips migrations it has already applied. `pnpm format` rewrites two files this change does not own (`packages/import/src/core/normalize.ts`, `scripts/activity-log-check.mjs`); they were restored, and `biome format --write` was run on the test file alone. `app.owner_set_config` still stores any template; a bad one fails at first use (an invoice read or, in P1-07, a payment), not when it is saved; a save-time check would be a P1-11 admin change.
+**Evidence:** see L-0206; `pnpm activity:check main HEAD` run before the push.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; A-11, A-12; B-06.
 
 ---
 
