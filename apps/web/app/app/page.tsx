@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
+import { RepDay } from "./rep-day";
 
 type Session = {
   full_name: string;
@@ -79,6 +80,7 @@ export default function RepHome() {
           )}
         </div>
       )}
+      {state.kind === "ready" && state.session.device_status === "approved" && <RepDay />}
     </main>
   );
 }

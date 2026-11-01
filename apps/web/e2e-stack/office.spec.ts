@@ -162,7 +162,8 @@ test("a manager sees the team but no owner controls (H-15)", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Suspend" })).toHaveCount(0);
 });
 
-test("a rep signs in with an email code, registers the phone, and is told to wait for approval (J1 steps 1 and 2)", async ({
+test("a rep signs in with an email code, waits for approval, then checks in and out (J1 steps 1 to 6 and 15)", async ({
+  browser,
   page,
 }) => {
   await page.goto("/app/login");
@@ -186,4 +187,28 @@ test("a rep signs in with an email code, registers the phone, and is told to wai
   await page.getByRole("button", { name: /Sign in/ }).click();
   await page.waitForURL(/\/app$/);
   await expect(page.getByText(/waiting for your manager/)).toBeVisible();
+
+  // J1 step 3: the office approves this phone; the rep's day opens (slice 2, J1 steps 4 to 6 and 15).
+  const office = await newPage(browser);
+  await officeSignIn(office, owner);
+  await office.getByRole("link", { name: "Devices" }).click();
+  const row = office.getByRole("row", { name: new RegExp(rep.name.replace(/[[\]]/g, "\\$&")) });
+  await row.getByRole("button", { name: "Approve" }).click();
+  await row.getByRole("button", { name: "Approve" }).click();
+  await expect(office.getByText(`Approved ${rep.name}'s phone.`)).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("This phone is approved.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
+  // The rep has no bag yet, so the morning count is empty; check in.
+  await page.getByRole("button", { name: "Check in" }).click();
+  await expect(page.getByText("Checked in. Have a good day.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Today's route/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Due for a visit/ })).toBeVisible();
+  // A second check-in is not offered; the day is open.
+  await expect(page.getByRole("button", { name: "Check in" })).toHaveCount(0);
+  await page.getByRole("button", { name: /Finish the day/ }).click();
+  await page.getByRole("button", { name: "Save count and check out" }).click();
+  await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
+  await expect(page.getByText("Today's day is closed.")).toBeVisible();
 });

@@ -86,3 +86,8 @@ code { overflow-wrap: anywhere; }
   td { border: 0; padding: 0.15rem 0; }
 }
 output.ok { display: block; margin: 0.5rem 0; }
+/* Rep day (slice 2): one stop per row, thumb-sized reorder buttons. */
+ol.stops { list-style: decimal inside; padding: 0; margin: 0.5rem 0; }
+ol.stops li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+ol.stops li.done { opacity: 0.7; }
+ol.stops button.link { font-size: 1.2rem; min-width: 2.5rem; }

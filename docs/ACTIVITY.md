@@ -331,7 +331,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slice 1 of the execution map: office shell) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/page.tsx` (show the sign-in code), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0202) |
+| C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slices 1 and 2 of the execution map: office shell, rep day) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/` (sign-in code, rep day), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0202) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -3123,6 +3123,13 @@ Security checklist (tick honestly):
 **Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm service-role:scan`: OK, 42 files; the CI file parses as YAML; `pnpm -C apps/web test:e2e`: 4 passed (existing rep login tests, production build with the new pages); `pnpm activity:check main HEAD` OK. NOT RUN: `e2e-stack` (needs Docker, which this machine lacks; runs in CI after a push MJ approves) and the seed script (it needs GoTrue's auth schema). Office pages were not opened in a browser here (they need a signed-in TOTP session).
 **Rules touched:** H-14, H-15, H-16, H-18, H-23, H-24
 **Next / needs:** MJ: approve pushing this branch and opening a pull request so CI runs `e2e-stack`; then DONE with the CI result, or fixes if it fails.
+
+### L-0204 · 2026-11-01 03:55 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 2 of the execution map: the rep's working day)    **Claim:** C-014 (widened to slice 2, same areas)
+**What / why:** Built, not yet DONE (real-stack tests run only in CI). `apps/web/app/app/rep-day.tsx`, shown on the rep home once the phone is approved: the rep's territories and areas (`app.my_areas`); check in with a blind morning bag count and browser GPS when allowed (`app.rep_check_in`; the bag variance is computed by the database and shown back); today's route (`app.my_route`) with reason, stage, visited state and up and down reordering (`app.rep_reorder_route`); the due list (`app.due_list`) with an Add to route action (`app.rep_add_stop`); finish the day with the evening count (`app.record_count` daily_close on `app.my_bag_id`) then `app.rep_check_out`. Urdu headings beside English. Every refusal (one open day, daily close before check-out, territory) is the database's message, shown as is. The real-stack rep test now continues: the owner approves the rep's phone on /office/devices, the rep reloads, checks in, sees route and due list, finishes the day and checks out. PR 15 carries it (branch claude/crm-working-check-test-606a4a).
+**Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0. NOT RUN: the e2e-stack job on this commit (CI after push); no local browser run of /app (it needs a real session).
+**Rules touched:** H-09, H-14, H-23, H-24
+**Next / needs:** CI result on PR 15; then slice 3 (salons).
 
 ---
 
