@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-025 | Claude · Opus 5.5 · session reverifier-slices-1-3 | — (re-verification of execution-map slices 1 to 3 on merged main 3630998) | SEC-02, SEC-03, SEC-04, SEC-08, PIP-01, PIP-02, PIP-05, PIP-06, SAL-01, SAL-02, SAL-05, MAP-02, ADM-01, INV-05 | new test file `supabase/tests/reverify-slices-1-3.test.ts`; `docs/ACTIVITY.md` only | 2026-11-02 21:45 | 2026-11-03 02:00 | 2026-11-02 21:45 |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -361,6 +360,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-023 | — (verification of execution-map slices 1 to 3) | 2026-11-02 18:07 | done | L-0277 |
 | C-014 | — (execution-map slices 1 to 3) | 2026-11-02 18:25 | done | L-0283 |
 | C-024 | — (B-33 decisions, slices 1 and 3) | 2026-11-02 20:12 | done | L-0287 |
+| C-025 | — (re-verification of execution-map slices 1 to 3 on merged main 3630998) | 2026-11-02 22:43 | done | L-0294 |
 
 ---
 
@@ -3880,6 +3880,26 @@ NOT VERIFIED (not run anywhere): in a browser, device revocation, offboarding, t
 **What / why:** L-0286 says migration 0018 makes the database enforce MJ's B-33 rules (a) to (d); on 3630998 each can still be got around (L-0290, B-34), so slice 1 (rules a, b, c) and slice 3 (rule d) are not VERIFIED. Slice 2: no database control I attacked or re-ran broke, but VERIFIED is not logged: its DONE entry L-0281 names no task id (activity-log-check rule 4 needs one), I wrote no new attack of my own for it, and its route reorder, add stop, GPS check-in and non-empty bag count are unproven in a browser. Status per slice on 3630998: slice 1 PARTIALLY IMPLEMENTED (B-34 1 and 2); slice 2 IMPLEMENTED, NOT VERIFIED; slice 3 PARTIALLY IMPLEMENTED (B-34 3). No board cell is changed. This entry is not a VERIFIED entry for any task.
 **Rules touched:** section 7, H-23, H-24
 **Next / needs:** a builder fixes B-34; a fresh verifier then re-runs this file and logs VERIFIED or findings.
+
+### L-0293 · 2026-11-02 22:43 PKT · Claude · Opus 5.5 · session reverifier-slices-1-3 · branch claude/reverify-slices-1-3 · PROGRESS
+**Task:** — (re-verification of execution-map slices 1 to 3: CI result)    **Claim:** C-025
+**What / why:** Commit 422eda9 (the new test file and L-0288 to L-0292) pushed to branch claude/reverify-slices-1-3 with a normal push (no force, not main); pull request 41 opened to main, not merged. CI green in all six jobs plus agent-compliance. On the real local Supabase stack the new file ran 10 tests: 4 passed and the 6 DEFECT CHECKs failed as expected, so both races and the whitespace erasure reproduce on the stack's Postgres as well as on the embedded one.
+**Evidence:** run https://github.com/ethancrystal/kiran-dms/actions/runs/41492930723 on 422eda9e25b5a3871ebb6ad54ea68034b5c981ca, `gh.exe run watch --exit-status` exit 0; read from `gh.exe run view --log`: migrations + RLS matrix 29 files, 1918 passed, 12 expected fail (1930); office browser tests 9 passed (2.6m); rep PWA browser tests 4 passed; lint, typecheck + service-role scan, activity-log-check success; agent-compliance run 41492930698 success. PR https://github.com/ethancrystal/kiran-dms/pull/41.
+**Rules touched:** H-23, H-24
+**Next / needs:** L-0294, L-0295.
+
+### L-0294 · 2026-11-02 22:43 PKT · Claude · Opus 5.5 · session reverifier-slices-1-3 · branch claude/reverify-slices-1-3 · CLAIM-RELEASED
+**Task:** — (re-verification of execution-map slices 1 to 3)    **Claim:** C-025
+**What / why:** C-025 released (done) and moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0295.
+
+### L-0295 · 2026-11-02 22:43 PKT · Claude · Opus 5.5 · session reverifier-slices-1-3 · branch claude/reverify-slices-1-3 · HANDOFF
+**Task:** — (re-verification of execution-map slices 1 to 3)    **Claim:** C-025 (released)
+**What / why:** State: re-verification of 3630998 done; nothing is marked VERIFIED and no board cell changed. Slice 1: rules B-33 a, b and c can be got around by two office sessions at once (B-34 1 and 2); everything else attacked or re-run held. Slice 2: nothing broke; not VERIFIED (DONE entry L-0281 has no task id, no new attack of mine, browser gaps). Slice 3: rule B-33 d can be got around with non-space whitespace (B-34 3). Files changed: `supabase/tests/reverify-slices-1-3.test.ts` (new, 10 tests, 6 of them `it.fails` DEFECT CHECKs) and this file. Branch claude/reverify-slices-1-3, PR 41 (not merged). Next, in order: (1) a builder fixes B-34 in a forward-only migration and turns each DEFECT CHECK into a plain `it()` with the same assertion; (2) the builder or MJ gives slices 1 and 2 a task id their DONE entries can be checked against, or MJ rules how slice-level VERIFIED is recorded; (3) browser steps for the gaps listed in L-0290; (4) a fresh verifier re-runs this file and logs VERIFIED or findings. Gotchas: the race tests hold one session open for 400 ms while the other waits on the audit chain head lock (`control.audit_row` takes `audit_chain_head` for update), so a slow machine still reproduces; `pnpm format` also rewrote two unrelated files here (reverted, not committed); a full `pnpm db:test` started once found no test files (cause unknown, not reproduced; the rerun was clean).
+**Evidence:** commit 422eda9, CI run 41492930723 green (L-0293); local whole suite 29 files, 1918 passed, 12 expected fail (L-0290); `pnpm activity:check origin/main` OK before this entry.
+**Rules touched:** section 7, section 11, H-23, H-24
+**Next / needs:** builder: B-34; MJ: review PR 41.
 
 ---
 
