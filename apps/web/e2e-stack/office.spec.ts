@@ -115,7 +115,7 @@ test("an office page without a session sends the visitor to the sign-in page", a
 
 test("owner approves a rep's phone (SEC-03), and it moves to Approved", async ({ page }) => {
   await officeSignIn(page, owner);
-  await page.getByRole("link", { name: "Devices" }).click();
+  await page.getByRole("link", { name: "Devices", exact: true }).click();
   const row = page.getByRole("row", { name: new RegExp(rep2.name.replace(/[[\]]/g, "\\$&")) });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Approve" }).click();
@@ -127,7 +127,7 @@ test("owner approves a rep's phone (SEC-03), and it moves to Approved", async ({
 
 test("owner builds a territory with an area, assigns a rep and ends the assignment with a reason (PIP-01)", async ({ page }) => {
   await officeSignIn(page, owner);
-  await page.getByRole("link", { name: "Territories" }).click();
+  await page.getByRole("link", { name: "Territories", exact: true }).click();
   const tname = `[Test] North ${Date.now()}`;
   await page.getByLabel("New territory").fill(tname);
   await page.getByRole("button", { name: "Add territory" }).click();
@@ -149,7 +149,7 @@ test("owner builds a territory with an area, assigns a rep and ends the assignme
 
 test("owner suspends and reactivates the manager, with a reason, and cannot act on the owner row", async ({ page }) => {
   await officeSignIn(page, owner);
-  await page.getByRole("link", { name: "Team" }).click();
+  await page.getByRole("link", { name: "Team", exact: true }).click();
   const row = page.getByRole("row", { name: new RegExp(manager.name.replace(/[[\]]/g, "\\$&")) });
   await row.getByRole("button", { name: "Suspend" }).click();
   await row.getByLabel("Reason").fill("test: suspend for a day");
@@ -174,7 +174,7 @@ test("a new office person sees their sign-in code, the owner adds them, and they
   await expect(newbie.getByRole("navigation", { name: "Office" })).toHaveCount(0);
 
   await officeSignIn(page, owner);
-  await page.getByRole("link", { name: "Team" }).click();
+  await page.getByRole("link", { name: "Team", exact: true }).click();
   await page.getByRole("button", { name: "Add a person" }).click();
   await page.getByLabel("Sign-in code").fill(newcomer.id);
   await page.getByLabel("Full name").fill(newcomer.name);
@@ -188,7 +188,7 @@ test("a new office person sees their sign-in code, the owner adds them, and they
 
 test("a manager sees the team but no owner controls (H-15)", async ({ page }) => {
   await officeSignIn(page, manager);
-  await page.getByRole("link", { name: "Team" }).click();
+  await page.getByRole("link", { name: "Team", exact: true }).click();
   await expect(page.getByText("Only the owner adds people or changes their status")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add a person" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Suspend" })).toHaveCount(0);
@@ -223,7 +223,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   // J1 step 3: the office approves this phone; the rep's day opens (slice 2, J1 steps 4 to 6 and 15).
   const office = await newPage(browser);
   await officeSignIn(office, owner);
-  await office.getByRole("link", { name: "Devices" }).click();
+  await office.getByRole("link", { name: "Devices", exact: true }).click();
   const row = office.getByRole("row", { name: new RegExp(rep.name.replace(/[[\]]/g, "\\$&")) });
   await row.getByRole("button", { name: "Approve" }).click();
   await row.getByRole("button", { name: "Approve" }).click();
@@ -242,7 +242,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   // A second check-in is not offered; the day is open.
   await expect(page.getByRole("button", { name: "Check in" })).toHaveCount(0);
   // J2 salon acquisition (slice 3): the office gives the rep a territory, the rep adds a salon.
-  await office.getByRole("link", { name: "Territories" }).click();
+  await office.getByRole("link", { name: "Territories", exact: true }).click();
   const tname = `[Test] South ${Date.now()}`;
   await office.getByLabel("New territory").fill(tname);
   await office.getByRole("button", { name: "Add territory" }).click();

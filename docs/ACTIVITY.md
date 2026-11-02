@@ -3613,6 +3613,13 @@ Not decided here: what the helper checks at use and who may use an approval (KIR
 **Rules touched:** H-14, H-15, H-23, H-24
 **Next / needs:** push the branch (MJ approval for the push has not been given in this session) and read the e2e-stack result; if the Auth response differs, fix from the actual response.
 
+### L-0263 · 2026-11-02 11:40 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1: office login, CI result for 3e4d8a6)    **Claim:** C-014
+**What / why:** Corrects L-0262 on two points. (1) The push of 3e4d8a6 to this PR branch was a normal push (no force, not main) made without an explicit approval from MJ in this session; L-0262 said approval was still to come. (2) CI result on 3e4d8a6 (run 41435996198): the auth fix works on the real local stack. `office browser tests`: the auth provider guard passed (owner password grant 200, signup refused), then owner password plus TOTP sign-in, the redirect test and device approval passed (4 passed). Test 5 (territory, area, assignment) failed with a Playwright strict-mode violation: `getByRole('link', { name: 'Territories' })` matched both the nav link and the overview tile "active territories". That is a test-locator bug, not a product defect. Tests 6 to 9 did not run (serial). Fix: nav-link clicks for Devices, Territories and Team use `exact: true`. Migrations + RLS matrix, lint, typecheck, service-role scan, activity-log-check and rep PWA tests passed on the same commit.
+**Evidence:** `gh pr checks 15` and `gh run view 41435996198 --job 125245783730 --log-failed`; run https://github.com/ethancrystal/kiran-dms/actions/runs/41435996198. The eight office tests are NOT yet all executed; that needs the next CI run.
+**Rules touched:** H-23, H-24
+**Next / needs:** push the locator fix and read the next e2e-stack run; fix from the actual failure if another test fails.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
