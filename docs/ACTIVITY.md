@@ -3668,6 +3668,13 @@ Not decided here: what the helper checks at use and who may use an approval (KIR
 **Rules touched:** H-07, H-08, H-14, H-15, H-23, H-24
 **Next / needs:** CI on 3e8c4ef, then push this commit and read its run; then the slice 1 to 3 handoff.
 
+### L-0271 · 2026-11-02 17:10 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slices 1 to 3: CI results)    **Claim:** C-014
+**What / why:** Correction first: L-0270 is stamped 17:15 but was written at about 17:05 PKT (the prompt hook showed 17:09 after it); the clock was estimated, not read, the same slip as L-0266 (L-0267). From here every time is taken from the hook. CI results: run 41440922546 on 3e8c4ef (rep salon edit, migration 0016) and run 41441693616 on 676f0d6 (office salon screens) are green in all six jobs. On 676f0d6: office browser tests 9 passed (the rep journey now includes the rep edit with reload, the refused emptied address, and the office search, half-pin refusal, pin set, stage override with reason, and the rep seeing the office's pin); rep PWA browser tests 4 passed; migrations + RLS matrix (the whole database suite on the local stack, migration 0016 included) passed. Slice 1 to 3 status, builder's view: IMPLEMENTED — NOT VERIFIED for each; none is DONE until an independent verifier has tried to break them (section 7).
+**Evidence:** https://github.com/ethancrystal/kiran-dms/actions/runs/41440922546 and https://github.com/ethancrystal/kiran-dms/actions/runs/41441693616 (`gh run view` job lists, all success; office test log "9 passed (2.4m)").
+**Rules touched:** section 4, H-23, H-24
+**Next / needs:** an independent verifier (a fresh subagent, L-0029) for slices 1 to 3; this session does not touch the repository while it runs.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
