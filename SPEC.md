@@ -1,6 +1,6 @@
 # Kiran DMS — Spec (index)
 
-This file is the **entry point**, not a second source of truth. The planning set in [`docs/`](docs/00-README.md) (docs 00–13) decides *what* is built, and [`docs/ACTIVITY.md`](docs/ACTIVITY.md) decides *how* it is built. If this file and a doc disagree, the doc wins and this file is wrong. Fix it in the same pull request (H-25). This file never adds a requirement; new ideas go to [doc 12](docs/12-decisions-and-open-questions.md) first.
+This file is the **entry point**, not a second source of truth. The planning set in [`docs/`](docs/00-README.md) (docs 00–14) decides *what* is built, and [`docs/ACTIVITY.md`](docs/ACTIVITY.md) decides *how* it is built. If this file and a doc disagree, the doc wins and this file is wrong. Fix it in the same pull request (H-25). This file never adds a requirement; new ideas go to [doc 12](docs/12-decisions-and-open-questions.md) first.
 
 Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load in Phase 1) are recorded in [ACTIVITY L-0128](docs/ACTIVITY.md). This spec includes them.
 
@@ -162,7 +162,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 
 | Path | What |
 |---|---|
-| `docs/` | Planning set 00–13, `ACTIVITY.md` (protocol + live log), `runbooks/` |
+| `docs/` | Planning set 00–14, `ACTIVITY.md` (protocol + live log), `diagrams/`, `runbooks/` |
 | `supabase/migrations/` | Forward-only SQL: schemas, tables, RLS, `app.*` functions, guards. One file per task, never edited after merge |
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
 | `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner and manager app, `lib/supabase/` the clients |
@@ -170,7 +170,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 | `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |
 
-The data model is in [doc 04](docs/04-domain-model.md) and the architecture in [doc 05](docs/05-architecture.md).
+The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), and the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md).
 
 ## 8. Code style
 
