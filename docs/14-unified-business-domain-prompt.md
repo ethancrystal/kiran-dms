@@ -45,7 +45,7 @@ Do not describe the whole CRM as complete because one section or page exists. Ma
 
 The existing planning set already defines the salon CRM, field sales, inventory, supplier confidentiality, payments, credit, anti-fraud controls and independent-agent channel. In particular:
 
-- Owner and Manager are existing office roles with a documented governance split; D-08 remains pending.
+- Owner and Manager are existing office roles with a documented governance split; D-08 was confirmed by MJ on 2026-11-02 (doc 12).
 - Salaried Rep and Independent Agent are distinct operating models.
 - Independent Agent rules D-15 to D-23 must remain intact.
 - Supplier identity and purchasing details remain in the restricted supplier compartment. The implementation schema is named `supplier_vault`, not Supabase's reserved `vault`.

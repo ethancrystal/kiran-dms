@@ -37,7 +37,7 @@ Rules for gaps and conflicts:
 
 - If a doc is silent on a security-relevant point, take the **more restrictive** option, record an assumption (§15), and tell MJ via a BLOCKER if other work depends on it.
 - If two docs conflict, stop that task, log the conflict, and wait. Do not pick the convenient reading.
-- **D-08 (manager vs. owner governance split) is pending MJ's confirmation.** Until MJ rejects it, build the split as documented in `06-security-plan.md` §2: manager = full operational access; governance powers (users, bank details, write-offs, price lists, commission plans, vault grants, configuration, audit log) are owner-only.
+- **D-08 (manager vs. owner governance split) was confirmed by MJ on 2026-11-02 (L-0231).** Build the split as documented in `06-security-plan.md` §2: manager = full operational access; governance powers (users, bank details, write-offs, price lists, commission plans, vault grants, configuration, audit log) are owner-only.
 
 ---
 
@@ -352,6 +352,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-019 | governance docs (agent skills setup, Wayfinder planning) | 2026-11-02 02:45 | done | L-0219 |
 | C-018 | PLAN-03 | 2026-11-02 03:15 | done | L-0223 |
 | C-020 | P0-06, P0-02, P0-09 (re-verification round 11 reconciled) | 2026-11-02 03:27 | done | L-0227 |
+| C-021 | Wayfinder KIR-6 (record D-08) | 2026-11-02 06:52 | done | L-0232 |
 
 ---
 
@@ -361,7 +362,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 
 | ID | Item | Blocks | Default agents must use meanwhile | Owner of answer | Status |
 |---|---|---|---|---|---|
-| B-01 | **D-08** manager vs. owner governance split | P1-01 permission matrix | Build the split as in doc 06 §2 (owner-only governance) | MJ | PENDING |
+| B-01 | **D-08** manager vs. owner governance split | P1-01 permission matrix | Build the split as in doc 06 §2 (owner-only governance) | MJ | RESOLVED (L-0231: confirmed, option A) |
 | B-02 | **OQ-01** contents of the Excel (salons, balances, prices) | P0-02 | None — cannot import without the file; use synthetic data for development | MJ | PENDING |
 | B-03 | **OQ-03** who is the owner account; second owner for continuity | P0-05 | Single owner account placeholder; human-only creation | MJ | PENDING |
 | B-04 | **OQ-04** packaging shows supplier name? private label? | Doc 07 physical controls (not code) | Treat the supplier as secret; no code impact | MJ | PENDING |
@@ -3362,6 +3363,38 @@ Security checklist (tick honestly):
 **Evidence:** see L-0226 items 1 to 5. Immediately before the commit that holds this entry: `pnpm agent:preflight`, `node scripts/activity-log-check.mjs origin/main`, `pnpm lint`, `pnpm typecheck` and `cmp CLAUDE.md AGENTS.md` were run on this tree; their results are in the commit message.
 **Rules touched:** section 11
 **Next / needs:** MJ: merge pull request 36 and 37; a different agent: the builder fixes, then a different agent re-verifies.
+
+### L-0229 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · SESSION-START
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021 (L-0230)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries and Appendices A to C (same session as L-0212 to L-0228); (2) status board and blockers read; B-01 is the blocker this session resolves; (3) active claims read: only C-001, whose areas do not include the files below; (4) task is MJ's instruction in chat on 2026-11-02, "work KIR-6" (Linear KIR-6, a ticket of the Wayfinder map KIR-5); (5) branch claude/kir-6-d08-decision cut from 49bf76d (the head of draft pull request 38, which sits on pull requests 36 and 37) so that log numbers stay sequential; `node scripts/agent-preflight.mjs` OK; (6) local only, nothing pushed.
+**Evidence:** `node scripts/agent-preflight.mjs`: PREFLIGHT OK. Documentation only, so no install, lint, typecheck or database run (see L-0233).
+**Rules touched:** section 2
+**Next / needs:** L-0230.
+
+### L-0230 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · CLAIM
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021
+**What / why:** Record MJ's answer to D-08 / OQ-02 / B-01 where the docs and this file say it is pending. Areas: docs/12-decisions-and-open-questions.md (D-08, OQ-02), docs/00-README.md (fixed decision 2), docs/11-roadmap.md, docs/14-unified-business-domain-prompt.md, docs/gate-0-checklist.md, and this file (section 1, B-01, claims, log). Not touched: docs/06 and docs/13 (they already state the split), code, migrations, tests, the permission matrix, thresholds.
+**Rules touched:** section 3, H-25
+**Next / needs:** L-0231.
+
+### L-0231 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · DECISION
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021
+**What / why:** MJ decided in chat on 2026-11-02. Asked whether the owner alone holds governance (users, bank details, write-offs, price lists, commission plans, vault grants, audit log, configuration) while the manager has full operational access, with three options (A: confirm as documented; B: confirm with a different list; C: reject, manager equals owner), MJ answered "A". D-08 is confirmed as documented in docs/06-security-plan.md section 2 and H-15; OQ-02 is answered yes; B-01 is resolved. Scope of this decision: the principle and the D-08 list in doc 12. It does not settle which role checks each approval kind or what the thresholds are; those stay open as Linear KIR-15 (and KIR-20, KIR-21). One known disagreement is left for KIR-15: doc 00 and doc 12 do not list the same governance items (doc 00 names credit notes as owner-only, the doc 12 D-08 row does not, and doc 06 section 2 and doc 13 section 9 let a manager approve a credit note below a threshold if not the maker). MJ's original wording, "same privileges and access as owner", is superseded for the governance list.
+**Rules touched:** H-15, H-25, H-26
+**Next / needs:** L-0232.
+
+### L-0232 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · CLAIM-RELEASED
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021
+**What / why:** C-021 released (done); no row was left in the active table.
+**Rules touched:** section 3
+**Next / needs:** L-0233.
+
+### L-0233 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · HANDOFF
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** — (C-021 released)
+**What / why:** State: branch claude/kir-6-d08-decision, one local commit on 49bf76d; documentation only; not pushed, no pull request. D-08, OQ-02 and B-01 are recorded as confirmed in docs 12, 00, 11, 14, the Gate 0 checklist and this file. Linear KIR-6 is resolved and closed, with its first dependant moved (KIR-15 to Todo; KIR-21 still waits for KIR-7). Next, in order: (1) MJ merges pull requests 36, 37 and 38 in that order with merge commits; (2) then rebase this branch onto main (log numbers stay L-0229 and up), push, and open a pull request; (3) the next map decision is KIR-7 (one approval gate or per-function checks) or KIR-15 (checker per approval kind, which also settles the credit-note item in L-0231). Gotchas: this branch is stacked on three unmerged pull requests, and the repo forbids stacking, so it must not be opened before they merge; no code or matrix changed, so docs 06 and 13 needed no edit.
+**Evidence:** see L-0229 and the commit message: `node scripts/agent-preflight.mjs` and `node scripts/activity-log-check.mjs origin/main` run immediately before the commit.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge pull requests 36, 37, 38; then work KIR-7 or KIR-15.
 
 ---
 

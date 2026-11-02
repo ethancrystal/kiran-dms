@@ -6,7 +6,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 
 **Goal:** decisions settled, data understood, skeleton running.
 
-- Confirm open questions in doc 12 (especially D-08 manager governance split, OQ-01 Excel data, OQ-04 packaging, OQ-16 product catalogue).
+- Confirm open questions in doc 12 (especially D-08 manager governance split (confirmed 2026-11-02), OQ-01 Excel data, OQ-04 packaging, OQ-16 product catalogue).
 - Load and clean the Excel: salons, products, prices, outstanding balances → import mapping (SAL-10).
 - Territory draft for Karachi with the manager; first territory chosen for the pilot.
 - Repository, CI, Supabase projects (staging/prod), Next.js skeleton, auth with MFA for owner/manager, RLS policy test harness (empty but running).
