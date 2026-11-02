@@ -11,7 +11,7 @@
 | D-05 | 2026-10-25 | Build, don't buy; stack = Next.js + Supabase + PWA on Vercel | Doc 05 rationale; MJ's existing CRM experience on the same stack | Confirmed (MJ had no stack preference; recommended default) |
 | D-06 | 2026-10-25 | Locale PK / PKR / FY ends 30 June | Confirmed by MJ | Confirmed |
 | D-07 | 2026-10-25 | Security and anti-fraud controls are **launch** scope, not a later phase | MJ: "no way of cheating… even manager and sales rep" | Confirmed |
-| D-08 | 2026-10-25 | Manager has full **operational** access; a short list of **governance** powers is owner-only (users, bank details, write-offs, price lists, commission plans, vault grants, audit log, config) | Needed to make "manager can't do anything dubious" true; without someone above the manager the guarantee is impossible | **Pending MJ's confirmation** — MJ originally said "same privileges and access as owner" |
+| D-08 | 2026-10-25 | Manager has full **operational** access; a short list of **governance** powers is owner-only (users, bank details, write-offs, price lists, commission plans, vault grants, audit log, config) | Needed to make "manager can't do anything dubious" true; without someone above the manager the guarantee is impossible | **Confirmed by MJ 2026-11-02** (option A, the split as documented; ACTIVITY L-0231). MJ had originally said "same privileges and access as owner" |
 | D-09 | 2026-10-25 | No paper receipts; the only valid receipt is the system's numbered receipt delivered to the salon's phone | Core anti-skimming control (doc 13) | Proposed |
 | D-10 | 2026-10-25 | Commission is paid on **collected and banked** cash, never on invoiced sales | Aligns incentives; defeats fake orders | Proposed |
 | D-11 | 2026-10-25 | Map-first prospecting: drop-pin with notes + one-tap nearby discovery from live GPS; pins → routes | MJ's request | Confirmed |
@@ -34,7 +34,7 @@
 | ID | Question | Why it matters | Who answers | Needed by |
 |---|---|---|---|---|
 | OQ-01 | What is in the Excel today — how many salons, how many with balances, product list and prices? | Baseline numbers for goals (doc 01), import mapping, opening balances | MJ / owner | Phase 0 |
-| OQ-02 | Confirm D-08: is the owner comfortable holding governance powers that the manager does not have? | Everything in doc 13 about manager-side fraud depends on it | Owner | Phase 0 |
+| OQ-02 | Confirm D-08: is the owner comfortable holding governance powers that the manager does not have? | Everything in doc 13 about manager-side fraud depends on it | Owner | Phase 0. ANSWERED 2026-11-02: yes (D-08 confirmed, ACTIVITY L-0231) |
 | OQ-03 | Who is "the owner" in the system — MJ, a family member, a business partner? Is there a second owner account for continuity? | Owner is the final checker and recovery path | MJ | Phase 0 |
 | OQ-04 | Does the product packaging carry the supplier's/manufacturer's name? Is the supplier a manufacturer or a wholesaler/importer of a known brand? Is private-label packaging wanted? | Decides how far physical confidentiality can go (doc 07 §3) | Owner | Phase 0 |
 | OQ-05 | Does the supplier have a lead time and MOQ we can treat as stable? | Reorder point formula inputs (doc 10) | Owner (vault) | Phase 1 |
