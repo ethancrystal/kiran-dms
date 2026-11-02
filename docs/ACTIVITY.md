@@ -350,6 +350,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
 | C-016 | P1-06 (part c, invoice document data) | 2026-11-01 10:49 | done | L-0200 |
 | C-017 | P1-06 (part c, plan template validation) | 2026-11-01 12:07 | done | L-0207 |
+| C-019 | governance docs (agent skills setup, Wayfinder planning) | 2026-11-02 02:45 | done | L-0219 |
 
 ---
 
@@ -3206,6 +3207,73 @@ Security checklist (tick honestly):
 **Evidence:** Branch docs/business-domain-expansion at base 1a1c51a023a134d189a770da997650a7bbfe34fd. Files: docs/14-unified-business-domain-prompt.md (397 lines); docs/diagrams/business-domain.mmd. pnpm agent:preflight exit 0; pnpm activity:check exit 0 (210 new log entries, 119 changed files); git diff --check exit 0. pnpm lint exit 0 (65 files, 33 warnings and 42 infos) and pnpm typecheck exit 0, recorded at L-0209. pnpm db:test was started in this session; the latest output shows five files passed (deliveries 14, device-guard 4, foundation 40, inventory 25, invoice-document 23), but no final Vitest summary or process exit code was received, so the full suite is not claimed as passed. All changes remain local and uncommitted; no push or merge was performed.
 **Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
 **Next / needs:** Finish or rerun pnpm db:test and capture its final summary before merging. MJ reviews D-24 and OQ-23 to OQ-30 when prioritising the investor domain. Keep all current phase gates and open commercial decisions intact.
+
+### L-0212 · 2026-11-02 01:06 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · SESSION-START
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019 (L-0213)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries (L-0189 to L-0208) and Appendices A to C, through a read-only digest in this session; (2) status board and blockers read, no blocker covers this work; (3) active claims read: only C-001 is active and it does not cover the areas below; (4) task is MJ's instruction in chat on 2026-11-02 (below); (5) branch claude/matt-pocock-wayfinder-setup-8fd81d at origin/main 1a1c51a, worktree clean, `pnpm agent:preflight` OK; (6) local only, nothing pushed. The main checkout (feat/p0-foundation, with its uncommitted ACTIVITY.md change and two untracked reverify11 test files) is left untouched.
+**Evidence:** `pnpm install --frozen-lockfile` done; `pnpm agent:preflight`: PREFLIGHT OK; `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0. `pnpm db:test` not run: this session touches no SQL, test, app or package code.
+**Rules touched:** section 2
+**Next / needs:** L-0213.
+
+### L-0213 · 2026-11-02 01:06 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · CLAIM
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** MJ asked, in chat on 2026-11-02, to configure the Matt Pocock engineering skills for this repo (GitHub Issues as tracker, default triage labels, multi-context domain docs) and then chart a Wayfinder planning map of decision tickets on GitHub. MJ's instruction says: planning only, no feature work, no migrations, no app code, no security controls, do not commit or push. Areas: `CLAUDE.md` and `AGENTS.md` (an identical Agent skills block, preflight requires byte-identical files), `docs/agents/` (new), `CONTEXT-MAP.md` (new), and on GitHub only new labels and planning issues. Not touched: migrations, tests, apps, packages, scripts, CI, docs 00 to 13. The repo is public (L-0195): issue text cites doc sections only and carries no supplier, cost or personal data (H-01 to H-03). The issues are a decision map, not a second status board; this file stays the source of truth.
+**Rules touched:** section 3, H-01, H-02, H-03
+**Next / needs:** MJ confirms the domain-doc layout, then setup writes.
+
+### L-0214 · 2026-11-02 01:25 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · DEVIATION
+**Task:** governance docs (agent skills setup)    **Claim:** C-019
+**What / why:** The setup skill (setup-matt-pocock-skills v1.2.3) says to edit only one of CLAUDE.md or AGENTS.md. Here both carry the same Agent skills block, because `scripts/agent-preflight.mjs` (lines 101 to 116) fails unless the two files are byte-identical. This is a deviation from the skill, not from any rule in this file. The block sits before the Database conventions section, not at the end of the files, so it does not collide with the section PR 15 appends to the end of both files.
+**Rules touched:** section 3
+**Next / needs:** L-0215.
+
+### L-0215 · 2026-11-02 01:25 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup)    **Claim:** C-019
+**What / why:** MJ confirmed in chat on 2026-11-02 the multi-context layout: seven contexts (salon-pipeline, field-operations, orders-delivery, money-credit, inventory, supplier-vault, control-governance) plus a shared kernel. Written, uncommitted: an identical Agent skills block in CLAUDE.md and AGENTS.md (it states these files never override this file or the protocol); `docs/agents/issue-tracker.md` (GitHub, public-repo rules H-01 to H-03, Wayfinding operations, PRs as a request surface: no); `docs/agents/triage-labels.md` (the five defaults); `docs/agents/domain.md`; `CONTEXT-MAP.md` (contexts, kernel, seams, homonyms; it settles no open question, and lists the double source of the credit gate, doc 04:156, as open). Per-context CONTEXT.md files are left for /domain-modeling. On GitHub: labels needs-triage, needs-info, ready-for-agent, ready-for-human and the five wayfinder labels created; wontfix already existed, no duplicates.
+**Evidence:** `gh label list` checked before each create; `cmp CLAUDE.md AGENTS.md` identical; `pnpm agent:preflight` and `pnpm activity:check` results in L-0216.
+**Rules touched:** H-01, H-02, H-25
+**Next / needs:** Wayfinder charting: MJ names the destination.
+
+### L-0216 · 2026-11-02 02:10 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** MJ chose the map destination in chat on 2026-11-02 (reply "continue" to the recommended option A): a decision-complete spec for the approval lifecycle (RFC issue 4), P1-07 Money and P1-08 Control layer, ready for /to-spec. A 17-ticket map was proposed in chat; it is not yet created on GitHub (waiting for MJ's yes). MJ then asked in chat to commit the changes, which lifts the earlier no-commit instruction for this branch; nothing is pushed. This commit holds the L-0212 to L-0216 entries, the C-019 claim row, the Agent skills block in CLAUDE.md and AGENTS.md, docs/agents/ and CONTEXT-MAP.md. C-019 stays active for the GitHub map.
+**Evidence:** `pnpm agent:preflight`: PREFLIGHT OK; `node scripts/activity-log-check.mjs origin/main`: OK; `pnpm lint` exit 0 (33 warnings, all in existing files); `cmp CLAUDE.md AGENTS.md`: identical. No SQL, test, app or package file changed, so `pnpm db:test` and `pnpm typecheck` were not re-run after L-0212.
+**Rules touched:** section 3, section 11
+**Next / needs:** MJ: create the map on GitHub (yes or edits).
+
+### L-0217 · 2026-11-02 02:35 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** MJ said yes in chat on 2026-11-02 and the map was created on GitHub (map issue 18, tickets 19 to 35, native sub-issues, 11 blocked-by edges, verified). MJ then asked in chat to "move to linear for these" and to "map out everything again on Linear instead of Github", which also approves Linear as the tracker (section 9 item 4). Done: in the private Linear workspace kiran, team Kiran (KIR), created the five wayfinder labels and the five triage labels; the map KIR-5 with the same Destination, Notes, Not yet specified and Out of scope; 17 child tickets KIR-6 to KIR-22 as native sub-issues with the same 11 blocked-by relations (spot-checked on KIR-21 and KIR-22). GitHub issues 18 to 35 were closed as not planned, each with a pointer to its Linear ticket; RFC issue 4 stays open on GitHub. MJ then asked to triage: unblocked tickets in Todo with priorities (KIR-6, KIR-7, KIR-8 High), blocked tickets in Backlog, every ticket given a Next action section, the map moved to In Progress with a triage comment. Repo: `docs/agents/issue-tracker.md` rewritten for Linear (Wayfinding operations included); the Issue tracker line in CLAUDE.md and AGENTS.md (still identical) and `docs/agents/triage-labels.md` updated. No decision ticket was resolved. The research ticket KIR-13 (fresh MFA proof, CTL-16) has a read-only research subagent running; no findings yet.
+**Evidence:** Linear `list_issues` with parent KIR-5: 17 children, labels as planned; `get_issue` relations on KIR-21 (blocked by KIR-6, KIR-7) and KIR-22 (blocked by KIR-10, KIR-17); `gh issue list --state open`: only issue 4. `pnpm agent:preflight`, `activity-log-check` and `cmp CLAUDE.md AGENTS.md` results in the commit for this entry.
+**Rules touched:** section 3, section 9, H-01, H-02, H-03
+**Next / needs:** MJ: work KIR-6 (governance split, D-08) next; file the KIR-13 research findings when they arrive.
+
+### L-0218 · 2026-11-02 02:45 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (Wayfinder planning)    **Claim:** C-019
+**What / why:** The read-only research subagent for KIR-13 (proving a fresh MFA challenge in the database, CTL-16) reported. Its findings (supabase/auth v2.197.0 source and Supabase docs) were posted as a resolution comment on KIR-13 and the ticket was closed, as the Wayfinder skill allows for research tickets. Summary: two mechanisms can prove a fresh MFA verification on the caller's session: the JWT `amr` timestamp, and `auth.mfa_amr_claims` joined to `auth.sessions`; both read the same value. The `reauthenticate()` nonce is not MFA. The design choice graduated into a new grilling ticket, KIR-23 (fresh-MFA proof, window, factors), and the map's Decisions so far got its first line. The research also found, as a fact, that the SEC-04 12-hour office session limit is not configured in `supabase/config.toml` (`[auth.sessions]` commented out); recorded on the map's Notes as outside this map (Gate 0 or P1-12), no blocker raised here. No human decision was made.
+**Evidence:** Linear: KIR-13 status Done with the resolution comment; KIR-23 created under KIR-5, label wayfinder:grilling, related to KIR-13; KIR-5 description shows the Decisions so far line.
+**Rules touched:** section 9 item 4 (no vendor chosen)
+**Next / needs:** L-0219.
+
+### L-0219 · 2026-11-02 02:45 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · CLAIM-RELEASED
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** C-019 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0220.
+
+### L-0220 · 2026-11-02 02:45 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · HANDOFF
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** — (C-019 released)
+**What / why:** State: branch claude/matt-pocock-wayfinder-setup-8fd81d, three local commits on origin/main 1a1c51a (setup, the Linear move, this close-out), not pushed, no pull request. The engineering skills are configured: Linear (workspace kiran, team KIR) as tracker, the five triage labels, multi-context domain docs (CONTEXT-MAP.md). The Wayfinder map is KIR-5 with 18 child tickets: KIR-13 done; frontier in Todo: KIR-6, KIR-7, KIR-8 (High), KIR-9, KIR-10, KIR-11, KIR-12, KIR-23; the rest in Backlog behind native blocked-by relations. Next, in order: (1) MJ decides whether to push this branch and open a pull request (needs a reviewer who is not the author, Appendix C); (2) MJ works KIR-6 (governance split, D-08), one decision ticket per session, each claimed here and logged as a DECISION entry quoting MJ; (3) when KIR-8 is decided, fire the KIR-16 research. Gotchas: the plugin's skills did not load in this session, so they were followed by reading their SKILL.md files (v1.2.3) from disk; the WSL session's notes used v1.3.1 names (GLOSSARY-MAP.md), this repo uses CONTEXT-MAP.md. GitHub still has the nine labels created before the move and closed issues 18 to 35 with pointers to Linear. A separate local commit a2b1105 on feat/p0-foundation (main checkout) preserves the unfinished L-0127 re-verifier-11 entry and two failing-by-design tests; it is not on this branch and needs MJ's call (renumber and complete, or withdraw). PR 14 and PR 15 still collide on log, claim and blocker numbers with main and with each other; this branch adds L-0212 to L-0220 and C-019, so whichever merges later renumbers.
+**Evidence:** `pnpm agent:preflight`: PREFLIGHT OK; `node scripts/activity-log-check.mjs origin/main`: OK; `pnpm lint` exit 0; `cmp CLAUDE.md AGENTS.md` identical; run before the commit that holds this entry.
+**Rules touched:** section 11
+**Next / needs:** MJ: push and review this branch or not; work KIR-6; the feat/p0-foundation L-0127 commit.
+
+### L-0221 · 2026-11-02 03:05 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** — (C-019 released)
+**What / why:** Renumbering only. ChatGPT's PLAN-03 session (branch docs/business-domain-expansion) took L-0209 to L-0211 and claim C-018 in parallel with this branch. At MJ's instruction in chat on 2026-11-02 ("wait and renumber after ChatGPT finishes"), ChatGPT's uncommitted work was committed unchanged on its own branch (c088fad), and this branch was rebuilt on top of it: this session's entries, first written as L-0209 to L-0217 with claim C-018, are now L-0212 to L-0220 with claim C-019; their text is otherwise unchanged, so statements in them about the base commit and the active claims describe the state when they were written. The pre-renumber tip is kept as the local branch backup/wayfinder-setup-pre-renumber (2579d82). ChatGPT's claim C-018 is still active in the claims table and its full db:test run has no final result (its L-0211); both are left for that session or MJ. The Linear tickets cite no log numbers; docs/agents/issue-tracker.md now cites L-0217.
+**Evidence:** `git log`: this branch's parent is c088fad, whose parent is origin/main 1a1c51a. `pnpm agent:preflight`, `node scripts/activity-log-check.mjs origin/main`, `pnpm lint` and `cmp CLAUDE.md AGENTS.md` results are in the commit that holds this entry.
+**Rules touched:** section 3, section 4
+**Next / needs:** MJ: push and review docs/business-domain-expansion first, then this branch (it depends on it); work KIR-6.
 
 ---
 
