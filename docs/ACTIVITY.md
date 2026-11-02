@@ -3661,6 +3661,13 @@ Not decided here: what the helper checks at use and who may use an approval (KIR
 **Rules touched:** H-08, H-13, H-14, H-23, H-26
 **Next / needs:** push; read the e2e-stack run; then the office salon screens (list, detail, edit with the pin, stage override).
 
+### L-0270 · 2026-11-02 17:15 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 3: office salon screens, SAL-01, SAL-05, MAP-02)    **Claim:** C-014
+**What / why:** Office side of slice 3, no migration (every read and write exists). `/office/salons` (nav link "Salons"): salons through the office-only RLS on `public.salon` with territory and area, name and stage filters in the database, 50 a page with previous and next, no phone numbers on the list, no export. `/office/salons/[id]`: the salon's fields, primary contact (office reads `salon_contact` under its RLS, doc 06 §4), an edit form through `app.update_salon` that includes the pin (office may move pins; only the rep side waits on B-31 a), sends lat and lng only when changed and only as a pair (a half pin is refused in the form, and in the database by 0014), and refuses emptying a recorded field (null keeps it); stage change through `app.office_override_stage` with a required reason; stage history, visits and notes through `app.salon_stages`, `app.salon_visits`, `app.salon_notes`. Forms reset from the database's values after each save. Real-stack test (rep journey, office half): the owner searches the rep's salon, sees the rep's address, is refused a half pin, sets the pin, sets the stage to visited with a reason, reloads and sees the reason in the history and the pin in the form; the rep reloads the edit page and sees the office's pin.
+**Evidence:** `pnpm typecheck` exit 0; `pnpm lint` 87 files, no errors (33 warnings, 42 infos); `pnpm -C apps/web build` compiled, routes include `/office/salons` and `/office/salons/[id]`; `NODE_ENV=production pnpm -C apps/web test:e2e` 4 passed. NOT RUN here: the new steps on the real stack (CI after push). Not built in slice 3: the map (MAP-01, P1-03, needs a provider MJ approves, H-21), the office contact change (`app.office_set_primary_contact` exists, no screen), duplicate phones (`app.duplicate_phones`, listed for the digest, P1-08).
+**Rules touched:** H-07, H-08, H-14, H-15, H-23, H-24
+**Next / needs:** CI on 3e8c4ef, then push this commit and read its run; then the slice 1 to 3 handoff.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)

@@ -295,6 +295,29 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByText(/cannot be emptied/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
 
+  // Office side of slice 3: the owner finds the salon, sets its pin (office only while B-31 a is
+  // open), overrides the stage with a reason, and the history shows it; the rep sees the new pin.
+  await office.getByRole("link", { name: "Salons", exact: true }).click();
+  await office.getByLabel("Name contains").fill(salonName);
+  await office.getByRole("link", { name: salonName }).click();
+  await expect(office.getByRole("heading", { name: salonName })).toBeVisible();
+  await expect(office.getByLabel("Address")).toHaveValue("[Test] 7 Fake Market Road");
+  await office.getByLabel("Pin latitude").fill("24.8607");
+  await expect(office.getByText("A pin needs both latitude and longitude.")).toBeVisible();
+  await office.getByLabel("Pin longitude").fill("67.0011");
+  await office.getByRole("button", { name: "Save changes" }).click();
+  await expect(office.getByText("Salon updated.")).toBeVisible();
+  await office.getByLabel("New stage").selectOption("visited");
+  await office.getByRole("button", { name: "Change stage" }).click();
+  await office.getByLabel("Reason").fill("[Test] confirmed by phone");
+  await office.getByRole("button", { name: "Set stage" }).click();
+  await expect(office.getByText("Stage set to visited.")).toBeVisible();
+  await office.reload();
+  await expect(office.getByText("[Test] confirmed by phone")).toBeVisible();
+  await expect(office.getByLabel("Pin latitude")).toHaveValue("24.8607");
+  await page.reload();
+  await expect(page.getByText("Pin: 24.8607, 67.0011.")).toBeVisible();
+
   await page.goto("/app/day");
   await page.getByRole("button", { name: /Finish the day/ }).click();
   await page.getByRole("button", { name: "Save count and check out" }).click();
