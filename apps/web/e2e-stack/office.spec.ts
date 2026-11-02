@@ -201,7 +201,11 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.goto("/app/login");
   await page.getByLabel(/Email/).fill(rep.email);
   const asked = Date.now();
+  // The app turns any Auth error into one generic line, so read the real response here.
+  const otpResponse = page.waitForResponse((r) => r.url().includes("/auth/v1/otp"));
   await page.getByRole("button", { name: /Send code/ }).click();
+  const sent = await otpResponse;
+  expect(sent.status(), `POST /auth/v1/otp answered: ${await sent.text()}`).toBe(HTTP_OK);
   let token = "";
   for (let i = 0; i < 20 && !token; i++) {
     await new Promise((r) => setTimeout(r, 1_000));

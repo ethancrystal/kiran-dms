@@ -250,6 +250,15 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Rep sign-in is an email one-time code (SEC-03, ACTIVITY L-0101): signInWithOtp sends the
+# magic_link email and /app/login verifies the 6-digit code. GoTrue's default magic_link
+# template is link-only (no {{ .Token }}), so a rep would get no code. This keeps the local
+# stack in step with gate-0-checklist action 2 (the same template on staging). Code only, no
+# link: the app has no link sign-in route. Pinned by the rep sign-in test in office.spec.ts.
+[auth.email.template.magic_link]
+subject = "Your Kiran sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

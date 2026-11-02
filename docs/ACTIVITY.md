@@ -3620,6 +3620,33 @@ Not decided here: what the helper checks at use and who may use an approval (KIR
 **Rules touched:** H-23, H-24
 **Next / needs:** push the locator fix and read the next e2e-stack run; fix from the actual failure if another test fails.
 
+### L-0264 · 2026-11-02 16:35 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · SESSION-START
+**Task:** — (MJ's Phase 1 continuation directive: CI result of the office login fix, then slices 1 to 3)    **Claim:** C-014 (continued; session d90285e3 is no longer running, checked with the local agent list)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15 and entries L-0234 to L-0263, the execution map; (2) status board, blockers B-01 to B-31 and assumptions A-01 to A-12 read; (3) active claims: only C-014, held by this branch; (4) branch claude/crm-working-check-test-606a4a at bd91c27, clean, 0 behind and 11 ahead of origin/main 0603825 after `git fetch origin`, so step A of the directive (merge main) is already done (L-0261); PR 15 open; (5) WSL cannot read this worktree's `.git` file (it holds a Windows path), so git runs as `git.exe`; the preflight was run with a scratch `git` shim to `git.exe` outside the repo; no repository file was changed for this; (6) local only, no Docker on this host, so the local Supabase stack runs only in CI; no staging, no production.
+**Evidence:** `pnpm agent:preflight`: PREFLIGHT OK, worktree clean. `git.exe rev-list --left-right --count origin/main...HEAD`: 0 11. CI run 41436778308 on bd91c27 in progress at the time of writing: lint, typecheck + service-role scan, rep PWA browser tests, migrations + RLS matrix, activity-log-check passed; office browser tests pending.
+**Rules touched:** section 2, H-19, H-23, H-24
+**Next / needs:** the office browser tests result on bd91c27; then the salon edit screen (slice 3).
+
+### L-0265 · 2026-11-02 16:50 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1 and 2: office and rep browser tests, CI result for bd91c27)    **Claim:** C-014
+**What / why:** Run 41436778308, job `office browser tests`: 8 passed, 1 failed. Passed: the auth provider guard and all seven office tests (owner password plus TOTP, redirect, device approval, territory/area/assignment, suspend/reactivate, new office person, manager without owner controls). So the `email_provider_disabled` fix works on the real local stack and the L-0263 locator fix worked. Failed: test 9, the rep email-code sign-in (J1): the mail catcher (Mailpit, running) never received a code (expected a 6-digit code, received an empty string). This test could not run before, because the email provider was off, so it is the first time it has run. Cause not yet known: the app hides the Auth error behind "Could not send the code". Not guessed at. The test now asserts the `POST /auth/v1/otp` status and prints the body, so the next run names the cause.
+**Evidence:** `gh run view 41436778308 --job 125248404094 --log-failed`; https://github.com/ethancrystal/kiran-dms/actions/runs/41436778308. The rep day, check-in and check-out are therefore still unproven on the real stack.
+**Rules touched:** H-23, H-24
+**Next / needs:** read the next e2e-stack run; fix the cause from the real response (suspects to check against it, not assumed: an Auth rate limit, `[auth.rate_limit] email_sent = 2` in config, or the OTP email path with signup disabled).
+
+### L-0266 · 2026-11-02 17:00 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · BLOCKER
+**Task:** — (slices 1 and 2: rep email sign-in)    **Claim:** C-014 (two sessions on it)
+**What / why:** Two sessions are working in this same worktree on C-014: session d90285e3 (Sonnet, L-0265) and this one (L-0264). This session could not see d90285e3 in its local agent list, so it started; it is stopping all edits now (section 3: one claim per area) and leaves the claim to d90285e3. Root cause of the L-0265 failure, found from evidence and offered to d90285e3, not committed: the Playwright trace of run 41436778308 (`1-trace.network`) shows `POST /auth/v1/otp` answered 200, so the rate limit and the signup path are ruled out; the seed confirms the rep (`email_confirmed_at`), so GoTrue sends its magic_link email; GoTrue's default magic_link template (supabase/auth master, `internal/mailer/templatemailer/templatemailer.go`, `defaultMagicLinkMail`) holds only a link, no `{{ .Token }}`, so there is no code to read (a product defect on any stack without a custom template; gate-0-checklist action 2 already demands the token on staging). Proposed fix, left UNCOMMITTED in the working tree for d90285e3 to take or drop: `[auth.email.template.magic_link]` in `supabase/config.toml` and a new `supabase/templates/magic_link.html` with the 6-digit code only. d90285e3's change to `office.spec.ts` (asserting the /otp status) is untouched and compatible.
+**Evidence:** `gh run view 41436778308 --job 125248404094 --log-failed`; trace from artifact playwright-report-stack: `POST http://127.0.0.1:54321/auth/v1/otp 200`; `pnpm typecheck` exit 0 and `pnpm lint` no errors (33 warnings, 42 infos) with the proposed change. Nothing staged, committed or pushed by this session.
+**Rules touched:** section 3, H-23, H-24
+**Next / needs:** MJ: say which session continues C-014. d90285e3: review the two uncommitted files; if kept, commit them with your next push.
+
+### L-0267 · 2026-11-02 16:49 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · CORRECTION
+**Task:** — (C-014 continuation)    **Claim:** C-014
+**What / why:** (1) Corrects the time of L-0266: it was written at about 16:45 PKT, not 17:00 (the clock was estimated, not read; the session's prompt hook showed 16:47 afterwards). (2) Resolves the L-0266 blocker: MJ answered "continue" to this session in chat on 2026-11-02 after reading L-0266, so session 850c6865 continues C-014. Checked first: d90285e3 made no commit, push or log entry since L-0265 (`git fetch`; origin still at bd91c27). Its uncommitted change to `apps/web/e2e-stack/office.spec.ts` (assert the `/auth/v1/otp` status and print the body) is kept as written and committed with this session's fix, credited to it here.
+**Rules touched:** section 3, section 4
+**Next / needs:** commit the magic_link template fix with that test change, push to PR 15, read the e2e-stack run.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
