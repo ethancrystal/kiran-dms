@@ -271,7 +271,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165; a partial salon edit erasing the pin fixed by migration 0014, L-0251, not merged) | — |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165; a partial salon edit erasing the pin fixed by migration 0014, L-0251, not merged; rep and office salon screens of execution-map slice 3, with migrations 0016 and 0017, DONE self-reported, L-0282, awaiting re-verification) | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slices 1 and 2 of the execution map: office shell, rep day) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/` (sign-in code, rep day), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0255) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -359,6 +358,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-021 | Wayfinder KIR-6 (record D-08) | 2026-11-02 06:52 | done | L-0232 |
 | C-022 | Wayfinder KIR-7 (approval mechanism) | 2026-11-02 07:46 | done | L-0237 |
 | C-023 | — (verification of execution-map slices 1 to 3) | 2026-11-02 18:07 | done | L-0277 |
+| C-014 | — (execution-map slices 1 to 3) | 2026-11-02 18:25 | done | L-0283 |
 
 ---
 
@@ -3741,6 +3741,62 @@ Frontend review (code read, not run in a browser here): every button calls an ap
 **Evidence:** `pnpm db:test verify-slices-1-3` with migration 0017 before the test change: 1 failed (the `it.fails` DEFECT CHECK, which shows the defect is gone), 29 passed; after it: `pnpm db:test verify-slices-1-3 salons.test crm-attacks verifier-attacks`: 4 files, 145 passed. `pnpm typecheck` exit 0; `pnpm lint` 88 files, no errors (33 warnings, 42 infos); `pnpm -C apps/web build` compiled. NOT RUN here: the whole suite and the real stack (CI after push).
 **Rules touched:** H-08, H-14, H-23, H-24
 **Next / needs:** push, read CI; then DONE (self-reported) for slices 1 to 3 with the remaining gaps listed; MJ: B-33.
+
+### L-0280 · 2026-11-02 18:25 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** — (execution-map slice 1: office shell; SEC-02, SEC-03, SEC-04 part, PIP-01, H-15)    **Claim:** C-014
+**What / why:** Built by session crm-working-check-test (L-0255, L-0256), fixed by d90285e3 (L-0262, L-0263) and this session (L-0266 to L-0268). Office sign-in with password and TOTP, AAL2 required by the shell layout; overview counts; devices (approve, reject, revoke with reason); team (owner adds a person from their sign-in code, suspends, reactivates, offboards; manager sees no controls); territories, areas, assignments with an ended assignment's reason. No migration of its own.
+**Security checklist:**
+- [x] Requirements as written; differences listed below
+- [x] No new table or migration in this slice
+- [x] Mutations only through existing SECURITY DEFINER app.* functions (pinned search_path, idempotent where they write)
+- [x] Audit rows and hash chain checked by the verifier (L-0274)
+- [x] No vault surface
+- [ ] Offline: not applicable to office pages
+- [x] No money arithmetic
+- [x] Lint, typecheck, database suite and both browser suites pass locally and in CI (run 41451859391 on 56dd794)
+- [x] Docs: execution map describes it; no doc diverges
+- [x] Diff read: synthetic `[Test]` data only, no secrets (service-role scan OK)
+**Gaps (not proven in a browser, database side attacked and held, L-0274):** device revocation, offboarding, the AAL1 redirect, a suspension reaching an open page. SEC-04 session limits are not configured (known, docs/audit-2026-10-31/security-nfr-webapp.md). B-33 (b) inactive-territory assignment and (c) offboarding being final are page rules the database does not back, waiting on MJ.
+**Evidence:** run https://github.com/ethancrystal/kiran-dms/actions/runs/41451859391 on 56dd794: office browser tests 9 passed; database suite 27 files, 1909 passed, 6 expected fail; rep PWA 4 passed; lint, typecheck + service-role scan, activity-log-check passed.
+**Rules touched:** H-15, H-16, H-23, H-24
+**Next / needs:** re-verification by a fresh verifier (section 7).
+
+### L-0281 · 2026-11-02 18:25 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** — (execution-map slice 2: the rep's working day; SEC-03, PIP-01, PIP-05/06 thin, INV-05)    **Claim:** C-014
+**What / why:** Built by session crm-working-check-test (L-0257), rep sign-in fixed by this session (L-0266, the magic_link template), evening count made idempotent (L-0279). Rep email-code sign-in, device waiting and approval, territories and areas, check-in with a blind count and GPS when allowed, route with reorder, due list with add-to-route, evening count then check-out. The database decides every rule (one open day, close before check-out, territory).
+**Security checklist:** as L-0280, plus: [x] replay of check-in, check-out and add-stop has one effect, client times are evidence only (verifier, L-0274); [ ] offline: NOT built (P1-09, slice 8), the rep day needs a connection today.
+**Gaps (not proven in a browser):** route reorder and add-stop buttons, check-in with a GPS fix, a non-empty bag count. B-31 (c) (rep past midnight) open with MJ.
+**Evidence:** as L-0280 (the rep journey is office browser test 9).
+**Rules touched:** H-09, H-14, H-23, H-24
+**Next / needs:** re-verification; offline in slice 8.
+
+### L-0282 · 2026-11-02 18:25 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** P1-02 (execution-map slice 3: salons; SAL-01, SAL-02 part, SAL-05, PIP-02, MAP-02, doc 06 §4)    **Claim:** C-014
+**What / why:** Rep side built by crm-working-check-test (L-0260); edit, office screens and fixes by this session (L-0269, L-0270, L-0279). Rep: list (50 a page, phones masked), add with GPS pin, detail with phone reveal (logged), visit with GPS, notes, visits, stage history, park with reason, edit (name, type, area, address, chairs; never the pin, B-31 a). Office: list with search and stage filter, detail with contact, edit with the pin as a pair, stage override with reason, history. Migrations 0016 (`app.my_salon`) and 0017 (create_salon replay scope, B-32).
+**Security checklist:**
+- [x] SAL-01, SAL-05, MAP-02 as written; the pin stays office-only until B-31 (a)
+- [x] Migrations 0016 and 0017 forward-only, applied on top of 0015 and to a fresh database (CI)
+- [x] No new table; the new read function is tested for rep own territory, rep other territory, wrong device, suspended, manager, owner, manager at AAL1 and anon (salons.test.ts, verify-slices-1-3.test.ts)
+- [x] Append-only notes, visits and stage events untouched; their guards hold (verifier)
+- [x] Writes only through SECURITY DEFINER functions; replays have one effect (verifier)
+- [x] Audit and hash chain (verifier)
+- [x] No vault surface
+- [ ] Offline: NOT built (P1-09)
+- [x] No money arithmetic
+- [x] Lint, typecheck, suites pass locally and in CI (run 41451859391)
+- [x] Docs: no divergence; B-31 (a), B-33 (a), (d) recorded as open
+- [x] Diff read: synthetic data only
+**Gaps (not proven in a browser):** recording a visit, revealing a phone, parking. Not built: the map (MAP-01, P1-03, needs a provider MJ approves), the office contact change screen, the duplicate-phone review (digest, P1-08).
+**Evidence:** as L-0280; the rep and office salon journey is office browser test 9.
+**Rules touched:** H-07, H-08, H-14, H-23, H-24
+**Next / needs:** re-verification; MJ: B-31 (a), B-33.
+
+### L-0283 · 2026-11-02 18:26 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · HANDOFF
+**Task:** — (execution-map slices 1 to 3)    **Claim:** — (C-014 released, done)
+**What / why:** State: PR 15, branch claude/crm-working-check-test-606a4a, slices 1 to 3 DONE (self-reported), L-0280 to L-0282; independent verification attempted (L-0274, nothing broke except B-32, now fixed); a fresh verifier must re-run before VERIFIED. Next, in order: (1) MJ reviews and merges PR 15 (merge commit); (2) MJ answers B-33 (a) to (d), B-31 (a), (c), (e); (3) a fresh verifier re-runs `verify-slices-1-3.test.ts` and the section 7 list on the merged code and logs VERIFIED or findings; (4) slice 4 (orders and delivery) on a new branch from main: it needs B-31 (d), (e) answered, and before invoices are relied on for P1-07, a design that freezes the company accounts and installment schedule at invoice time (today `app.invoice_document` reads live config, raised in the PR 17 review). Gotchas: in WSL, git is `git.exe` (the worktree's .git holds a Windows path); node_modules are Windows-installed, so Biome and the embedded Postgres run through `cmd.exe /c "pnpm ..."`; take log times from `TZ=Asia/Karachi date`, not estimates (L-0267, L-0271). Migrations 0014 to 0017 are not applied to staging.
+**Evidence:** run 41451859391 on 56dd794 green in all six jobs; `pnpm activity:check origin/main` OK before the commit.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge PR 15; B-33; B-31 (a), (c), (d), (e).
 
 ---
 
