@@ -12,6 +12,7 @@ type Session = {
 type State =
   | { kind: "loading" }
   | { kind: "error"; message: string }
+  | { kind: "unregistered"; code: string }
   | { kind: "ready"; session: Session };
 
 // Rep home. On first open it registers this phone (SEC-03). Until an office user approves
@@ -30,7 +31,8 @@ export default function RepHome() {
       const idUsed = deviceId();
       const first = await supabaseBrowser().schema("app").rpc("my_session");
       const s0 = first.data as Session | null;
-      if (first.error || !s0) return setState({ kind: "error", message: "Your account is not set up. Contact your manager." });
+      if (first.error) return setState({ kind: "error", message: "Could not load your session." });
+      if (!s0) return setState({ kind: "unregistered", code: user.id });
       if (s0.status !== "active") {
         return setState({ kind: "error", message: "Your account is not active. Contact your manager." });
       }
@@ -51,6 +53,18 @@ export default function RepHome() {
       <h1>Today · <span lang="ur">آج</span></h1>
       {state.kind === "loading" && <p className="muted">Loading…</p>}
       {state.kind === "error" && <p className="error" role="alert">{state.message}</p>}
+      {state.kind === "unregistered" && (
+        <div className="card">
+          <p className="error" role="alert">
+            Your account is not set up yet. Give this sign-in code to the owner:
+            <br />
+            <span lang="ur">آپ کا اکاؤنٹ ابھی تیار نہیں۔ یہ کوڈ مالک کو دیں:</span>
+          </p>
+          <p>
+            <code data-testid="signin-code">{state.code}</code>
+          </p>
+        </div>
+      )}
       {state.kind === "ready" && (
         <div className="card">
           <p>Salaam, {state.session.full_name}.</p>
@@ -64,6 +78,11 @@ export default function RepHome() {
             </p>
           )}
         </div>
+      )}
+      {state.kind === "ready" && state.session.device_status === "approved" && (
+        <a className="btn" href="/app/day">
+          Start your day · <span lang="ur">دن شروع کریں</span>
+        </a>
       )}
     </main>
   );

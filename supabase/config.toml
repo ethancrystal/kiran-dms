@@ -220,8 +220,12 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = false
+# Switches the email provider on (GoTrue EXTERNAL_EMAIL_ENABLED). It is NOT the self-signup
+# switch: with it off, every email sign-in (office password, rep one-time code) is refused with
+# 422 email_provider_disabled. Self-signup stays closed by [auth] enable_signup = false above
+# (GoTrue DISABLE_SIGNUP), which refuses any address the owner has not created. Both settings
+# are pinned by apps/web/e2e-stack/office.spec.ts (auth provider guard).
+enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
@@ -245,6 +249,15 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# Rep sign-in is an email one-time code (SEC-03, ACTIVITY L-0101): signInWithOtp sends the
+# magic_link email and /app/login verifies the 6-digit code. GoTrue's default magic_link
+# template is link-only (no {{ .Token }}), so a rep would get no code. This keeps the local
+# stack in step with gate-0-checklist action 2 (the same template on staging). Code only, no
+# link: the app has no link sign-in route. Pinned by the rep sign-in test in office.spec.ts.
+[auth.email.template.magic_link]
+subject = "Your Kiran sign-in code"
+content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

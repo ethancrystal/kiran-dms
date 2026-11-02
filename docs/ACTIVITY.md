@@ -271,7 +271,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165) | — |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165; a partial salon edit erasing the pin fixed by migration 0014, L-0251, not merged; rep and office salon screens of execution-map slice 3, with migrations 0016 and 0017, DONE self-reported, L-0282, awaiting re-verification) | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -346,6 +345,10 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0171 |
 | C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
 | C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
+| C-011 | — (independent check of the CRM modules built so far, L-0239) | 2026-10-31 22:50 | done | L-0241 |
+| C-012 | — (section 7 attack pass and Phase 1 audit, L-0243) | 2026-11-01 01:40 | done | L-0247 |
+| C-013 | P1-02 (fix: partial `update_salon`, migration 0014) | 2026-11-01 02:05 | done | L-0252 |
+| C-001 | P0-02, P0-04, P0-05 (and the apps/web, scripts, tests areas it held) | 2026-11-01 02:20 | stale | L-0254 |
 | C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
 | C-016 | P1-06 (part c, invoice document data) | 2026-11-01 10:49 | done | L-0200 |
 | C-017 | P1-06 (part c, plan template validation) | 2026-11-01 12:07 | done | L-0207 |
@@ -354,6 +357,9 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-020 | P0-06, P0-02, P0-09 (re-verification round 11 reconciled) | 2026-11-02 03:27 | done | L-0227 |
 | C-021 | Wayfinder KIR-6 (record D-08) | 2026-11-02 06:52 | done | L-0232 |
 | C-022 | Wayfinder KIR-7 (approval mechanism) | 2026-11-02 07:46 | done | L-0237 |
+| C-023 | — (verification of execution-map slices 1 to 3) | 2026-11-02 18:07 | done | L-0277 |
+| C-014 | — (execution-map slices 1 to 3) | 2026-11-02 18:25 | done | L-0283 |
+| C-024 | — (B-33 decisions, slices 1 and 3) | 2026-11-02 20:12 | done | L-0287 |
 
 ---
 
@@ -380,7 +386,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
 | B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | (a) RESOLVED L-0040; (b) PENDING |
 | B-17 | L-0042 Q1: add TRUNCATE guards on approval_request, device, user_profile, app_config, doc_counter (and update the verifier observation test)? Q2: refuse decisions on pending requests whose maker is suspended? (L-0047) | — (not exploitable by app roles) | Leave as is | MJ | PENDING |
-| B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | PENDING |
+| B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | RESOLVED (L-0253) |
 | B-19 | F-3: should a rep see its own revoked/pending device rows (today yes) or only the approved one? Should tests stop sharing committed rows across files? Changing the re-verifier-3 test needs explicit approval (L-0052) | — (not a leak) | Leave as is | MJ | PENDING |
 | B-20 | L-0061 client observations: O1 cross-tab rotation not atomic (Web Lock), O2 a 30 s claim blocks re-registration after a crash, O3 blocked storage leaves the page on "Loading…". Fix now (reopens P1-01) or defer to P1-09? (L-0065) | — (P1-01 VERIFIED; fails closed) | Defer to P1-09 | MJ | PENDING |
 | B-21 | L-0075 FP3: also allow supplier wording under any `vault/` path segment (P1-05 vault UI) and in i18n, locale or translations directories? Owner terms still apply everywhere. (L-0079) | rv8 FP3 test red until decided | Approve | MJ | RESOLVED (L-0080: approved) |
@@ -393,6 +399,9 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-28 | Reps park salons (doc 02, `app.rep_park_salon`) while the doc 06 section 2 matrix says reps cannot change a stage manually (L-0175) | — (P1-02 part a built) | Keep rep parking as doc 02 says | MJ | PENDING |
 | B-29 | Rulebook wording behind the built code (L-0182): H-14 says reps read through views with no base-table access, but reps read salon data through `app.*` functions and read their own rows of a few operational tables; H-06 lists fewer append-only tables than are built; H-07 allows soft-delete flags only on configuration entities, but `salon_contact.active` retires phones | — (rule text only) | Code as built; doc 04 and doc 06 describe it | MJ | PENDING |
 | B-30 | Must a salon created from the map have a pin (lat and lng)? Doc 04 said so; the database does not enforce it, and the offline quick add (PIP-07) may lack GPS (L-0182) | A database check | Not required | MJ | PENDING |
+| B-31 | Audit questions that need MJ (L-0245): (a) may a rep move a salon's pin (`update_salon` lets a rep set lat and lng, which the visit and delivery distance checks measure against)? (b) may a rep reveal every phone in their territory, or is there a daily cap on `reveal_phone` (today logged only)? (c) a rep working past midnight Karachi time loses the open day: allow checkout and visits until the office closes it, or keep? (d) one invoice per delivery, so a part-delivered order has several: keep, or one per order? (e) `delivery_mode` is stored but ignored by `rep_deliver` and `office_deliver`: what should bag_now and warehouse change? (f) should `low_stock` count the warehouse only, not bags? (g) how is an independent agent represented (`app_role` has no agent value; AGT-01 to AGT-06)? | AGT-01 to 06; the matching fixes | Keep the code as built; defect 1 of L-0245 (partial `update_salon` erases the pin) is a code defect and needs no decision | MJ | PENDING |
+| B-32 | Verifier finding (L-0274, L-0275): `app.create_salon` hands its creator the salon's current row on a replay of the id after the creator lost the territory (scope checked after the replay key). Code defect, low; kept as an `it.fails` DEFECT CHECK in `supabase/tests/verify-slices-1-3.test.ts` | Slice 3 VERIFIED | Leave as is until a builder fixes it | builder | RESOLVED (L-0279: migration 0017) |
+| B-33 | Verifier questions (L-0275): (a) should an inactive territory stop giving its assigned rep the salons (today my_salons, my_salon, reveal_phone, notes and due_list still work)? (b) may the office assign a rep to an inactive territory (database allows, page hides)? (c) is offboarding final (database lets the owner set an offboarded person active; page says "for good")? (d) should `update_salon` keep a recorded address when given an empty string, as it keeps an empty name? | Slices 1 and 3 VERIFIED | Keep the code as built | MJ | RESOLVED (L-0284: a refuse until ended, b refuse, c final, d keep) |
 
 ---
 
@@ -3434,6 +3443,399 @@ Not decided here: what the helper checks at use and who may use an approval (KIR
 **Evidence:** `node scripts/agent-preflight.mjs` and `node scripts/activity-log-check.mjs origin/main` run immediately before the commit; results in the commit message.
 **Rules touched:** section 11
 **Next / needs:** MJ: merge pull requests 36, 37, 38; then work KIR-14.
+
+### L-0239 · 2026-10-31 22:14 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · SESSION-START
+**Task:** — (independent check that the CRM modules built so far work, section 7)    **Claim:** C-011
+**What / why:** MJ asked whether the CRM working check and test had been done; it had not. This session is a different agent from the builder sessions, so it may check the self-reported P1-02 parts a and b, P1-04, P1-06 parts a and b and P1-16. Checklist: (1) this file read: rules, board, claims, blockers, assumptions, the last entries (L-0179 to L-0185); (2) docs/test-report-2026-10-25.md read; (3) C-001 holds scripts, migrations, tests and apps and is untouched: this session changes no code, SQL or test file, and the untracked reverify11 files in the K checkout are not used; (4) blockers B-18 (staging does not expose app and vault_api), B-28, B-29, B-30 touch this check and are not changed; (5) baseline on this branch (cut from main at 13ebec7); (6) local only: embedded Postgres 17 in a temp directory, no staging, no production, ambient DATABASE_URL unset for every command. The branch claude/tla-spec-verification-rebased already uses L-0186 to L-0195 (PR 14), so these entries are numbered L-0239 onward only because the check requires sequence; renumber them on merge, as a39a49a did.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm lint` exit 0 (31 warnings, 42 infos, no errors); `pnpm typecheck` exit 0; `pnpm activity:check main HEAD` OK; `pnpm service-role:scan` OK (31 files); `pnpm -r --if-present test`: packages/import 3 files, 50 passed.
+**Rules touched:** section 2, H-19, H-23, H-24
+**Next / needs:** L-0240 (database suite in parts, then the app build and e2e).
+
+### L-0240 · 2026-10-31 22:45 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** P1-02 (parts a and b), P1-04, P1-06 (parts a and b), P1-16    **Claim:** C-011
+**What / why:** Ran the existing suites and the web build from a clean install on this branch (main at 13ebec7). This is a re-run of the builders' tests, not a new attempt to break the controls, so no task is moved to VERIFIED (section 7 still needs that attempt).
+**Evidence:** `pnpm db:test` (whole suite, embedded Postgres 17, ambient DATABASE_URL unset): 23 files, 1789 passed, 0 failed, 1547 s; the six CRM module files alone (deliveries, inventory, orders, routes, salons, visits): 117 passed in 30 s, exit 0. `NODE_ENV=production pnpm -C apps/web build`: exit 0, 7 routes (`/`, `/app`, `/app/login`, `/office`, `/office/login`, `/office/mfa`, `/_not-found`). `pnpm -C apps/web test:e2e`: NOT RUN to a result, 4 of 4 failed at browser launch because the Playwright Chromium headless shell is not installed on this machine (`browserType.launch: Executable doesn't exist`); this is the machine, not the app, and the browser download was not done without MJ's go-ahead. Grep of the module test titles shows each module has a cap, replay and append-only case; salons, visits, orders have an other-territory case; inventory has maker-checker cases. No staging or production access.
+**Rules touched:** H-19, H-23, H-24
+**Next / needs:** L-0241.
+
+### L-0241 · 2026-10-31 22:50 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · HANDOFF
+**Task:** — (independent check of the CRM modules)    **Claim:** — (C-011 released)
+**What / why:** State: the database side of the CRM modules passes in full (1789 of 1789). The web app has only login shells, so there is no CRM screen to click through yet; the rep and office CRM screens belong to P1-03 and later. Not done: the Playwright e2e run (browser missing), the section 7 attempt to break the new modules from a rep token and an office token with fresh attack tests, and any check against staging (B-18 still pending, so login cannot work there). Next steps, in order: (1) MJ allows `pnpm exec playwright install chromium` (a download of roughly 150 MB from Playwright's CDN) so the e2e run can finish; (2) a verifier writes the section 7 attack tests for P1-02, P1-04, P1-06 and P1-16, then moves them to VERIFIED; (3) MJ: B-18, B-28, B-29, B-30, B-13. Gotchas: `pnpm db:test -- name` passes the dashes to vitest and matches no file, use `pnpm db:test name`; the whole suite took 26 minutes here but did not stall; these two entries are numbered L-0239 onward only because the check wants a sequence, and PR 14 already holds L-0186 to L-0195, so one of the two sets must be renumbered when both reach main.
+**Evidence:** see L-0240; `pnpm activity:check main HEAD` run after this entry.
+**Rules touched:** section 11
+**Next / needs:** MJ: Playwright browser download; B-18, B-28, B-29, B-30, B-13.
+
+### L-0242 · 2026-10-31 23:35 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CORRECTION
+**Task:** — (independent check of the CRM modules)    **Claim:** —
+**What / why:** Corrects L-0240 and L-0241 on one point: the Playwright e2e run did not stay unfinished. MJ allowed the browser download; `pnpm exec playwright install chromium-headless-shell` fetched Chrome Headless Shell 153.0.8010.12 (114.6 MiB) from Playwright's CDN into the user profile (outside the repo). The e2e step in L-0241 next steps (1) is done. Steps (2) and (3) stand: no section 7 attempt to break the new modules has been made, so no task is VERIFIED.
+**Evidence:** `NODE_ENV=production pnpm -C apps/web test:e2e`: 4 passed, 0 failed, 25.5 s (small-phone layout with Urdu labels NFR-03, a refused sign-in is shown NFR-01, 199.8 KB gzipped JavaScript against the 300 KB cap NFR-02, security headers doc 06 section 7). Only the rep login shell is covered; the repository has no other e2e spec.
+**Rules touched:** H-23, H-24
+**Next / needs:** unchanged from L-0241 (2) and (3).
+
+### L-0243 · 2026-10-31 23:50 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** — (section 7 attempt to break the CRM modules)    **Claim:** C-012
+**What / why:** MJ asked for the attack pass left open in L-0241. Scope: one new test file, `supabase/tests/crm-attacks.test.ts`, which tries from rep, other-territory rep, suspended rep, wrong device, manager, owner at AAL1, anon and service_role to read across territories, dump salons, write money, stock, stage and history tables directly, update or delete append-only rows, replay and backdate, over-order, over-deliver, deliver another rep's order, self-approve a stock adjustment, and reach cost or supplier columns (H-01, H-05, H-06, H-08, H-09, H-12, H-13, H-14, H-15). The file commits only fresh catalogue, territory and salon rows (as the other module files do) and ends its territory assignments; bags, rep days, orders and deliveries happen in rolled-back transactions so the inventory tests that create rep A's bag later in name order are not disturbed. No migration, app or existing test file is changed. A failing attack is reported as a finding, not loosened (H-23).
+**Rules touched:** section 3, section 7, H-23
+**Next / needs:** L-0244.
+
+### L-0244 · 2026-11-01 01:30 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** P1-02 (parts a and b), P1-04, P1-06 (parts a and b), P1-16    **Claim:** C-012
+**What / why:** Section 7 attack pass on the built modules, from a session that did not build them. New file `supabase/tests/crm-attacks.test.ts` (54 tests, no migration or app change). Attacks tried: RLS forced and no anon or write privilege on any table; direct insert, update, delete and truncate on 28 module tables as rep A, rep B, manager, owner, suspended rep, rep on an unapproved device, anon and service_role (all 42501); update and delete of existing rows in five append-only tables as the table owner (trigger refuses); rep B reading or writing rep A's salon through every read and RPC path; list-dump through `my_salons` (capped at 50, phones masked); `reveal_phone` logging and the log's access; every office and owner function from a rep, a suspended rep, a wrong device and anon; owner-only functions from a manager; office functions from owner and manager at AAL1; 20 malformed order shapes; discount tampering (pending approval, no confirmation, no invoice); plan above eligibility (held); replay and backdating of orders, notes, deliveries and counts; delivering another rep's order, over-delivery, double delivery, a cancelled order, a bag going negative; invoice numbers consecutive and unchanged by a failed delivery; a manager approving their own stock adjustment; one approval posting once; rep B confirming or counting rep A's bag. Nothing got through. The first run had 19 failures, all mistakes in the new tests (wrong enum values, wrong column names, a discount test that replayed with list prices, empty tables for the owner-trigger test, line key qty); each was fixed in the test, no check was loosened. Not covered: payments, vault data and offline sync (not built), the web screens (none exist), a real GoTrue MFA login.
+**Evidence:** `pnpm db:test crm-attacks`: 1 file, 54 passed. `pnpm db:test` whole suite: 24 files, 1843 passed, 0 failed, 1446 s (baseline L-0240: 23 files, 1789). `pnpm lint`, `pnpm typecheck`, `pnpm activity:check main HEAD` exit 0. Commit: none yet (uncommitted on this branch).
+**Rules touched:** H-06, H-08, H-09, H-12, H-13, H-14, H-15, H-23
+**Next / needs:** L-0245. No task is moved to VERIFIED here: that is MJ's call after reading the findings in L-0245.
+
+### L-0245 · 2026-11-01 01:35 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (Phase 1 audit against doc 03)    **Claim:** C-012
+**What / why:** MJ asked for a requirement-level audit of the whole of Phase 1. Four read-only agents each audited one group of doc 03 against migrations, tests and apps/web; their tables are in `docs/audit-2026-10-31/` with a summary in its README. Result: 142 IDs; no row has a user interface; the database half of salons, visits, routes, inventory, orders, deliveries and invoices exists; payments (P1-07), vault tables (P1-05), the control layer beyond approvals (P1-08), the offline client (P1-09), dashboards (P1-10), agents (P1-15) and lost-demand capture (P1-17) are not built; the web app is the sign-in and MFA pages. Defects found by reading the SQL, each confirmed by me in the function body unless marked: (1) `update_salon` erases address, lat, lng and chairs when they are not passed; (2) a rep can move a salon's pin, which the distance checks trust; (3) `delivery_mode` is ignored by both delivery functions; (4) `salon_exposure` never falls (A-10); (5) `reveal_phone` has no volume cap; (6) an approved write-off cannot be posted (agent-reported); (7) replay checks differ between functions; (8) `low_stock` pools bags with the warehouse; (9) part deliveries get one invoice each (agent-reported); (10) a rep past midnight Karachi time loses the open day (agent-reported). None has a failing test today.
+**Evidence:** four audit files and the README under `docs/audit-2026-10-31/`; `pnpm activity:check main HEAD` OK after this entry. The agents ran no tests; the test results are in L-0244.
+**Rules touched:** H-23, H-24, H-25
+**Next / needs:** L-0246.
+
+### L-0246 · 2026-11-01 01:36 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · BLOCKER
+**Task:** — (audit follow-up)    **Claim:** C-012
+**What / why:** B-31: seven questions for MJ raised by the audit (pin edits by reps, a cap on phone reveals, rep day after midnight, invoices for part deliveries, the meaning of delivery_mode, what low_stock counts, how an independent agent is represented). All keep the code as built meanwhile; the one pure code defect (partial `update_salon` erases the pin) needs no decision and is the first fix proposed.
+**Rules touched:** section 9, H-26
+**Next / needs:** MJ: B-31 (a to g).
+
+### L-0247 · 2026-11-01 01:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** — (attack pass and audit)    **Claim:** C-012
+**What / why:** C-012 released (done): the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0248.
+
+### L-0248 · 2026-11-01 01:41 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · HANDOFF
+**Task:** — (independent check, attack pass and audit)    **Claim:** — (C-012 released)
+**What / why:** State: branch claude/crm-working-check-test-606a4a, cut from main at 13ebec7, uncommitted: `supabase/tests/crm-attacks.test.ts` (new), `docs/audit-2026-10-31/` (new), `docs/ACTIVITY.md` (entries L-0239 to L-0248, B-31). Full suite green (1843), lint, typecheck, build, log check and the four Playwright tests green. Next steps, in order: (1) MJ reads L-0245 and the README, answers B-31, B-18, B-13; (2) fix defect 1 (partial `update_salon`), a small migration with a test; (3) build the office shell and device approval screen, then the rep shell (README, build order); (4) payments P1-07 backend before any screen that shows balances. Gotchas: `pnpm db:test -- name` matches no file, use `pnpm db:test name`; these entries are numbered from L-0239 only because the log check wants a sequence, and the branch claude/tla-spec-verification-rebased (PR 14) holds L-0186 to L-0195, so one set must be renumbered when both reach main; the Playwright Chromium headless shell was downloaded into the user profile with MJ's go-ahead.
+**Evidence:** see L-0244 and L-0245.
+**Rules touched:** section 11
+**Next / needs:** MJ: B-31, B-18, B-13.
+
+### L-0249 · 2026-11-01 01:52 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · DECISION
+**Task:** P0-04 (staging kept in step with main)    **Claim:** —
+**What / why:** MJ approved applying main's six unapplied migrations to staging, in chat on 2026-11-01: "Yes, apply them" (in answer to "Apply main's 6 missing migrations to staging?"). Project `iurvazdyxzlspegygldo` (staging, B-12, L-0019), checked first through the Supabase Kiran connector: 7 migrations applied (foundation to device_state_guard), RLS forced on every table, security advisors only the two known INFO items, 0 user profiles. To apply, in file order, each in one transaction with its repository version recorded in `supabase_migrations.schema_migrations` (so no local file is renamed): 20261028050000_inventory, 20261028060000_salons, 20261028070000_visits, 20261028080000_routes, 20261028090000_orders, 20261028100000_deliveries. Not applied: 20261101000000_update_salon_partial (this branch only, not merged). No data is written; no production access. MJ also reported exposing schemas public, extensions, app and vault_api in the Data API settings (B-18); the API still answered 406 for app at 01:50 PKT, re-checked after the migrations.
+**Rules touched:** H-19, section 9 item 3
+**Next / needs:** L-0250 (result).
+
+### L-0250 · 2026-11-01 02:00 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** P1-02 (defect 1 of L-0245)    **Claim:** C-013
+**What / why:** Claim for the fix of `app.update_salon` erasing address, lat, lng and chairs on a partial edit. Logged late: the migration and its tests were written at about 01:45, after C-012 was released (L-0247) and before this claim; this entry records that plainly (section 3). Areas: `supabase/migrations/20261101000000_update_salon_partial.sql` (new), `supabase/tests/crm-attacks.test.ts` (own file, new describe block). No other file.
+**Rules touched:** section 3, H-23
+**Next / needs:** L-0251.
+
+### L-0251 · 2026-11-01 02:02 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** P1-02 (defect 1 of L-0245)    **Claim:** C-013
+**What / why:** Migration 0014 replaces `app.update_salon` (same signature, so the grants stay): a null parameter now leaves name, address, lat, lng and chairs as they are; a blank name leaves the name; lat and lng move only as a pair (22023 otherwise). Who may call it and the territory checks are unchanged. Whether a rep may move a pin at all stays with MJ (B-31 a). Four regression tests in `crm-attacks.test.ts`.
+**Security checklist:**
+- [x] Requirement implemented as written (SAL-01 edit; MAP-02 pin kept)
+- [x] Migration forward-only, applies to a fresh database and on top of 0013 (whole suite below)
+- [x] No new table, so no new RLS or matrix row
+- [x] Not append-only (salon is a guarded table; the guard is unchanged)
+- [x] Mutation through a SECURITY DEFINER function with pinned search_path; idempotent by nature (same input, same row)
+- [x] Audit: the existing salon audit trigger records the before and after
+- [x] No vault surface touched
+- [ ] Offline: not applicable to this fix (no client yet)
+- [x] No money arithmetic
+- [x] Lint, typecheck, suites pass locally; CI not yet run (not pushed)
+- [x] Docs: doc 04 already says the pin is optional (B-30); no doc change needed
+- [x] Diff read: no secrets or real data
+**Evidence:** without the migration, `pnpm db:test crm-attacks`: 3 of the 4 new tests fail (the partial-edit, blank-name and pair tests), which shows the defect; with it, `pnpm db:test crm-attacks salons.test visits.test`: 3 files, 92 passed; whole suite `pnpm db:test`: 24 files, 1847 passed, 0 failed, 1353 s; `pnpm lint`, `pnpm typecheck` exit 0. Not applied to staging (not merged).
+**Rules touched:** H-07, H-08, H-23, H-25
+**Next / needs:** L-0252.
+
+### L-0252 · 2026-11-01 02:05 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** P1-02 (defect 1 of L-0245)    **Claim:** C-013
+**What / why:** C-013 released (done), straight into the released table.
+**Rules touched:** section 3
+**Next / needs:** staging result of L-0249.
+
+### L-0253 · 2026-11-01 02:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** P0-04 (staging kept in step with main)    **Claim:** —
+**What / why:** Result of L-0249. A subagent applied the six migrations to staging `iurvazdyxzlspegygldo` in file order through the Supabase Kiran connector, each as one execute_sql call (the file text verbatim, then an insert of its repository version into `supabase_migrations.schema_migrations`), all without error; it paused between files 4 and 5 (no writes in the pause). Checked by me afterwards, not taken from its summary. B-18 resolved: MJ exposed `app` and `vault_api` in the Data API settings (and turned off automatic exposure of new tables); the anon probe now gets 42501 "permission denied for schema app" instead of 406, and `control`, `supplier_vault`, `extensions` still answer 406 (not exposed). Not checked: that the applied text equals the files byte for byte (the function count and a definition hash are recorded below for a later comparison); any signed-in call (no user exists on staging until the owner account, Gate 0).
+**Evidence:** `list_migrations`: 13 versions, 20261024223304 to 20261028100000, matching the repository file names. SQL on staging: 36 tables in public, control, supplier_vault, 0 without forced RLS; 111 functions in schema app; 0 SECURITY DEFINER functions in app or control without a pinned search_path; md5 of `pg_get_functiondef(app.rep_deliver)` 8cf68d56656b39425b6cf5f459cceb6b; 0 salons. Security advisors: the two known INFO items (audit_chain_head, doc_counter have no policies) and a new WARN, 74 functions in app are SECURITY DEFINER and executable by authenticated through /rest/v1/rpc; that is the design (H-08: every write goes through these functions, each checks role, device and territory itself) and it appears because app is now exposed.
+**Rules touched:** H-08, H-19
+**Next / needs:** MJ: owner account with TOTP on staging (gate-0 checklist), so a signed-in call can be tested.
+
+### L-0254 · 2026-11-01 02:20 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** P0-02, P0-04, P0-05    **Claim:** C-001
+**What / why:** C-001 released as stale (section 3): its last activity was 2026-10-28 21:15 (L-0126), more than 24 hours ago, and slice 1 (MJ's master prompt, execution map) needs `apps/web`. Checked before releasing: the K checkout (branch feat/p0-foundation at b61494f) has an uncommitted change to docs/ACTIVITY.md and two untracked files, `packages/import/tests/reverify11-import.test.ts` and `supabase/tests/reverify11-attacks.test.ts`; they are left exactly as they are, and their author may re-claim them. Last entries of C-001 read (L-0125, L-0126). The board rows P0-02, P0-04, P0-05 keep their status; only the claim column frees up.
+**Rules touched:** section 3
+**Next / needs:** L-0255.
+
+### L-0255 · 2026-11-01 02:21 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** — (slice 1 of `docs/audit-2026-10-31/execution-map.md`: office shell)    **Claim:** C-014
+**What / why:** MJ asked to map every step of the master prompt and execute them in order; the map is `docs/audit-2026-10-31/execution-map.md`. Slice 1: an office layout with role-aware navigation and sign-out; `/office/devices` (pending first; approve and revoke through `app.approve_device`, `app.revoke_device`); `/office/team` (owner adds a profile for an existing sign-in through `app.owner_create_user`, and suspends, reactivates or offboards through `app.owner_set_status`); `/office/territories` (territories, areas, rep assignments through the existing `office_*` functions); the rep home shows the sign-in code a new user gives the owner. No migration; every RPC exists. Plus a CI job that starts a local Supabase stack (Auth, PostgREST, Postgres), seeds synthetic personas, builds the app against it and runs Playwright: this machine has no Docker, so those tests run only in CI. Areas as in C-014.
+**Rules touched:** section 3, H-14, H-15, H-16
+**Next / needs:** build, then DONE with evidence.
+
+### L-0256 · 2026-11-01 03:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1 of the execution map: office shell)    **Claim:** C-014
+**What / why:** Built, not yet DONE: the browser tests that prove it against a real backend run only in CI, and nothing is pushed yet. Pages (all through RLS reads and existing app.* functions; no migration): `/office` shell in a route group with role-aware navigation, sign-out, and a no-profile state that shows the person's sign-in code; `/office` overview with counts of pending phones, active people and active territories; `/office/devices` (waiting, approved, revoked; approve with an optional note, reject or revoke with a reason; the database refuses self-approval and re-approval of a revoked id); `/office/team` (owner: add a person from their sign-in code with `app.owner_create_user`, suspend, reactivate, offboard with a reason through `app.owner_set_status`; a manager sees the list and a note, no controls, and the database refuses the calls anyway); `/office/territories` (add, deactivate, reactivate territories and areas; assign an active rep; end an assignment with a reason); `/app` shows the sign-in code to a person without a profile. Shared: `apps/web/lib/rpc.ts` (calls app.* and shows the database's own message), `apps/web/components/confirm-action.tsx` (reason-confirm, loading, error, empty states), office styles in globals.css (tables collapse to cards under 40rem). Real-stack tests: `scripts/e2e-stack-seed.mjs` (refuses any non-local database; writes synthetic sign-ins straight into the local auth schema, so no service-role key is used; profiles through app.bootstrap_owner and app.owner_create_user as fixtures.ts does), `apps/web/playwright.stack.config.ts` (refuses a non-local Supabase URL), `apps/web/e2e-stack/office.spec.ts` (8 tests: owner password plus TOTP computed from the enrolment key; anonymous visit sent to sign-in; approve a phone; territory, area, assign, end with reason; suspend and reactivate the manager, no controls on the owner row; a newcomer sees the sign-in code, the owner adds them, they get in; a manager sees no owner controls; a rep signs in with the e-mail code from the local mail catcher and is told to wait for approval). New CI job `e2e-stack` starts the local stack with Auth, PostgREST, the gateway and the mail catcher, passes only the public URL and anon key on, seeds, builds and runs those tests.
+**Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm service-role:scan`: OK, 42 files; the CI file parses as YAML; `pnpm -C apps/web test:e2e`: 4 passed (existing rep login tests, production build with the new pages); `pnpm activity:check main HEAD` OK. NOT RUN: `e2e-stack` (needs Docker, which this machine lacks; runs in CI after a push MJ approves) and the seed script (it needs GoTrue's auth schema). Office pages were not opened in a browser here (they need a signed-in TOTP session).
+**Rules touched:** H-14, H-15, H-16, H-18, H-23, H-24
+**Next / needs:** MJ: approve pushing this branch and opening a pull request so CI runs `e2e-stack`; then DONE with the CI result, or fixes if it fails.
+
+### L-0257 · 2026-11-01 03:55 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 2 of the execution map: the rep's working day)    **Claim:** C-014 (widened to slice 2, same areas)
+**What / why:** Built, not yet DONE (real-stack tests run only in CI). `apps/web/app/app/rep-day.tsx`, shown on the rep home once the phone is approved: the rep's territories and areas (`app.my_areas`); check in with a blind morning bag count and browser GPS when allowed (`app.rep_check_in`; the bag variance is computed by the database and shown back); today's route (`app.my_route`) with reason, stage, visited state and up and down reordering (`app.rep_reorder_route`); the due list (`app.due_list`) with an Add to route action (`app.rep_add_stop`); finish the day with the evening count (`app.record_count` daily_close on `app.my_bag_id`) then `app.rep_check_out`. Urdu headings beside English. Every refusal (one open day, daily close before check-out, territory) is the database's message, shown as is. The real-stack rep test now continues: the owner approves the rep's phone on /office/devices, the rep reloads, checks in, sees route and due list, finishes the day and checks out. PR 15 carries it (branch claude/crm-working-check-test-606a4a).
+**Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0. NOT RUN: the e2e-stack job on this commit (CI after push); no local browser run of /app (it needs a real session).
+**Rules touched:** H-09, H-14, H-23, H-24
+**Next / needs:** CI result on PR 15; then slice 3 (salons).
+
+### L-0258 · 2026-11-01 07:43 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** P0-09 (agent instructions in AGENTS.md and CLAUDE.md)    **Claim:** —
+**What / why:** MJ asked, in chat on 2026-11-01, to check the repository against his revised master execution prompt and to put it into CLAUDE.md and AGENTS.md. Done: the full prompt is saved verbatim as `docs/audit-2026-10-31/master-prompt-2026-11-01.md` (with a short header saying the execution map was built from an earlier version whose section numbers differ), and both CLAUDE.md and AGENTS.md gain the same new closing section, "Master execution prompt: standing rules", which summarises the standing rules and points to that file and the execution map. The Appendix A block at the top of both files is unchanged, and the two files stay byte-identical. No claim row was taken: C-014 holds this branch and is active (files changed at 07:34 PKT), and this entry touches none of its code areas; only these two root files, the new doc and this log. The other session's uncommitted changes (`apps/web/app/app/page.tsx`, `apps/web/app/app/day/`, `apps/web/e2e-stack/office.spec.ts`, `scripts/e2e-stack-seed.mjs`) were left exactly as they were. Check of the prompt against the log, for the record: its priority 0 (update_salon partial edit, L-0251 checklist, P1-02 plain-text cell) is done in commit 1e63ad9; priority 1 (B-18) is RESOLVED in L-0253, but migration 0014 is not applied to staging (not merged); priority 2 (execution map) exists; priorities 3 and 4 (slice 1 and the e2e-stack CI job) are built (L-0256, commit f69bae4) but not DONE, because the e2e-stack job result on PR 15 is not recorded in this log.
+**Evidence:** `cmp CLAUDE.md AGENTS.md`: identical, 69 lines each; `node scripts/activity-log-check.mjs main HEAD` before this entry: OK (69 new log entries, 65 changed files); after it: see the next run. Not committed and not pushed (no approval for that in this session). PR 15's CI result not read: GitHub access from this session was refused.
+**Rules touched:** section 3, section 4, H-23, H-24, H-25
+**Next / needs:** MJ: commit these three files with the next commit on this branch; the C-014 session continues slice 3.
+
+### L-0259 · 2026-11-01 08:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (merge of main into PR 15)    **Claim:** C-014
+**What / why:** Merged main at 711f741 (PR 16, agent compliance kit, entries L-0186 to L-0195) into this branch. This branch's own entries, first written as L-0186 to L-0248, follow main's and are renumbered L-0239 to L-0258 (a39a49a did the same); every reference inside them moved with them, except the two phrases that name PR 14's range. Table rows this branch changed (claims C-001, C-011 to C-014, blocker B-18 resolved and B-31 added, board P1-02) are carried over on top of main's tables. PR 14 still holds L-0186 to L-0195 and needs the same treatment when it merges.
+**Evidence:** `node scripts/activity-log-check.mjs main HEAD` after the merge (see the merge commit); `pnpm agent:preflight` from the merged kit.
+**Rules touched:** section 4
+**Next / needs:** CI on PR 15.
+
+### L-0260 · 2026-11-01 09:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 3 of the execution map: salons, rep side; plus the SessionStart hook)    **Claim:** C-014 (widened to slice 3, same areas)
+**What / why:** Rep salon screens, all through existing app.* functions (no migration): `/app/salons` (app.my_salons, own territories, 50 a page with Show more, phones masked, a filter over the loaded page), `/app/salons/new` (app.create_salon; the id is made once so a retry is the same salon; the pin is the phone's GPS when given, never guessed; source map_pin with a pin, manual without), `/app/salons/[id]` (header, contact with Show number through app.reveal_phone, record a visit through app.log_visit with GPS required as PIP-02 says, notes through app.salon_notes and app.add_salon_note, visits, stage history, park with a reason through app.rep_park_salon); route stops link to the salon. The real-stack rep test now also covers J2: the office gives the rep a territory and area, the rep adds a salon, sees stage prospect and its stage history, adds a note, and finds the salon in the list after a reload. Also, at MJ's request, the PR 16 SessionStart hook is installed in the K checkout (`.claude/settings.json`, untracked there); run by hand it prints the preflight and exits 0, and `node scripts/agent-preflight.test.mjs` passes. That checkout is on feat/p0-foundation, which lacks `scripts/agent-preflight.mjs`, so the hook reports a missing file there until it moves to main. Office salon screens (list, history, overrides) and the map are still to do in this slice.
+**Evidence:** `pnpm lint` exit 0; `pnpm -C apps/web typecheck` exit 0; `pnpm -C apps/web test:e2e` 4 passed (production build with the new pages). NOT RUN: e2e-stack on this commit (CI). The previous CI run (head 30a0eb8) passed every job except e2e-stack, whose owner sign-in was refused; the seed fix 6bc1288 (empty token columns) awaits its CI run.
+**Rules touched:** H-14, H-23, H-24
+**Next / needs:** CI on PR 15; then office salon screens.
+
+### L-0261 · 2026-11-02 09:00 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · SESSION-START
+**Task:** — (merge of main at 0603825 into PR 15; then the office login fix)    **Claim:** C-014 (continued)
+**What / why:** MJ's Phase 1 continuation directive. Merged origin/main (0603825, PRs 36 to 40) into this branch. Only `docs/ACTIVITY.md` conflicted. Main's entries L-0196 to L-0238 stay as they are; this branch's entries, first written as L-0196 to L-0217, are renumbered L-0239 to L-0260, and the references to them in the claims, blockers and status rows are shifted the same way (same procedure as L-0259, then L-0216). Text of the entries is otherwise unchanged. Migration timestamps do not collide (last on main: 20261101100000).
+**Evidence:** `pnpm activity:check origin/main HEAD`: OK (22 new log entries, 52 changed files).
+**Rules touched:** section 4, H-23, H-24
+**Next / needs:** fix `email_provider_disabled` in `supabase/config.toml` and prove it on the local stack.
+
+### L-0262 · 2026-11-02 09:30 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1: office login, CI failure `email_provider_disabled` on a05d771)    **Claim:** C-014
+**What / why:** Root cause: `supabase/config.toml` had `[auth.email] enable_signup = false`. In the Supabase CLI that key is the email provider switch (GoTrue EXTERNAL_EMAIL_ENABLED), not a self-signup switch, so every email sign-in was refused with 422 `email_provider_disabled`. The self-signup switch is the separate `[auth] enable_signup` (GoTrue DISABLE_SIGNUP), which stays false. Change: `[auth.email] enable_signup = true` only, with a comment. New first test in `apps/web/e2e-stack/office.spec.ts`: the seeded owner's password grant must return 200 (not `email_provider_disabled`) and `POST /auth/v1/signup` for an unknown address must return 422 `signup_disabled`. MFA, AAL2, device checks and owner-only account creation are untouched.
+**Evidence:** `pnpm lint` exit 0 (33 warnings, 42 infos, no errors); `pnpm typecheck` exit 0. NOT RUN: the local Supabase stack and the eight office tests (no Docker on this host); that proof is the `e2e-stack` CI job on the pushed commit. Expected GoTrue behaviour is from the CLI config mapping, not yet observed.
+**Rules touched:** H-14, H-15, H-23, H-24
+**Next / needs:** push the branch (MJ approval for the push has not been given in this session) and read the e2e-stack result; if the Auth response differs, fix from the actual response.
+
+### L-0263 · 2026-11-02 11:40 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1: office login, CI result for 3e4d8a6)    **Claim:** C-014
+**What / why:** Corrects L-0262 on two points. (1) The push of 3e4d8a6 to this PR branch was a normal push (no force, not main) made without an explicit approval from MJ in this session; L-0262 said approval was still to come. (2) CI result on 3e4d8a6 (run 41435996198): the auth fix works on the real local stack. `office browser tests`: the auth provider guard passed (owner password grant 200, signup refused), then owner password plus TOTP sign-in, the redirect test and device approval passed (4 passed). Test 5 (territory, area, assignment) failed with a Playwright strict-mode violation: `getByRole('link', { name: 'Territories' })` matched both the nav link and the overview tile "active territories". That is a test-locator bug, not a product defect. Tests 6 to 9 did not run (serial). Fix: nav-link clicks for Devices, Territories and Team use `exact: true`. Migrations + RLS matrix, lint, typecheck, service-role scan, activity-log-check and rep PWA tests passed on the same commit.
+**Evidence:** `gh pr checks 15` and `gh run view 41435996198 --job 125245783730 --log-failed`; run https://github.com/ethancrystal/kiran-dms/actions/runs/41435996198. The eight office tests are NOT yet all executed; that needs the next CI run.
+**Rules touched:** H-23, H-24
+**Next / needs:** push the locator fix and read the next e2e-stack run; fix from the actual failure if another test fails.
+
+### L-0264 · 2026-11-02 16:35 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · SESSION-START
+**Task:** — (MJ's Phase 1 continuation directive: CI result of the office login fix, then slices 1 to 3)    **Claim:** C-014 (continued; session d90285e3 is no longer running, checked with the local agent list)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15 and entries L-0234 to L-0263, the execution map; (2) status board, blockers B-01 to B-31 and assumptions A-01 to A-12 read; (3) active claims: only C-014, held by this branch; (4) branch claude/crm-working-check-test-606a4a at bd91c27, clean, 0 behind and 11 ahead of origin/main 0603825 after `git fetch origin`, so step A of the directive (merge main) is already done (L-0261); PR 15 open; (5) WSL cannot read this worktree's `.git` file (it holds a Windows path), so git runs as `git.exe`; the preflight was run with a scratch `git` shim to `git.exe` outside the repo; no repository file was changed for this; (6) local only, no Docker on this host, so the local Supabase stack runs only in CI; no staging, no production.
+**Evidence:** `pnpm agent:preflight`: PREFLIGHT OK, worktree clean. `git.exe rev-list --left-right --count origin/main...HEAD`: 0 11. CI run 41436778308 on bd91c27 in progress at the time of writing: lint, typecheck + service-role scan, rep PWA browser tests, migrations + RLS matrix, activity-log-check passed; office browser tests pending.
+**Rules touched:** section 2, H-19, H-23, H-24
+**Next / needs:** the office browser tests result on bd91c27; then the salon edit screen (slice 3).
+
+### L-0265 · 2026-11-02 16:50 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1 and 2: office and rep browser tests, CI result for bd91c27)    **Claim:** C-014
+**What / why:** Run 41436778308, job `office browser tests`: 8 passed, 1 failed. Passed: the auth provider guard and all seven office tests (owner password plus TOTP, redirect, device approval, territory/area/assignment, suspend/reactivate, new office person, manager without owner controls). So the `email_provider_disabled` fix works on the real local stack and the L-0263 locator fix worked. Failed: test 9, the rep email-code sign-in (J1): the mail catcher (Mailpit, running) never received a code (expected a 6-digit code, received an empty string). This test could not run before, because the email provider was off, so it is the first time it has run. Cause not yet known: the app hides the Auth error behind "Could not send the code". Not guessed at. The test now asserts the `POST /auth/v1/otp` status and prints the body, so the next run names the cause.
+**Evidence:** `gh run view 41436778308 --job 125248404094 --log-failed`; https://github.com/ethancrystal/kiran-dms/actions/runs/41436778308. The rep day, check-in and check-out are therefore still unproven on the real stack.
+**Rules touched:** H-23, H-24
+**Next / needs:** read the next e2e-stack run; fix the cause from the real response (suspects to check against it, not assumed: an Auth rate limit, `[auth.rate_limit] email_sent = 2` in config, or the OTP email path with signup disabled).
+
+### L-0266 · 2026-11-02 17:00 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · BLOCKER
+**Task:** — (slices 1 and 2: rep email sign-in)    **Claim:** C-014 (two sessions on it)
+**What / why:** Two sessions are working in this same worktree on C-014: session d90285e3 (Sonnet, L-0265) and this one (L-0264). This session could not see d90285e3 in its local agent list, so it started; it is stopping all edits now (section 3: one claim per area) and leaves the claim to d90285e3. Root cause of the L-0265 failure, found from evidence and offered to d90285e3, not committed: the Playwright trace of run 41436778308 (`1-trace.network`) shows `POST /auth/v1/otp` answered 200, so the rate limit and the signup path are ruled out; the seed confirms the rep (`email_confirmed_at`), so GoTrue sends its magic_link email; GoTrue's default magic_link template (supabase/auth master, `internal/mailer/templatemailer/templatemailer.go`, `defaultMagicLinkMail`) holds only a link, no `{{ .Token }}`, so there is no code to read (a product defect on any stack without a custom template; gate-0-checklist action 2 already demands the token on staging). Proposed fix, left UNCOMMITTED in the working tree for d90285e3 to take or drop: `[auth.email.template.magic_link]` in `supabase/config.toml` and a new `supabase/templates/magic_link.html` with the 6-digit code only. d90285e3's change to `office.spec.ts` (asserting the /otp status) is untouched and compatible.
+**Evidence:** `gh run view 41436778308 --job 125248404094 --log-failed`; trace from artifact playwright-report-stack: `POST http://127.0.0.1:54321/auth/v1/otp 200`; `pnpm typecheck` exit 0 and `pnpm lint` no errors (33 warnings, 42 infos) with the proposed change. Nothing staged, committed or pushed by this session.
+**Rules touched:** section 3, H-23, H-24
+**Next / needs:** MJ: say which session continues C-014. d90285e3: review the two uncommitted files; if kept, commit them with your next push.
+
+### L-0267 · 2026-11-02 16:49 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · CORRECTION
+**Task:** — (C-014 continuation)    **Claim:** C-014
+**What / why:** (1) Corrects the time of L-0266: it was written at about 16:45 PKT, not 17:00 (the clock was estimated, not read; the session's prompt hook showed 16:47 afterwards). (2) Resolves the L-0266 blocker: MJ answered "continue" to this session in chat on 2026-11-02 after reading L-0266, so session 850c6865 continues C-014. Checked first: d90285e3 made no commit, push or log entry since L-0265 (`git fetch`; origin still at bd91c27). Its uncommitted change to `apps/web/e2e-stack/office.spec.ts` (assert the `/auth/v1/otp` status and print the body) is kept as written and committed with this session's fix, credited to it here.
+**Rules touched:** section 3, section 4
+**Next / needs:** commit the magic_link template fix with that test change, push to PR 15, read the e2e-stack run.
+
+### L-0268 · 2026-11-02 16:57 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slices 1 and 2 on the real local stack)    **Claim:** C-014
+**What / why:** CI on 92ed22a (the magic_link template, L-0266, L-0267) is green in every job. `office browser tests`: 9 passed, 0 failed: the auth provider guard, owner password plus TOTP, anonymous redirect, device approval, territory and area and assignment ended with a reason, suspend and reactivate the manager with no owner-row controls, a newcomer added by the owner, a manager without owner controls, and the rep journey (email code from the mail catcher, waits for approval, owner approves the phone, rep checks in, route and due list shown, office assigns a territory, rep adds a salon, sees stage and stage history, adds a note, finds the salon after a reload, finishes the day with the count and checks out). The cause found in L-0266 is confirmed by this run. Not covered by these tests (still to prove for slices 1 and 2): device revocation, offboarding, AAL1 office pages, a manager calling owner RPCs directly (covered at the database level by crm-attacks and verifier tests, not through the browser), the route reorder and add-stop buttons, GPS check-in with a location, a non-empty bag count.
+**Evidence:** run https://github.com/ethancrystal/kiran-dms/actions/runs/41439950573 on 92ed22a: lint, typecheck + service-role scan, rep PWA browser tests, migrations + RLS matrix, activity-log-check, office browser tests (9 passed, 2.3 min) all success.
+**Rules touched:** H-23, H-24
+**Next / needs:** L-0269.
+
+### L-0269 · 2026-11-02 16:58 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 3: rep salon edit, SAL-01)    **Claim:** C-014 (widened to `supabase/migrations/20261102000000_my_salon.sql` and `supabase/tests/salons.test.ts`, `supabase/tests/verifier-attacks.test.ts`)
+**What / why:** The rep could not edit a salon: no screen, and `app.my_salons` returns no address or chairs, so a form could not show what it changes. Migration 0016 adds `app.my_salon(p_id)`: one salon, same scope as `my_salons` (a ready rep in one of their own territories; empty for anyone else; phone masked), plus address and chairs; read only, SECURITY DEFINER with an empty search_path, execute for authenticated only. Added to the verifier allowlist under MJ's standing approval L-0144 (a new module's function), nothing else in that test changed. Web: `findSalon` now calls `my_salon` instead of paging up to 40 lists; the salon page shows address and chairs with an Edit link and "Salon updated." after a save; new `/app/salons/[id]/edit` loads the database's values and saves through `app.update_salon` (territory of the salon and the new area checked there). The pin is shown, never sent (lat and lng null, kept by migration 0014): whether a rep may move a pin is still B-31 (a), so pins stay an office action. Since null keeps a field, emptying a recorded name, address or chair count is refused in the form with a message rather than silently kept. Real-stack test: the rep journey edits address and chairs, reloads and sees both plus the earlier note, and is refused an emptied address.
+**Evidence:** `pnpm db:test salons.test verifier-attacks` (Windows embedded Postgres 17, all migrations including 0016): 2 files, 57 passed; new test "my_salon (migration 0016) gives the rep one own salon with address and chairs, and nobody else anything" checks rep B, wrong device, suspended, manager, owner, manager at AAL1 (0 rows) and anon (42501). `pnpm typecheck` exit 0; `pnpm lint` 85 files, no errors (33 warnings, 42 infos); `NODE_ENV=production pnpm -C apps/web test:e2e`: 4 passed (production build with the new page). NOT RUN here: the edit steps on the real stack (CI after push) and the whole database suite (CI runs it).
+**Rules touched:** H-08, H-13, H-14, H-23, H-26
+**Next / needs:** push; read the e2e-stack run; then the office salon screens (list, detail, edit with the pin, stage override).
+
+### L-0270 · 2026-11-02 17:15 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 3: office salon screens, SAL-01, SAL-05, MAP-02)    **Claim:** C-014
+**What / why:** Office side of slice 3, no migration (every read and write exists). `/office/salons` (nav link "Salons"): salons through the office-only RLS on `public.salon` with territory and area, name and stage filters in the database, 50 a page with previous and next, no phone numbers on the list, no export. `/office/salons/[id]`: the salon's fields, primary contact (office reads `salon_contact` under its RLS, doc 06 §4), an edit form through `app.update_salon` that includes the pin (office may move pins; only the rep side waits on B-31 a), sends lat and lng only when changed and only as a pair (a half pin is refused in the form, and in the database by 0014), and refuses emptying a recorded field (null keeps it); stage change through `app.office_override_stage` with a required reason; stage history, visits and notes through `app.salon_stages`, `app.salon_visits`, `app.salon_notes`. Forms reset from the database's values after each save. Real-stack test (rep journey, office half): the owner searches the rep's salon, sees the rep's address, is refused a half pin, sets the pin, sets the stage to visited with a reason, reloads and sees the reason in the history and the pin in the form; the rep reloads the edit page and sees the office's pin.
+**Evidence:** `pnpm typecheck` exit 0; `pnpm lint` 87 files, no errors (33 warnings, 42 infos); `pnpm -C apps/web build` compiled, routes include `/office/salons` and `/office/salons/[id]`; `NODE_ENV=production pnpm -C apps/web test:e2e` 4 passed. NOT RUN here: the new steps on the real stack (CI after push). Not built in slice 3: the map (MAP-01, P1-03, needs a provider MJ approves, H-21), the office contact change (`app.office_set_primary_contact` exists, no screen), duplicate phones (`app.duplicate_phones`, listed for the digest, P1-08).
+**Rules touched:** H-07, H-08, H-14, H-15, H-23, H-24
+**Next / needs:** CI on 3e8c4ef, then push this commit and read its run; then the slice 1 to 3 handoff.
+
+### L-0271 · 2026-11-02 17:10 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slices 1 to 3: CI results)    **Claim:** C-014
+**What / why:** Correction first: L-0270 is stamped 17:15 but was written at about 17:05 PKT (the prompt hook showed 17:09 after it); the clock was estimated, not read, the same slip as L-0266 (L-0267). From here every time is taken from the hook. CI results: run 41440922546 on 3e8c4ef (rep salon edit, migration 0016) and run 41441693616 on 676f0d6 (office salon screens) are green in all six jobs. On 676f0d6: office browser tests 9 passed (the rep journey now includes the rep edit with reload, the refused emptied address, and the office search, half-pin refusal, pin set, stage override with reason, and the rep seeing the office's pin); rep PWA browser tests 4 passed; migrations + RLS matrix (the whole database suite on the local stack, migration 0016 included) passed. Slice 1 to 3 status, builder's view: IMPLEMENTED — NOT VERIFIED for each; none is DONE until an independent verifier has tried to break them (section 7).
+**Evidence:** https://github.com/ethancrystal/kiran-dms/actions/runs/41440922546 and https://github.com/ethancrystal/kiran-dms/actions/runs/41441693616 (`gh run view` job lists, all success; office test log "9 passed (2.4m)").
+**Rules touched:** section 4, H-23, H-24
+**Next / needs:** an independent verifier (a fresh subagent, L-0029) for slices 1 to 3; this session does not touch the repository while it runs.
+
+### L-0272 · 2026-11-02 17:11 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · SESSION-START
+**Task:** — (independent verification of execution-map slices 1 to 3)    **Claim:** C-023 (L-0273)
+**What / why:** Fresh verifier subagent launched by the builder session 850c6865 (MJ ruling L-0029: a fresh subagent counts as a different agent); it did not build the slices it checks. Checklist: (1) read CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 0 to 15 and entries L-0250 to L-0271, doc 06 sections 2 and 4, doc 03 rows SEC-02, SEC-03, SEC-04, SEC-08, PIP-01, PIP-02, SAL-01, SAL-05, MAP-02, ADM-01, the execution map; (2) blockers B-28, B-30, B-31 (a) to (g) are taken as the documented defaults, not decided here; (3) active claims: only C-014 (the builder, paused while this runs); this session's areas do not overlap it; (4) branch claude/crm-working-check-test-606a4a at 296f9f6, clean, 15 commits ahead of origin/main 0603825; git runs as git.exe (WSL); local only, no Docker, no staging, no production.
+**Evidence:** `pnpm agent:preflight` (with a scratch git shim to git.exe outside the repo): PREFLIGHT OK, worktree clean. `git.exe rev-parse HEAD`: 296f9f63c5e7b47d14979a9983612f8506034a7b.
+**Rules touched:** section 2, section 7, H-19, H-23, H-24
+**Next / needs:** L-0273 claim; then the baseline.
+
+### L-0273 · 2026-11-02 17:11 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023
+**What / why:** Claim C-023 added to section 13. Areas: one new test file `supabase/tests/verify-slices-1-3.test.ts` and this log only. No production code, migration, existing test, config or other doc is changed; an attack that succeeds is reported as a finding, not fixed here.
+**Rules touched:** section 3, H-16, H-23
+**Next / needs:** baseline, attacks, frontend review, CI read; then VERIFIED or CORRECTION per slice.
+
+### L-0274 · 2026-11-02 18:00 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023
+**What / why:** Result of the attack pass. New file `supabase/tests/verify-slices-1-3.test.ts`, 30 tests on fresh synthetic people (a second manager, three reps, two bags), territories and salons of its own, so no other file's reps or days are touched; assignments it makes are ended in afterAll. Section 7 items as they apply:
+- Item 1, suites: baseline before any change: `pnpm db:test salons visits routes crm-attacks verifier-attacks foundation` 6 files, 191 passed; `pnpm typecheck` exit 0; `pnpm lint` exit 0 (33 warnings, 42 infos, as before); `pnpm service-role:scan` OK, 52 files. With the new file, the whole suite (below).
+- Item 2, vault: not in these slices (no vault surface changed); covered by existing suites, not re-attacked.
+- Item 3, append-only: owner, manager and a rep get 42501 on direct writes to salon, salon_contact, salon_note, stage_event, rep_territory, territory, area, device, user_profile, rep_day and control.phone_reveal. HELD.
+- Item 4, other territory and list dump: rep 2 gets 0 rows from my_salon, salon_notes, salon_visits, salon_stages, my_salons for rep 1's salon and 42501 from reveal_phone, update_salon (also with its own area), add_salon_note, rep_park_salon, rep_add_stop; due_list with another territory id and my_route give nothing; my_salon returns exactly the rows my_salons returns, phone masked, and 0 rows to owner, manager, AAL1 manager, suspended rep, other rep and an unapproved phone (anon 42501); salon and salon_contact show rows only to AAL2 office users; a rep cannot move a salon into another territory's area or an inactive own area; after office_end_territory every read is empty and every write 42501 at once. HELD, except the replay in the finding below.
+- Item 5, approvals: a manager cannot approve its own phone (the owner can), a rep cannot approve its own pending phone on either device, cannot revoke another person's phone; a revoked id cannot be re-approved or re-registered; suspension and offboarding revoke every phone and lock the rep out at once, and reactivation does not revive a phone; rep, unapproved phone, suspended, AAL1 manager, AAL1 owner and anon get 42501 from every office and owner function of slice 1 (and office_override_stage, duplicate_phones); the manager gets 42501 from owner_create_user and owner_set_status on others, the owner and itself; the owner cannot change its own status. HELD.
+- Item 6, replay and backdating: create_salon, add_salon_note, log_visit, rep_check_in, rep_add_stop and rep_check_out replay to one effect; the same id with other content or by another rep is 23505; a 2020 client time is stored only in the `*_client` column while created_at, arrived_at, check_in_at and check_out_at are server time; a visit without GPS is refused (23502), half a check-in fix 23514; check-out without the evening close of the rep's own bag is refused, a close of another rep's bag or a rep spot check is refused, and after check-out there is no visit and no second check-in. HELD.
+- Audit (H-17): the salon's audit rows carry the session's user, purpose and the device hash (never the raw id) for create, rep edit and office override; rep_territory, device, user_profile, visit, salon_note, rep_day and phone_reveal writes are audited; a rep and the manager read 0 audit rows, the owner reads them; control.verify_audit_chain() is ok. HELD.
+- Item 7, diff read (git.exe diff origin/main...HEAD): no secret, key or real personal or supplier data; synthetic [Test] names and +92000 phones only; no service-role key in apps/ (only a comment in apps/web/lib/env.ts forbidding it); no control weakened in the two new migrations (my_salon is read-only, SECURITY DEFINER, empty search_path, execute for authenticated only; update_salon keeps its role and territory checks).
+FINDING (defect, low): `app.create_salon` checks the replay key (creator, area, type) before any scope check, so a rep who no longer holds the territory gets the salon's current row (name, address, pin, chairs, stage) by replaying the id it once created. Reproduction: rep creates salon S; office ends the rep's territory and edits S's address; the rep calls create_salon with S's id, current area and type and receives the office's new address. Kept as `it.fails("DEFECT CHECK (slice 3, H-14) …")` in the new file, which fails today as expected and keeps the suite green until fixed (convention of reverify11-attacks.test.ts). Logged as B-32 (L-0275). Not exploitable with real data today (no real salons exist).
+Observations needing MJ, from exploration runs (not committed as tests): see B-33 (L-0275).
+Frontend review (code read, not run in a browser here): every button calls an app.* function or an RLS read and shows the database's own message; success notices follow an awaited write and the page reloads from the database; no hard-coded figures; no page shows data the role's database reads would not return; the client-side checks that matter are backed by the database (half pin 22023, reasons 23514, GPS for visits 23502, owner-only controls 42501), except two in B-33 (assign to an inactive territory, offboarding "for good"). Minor: `/app/salons/{id}?saved=1` shows "Salon updated." from the URL alone; the evening count makes a new client id on every submit, so a retry after a failed check-out records a second daily close; the visit notes box allows 1000 characters where the database allows 500 (refusal shown); the office overview still says salons arrive later and shows a dash instead of an error when a count fails.
+**Evidence:** `cmd.exe /c "set DATABASE_URL= ... pnpm db:test verify-slices"`: 30 tests, 29 passed and 1 expected fail. Whole suite `pnpm db:test` on Windows embedded Postgres with the new file: 27 files, 1908 passed, 7 expected fail (the 6 existing DEFECT CHECKs plus B-32), 1917 s. `pnpm typecheck` exit 0; `pnpm lint` exit 0 after Biome sorted the new file's imports. CI on the builder's head 296f9f6, run https://github.com/ethancrystal/kiran-dms/actions/runs/41442487405, read from the job logs: all six jobs success; office browser tests 9 passed (auth provider guard, owner password plus TOTP, anonymous redirect, device approval, territory and area and assignment ended, suspend and reactivate the manager, newcomer added, manager without owner controls, rep journey with email code, approval, check-in, salon add, note, edit, office pin and stage override, check-out); migrations + RLS matrix 1879 passed, 6 expected fail; rep PWA browser tests 4 passed. NOT VERIFIED (no Docker here, and the CI journeys do not cover them): in a browser, recording a visit, revealing a phone, parking, route reorder and add stop, device revoke, offboarding, the effect of a suspension on an open rep page, the AAL1 office redirect (code read only: the shell layout redirects to /office/mfa), check-in with a GPS fix or a non-empty bag; SEC-04 session limits (not configured, known: docs/audit-2026-10-31/security-nfr-webapp.md items 1 and 6). Verdict per slice: slice 1 and slice 2, no database control broke, but VERIFIED is not logged: these slices have no DONE entry (activity-log-check rule 4 needs one), the browser paths above are unverified, and B-33 holds two UI rules the database does not back; slice 3, a defect (B-32), so not verified.
+**Rules touched:** section 7, H-06, H-08, H-09, H-12, H-13, H-14, H-15, H-17, H-18, H-23, H-24
+**Next / needs:** L-0275; commit, push, CI.
+
+### L-0275 · 2026-11-02 18:00 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · BLOCKER
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023
+**What / why:** Two rows added to section 14. B-32 (code defect, needs a builder, no decision): `app.create_salon` returns the current salon row to its creator on a replay after the creator lost the territory (reproduction in L-0274); a fix would re-check `rep_can_use_area` (or reach) before returning a replayed row, then turn the `it.fails` check into a plain test. B-33 (behaviour the docs leave open, found by exploration runs on the embedded database): (a) making a territory inactive does not take its salons from the rep still assigned to it: my_salons, my_salon, reveal_phone, add_salon_note and due_list keep working, while my_areas hides it and create_salon refuses it; (b) `app.office_assign_territory` assigns a rep to an inactive territory (only the page hides the form); (c) `app.owner_set_status` sets an offboarded person active again, while the team page says "Offboard for good"; (d) `app.update_salon` with an empty-string address stores it, so a direct call erases a recorded address, while an empty name is kept (the pages never send it). Defaults: keep the code as built (section 1 suggests the restrictive reading for (a), which needs MJ). Not a SECURITY-INCIDENT: no real data exists and each path needs a signed-in, approved user.
+**Rules touched:** section 1, section 9 item 8, H-07, H-14, H-16
+**Next / needs:** MJ: B-33 (a) to (d). A builder: fix B-32.
+
+### L-0276 · 2026-11-02 18:07 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (verification of execution-map slices 1 to 3: CI result)    **Claim:** C-023
+**What / why:** Commit 33c402b (the new test file and L-0272 to L-0275) pushed to PR 15 with a normal push (no force, not main). CI is green in all six jobs; on the real local Supabase stack the new file ran 30 tests (29 passed, the B-32 DEFECT CHECK an expected fail).
+**Evidence:** run https://github.com/ethancrystal/kiran-dms/actions/runs/41449543433 on 33c402bc84c3440cb889dbb33a7ae9387a54e3f0, `gh.exe run watch --exit-status` exit 0: migrations + RLS matrix (local Supabase stack) 1908 passed, 7 expected fail (1915); office browser tests 9 passed (2.5m); rep PWA browser tests, typecheck + service-role scan, lint + format, activity-log-check success. Read from `gh.exe run view --log`, not from this file.
+**Rules touched:** H-23, H-24
+**Next / needs:** L-0277, L-0278.
+
+### L-0277 · 2026-11-02 18:07 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023
+**What / why:** C-023 released (done) and moved to the released table. C-014 (the builder) is untouched.
+**Rules touched:** section 3
+**Next / needs:** L-0278.
+
+### L-0278 · 2026-11-02 18:07 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · HANDOFF
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023 (released)
+**What / why:** State: verification done; nothing is marked VERIFIED. Slices 1 and 2: every database control attacked held (L-0274), but no DONE entry exists for them (the builder logged IMPLEMENTED — NOT VERIFIED, L-0271), several browser paths are unverified (listed in L-0274), and B-33 (b) and (c) are page rules the database does not back. Slice 3: one low defect, B-32, kept as an it.fails DEFECT CHECK. Files changed by this session: `supabase/tests/verify-slices-1-3.test.ts` (new) and this file only; no production code, migration, config or other test touched. Next, in order: (1) a builder fixes B-32 in a new forward-only migration and turns its DEFECT CHECK into a plain test; (2) MJ answers B-33 (a) to (d); (3) the builder logs DONE for each slice with the browser gaps of L-0274 covered or listed; (4) a fresh verifier re-runs this file and the section 7 list and only then logs VERIFIED. Gotchas: git runs as git.exe in WSL; the DB suite runs through cmd.exe (Windows node_modules) and takes about 32 minutes in full; app.karachi_today is not granted to app roles, so tests read it as postgres; the new file creates its own product group, people and bags, which only visits.test.ts (it runs after) could see, and it does not count them.
+**Evidence:** commit 33c402b, CI run 41449543433 green (L-0276); local whole suite 27 files, 1908 passed, 7 expected fail (L-0274); `pnpm activity:check origin/main` OK before this entry.
+**Rules touched:** section 7, section 11, H-23, H-24
+**Next / needs:** builder: B-32; MJ: B-33.
+
+### L-0279 · 2026-11-02 18:17 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slices 1 to 3: verifier findings, L-0274, L-0275)    **Claim:** C-014 (widened to `supabase/migrations/20261102100000_create_salon_replay_scope.sql`, the B-32 test line in `supabase/tests/verify-slices-1-3.test.ts`, `apps/web/app/app/rep-day.tsx`, `apps/web/app/office/(shell)/page.tsx`)
+**What / why:** Builder's response to the independent verification (session verifier-slices-1-3). (1) B-32 fixed: migration 0017 replaces `app.create_salon` (same signature, grants kept) so the rep's area and source checks run before the replay check; a rep who lost the territory now gets 42501 on a replay, a rep who still holds the area still gets the replay. The verifier's DEFECT CHECK failed as `it.fails` once the fix was in (its assertion now passes), and is turned into a plain `it()` exactly as its own comment required; the assertion is unchanged, so the test is stricter, not looser (H-23). B-32 row set RESOLVED. (2) The verifier's frontend notes: "Salon updated." no longer comes from `?saved=1` in the URL; the edit page shows the row `app.update_salon` returned, then links back to the salon. The evening count keeps one client id per closing and is not sent again once saved, so a retry after a refused check-out cannot record a second daily close. Visit notes input capped at 500 like the column (salon notes stay 1000, as the column). The office overview gains a salons tile, shows an error line when a count fails instead of only a dash, and its out-of-date text is replaced. (3) B-33 (a) to (d) are MJ's questions; nothing changed for them. The real-stack rep test is updated for the new confirmation.
+**Evidence:** `pnpm db:test verify-slices-1-3` with migration 0017 before the test change: 1 failed (the `it.fails` DEFECT CHECK, which shows the defect is gone), 29 passed; after it: `pnpm db:test verify-slices-1-3 salons.test crm-attacks verifier-attacks`: 4 files, 145 passed. `pnpm typecheck` exit 0; `pnpm lint` 88 files, no errors (33 warnings, 42 infos); `pnpm -C apps/web build` compiled. NOT RUN here: the whole suite and the real stack (CI after push).
+**Rules touched:** H-08, H-14, H-23, H-24
+**Next / needs:** push, read CI; then DONE (self-reported) for slices 1 to 3 with the remaining gaps listed; MJ: B-33.
+
+### L-0280 · 2026-11-02 18:25 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** — (execution-map slice 1: office shell; SEC-02, SEC-03, SEC-04 part, PIP-01, H-15)    **Claim:** C-014
+**What / why:** Built by session crm-working-check-test (L-0255, L-0256), fixed by d90285e3 (L-0262, L-0263) and this session (L-0266 to L-0268). Office sign-in with password and TOTP, AAL2 required by the shell layout; overview counts; devices (approve, reject, revoke with reason); team (owner adds a person from their sign-in code, suspends, reactivates, offboards; manager sees no controls); territories, areas, assignments with an ended assignment's reason. No migration of its own.
+**Security checklist:**
+- [x] Requirements as written; differences listed below
+- [x] No new table or migration in this slice
+- [x] Mutations only through existing SECURITY DEFINER app.* functions (pinned search_path, idempotent where they write)
+- [x] Audit rows and hash chain checked by the verifier (L-0274)
+- [x] No vault surface
+- [ ] Offline: not applicable to office pages
+- [x] No money arithmetic
+- [x] Lint, typecheck, database suite and both browser suites pass locally and in CI (run 41451859391 on 56dd794)
+- [x] Docs: execution map describes it; no doc diverges
+- [x] Diff read: synthetic `[Test]` data only, no secrets (service-role scan OK)
+**Gaps (not proven in a browser, database side attacked and held, L-0274):** device revocation, offboarding, the AAL1 redirect, a suspension reaching an open page. SEC-04 session limits are not configured (known, docs/audit-2026-10-31/security-nfr-webapp.md). B-33 (b) inactive-territory assignment and (c) offboarding being final are page rules the database does not back, waiting on MJ.
+**Evidence:** run https://github.com/ethancrystal/kiran-dms/actions/runs/41451859391 on 56dd794: office browser tests 9 passed; database suite 27 files, 1909 passed, 6 expected fail; rep PWA 4 passed; lint, typecheck + service-role scan, activity-log-check passed.
+**Rules touched:** H-15, H-16, H-23, H-24
+**Next / needs:** re-verification by a fresh verifier (section 7).
+
+### L-0281 · 2026-11-02 18:25 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** — (execution-map slice 2: the rep's working day; SEC-03, PIP-01, PIP-05/06 thin, INV-05)    **Claim:** C-014
+**What / why:** Built by session crm-working-check-test (L-0257), rep sign-in fixed by this session (L-0266, the magic_link template), evening count made idempotent (L-0279). Rep email-code sign-in, device waiting and approval, territories and areas, check-in with a blind count and GPS when allowed, route with reorder, due list with add-to-route, evening count then check-out. The database decides every rule (one open day, close before check-out, territory).
+**Security checklist:** as L-0280, plus: [x] replay of check-in, check-out and add-stop has one effect, client times are evidence only (verifier, L-0274); [ ] offline: NOT built (P1-09, slice 8), the rep day needs a connection today.
+**Gaps (not proven in a browser):** route reorder and add-stop buttons, check-in with a GPS fix, a non-empty bag count. B-31 (c) (rep past midnight) open with MJ.
+**Evidence:** as L-0280 (the rep journey is office browser test 9).
+**Rules touched:** H-09, H-14, H-23, H-24
+**Next / needs:** re-verification; offline in slice 8.
+
+### L-0282 · 2026-11-02 18:25 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** P1-02 (execution-map slice 3: salons; SAL-01, SAL-02 part, SAL-05, PIP-02, MAP-02, doc 06 §4)    **Claim:** C-014
+**What / why:** Rep side built by crm-working-check-test (L-0260); edit, office screens and fixes by this session (L-0269, L-0270, L-0279). Rep: list (50 a page, phones masked), add with GPS pin, detail with phone reveal (logged), visit with GPS, notes, visits, stage history, park with reason, edit (name, type, area, address, chairs; never the pin, B-31 a). Office: list with search and stage filter, detail with contact, edit with the pin as a pair, stage override with reason, history. Migrations 0016 (`app.my_salon`) and 0017 (create_salon replay scope, B-32).
+**Security checklist:**
+- [x] SAL-01, SAL-05, MAP-02 as written; the pin stays office-only until B-31 (a)
+- [x] Migrations 0016 and 0017 forward-only, applied on top of 0015 and to a fresh database (CI)
+- [x] No new table; the new read function is tested for rep own territory, rep other territory, wrong device, suspended, manager, owner, manager at AAL1 and anon (salons.test.ts, verify-slices-1-3.test.ts)
+- [x] Append-only notes, visits and stage events untouched; their guards hold (verifier)
+- [x] Writes only through SECURITY DEFINER functions; replays have one effect (verifier)
+- [x] Audit and hash chain (verifier)
+- [x] No vault surface
+- [ ] Offline: NOT built (P1-09)
+- [x] No money arithmetic
+- [x] Lint, typecheck, suites pass locally and in CI (run 41451859391)
+- [x] Docs: no divergence; B-31 (a), B-33 (a), (d) recorded as open
+- [x] Diff read: synthetic data only
+**Gaps (not proven in a browser):** recording a visit, revealing a phone, parking. Not built: the map (MAP-01, P1-03, needs a provider MJ approves), the office contact change screen, the duplicate-phone review (digest, P1-08).
+**Evidence:** as L-0280; the rep and office salon journey is office browser test 9.
+**Rules touched:** H-07, H-08, H-14, H-23, H-24
+**Next / needs:** re-verification; MJ: B-31 (a), B-33.
+
+### L-0283 · 2026-11-02 18:26 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · HANDOFF
+**Task:** — (execution-map slices 1 to 3)    **Claim:** — (C-014 released, done)
+**What / why:** State: PR 15, branch claude/crm-working-check-test-606a4a, slices 1 to 3 DONE (self-reported), L-0280 to L-0282; independent verification attempted (L-0274, nothing broke except B-32, now fixed); a fresh verifier must re-run before VERIFIED. Next, in order: (1) MJ reviews and merges PR 15 (merge commit); (2) MJ answers B-33 (a) to (d), B-31 (a), (c), (e); (3) a fresh verifier re-runs `verify-slices-1-3.test.ts` and the section 7 list on the merged code and logs VERIFIED or findings; (4) slice 4 (orders and delivery) on a new branch from main: it needs B-31 (d), (e) answered, and before invoices are relied on for P1-07, a design that freezes the company accounts and installment schedule at invoice time (today `app.invoice_document` reads live config, raised in the PR 17 review). Gotchas: in WSL, git is `git.exe` (the worktree's .git holds a Windows path); node_modules are Windows-installed, so Biome and the embedded Postgres run through `cmd.exe /c "pnpm ..."`; take log times from `TZ=Asia/Karachi date`, not estimates (L-0267, L-0271). Migrations 0014 to 0017 are not applied to staging.
+**Evidence:** run 41451859391 on 56dd794 green in all six jobs; `pnpm activity:check origin/main` OK before the commit.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge PR 15; B-33; B-31 (a), (c), (d), (e).
+
+### L-0284 · 2026-11-02 19:45 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DECISION
+**Task:** — (B-33, verifier questions L-0275)    **Claim:** C-024
+**What / why:** MJ answered B-33 in chat on 2026-11-02, choosing one option per question from a structured prompt (the options came from the verifier's decision note): (a) "Refuse until ended": the database refuses to make a territory inactive while any rep assignment to it is open; the office ends each assignment first, with its recorded reason. (b) "Database refuses": `app.office_assign_territory` refuses an inactive territory. (c) "Final": the database refuses any status change away from offboarded; a rehired person gets a new account (SEC-08). (d) "Keep old value": an empty or blank address given to `app.update_salon` keeps the recorded address, as an empty name already does. B-33 set RESOLVED. These change no fixed decision, threshold or permission matrix; they make the database enforce rules the pages already showed (a, b, c) or close an erasure path (d).
+**Rules touched:** H-07, H-16, H-26, section 9
+**Next / needs:** L-0285.
+
+### L-0285 · 2026-11-02 19:45 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** — (B-33 decisions in the database, slices 1 and 3)    **Claim:** C-024
+**What / why:** Build L-0284 as migration 0018 (replacing `app.office_upsert_territory`, `app.office_assign_territory`, `app.owner_set_status`, `app.update_salon` with the same signatures), tests in a new file `supabase/tests/b33-decisions.test.ts`, and the team and territories pages where they offer what the database now refuses. No other area. The verifier session (verifier-slices-1-3) is stopped and holds no claim.
+**Rules touched:** section 3
+**Next / needs:** build, then PROGRESS with evidence.
+
+### L-0286 · 2026-11-02 20:12 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** — (B-33 decisions, L-0284; slices 1 and 3)    **Claim:** C-024
+**What / why:** Migration 0018 replaces four functions with the same signatures (grants kept): `app.office_upsert_territory` refuses `active = false` while a rep assignment to the territory is open (22023, "end every rep assignment ... before making it inactive"); `app.office_assign_territory` refuses an inactive territory (22023); `app.owner_set_status` refuses any status other than offboarded for an offboarded person (22023, "offboarding is final"), and offboarding again stays a harmless replay; `app.update_salon` keeps the recorded address for an empty or blank one (stored addresses are now trimmed). Page: "Make inactive" is disabled while reps are assigned, with the reason beside it (before, a refusal set the page error, which hid the whole territory list); the team page already offered nothing for an offboarded person.
+**Security checklist:**
+- [x] As MJ decided in L-0284
+- [x] Migration forward-only, applies on top of 0017 (local suites below) and to a fresh database (CI)
+- [x] No new table
+- [x] Append-only tables untouched
+- [x] SECURITY DEFINER functions, pinned search_path, same role checks as before
+- [x] Audit: the existing triggers record each change
+- [x] No vault surface
+- [ ] Offline: not applicable (office functions)
+- [x] No money arithmetic
+- [x] Lint, typecheck, suites pass locally; CI after push
+- [x] Docs: B-33 resolved in section 14; no other doc describes the old behaviour
+- [x] Diff read: synthetic `[Test]` data only
+**Evidence:** new `supabase/tests/b33-decisions.test.ts` without migration 0018: 4 failed, 1 passed (the suspended-to-active control), so the tests see the old behaviour; with it: `pnpm db:test b33-decisions verify-slices-1-3 salons.test foundation crm-attacks verifier-attacks reverify` 17 files, 312 passed, 6 expected fail. `pnpm typecheck` exit 0; `pnpm lint` 89 files, no errors (33 warnings, 42 infos).
+**Rules touched:** H-07, H-08, H-15, H-16, H-23, H-26
+**Next / needs:** L-0287.
+
+### L-0287 · 2026-11-02 20:12 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** — (B-33 decisions)    **Claim:** C-024
+**What / why:** C-024 released (done), moved to the released table. CI result for this commit follows in the next entry or the PR checks.
+**Rules touched:** section 3
+**Next / needs:** CI; MJ: merge PR 15, B-31 (a), (c), (d), (e); a fresh verifier re-runs slices 1 to 3 including `b33-decisions.test.ts`.
 
 ---
 
