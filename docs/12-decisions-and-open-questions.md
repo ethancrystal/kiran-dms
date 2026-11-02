@@ -28,6 +28,7 @@
 | D-22 | 2026-10-28 | The owner's morning digest lists **every agent purchase** and flags unusually large ones (CTL-15, doc 13 §8) | MJ, L-0140: "yes" | Confirmed |
 | D-23 | 2026-10-28 | Agents report nothing back except an **optional pre-order**: no visits, handover, counts or list of salons they serve (AGT-04) | MJ, L-0140: "optional pre-order only" | Confirmed |
 | D-24 | 2026-11-02 | An Investor / Capital Partner is a separate business persona from an Independent Agent (D-15) and a salaried Rep. Investor contributions and any batch return are governed by a separate agreement; they are not agent purchases, commissions or recruitment rewards | MJ's instruction to track product investment, allocation and investor/company profit separately | Confirmed |
+| D-25 | 2026-11-02 | Approvals: consumers stay separate functions and share one internal helper for the use-time checks; a shared append-only registry (control.approval_use) is the only single-use mechanism; adjustment and discount move onto it now, behaviour-preserving; the requested checker role is a floor the server can only raise; a request replayed with different content is refused | Shipped consumers already disagree on use-time checks; reuse of an approval must be impossible by construction; closes caller under-routing and silent replay (Linear KIR-7) | Confirmed by MJ (ACTIVITY L-0236) |
 
 ## Open questions
 

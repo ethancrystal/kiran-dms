@@ -353,6 +353,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-018 | PLAN-03 | 2026-11-02 03:15 | done | L-0223 |
 | C-020 | P0-06, P0-02, P0-09 (re-verification round 11 reconciled) | 2026-11-02 03:27 | done | L-0227 |
 | C-021 | Wayfinder KIR-6 (record D-08) | 2026-11-02 06:52 | done | L-0232 |
+| C-022 | Wayfinder KIR-7 (approval mechanism) | 2026-11-02 07:46 | done | L-0237 |
 
 ---
 
@@ -3395,6 +3396,44 @@ Security checklist (tick honestly):
 **Evidence:** see L-0229 and the commit message: `node scripts/agent-preflight.mjs` and `node scripts/activity-log-check.mjs origin/main` run immediately before the commit.
 **Rules touched:** section 11
 **Next / needs:** MJ: merge pull requests 36, 37, 38; then work KIR-7 or KIR-15.
+
+### L-0234 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · SESSION-START
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022 (L-0235)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries and Appendices A to C (same session as L-0212 to L-0233); (2) status board and blockers read; (3) active claims read: only C-001, whose areas do not include the files below; (4) task is MJ's instruction in chat on 2026-11-02, "work KIR-7" (Linear KIR-7, a ticket of the Wayfinder map KIR-5); (5) branch claude/kir-7-approval-mechanism cut from e228227 (the KIR-6 branch, itself on draft pull request 38) so that log numbers stay sequential; `node scripts/agent-preflight.mjs` OK; (6) local only, nothing pushed.
+**Evidence:** `node scripts/agent-preflight.mjs`: PREFLIGHT OK. Documentation only, so no install, lint, typecheck or database run.
+**Rules touched:** section 2
+**Next / needs:** L-0235.
+
+### L-0235 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · CLAIM
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022
+**What / why:** Record MJ's answers to KIR-7. Areas: docs/12-decisions-and-open-questions.md (new D-25) and this file (claims, log). Not touched: code, migrations, tests, docs 04, 06 and 13 (they change with the implementation, H-25), thresholds, the permission matrix.
+**Rules touched:** section 3
+**Next / needs:** L-0236.
+
+### L-0236 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · DECISION
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022
+**What / why:** MJ decided in chat on 2026-11-02, one question at a time, after a read-only comparison of the shipped consumers, RFC issue 4 (a proposal, never approved) and the TLA+ spec of pull request 14 (design-level evidence only). Recorded as D-25 in doc 12.
+- Q1, mechanism. Options: A, RFC 4's full gate (one authorize function, a registry and a per-kind coverage spec); B, a shared internal helper for the use-time checks with consumers staying separate functions; C, status quo. MJ answered "B".
+- Q2, single use under B. Options: B1, a unique index in each consumer table; B2, one shared append-only registry, control.approval_use. MJ pasted another assistant's analysis recommending B2 and, asked for his own answer, said "B2". The registry (approval id as primary key, consumer type and id, user, time) is the authoritative single-use mechanism: the helper locks the approval, validates it, inserts the registry row, and the consumer completes its action in the same transaction, so a failed action rolls the row back. A replay by the same consumer with identical facts returns the original result; reuse by a different consumer is refused. The registry gets forced row-level security, an audit trigger and an RLS matrix row (H-13).
+- Q3, existing consumers. Options: 1, adjustment and discount both move now, behaviour-preserving; 2, adjustment now and discount later; 3, neither. MJ answered "1". Only the registry insert is added; each consumer keeps its current use-time checks until KIR-14 decides the rule. Past uses of both are back-filled in one pass after a cross-table duplicate check; the unique index on stock_movement.approval_id is retired once the registry holds its uses.
+- Q4, checker role at request. Options: 1, keep it caller-chosen; 2, server-computed with the parameter dropped (RFC 4); 3, keep the parameter as a floor that the server can only raise. MJ answered "3". The server takes the stricter of the caller's level and its own computed level (configured thresholds plus coded floors, write-off always owner); signatures stay the same. The rule for a request with no amount is fixed in the spec.
+- Q5, request replay with different content. Options: 1, keep returning the original silently; 2, refuse it with an error while an identical replay still returns the original; 3, return the original and record an anomaly. MJ answered "2". Choosing 2 includes MJ's approval (H-23) to update exactly two verifier-authored tests that assert the old behaviour: reverify2-attacks.test.ts near line 275 and reverify3-attacks.test.ts near line 107. Nothing else is loosened.
+Not decided here: what the helper checks at use and who may use an approval (KIR-14), expiry and offboarded checkers (KIR-19), the checker per approval kind (KIR-15), credit overrides (KIR-21). This is a design decision; nothing is built until the spec and tickets follow.
+**Rules touched:** H-06, H-08, H-12, H-13, H-16, H-22, H-23, H-26
+**Next / needs:** L-0237.
+
+### L-0237 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · CLAIM-RELEASED
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022
+**What / why:** C-022 released (done); no row was left in the active table.
+**Rules touched:** section 3
+**Next / needs:** L-0238.
+
+### L-0238 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · HANDOFF
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** — (C-022 released)
+**What / why:** State: branch claude/kir-7-approval-mechanism, one local commit on e228227; documentation only; not pushed, no pull request. KIR-7 is answered (L-0236, D-25) and closed on Linear; KIR-14 and KIR-21 move to Todo. Next, in order: (1) MJ merges pull requests 36, 37 and 38 in that order with merge commits; (2) then rebase the KIR-6 and KIR-7 branches onto main in that order (log numbers stay L-0229 and up), push, and open their pull requests; (3) the next map decision is KIR-14 (use-time rules), now unblocked. Gotchas: this branch is stacked on four unmerged branches, and the repo forbids stacked pull requests, so it must not be opened before they merge; docs 04, 06 and 13 change only when the registry is built (H-25).
+**Evidence:** `node scripts/agent-preflight.mjs` and `node scripts/activity-log-check.mjs origin/main` run immediately before the commit; results in the commit message.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge pull requests 36, 37, 38; then work KIR-14.
 
 ---
 
