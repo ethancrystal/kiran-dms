@@ -11,7 +11,7 @@
 | D-05 | 2026-10-25 | Build, don't buy; stack = Next.js + Supabase + PWA on Vercel | Doc 05 rationale; MJ's existing CRM experience on the same stack | Confirmed (MJ had no stack preference; recommended default) |
 | D-06 | 2026-10-25 | Locale PK / PKR / FY ends 30 June | Confirmed by MJ | Confirmed |
 | D-07 | 2026-10-25 | Security and anti-fraud controls are **launch** scope, not a later phase | MJ: "no way of cheating… even manager and sales rep" | Confirmed |
-| D-08 | 2026-10-25 | Manager has full **operational** access; a short list of **governance** powers is owner-only (users, bank details, write-offs, price lists, commission plans, vault grants, audit log, config) | Needed to make "manager can't do anything dubious" true; without someone above the manager the guarantee is impossible | **Pending MJ's confirmation** — MJ originally said "same privileges and access as owner" |
+| D-08 | 2026-10-25 | Manager has full **operational** access; a short list of **governance** powers is owner-only (users, bank details, write-offs, price lists, commission plans, vault grants, audit log, config) | Needed to make "manager can't do anything dubious" true; without someone above the manager the guarantee is impossible | **Confirmed by MJ 2026-11-02** (option A, the split as documented; ACTIVITY L-0231). MJ had originally said "same privileges and access as owner" |
 | D-09 | 2026-10-25 | No paper receipts; the only valid receipt is the system's numbered receipt delivered to the salon's phone | Core anti-skimming control (doc 13) | Proposed |
 | D-10 | 2026-10-25 | Commission is paid on **collected and banked** cash, never on invoiced sales | Aligns incentives; defeats fake orders | Proposed |
 | D-11 | 2026-10-25 | Map-first prospecting: drop-pin with notes + one-tap nearby discovery from live GPS; pins → routes | MJ's request | Confirmed |
@@ -27,13 +27,15 @@
 | D-21 | 2026-10-28 | The agent channel is measured by **monthly sales through independent agents, in rupees** (doc 01 goals) | MJ, ACTIVITY L-0140: "monthly sales" | Confirmed |
 | D-22 | 2026-10-28 | The owner's morning digest lists **every agent purchase** and flags unusually large ones (CTL-15, doc 13 §8) | MJ, L-0140: "yes" | Confirmed |
 | D-23 | 2026-10-28 | Agents report nothing back except an **optional pre-order**: no visits, handover, counts or list of salons they serve (AGT-04) | MJ, L-0140: "optional pre-order only" | Confirmed |
+| D-24 | 2026-11-02 | An Investor / Capital Partner is a separate business persona from an Independent Agent (D-15) and a salaried Rep. Investor contributions and any batch return are governed by a separate agreement; they are not agent purchases, commissions or recruitment rewards | MJ's instruction to track product investment, allocation and investor/company profit separately | Confirmed |
+| D-25 | 2026-11-02 | Approvals: consumers stay separate functions and share one internal helper for the use-time checks; a shared append-only registry (control.approval_use) is the only single-use mechanism; adjustment and discount move onto it now, behaviour-preserving; the requested checker role is a floor the server can only raise; a request replayed with different content is refused | Shipped consumers already disagree on use-time checks; reuse of an approval must be impossible by construction; closes caller under-routing and silent replay (Linear KIR-7) | Confirmed by MJ (ACTIVITY L-0236) |
 
 ## Open questions
 
 | ID | Question | Why it matters | Who answers | Needed by |
 |---|---|---|---|---|
 | OQ-01 | What is in the Excel today — how many salons, how many with balances, product list and prices? | Baseline numbers for goals (doc 01), import mapping, opening balances | MJ / owner | Phase 0 |
-| OQ-02 | Confirm D-08: is the owner comfortable holding governance powers that the manager does not have? | Everything in doc 13 about manager-side fraud depends on it | Owner | Phase 0 |
+| OQ-02 | Confirm D-08: is the owner comfortable holding governance powers that the manager does not have? | Everything in doc 13 about manager-side fraud depends on it | Owner | Phase 0. ANSWERED 2026-11-02: yes (D-08 confirmed, ACTIVITY L-0231) |
 | OQ-03 | Who is "the owner" in the system — MJ, a family member, a business partner? Is there a second owner account for continuity? | Owner is the final checker and recovery path | MJ | Phase 0 |
 | OQ-04 | Does the product packaging carry the supplier's/manufacturer's name? Is the supplier a manufacturer or a wholesaler/importer of a known brand? Is private-label packaging wanted? | Decides how far physical confidentiality can go (doc 07 §3) | Owner | Phase 0 |
 | OQ-05 | Does the supplier have a lead time and MOQ we can treat as stable? | Reorder point formula inputs (doc 10) | Owner (vault) | Phase 1 |
@@ -54,6 +56,14 @@
 | OQ-21 | Monthly target for sales through independent agents (Rs) | Agent channel goal (D-21, doc 01) | Owner | Before agent 1 (default: no target; the figure is reported monthly) |
 | OQ-22 | What makes an agent purchase "unusually large" for the digest flag (an amount, or a multiple of that agent's usual purchase)? | Digest flag (D-22) | Owner | Before agent 1 (default: no flag; every agent purchase is listed anyway) |
 | OQ-16 | **Real product catalogue**: product names, variants/shades, sizes (ml/L, g/kg), net weights, pack types, units per carton, barcodes, shelf life. All product data in doc 10 is dummy until this arrives | SKU master, price list, reorder points, cycle defaults | MJ | Phase 0 (import) |
+| OQ-23 | What is the legal and commercial nature of each investor arrangement (loan, partnership, profit share, revenue share or another agreement)? | Determines what the capital ledger, return, loss and reporting obligations represent | MJ with qualified Pakistan legal/accounting advisers | Before live investor agreements or settlements |
+| OQ-24 | Are investments tracked per product batch, in one pooled capital account, or both? | Determines contribution allocation, batch attribution and cross-batch settlement | MJ | Before investor data model is approved |
+| OQ-25 | How is each investor's share calculated: total contributed capital, capital actually deployed, time-weighted capital, or a contract-specific formula? | Determines allocation and profit calculations; deployed capital may differ from total contributions | MJ | Before settlement calculations |
+| OQ-26 | What is the approved distributable-profit definition and expense/costing policy, including landed cost, shipping, packaging, returns, damaged stock, taxes, payment fees, bad debt and unsold inventory? | Determines COGS, inventory value, batch net profit and statement reconciliation | MJ with accountant | Before live profit calculation |
+| OQ-27 | How are losses, unsold stock, principal repayment, carry-forward and settlement timing handled? | Prevents a provisional result or unsold inventory from being treated as a payable return | MJ with qualified advisers | Before live settlement or payout |
+| OQ-28 | Does the company receive an operator/management fee, a share of batch profit, a return on its own capital, both or neither? | Separates business/operator earnings from investor distributions | MJ | Before profit-sharing implementation |
+| OQ-29 | What information may an investor see: their own contribution and allocation, batch progress, product details, financial costs, and statements? Is an authenticated investor portal approved? | Defines privacy, RLS and portal scope; supplier identity and other investors' records remain restricted by default | MJ | Before investor UI or permissions |
+| OQ-30 | Who may create agreements, receive contributions, allocate capital, close a batch, approve the settlement and release principal/profit payments? | Defines maker-checker, owner governance, audit and payment authority | MJ | Before workflow permissions are approved |
 
 ## How to use this file
 

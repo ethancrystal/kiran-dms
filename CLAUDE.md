@@ -8,6 +8,8 @@ Run `pnpm agent:preflight` before implementation. Do not work directly on `main`
 
 The authoritative task lifecycle, hard rules, status board, claims, blockers, phase gates, evidence format, and handoff requirements remain in `docs/ACTIVITY.md`. If instructions conflict, follow its authority hierarchy and stop/log a blocker rather than guessing.
 
+**Cross-domain brief:** For work involving supplier/procurement, salons/customers, salaried Reps, Independent Agents, Investors/capital, office administration, or workflows spanning these areas, read `docs/14-unified-business-domain-prompt.md` in full before planning or editing. It supplements the existing planning set; it does not authorise a new role, permission, portal, financial term, phase change or production action.
+
 Before doing ANYTHING in this repository you MUST:
 1. Read docs/ACTIVITY.md in full (rules, status board, claims, blockers, log).
 2. Log a SESSION-START entry, claim your task, and follow every hard rule (H-01…H-27).
@@ -24,7 +26,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 | Path | What |
 |---|---|
-| `docs/` | The planning set (`00`–`13`) and `ACTIVITY.md` (build protocol + live log). Source of truth. |
+| `docs/` | The planning set (`00`–`14`), `ACTIVITY.md` (build protocol + live log), `diagrams/`. Source of truth. |
 | `supabase/migrations/` | Forward-only SQL migrations: schemas, tables, RLS, SECURITY DEFINER functions, triggers. |
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
 | `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |
@@ -49,6 +51,22 @@ pnpm -C apps/web test:e2e   # Playwright rep PWA tests on a low-end phone profil
 ```
 
 `KIRAN_TEST_DATABASE_URL` (never the generic `DATABASE_URL`) overrides the embedded Postgres (e.g. `supabase start` → `postgresql://postgres:postgres@127.0.0.1:54322/postgres`). Create that database with the en_US.UTF-8 collation; test files share it and run in file-name order (SPEC.md §6).
+
+## Agent skills
+
+These files configure the engineering skills (Matt Pocock's skills plugin). They are reference material: they never override this file, `docs/AGENT-COMPLIANCE-PROTOCOL.md` or `docs/ACTIVITY.md` (claims, status lifecycle, blockers, hard rules).
+
+### Issue tracker
+
+Linear, workspace `kiran`, team Kiran (`KIR`); GitHub holds code and pull requests only. No supplier, cost or personal data in tickets (H-01 to H-03). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context: `CONTEXT-MAP.md` at the root (seven contexts plus the shared kernel), one `docs/contexts/<name>/CONTEXT.md` per context, created lazily. See `docs/agents/domain.md`.
 
 ## Database conventions (from docs 04, 06, 07, ACTIVITY §5)
 

@@ -37,7 +37,7 @@ Rules for gaps and conflicts:
 
 - If a doc is silent on a security-relevant point, take the **more restrictive** option, record an assumption (§15), and tell MJ via a BLOCKER if other work depends on it.
 - If two docs conflict, stop that task, log the conflict, and wait. Do not pick the convenient reading.
-- **D-08 (manager vs. owner governance split) is pending MJ's confirmation.** Until MJ rejects it, build the split as documented in `06-security-plan.md` §2: manager = full operational access; governance powers (users, bank details, write-offs, price lists, commission plans, vault grants, configuration, audit log) are owner-only.
+- **D-08 (manager vs. owner governance split) was confirmed by MJ on 2026-11-02 (L-0231).** Build the split as documented in `06-security-plan.md` §2: manager = full operational access; governance powers (users, bank details, write-offs, price lists, commission plans, vault grants, configuration, audit log) are owner-only.
 
 ---
 
@@ -247,6 +247,7 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 |---|---|---|---|
 | PLAN-01 | Planning set docs `00`–`13` written to `Kiran Company/plan/` | DONE | 2026-10-25 |
 | PLAN-02 | This protocol (ACTIVITY.md) | DONE | 2026-10-25 |
+| PLAN-03 | Unified business-domain architecture brief and diagram | IN PROGRESS | 2026-11-02 |
 
 ### Phase 0 — Foundations
 
@@ -270,11 +271,11 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | ID | Work item | Refs | Status | Claimed by |
 |---|---|---|---|---|
 | P1-01 | Foundation schema: `public`/`control`/`vault` schemas, `user_profile`, roles, device binding, `app.current_role()`, audit trigger + hash chain, `approval_request` with maker≠checker | SEC-01–05, 07, 11, 12; docs 04, 06 | VERIFIED (L-0116) | C-001 |
-| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165; a partial salon edit erasing the pin fixed by migration 0014, L-0208, not merged) | — |
+| P1-02 | Territories, areas, salons, contacts, notes, stage machine, salon verification, contact-change flow, Excel import | SAL-01–05, 09, 10; PIP-01, 02, 07, 09; CTL-09, 18 | IN PROGRESS (part a DONE self-reported, L-0147; part b DONE self-reported, L-0153; parts c, d not started; SAL-04 credit profile was built in P1-06 part a, L-0165; a partial salon edit erasing the pin fixed by migration 0014, L-0251, not merged) | — |
 | P1-03 | Rep map: pins by stage, drop-a-pin with notes, masking and territory scoping | MAP-01, 02, 03, 12 | NOT STARTED | — |
 | P1-04 | Inventory: SKU master (dummy data), locations, append-only movements, issue/return two-party, daily close, spot check, manual reorder points | INV-01–06; CTL-05 | DONE (self-reported, L-0133) | C-003 (released) |
 | P1-05 | Vault: suppliers (encrypted), POs, goods receipts bridge to public movements, documents, grants, access log | VLT-01–06; doc 07 | NOT STARTED | — |
-| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c not started; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
+| P1-06 | Orders: price list, credit gate, approvals for discounts, delivery with salon acknowledgment, gapless invoices, offline order creation | SAL-04; ORD-01–05, 10; ADM-03; PIP-03; CTL-07, 08 | IN PROGRESS (parts a and b DONE self-reported, L-0165, L-0170; part c, the invoice document's data, DONE self-reported, L-0199, plan template check added L-0206, its PDF renderer not built; still open from this row: dated price lists (ORD-07, Phase 2), the OTP acknowledgment (with SMS), offline order creation (P1-09); L-0183) | — |
 | P1-07 | Money: installment templates, payments, allocations, receipts (SMS first), cash ledger, two-party handover, deposits, intraday cash cap, ageing | PAY-01–05, 07, 10, 11; CTL-01–04, 17 | NOT STARTED | — |
 | P1-08 | Control layer: write-off/adjustment approvals with owner thresholds, bank-detail lock, balance-confirmation list, daily owner digest, offboarding | CTL-06, 11, 15, 16; SEC-06, 08 | NOT STARTED | — |
 | P1-09 | Offline-first rep PWA: outbox, idempotent sync, encrypted cache, rejection handling, Urdu/English | NFR-01–03; ORD-10 | NOT STARTED | — |
@@ -331,7 +332,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slices 1 and 2 of the execution map: office shell, rep day) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/` (sign-in code, rep day), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0212) |
+| C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slices 1 and 2 of the execution map: office shell, rep day) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/` (sign-in code, rep day), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0255) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -345,11 +346,18 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-009 | P1-06 (part b) | 2026-10-28 22:39 | done | L-0171 |
 | C-005 | — (SPEC.md, Biome lint, Playwright tests, CI jobs lint and e2e) | 2026-10-29 07:34 | done | L-0177 |
 | C-010 | — (documentation follows the merged code, L-0176) | 2026-10-29 12:21 | done | L-0184 |
-| C-011 | — (independent check of the CRM modules built so far, L-0196) | 2026-10-31 22:50 | done | L-0198 |
-| C-012 | — (section 7 attack pass and Phase 1 audit, L-0200) | 2026-11-01 01:40 | done | L-0204 |
-| C-013 | P1-02 (fix: partial `update_salon`, migration 0014) | 2026-11-01 02:05 | done | L-0209 |
-| C-001 | P0-02, P0-04, P0-05 (and the apps/web, scripts, tests areas it held) | 2026-11-01 02:20 | stale | L-0211 |
+| C-011 | — (independent check of the CRM modules built so far, L-0239) | 2026-10-31 22:50 | done | L-0241 |
+| C-012 | — (section 7 attack pass and Phase 1 audit, L-0243) | 2026-11-01 01:40 | done | L-0247 |
+| C-013 | P1-02 (fix: partial `update_salon`, migration 0014) | 2026-11-01 02:05 | done | L-0252 |
+| C-001 | P0-02, P0-04, P0-05 (and the apps/web, scripts, tests areas it held) | 2026-11-01 02:20 | stale | L-0254 |
 | C-015 | P0-09 (agent compliance kit: protocol, preflight, SessionStart hook, workflow) | 2026-11-01 08:03 | done | L-0189 |
+| C-016 | P1-06 (part c, invoice document data) | 2026-11-01 10:49 | done | L-0200 |
+| C-017 | P1-06 (part c, plan template validation) | 2026-11-01 12:07 | done | L-0207 |
+| C-019 | governance docs (agent skills setup, Wayfinder planning) | 2026-11-02 02:45 | done | L-0219 |
+| C-018 | PLAN-03 | 2026-11-02 03:15 | done | L-0223 |
+| C-020 | P0-06, P0-02, P0-09 (re-verification round 11 reconciled) | 2026-11-02 03:27 | done | L-0227 |
+| C-021 | Wayfinder KIR-6 (record D-08) | 2026-11-02 06:52 | done | L-0232 |
+| C-022 | Wayfinder KIR-7 (approval mechanism) | 2026-11-02 07:46 | done | L-0237 |
 
 ---
 
@@ -359,7 +367,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 
 | ID | Item | Blocks | Default agents must use meanwhile | Owner of answer | Status |
 |---|---|---|---|---|---|
-| B-01 | **D-08** manager vs. owner governance split | P1-01 permission matrix | Build the split as in doc 06 §2 (owner-only governance) | MJ | PENDING |
+| B-01 | **D-08** manager vs. owner governance split | P1-01 permission matrix | Build the split as in doc 06 §2 (owner-only governance) | MJ | RESOLVED (L-0231: confirmed, option A) |
 | B-02 | **OQ-01** contents of the Excel (salons, balances, prices) | P0-02 | None — cannot import without the file; use synthetic data for development | MJ | PENDING |
 | B-03 | **OQ-03** who is the owner account; second owner for continuity | P0-05 | Single owner account placeholder; human-only creation | MJ | PENDING |
 | B-04 | **OQ-04** packaging shows supplier name? private label? | Doc 07 physical controls (not code) | Treat the supplier as secret; no code impact | MJ | PENDING |
@@ -376,7 +384,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-15 | (a) Add GitHub Actions secret `KIRAN_SENSITIVE_TERMS` (newline-separated supplier identifiers) so rule 5 can block them. (b) Rule on whether a fresh subagent launched from the builder's session counts as "a different agent" for §7 (L-0025, L-0026) | P0-09 completeness; any VERIFIED status | Rule 5 runs without the owner list; no task is marked VERIFIED | MJ | PART RESOLVED (b: L-0029); (a) PENDING |
 | B-16 | (a) Three verifier tests encode behaviour the fixes removed (L-0039): the L-0030 audit-erasure test, the L-0035 revive-then-approve test, and the L-0030 Q6 revive-to-pending test. Approve updating them to assert the secure end state, or choose another approach. (b) L-0030 Q5: cap pending devices per user? (L-0035 Q2: a cap would not bound audit growth). (c) Q6 answered the restrictive way under §1 (L-0036, migration 0006): a revoked device id is dead for good; MJ may overrule. | CI `db-tests` red until (a); P1-01 VERIFIED | Tests left failing (H-23); revoked ids dead for good; no pending cap | MJ | (a) RESOLVED L-0040; (b) PENDING |
 | B-17 | L-0042 Q1: add TRUNCATE guards on approval_request, device, user_profile, app_config, doc_counter (and update the verifier observation test)? Q2: refuse decisions on pending requests whose maker is suspended? (L-0047) | — (not exploitable by app roles) | Leave as is | MJ | PENDING |
-| B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | RESOLVED (L-0210) |
+| B-18 | F-2: hosted staging does not expose schemas `app` and `vault_api` (406 "Invalid schema: app"), so login and device registration cannot work. Project Settings → Data API → Exposed schemas → add `app`, `vault_api`; keep `control`, `supplier_vault` unexposed; then `pnpm staging:smoke` must pass (L-0051) | P0-05 end to end; Gate 0 criterion 1 | Nothing works against staging until done | MJ | RESOLVED (L-0253) |
 | B-19 | F-3: should a rep see its own revoked/pending device rows (today yes) or only the approved one? Should tests stop sharing committed rows across files? Changing the re-verifier-3 test needs explicit approval (L-0052) | — (not a leak) | Leave as is | MJ | PENDING |
 | B-20 | L-0061 client observations: O1 cross-tab rotation not atomic (Web Lock), O2 a 30 s claim blocks re-registration after a crash, O3 blocked storage leaves the page on "Loading…". Fix now (reopens P1-01) or defer to P1-09? (L-0065) | — (P1-01 VERIFIED; fails closed) | Defer to P1-09 | MJ | PENDING |
 | B-21 | L-0075 FP3: also allow supplier wording under any `vault/` path segment (P1-05 vault UI) and in i18n, locale or translations directories? Owner terms still apply everywhere. (L-0079) | rv8 FP3 test red until decided | Approve | MJ | RESOLVED (L-0080: approved) |
@@ -389,7 +397,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-28 | Reps park salons (doc 02, `app.rep_park_salon`) while the doc 06 section 2 matrix says reps cannot change a stage manually (L-0175) | — (P1-02 part a built) | Keep rep parking as doc 02 says | MJ | PENDING |
 | B-29 | Rulebook wording behind the built code (L-0182): H-14 says reps read through views with no base-table access, but reps read salon data through `app.*` functions and read their own rows of a few operational tables; H-06 lists fewer append-only tables than are built; H-07 allows soft-delete flags only on configuration entities, but `salon_contact.active` retires phones | — (rule text only) | Code as built; doc 04 and doc 06 describe it | MJ | PENDING |
 | B-30 | Must a salon created from the map have a pin (lat and lng)? Doc 04 said so; the database does not enforce it, and the offline quick add (PIP-07) may lack GPS (L-0182) | A database check | Not required | MJ | PENDING |
-| B-31 | Audit questions that need MJ (L-0202): (a) may a rep move a salon's pin (`update_salon` lets a rep set lat and lng, which the visit and delivery distance checks measure against)? (b) may a rep reveal every phone in their territory, or is there a daily cap on `reveal_phone` (today logged only)? (c) a rep working past midnight Karachi time loses the open day: allow checkout and visits until the office closes it, or keep? (d) one invoice per delivery, so a part-delivered order has several: keep, or one per order? (e) `delivery_mode` is stored but ignored by `rep_deliver` and `office_deliver`: what should bag_now and warehouse change? (f) should `low_stock` count the warehouse only, not bags? (g) how is an independent agent represented (`app_role` has no agent value; AGT-01 to AGT-06)? | AGT-01 to 06; the matching fixes | Keep the code as built; defect 1 of L-0202 (partial `update_salon` erases the pin) is a code defect and needs no decision | MJ | PENDING |
+| B-31 | Audit questions that need MJ (L-0245): (a) may a rep move a salon's pin (`update_salon` lets a rep set lat and lng, which the visit and delivery distance checks measure against)? (b) may a rep reveal every phone in their territory, or is there a daily cap on `reveal_phone` (today logged only)? (c) a rep working past midnight Karachi time loses the open day: allow checkout and visits until the office closes it, or keep? (d) one invoice per delivery, so a part-delivered order has several: keep, or one per order? (e) `delivery_mode` is stored but ignored by `rep_deliver` and `office_deliver`: what should bag_now and warehouse change? (f) should `low_stock` count the warehouse only, not bags? (g) how is an independent agent represented (`app_role` has no agent value; AGT-01 to AGT-06)? | AGT-01 to 06; the matching fixes | Keep the code as built; defect 1 of L-0245 (partial `update_salon` erases the pin) is a code defect and needs no decision | MJ | PENDING |
 
 ---
 
@@ -409,6 +417,8 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-08 | Rep bags and their value limits are set by the owner only (docs silent; restrictive reading, section 1): a raised limit is the exposure a colluding manager and rep would need | L-0131 | Owner does one more onboarding step | open |
 | A-09 | Until orders exist (P1-06), the due-list's last purchase per salon and product group is an office-entered opening baseline (date only, no quantity or price); since P1-06 part b (L-0170) deliveries replace it. The cycle is the product group's default (D-19) | L-0156, L-0174 | Office keys in a starting date per salon; a wrong date only moves a reminder | open |
 | A-10 | Until invoices and payments exist (P1-06 part b, P1-07), a salon's credit exposure is the total of its confirmed, not yet cancelled installment orders; cash orders do not count (MJ L-0163). P1-07 replaces it with invoiced minus paid (part b did not, L-0174) | L-0162 | Exposure is overstated until payments exist, so the check errs towards refusing credit | open |
+| A-11 | Installment amounts (docs silent): each installment is floor(total × pct / 100) in paisa and the last takes the remainder, so the installments add up to the invoice total exactly; due dates are the delivery's Karachi date plus the template's day offset | L-0198 | Up to a few paisa move between installments; P1-07 reuses `app.plan_schedule` | open |
+| A-12 | Plan templates (docs silent on validation): `app.plan_schedule` refuses a template unless every row is an object whose `pct` and `day_offset` are JSON numbers, `pct` is above 0 (a 0% row is refused; a plan with nothing at delivery starts at a later day instead, doc 09 §1), `day_offset` is a whole number of days from 0, no row is due before the one above it, and the rows add up to exactly 100 | L-0205 | An owner template with a 0% row or rows out of date order is refused until rewritten; nothing is stored or charged wrongly | open |
 
 ---
 
@@ -3076,87 +3086,441 @@ Security checklist (tick honestly):
 **Rules touched:** H-19, H-23, H-24
 **Next / needs:** MJ: decide on the approval rule (Appendix C sentence); scan the history for supplier names and secrets, and fill KIRAN_SENSITIVE_TERMS, now that the repository is public.
 
-### L-0196 · 2026-10-31 22:14 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · SESSION-START
+### L-0196 · 2026-11-01 10:25 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · SESSION-START
+**Task:** P1-06 part c (ORD-05)    **Claim:** C-016 (L-0197)
+**What / why:** MJ chose P1-06 part c in chat on 2026-11-01. Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full and this file's sections 1 to 15 and entries L-0176 to L-0195; the older log was searched by task ID and not read in full (the size question in L-0192 is still MJ's); (2) read docs 00, SPEC.md, doc 03 ORD-05, doc 04 invoice row, doc 05 (PDF in an Edge Function), doc 07 §3, doc 08 §3, doc 09 §1 and §8, migrations 0003, 0012 and 0013, and the delivery and verifier tests; (3) C-001 holds `supabase/migrations/` and `supabase/tests/` for its own files only; this claim adds new files and one allowlist line; open PR 15 adds migration 20261101000000 and log entries, PR 14 log entries only; neither touches invoices, app_config or the allowlist; (4) blockers B-06 (bank accounts: placeholders) and B-14 (reps see no config) bear on this task, neither changes; (5) branch claude/session-start-4e62df at main 711f741, worktree clean, `pnpm agent:preflight` OK; (6) local only, embedded Postgres, no staging or production access.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm lint` exit 0 (0 errors, 33 warnings, all in existing files); `pnpm typecheck` exit 0. `pnpm db:test` baseline: running in parts on the embedded Postgres (this host is short of memory, see L-0116 item 7); results in a later PROGRESS entry, not assumed.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0197.
+
+### L-0197 · 2026-11-01 10:25 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · CLAIM
+**Task:** P1-06 part c (ORD-05)    **Claim:** C-016
+**What / why:** Scope: the data of the invoice document, from `public` only (doc 07 §3): `app.invoice_document(invoice_id)` returns branding, salon, lines, totals, the plan's installment schedule, the receipts list and the bilingual paper-receipt and official-account notices (doc 08 §3 rules 1 and 6); `app.plan_schedule` computes the schedule from `plan.templates` for P1-07 to reuse; two placeholder config keys, `company.profile` and `company.bank_accounts` (B-06, clearly fake). Excluded, stated now: the PDF or image renderer (doc 05 Edge Function), receipt numbers (receipts are P1-07; the list is empty), SMS or WhatsApp sending (P1-07), the bank-detail lock (CTL-16, P1-08). Areas as in the C-016 row.
+**Rules touched:** section 3, H-01, H-05
+**Next / needs:** build, test, DONE with evidence.
+
+### L-0198 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · ASSUMPTION
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-016
+**What / why:** A-11 added to section 15. Docs 09 and 04 give installment percentages but no rounding rule for a total that does not divide evenly in paisa. Chosen: each installment is floor(total × pct / 100) and the last takes the remainder, so the installments always add up to the invoice total exactly; due dates are the delivery's Karachi date plus the template's day offset. `app.plan_schedule` also refuses a template whose percentages do not add up to 100. Also stated: the baseline entry L-0196 recorded `pnpm db:test` as running; it completed with 23 files, 1789 passed, 1530 s, before any file of this change existed (the `--` in `pnpm db:test -- {files}` made vitest run every file).
+**Rules touched:** section 1 (gaps), H-10
+**Next / needs:** MJ to confirm or reject A-11 at the gate.
+
+### L-0199 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · DONE
+**Task:** P1-06 part c (ORD-05; CTL-01 and doc 08 §3 rules 1 and 6 notices; doc 07 §3)    **Claim:** C-016
+**What / why:** Migration `20261101100000_invoice_document.sql` (0014): `app.invoice_document(invoice_id)` returns the document's data as one JSON value (version, number, financial year, company, bank accounts, salon name, address and area, delivery receiver and time, plan, lines, totals, schedule, receipts, and the Urdu and English notices that paper receipts are not valid and that only company accounts are paid); its rep (own orders, approved device, active) and the office at AAL2 get it, anyone else and an unknown id get null; stable, writes nothing. `app.plan_schedule(plan, total, start)` is internal (no grant) for P1-07 to reuse. Config keys `company.profile` and `company.bank_accounts` added as clearly fake placeholders (B-06), not visible to reps (B-14). Not built, as the claim said: the PDF or image renderer (doc 05 Edge Function), receipt numbers (receipts are P1-07; the list is empty), sending by SMS or WhatsApp, the bank-detail lock (CTL-16, P1-08). The verifier allowlist gained `invoice_document`, a change kind MJ pre-approved (L-0144, kind 1). Docs: doc 04 invoice row, doc 06 §4, SPEC.md §2 and §4, the P1-06 board row.
+**Security checklist:**
+- [x] Requirement implemented as written, for the document's data; the renderer and receipt numbers are named above as not built
+- [x] Migration forward-only, new file; applied to a fresh embedded Postgres by every test run below. Not applied to staging
+- [ ] RLS and matrix: not applicable (no table added; rls-matrix passes)
+- [ ] Append-only: not applicable (nothing written)
+- [ ] Idempotency and replay: not applicable (read only; a test proves no audit row is written)
+- [x] Audit chain unaffected (no write)
+- [x] No vault leakage: the functions' source names no vault schema or function; no key anywhere in the document names a cost, supplier, margin, lot or purchase order; tests for both
+- [ ] Offline: not applicable to a read (P1-09)
+- [x] Money in integer paisa; rounding tested (33,333 paisa over INST4 → 8,333 × 3 + 8,334; seven awkward totals × three plans always add up)
+- [x] Lint, typecheck and the affected test files pass locally; the full suite runs in CI (see Evidence)
+- [x] Docs match code (H-25)
+- [x] Diff read: no secrets, no real data; fixtures `[Test]` and `[Dummy]`
+**Evidence:** `pnpm exec vitest run --config supabase/tests/vitest.config.ts invoice-document`: 10 passed. Mutation checks, each on a temporary edit of the migration that was then restored: remainder on the first installment, 2 tests fail; `app.is_office()` replaced by true, 1 fails; the rep's own-order condition dropped, 1 fails; `app.self_ok()` dropped, 1 fails. The first run of the access test did not catch the first mutation (the test looked the invoice up under the reader's RLS, so other readers passed a null id); fixed by looking the id up as postgres, and an unapproved-device reader was added for the last mutation. After the change, the five files it can affect (invoice-document, verifier-attacks, schema-hygiene, rls-matrix, foundation): 5 files, 1542 passed, 25.8 s, embedded Postgres 17 (C locale). The full suite was **not** re-run locally after the change (it takes about 25 minutes on this host); CI's required check "migrations + RLS matrix" runs it on the pull request. Baseline before the change: 23 files, 1789 passed (L-0198). `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0. Commit and PR: see L-0201.
+**Rules touched:** H-01, H-05, H-10, H-13, H-23, H-24, H-25
+**Next / needs:** a different agent verifies (section 7); L-0200.
+
+### L-0200 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · CLAIM-RELEASED
+**Task:** P1-06 part c    **Claim:** C-016
+**What / why:** C-016 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0201.
+
+### L-0201 · 2026-11-01 10:49 PKT · Claude · Opus 5.5 · session b118173e · branch claude/session-start-4e62df · HANDOFF
+**Task:** P1-06 part c    **Claim:** — (C-016 released)
+**What / why:** State: branch claude/session-start-4e62df from main at 711f741, one commit, pull request to main; P1-06 part c is DONE (self-reported) for the document's data, not verified. Next, in order: (1) CI's full suite on the pull request must pass; MJ reviews and merges; (2) a different agent verifies part c (section 7), including that no vault field can reach the document; (3) MJ: A-11 (rounding), B-06 (real bank accounts, entered by the owner through `owner_set_config`); (4) later tasks that complete ORD-05: the renderer (doc 05 Edge Function, a dependency decision) and receipt numbers in `receipts` with P1-07, which should reuse `app.plan_schedule`. Gotchas: `pnpm db:test -- {files}` ignores the file filter and runs everything; use `pnpm exec vitest run --config supabase/tests/vitest.config.ts {files}`. A test that looks up a row as the reader under RLS can hide the very denial it means to test. Open PRs 14 and 15 also append log entries; whichever merges later renumbers its entries (L-0173).
+**Evidence:** see L-0199; `pnpm activity:check main HEAD` run before the push.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; A-11; B-06.
+
+### L-0202 · 2026-11-01 11:57 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · SESSION-START
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017 (L-0203)
+**What / why:** The person running this session asked in chat (2026-11-01) to apply the `app.plan_schedule` template validation fix that an earlier session found by reading the code but could not apply (no writable checkout). Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15 and appendices, and entries L-0180 to L-0201; the older log was not read in full (the size question in L-0192 is still MJ's); (2) read CLAUDE.md, migration 0003 (`plan.templates` defaults), migration 0014, the invoice-document tests, doc 09 §1 and the doc 04 invoice row; (3) claims: C-001 holds `supabase/migrations/` and `supabase/tests/` for its own files only; C-016 (the author of migration 0014 and its test file) was released in L-0200, so no active claim covers them; (4) blockers B-05 (installment schedule shape, OQ-06) and B-14 bear on the task, neither changes; (5) branch claude/session-start-4e62df at 3b36ce7 (the unmerged P1-06 part c commit, one ahead of main 711f741), worktree clean, `pnpm agent:preflight` OK; (6) local only: a Postgres 17 started by hand from the embedded-postgres binaries and reached through `KIRAN_TEST_DATABASE_URL` (the embedded runner cannot initdb as root on this host), C locale; no staging or production access. Migration 0014 is not merged and not applied to staging (L-0199), so it is corrected in place rather than by a new migration.
+**Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm agent:preflight` PREFLIGHT OK; `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0; `pnpm exec vitest run --config supabase/tests/vitest.config.ts invoice-document`: 1 file, 10 passed. The full-suite baseline is running on a separate fresh database; its result goes in a later entry, not assumed.
+**Rules touched:** section 2, H-19, H-23
+**Next / needs:** L-0203.
+
+### L-0203 · 2026-11-01 11:57 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · CLAIM
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** Scope: `app.plan_schedule` in migration 0014 checks every row of the plan template before any arithmetic, and the invoice-document tests gain regression cases. Areas: `supabase/migrations/20261101100000_invoice_document.sql` (the `plan_schedule` function only), `supabase/tests/invoice-document.test.ts`, the doc 04 invoice row, and in this file the claims and assumptions tables and the P1-06 board row. Excluded: `app.invoice_document`, grants, `app.owner_set_config` (it still stores any JSON the owner writes; the check is at use), duplicate plan codes in the template list, P1-07.
+**Rules touched:** section 3, H-10, H-16
+**Next / needs:** L-0204.
+
+### L-0204 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · CORRECTION
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** Corrects L-0199. `app.plan_schedule` checked only that the template's percentages summed to 100 and then cast each row, so a template the owner can write with `app.owner_set_config` produced a wrong schedule without an error: a negative percentage that still totals 100 (-10 and 110) gave a negative installment; a row with no `pct` dropped out of the sum and gave an installment of 0; a 0% row gave a 0 installment; a fractional `day_offset` (7.5) was silently cast; a string `pct` ("100") was accepted; rows out of date order put the rounding remainder (A-11) on an installment that is not the last one due; and a whole day count written as 14.0 failed the integer cast. Fixed in migration 0014 itself (not merged, not applied to staging, L-0199): every row must be an object whose `pct` and `day_offset` are JSON numbers, `pct` above 0, `day_offset` a whole number of days from 0 up to the integer limit and not before the row above, and the sum exactly 100; anything else is refused with SQLSTATE 22023 and a message naming the rule. The rounding (A-11), the grants and `app.invoice_document` are unchanged. Found by code reading in an earlier session that had no writable checkout; reproduced here by the tests in L-0206 failing against the old function.
+**Rules touched:** H-10, H-16, H-23
+**Next / needs:** L-0205, L-0206.
+
+### L-0205 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · ASSUMPTION
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** A-12 added to section 15. Docs 04 and 09 do not say what makes a plan template valid. Restrictive reading (section 1): a 0% row is refused (doc 09 §1's plan with nothing at delivery starts its first row at a later day, as in 4 × 25% at days 7, 14, 21 and 28, which passes), and rows must be in due order because the last row takes the remainder (A-11) and P1-07 allocates oldest first (PAY-11). The defaults in migration 0003 pass.
+**Rules touched:** section 1 (gaps)
+**Next / needs:** MJ to confirm or reject A-12 at the gate, with A-11 and OQ-06 (B-05).
+
+### L-0206 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · DONE
+**Task:** P1-06 part c (ORD-05; doc 09 §1)    **Claim:** C-017
+**What / why:** `app.plan_schedule` validates every template row (L-0204); 13 tests added to `supabase/tests/invoice-document.test.ts`: 12 refused templates (negative, zero, missing and string `pct`; missing, null, negative, fractional and out-of-range `day_offset`; a row that is not an object; rows out of due order; a sum over 100), each asserting the message and SQLSTATE 22023, and one valid template (33.5, 33.5 and 33 at days 7, 14.0 and 28) that splits 100,000 paisa into 33,500, 33,500 and 33,000 due 0, 7 and 21 days after the first. Doc 04 invoice row updated (H-25).
+**Security checklist:**
+- [x] Requirement implemented as written; the template check is an assumption (A-12), logged
+- [x] Migration forward-only: 0014 is unmerged and unapplied outside local test databases (L-0199), corrected in place; applied to a fresh database by every run below
+- [ ] RLS and matrix: not applicable (no table added or changed; rls-matrix passes)
+- [ ] Append-only: not applicable (nothing written)
+- [ ] Idempotency and replay: not applicable (read only)
+- [x] Audit chain unaffected (no write)
+- [x] No vault leakage: the function still names no vault schema or function (the existing source test passes)
+- [ ] Offline: not applicable (P1-09)
+- [x] Money in integer paisa; rounding unchanged and still tested (seven awkward totals × three plans add up)
+- [x] Lint, typecheck and the full database suite pass locally (see Evidence); CI not yet run on this commit
+- [x] Docs match code (H-25)
+- [x] Diff read: no secrets, no real data
+**Evidence:** Database: a Postgres 17.9 server started from the embedded-postgres binaries as a non-root user, C locale, reached through `KIRAN_TEST_DATABASE_URL`, one fresh database per run. Baseline before the change, on the old function (its source checked in the database afterwards): `pnpm exec vitest run --config supabase/tests/vitest.config.ts`: 24 files, 1799 passed, 183 s. Mutation check: the new test file run against the old migration: 12 failed, 11 passed (each refusal case, and the valid template because 14.0 failed the integer cast); against the new migration: 23 passed. After the change, full suite on a fresh database: 24 files, 1812 passed (1799 + 13), 180 s. `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0. An earlier run had a typecheck error in the new test (an untyped `due_on`), fixed before the run above. Commit: the branch head after 3b36ce7, see L-0208.
+**Rules touched:** H-10, H-16, H-23, H-24, H-25
+**Next / needs:** a different agent verifies (section 7); L-0207.
+
+### L-0207 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · CLAIM-RELEASED
+**Task:** P1-06 part c    **Claim:** C-017
+**What / why:** C-017 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0208.
+
+### L-0208 · 2026-11-01 12:07 PKT · Claude · Opus 5.5 · session 01Y3chVqbyNu · branch claude/session-start-4e62df · HANDOFF
+**Task:** P1-06 part c    **Claim:** — (C-017 released)
+**What / why:** State: branch claude/session-start-4e62df, one new commit on 3b36ce7, pushed; P1-06 part c, including the template check, is DONE (self-reported), not verified. Next, in order: (1) CI's required checks must pass on the branch head; MJ reviews and merges; (2) a different agent verifies part c (section 7), now including that a bad template is refused rather than mis-scheduled; (3) MJ: A-11, A-12, B-06. Gotchas: on a host where the shell runs as root, the embedded Postgres cannot initdb (the error reads "Postgres init script exited with code 1"); start the same binaries as a non-root user and set `KIRAN_TEST_DATABASE_URL`, with a fresh database per run, because the runner skips migrations it has already applied. `pnpm format` rewrites two files this change does not own (`packages/import/src/core/normalize.ts`, `scripts/activity-log-check.mjs`); they were restored, and `biome format --write` was run on the test file alone. `app.owner_set_config` still stores any template; a bad one fails at first use (an invoice read or, in P1-07, a payment), not when it is saved; a save-time check would be a P1-11 admin change.
+**Evidence:** see L-0206; `pnpm activity:check main HEAD` run before the push.
+**Rules touched:** section 11
+**Next / needs:** MJ: review and merge; A-11, A-12; B-06.
+
+### L-0209 · 2026-11-02 02:22 PKT · ChatGPT · GPT-6 · session gpt6-business-domain-20261102 · branch docs/business-domain-expansion · SESSION-START
+**Task:** PLAN-03 (unified business-domain architecture brief and diagram)    **Claim:** C-018
+**What / why:** Read AGENTS.md, CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md in full, docs/ACTIVITY.md sections 1 to 15 and the last 20 log entries, docs/00-README.md, docs/03-requirements.md, docs/04-domain-model.md, docs/06-security-plan.md, docs/07-supplier-confidentiality.md, docs/08-field-sales-and-rep-controls.md, docs/11-roadmap.md, docs/12-decisions-and-open-questions.md, and SPEC.md. Checked current mainline, branch, clean worktree, current claims and blockers. The original local checkout at C:/Users/moizjmj/K has pre-existing changes and remains untouched; this worktree is isolated from it.
+**Evidence:** Worktree C:/Users/moizjmj/K/.claude/worktrees/business-domain-expansion, branch docs/business-domain-expansion, base 1a1c51a023a134d189a770da997650a7bbfe34fd; pnpm install --frozen-lockfile exit 0; pnpm agent:preflight exit 0; pnpm lint exit 0 (65 files, 33 warnings, 42 infos); pnpm typecheck exit 0. pnpm db:test started; output showed passing deliveries (14), device-guard (4), foundation (40), inventory (25), invoice-document (23), but process remained running without final Vitest summary or exit code at session start. Not reported as passed.
+**Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
+**Next / needs:** L-0210.
+
+### L-0210 · 2026-11-02 02:22 PKT · ChatGPT · GPT-6 · session gpt6-business-domain-20261102 · branch docs/business-domain-expansion · CLAIM
+**Task:** PLAN-03 (unified business-domain architecture brief and diagram)    **Claim:** C-018
+**What / why:** Claiming a documentation-only scope to map the existing Kiran DMS domains and define their integration boundaries. Files: docs/14-unified-business-domain-prompt.md, docs/diagrams/business-domain.mmd, docs/00-README.md, docs/12-decisions-and-open-questions.md, SPEC.md, AGENTS.md, CLAUDE.md, and this activity record. Excludes application code, database migrations, test changes, staging, production, supplier data and real personal data. The document will distinguish current confirmed behavior from proposed investor workflows and owner decisions.
+**Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
+**Next / needs:** Prepare the domain diagram and scoped implementation brief; preserve the current phase gates and unresolved decisions.
+
+### L-0211 · 2026-11-02 02:41 PKT · ChatGPT · GPT-6 · session gpt6-business-domain-20261102 · branch docs/business-domain-expansion · HANDOFF
+**Task:** PLAN-03 (unified business-domain architecture brief and diagram)    **Claim:** C-018
+**What / why:** The cross-domain brief and Mermaid diagram are in the isolated business-domain worktree. The brief separates Owner, Manager, salaried Rep, Independent Agent, Investor, Salon and Supplier; distinguishes confirmed behaviour from proposed scope; defines the domain journeys and security boundaries; and records investor agreement decisions without choosing a return formula. AGENTS.md and CLAUDE.md require agents to read the brief for affected domain work. SPEC.md and docs/00-README.md link it. D-24 records Investor as separate from Agent; OQ-23 to OQ-30 record decisions still required before live investor workflows. The original C:/Users/moizjmj/K worktree and its pre-existing changes remain untouched. No application code, migrations, production data or external systems were changed.
+**Evidence:** Branch docs/business-domain-expansion at base 1a1c51a023a134d189a770da997650a7bbfe34fd. Files: docs/14-unified-business-domain-prompt.md (397 lines); docs/diagrams/business-domain.mmd. pnpm agent:preflight exit 0; pnpm activity:check exit 0 (210 new log entries, 119 changed files); git diff --check exit 0. pnpm lint exit 0 (65 files, 33 warnings and 42 infos) and pnpm typecheck exit 0, recorded at L-0209. pnpm db:test was started in this session; the latest output shows five files passed (deliveries 14, device-guard 4, foundation 40, inventory 25, invoice-document 23), but no final Vitest summary or process exit code was received, so the full suite is not claimed as passed. All changes remain local and uncommitted; no push or merge was performed.
+**Rules touched:** H-01, H-02, H-03, H-04, H-05, H-13, H-15, H-16, H-19, H-22, H-23, H-24, H-25, H-26, H-27
+**Next / needs:** Finish or rerun pnpm db:test and capture its final summary before merging. MJ reviews D-24 and OQ-23 to OQ-30 when prioritising the investor domain. Keep all current phase gates and open commercial decisions intact.
+
+### L-0212 · 2026-11-02 01:06 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · SESSION-START
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019 (L-0213)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries (L-0189 to L-0208) and Appendices A to C, through a read-only digest in this session; (2) status board and blockers read, no blocker covers this work; (3) active claims read: only C-001 is active and it does not cover the areas below; (4) task is MJ's instruction in chat on 2026-11-02 (below); (5) branch claude/matt-pocock-wayfinder-setup-8fd81d at origin/main 1a1c51a, worktree clean, `pnpm agent:preflight` OK; (6) local only, nothing pushed. The main checkout (feat/p0-foundation, with its uncommitted ACTIVITY.md change and two untracked reverify11 test files) is left untouched.
+**Evidence:** `pnpm install --frozen-lockfile` done; `pnpm agent:preflight`: PREFLIGHT OK; `pnpm lint` exit 0 (33 warnings, all in existing files); `pnpm typecheck` exit 0. `pnpm db:test` not run: this session touches no SQL, test, app or package code.
+**Rules touched:** section 2
+**Next / needs:** L-0213.
+
+### L-0213 · 2026-11-02 01:06 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · CLAIM
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** MJ asked, in chat on 2026-11-02, to configure the Matt Pocock engineering skills for this repo (GitHub Issues as tracker, default triage labels, multi-context domain docs) and then chart a Wayfinder planning map of decision tickets on GitHub. MJ's instruction says: planning only, no feature work, no migrations, no app code, no security controls, do not commit or push. Areas: `CLAUDE.md` and `AGENTS.md` (an identical Agent skills block, preflight requires byte-identical files), `docs/agents/` (new), `CONTEXT-MAP.md` (new), and on GitHub only new labels and planning issues. Not touched: migrations, tests, apps, packages, scripts, CI, docs 00 to 13. The repo is public (L-0195): issue text cites doc sections only and carries no supplier, cost or personal data (H-01 to H-03). The issues are a decision map, not a second status board; this file stays the source of truth.
+**Rules touched:** section 3, H-01, H-02, H-03
+**Next / needs:** MJ confirms the domain-doc layout, then setup writes.
+
+### L-0214 · 2026-11-02 01:25 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · DEVIATION
+**Task:** governance docs (agent skills setup)    **Claim:** C-019
+**What / why:** The setup skill (setup-matt-pocock-skills v1.2.3) says to edit only one of CLAUDE.md or AGENTS.md. Here both carry the same Agent skills block, because `scripts/agent-preflight.mjs` (lines 101 to 116) fails unless the two files are byte-identical. This is a deviation from the skill, not from any rule in this file. The block sits before the Database conventions section, not at the end of the files, so it does not collide with the section PR 15 appends to the end of both files.
+**Rules touched:** section 3
+**Next / needs:** L-0215.
+
+### L-0215 · 2026-11-02 01:25 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup)    **Claim:** C-019
+**What / why:** MJ confirmed in chat on 2026-11-02 the multi-context layout: seven contexts (salon-pipeline, field-operations, orders-delivery, money-credit, inventory, supplier-vault, control-governance) plus a shared kernel. Written, uncommitted: an identical Agent skills block in CLAUDE.md and AGENTS.md (it states these files never override this file or the protocol); `docs/agents/issue-tracker.md` (GitHub, public-repo rules H-01 to H-03, Wayfinding operations, PRs as a request surface: no); `docs/agents/triage-labels.md` (the five defaults); `docs/agents/domain.md`; `CONTEXT-MAP.md` (contexts, kernel, seams, homonyms; it settles no open question, and lists the double source of the credit gate, doc 04:156, as open). Per-context CONTEXT.md files are left for /domain-modeling. On GitHub: labels needs-triage, needs-info, ready-for-agent, ready-for-human and the five wayfinder labels created; wontfix already existed, no duplicates.
+**Evidence:** `gh label list` checked before each create; `cmp CLAUDE.md AGENTS.md` identical; `pnpm agent:preflight` and `pnpm activity:check` results in L-0216.
+**Rules touched:** H-01, H-02, H-25
+**Next / needs:** Wayfinder charting: MJ names the destination.
+
+### L-0216 · 2026-11-02 02:10 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** MJ chose the map destination in chat on 2026-11-02 (reply "continue" to the recommended option A): a decision-complete spec for the approval lifecycle (RFC issue 4), P1-07 Money and P1-08 Control layer, ready for /to-spec. A 17-ticket map was proposed in chat; it is not yet created on GitHub (waiting for MJ's yes). MJ then asked in chat to commit the changes, which lifts the earlier no-commit instruction for this branch; nothing is pushed. This commit holds the L-0212 to L-0216 entries, the C-019 claim row, the Agent skills block in CLAUDE.md and AGENTS.md, docs/agents/ and CONTEXT-MAP.md. C-019 stays active for the GitHub map.
+**Evidence:** `pnpm agent:preflight`: PREFLIGHT OK; `node scripts/activity-log-check.mjs origin/main`: OK; `pnpm lint` exit 0 (33 warnings, all in existing files); `cmp CLAUDE.md AGENTS.md`: identical. No SQL, test, app or package file changed, so `pnpm db:test` and `pnpm typecheck` were not re-run after L-0212.
+**Rules touched:** section 3, section 11
+**Next / needs:** MJ: create the map on GitHub (yes or edits).
+
+### L-0217 · 2026-11-02 02:35 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** MJ said yes in chat on 2026-11-02 and the map was created on GitHub (map issue 18, tickets 19 to 35, native sub-issues, 11 blocked-by edges, verified). MJ then asked in chat to "move to linear for these" and to "map out everything again on Linear instead of Github", which also approves Linear as the tracker (section 9 item 4). Done: in the private Linear workspace kiran, team Kiran (KIR), created the five wayfinder labels and the five triage labels; the map KIR-5 with the same Destination, Notes, Not yet specified and Out of scope; 17 child tickets KIR-6 to KIR-22 as native sub-issues with the same 11 blocked-by relations (spot-checked on KIR-21 and KIR-22). GitHub issues 18 to 35 were closed as not planned, each with a pointer to its Linear ticket; RFC issue 4 stays open on GitHub. MJ then asked to triage: unblocked tickets in Todo with priorities (KIR-6, KIR-7, KIR-8 High), blocked tickets in Backlog, every ticket given a Next action section, the map moved to In Progress with a triage comment. Repo: `docs/agents/issue-tracker.md` rewritten for Linear (Wayfinding operations included); the Issue tracker line in CLAUDE.md and AGENTS.md (still identical) and `docs/agents/triage-labels.md` updated. No decision ticket was resolved. The research ticket KIR-13 (fresh MFA proof, CTL-16) has a read-only research subagent running; no findings yet.
+**Evidence:** Linear `list_issues` with parent KIR-5: 17 children, labels as planned; `get_issue` relations on KIR-21 (blocked by KIR-6, KIR-7) and KIR-22 (blocked by KIR-10, KIR-17); `gh issue list --state open`: only issue 4. `pnpm agent:preflight`, `activity-log-check` and `cmp CLAUDE.md AGENTS.md` results in the commit for this entry.
+**Rules touched:** section 3, section 9, H-01, H-02, H-03
+**Next / needs:** MJ: work KIR-6 (governance split, D-08) next; file the KIR-13 research findings when they arrive.
+
+### L-0218 · 2026-11-02 02:45 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (Wayfinder planning)    **Claim:** C-019
+**What / why:** The read-only research subagent for KIR-13 (proving a fresh MFA challenge in the database, CTL-16) reported. Its findings (supabase/auth v2.197.0 source and Supabase docs) were posted as a resolution comment on KIR-13 and the ticket was closed, as the Wayfinder skill allows for research tickets. Summary: two mechanisms can prove a fresh MFA verification on the caller's session: the JWT `amr` timestamp, and `auth.mfa_amr_claims` joined to `auth.sessions`; both read the same value. The `reauthenticate()` nonce is not MFA. The design choice graduated into a new grilling ticket, KIR-23 (fresh-MFA proof, window, factors), and the map's Decisions so far got its first line. The research also found, as a fact, that the SEC-04 12-hour office session limit is not configured in `supabase/config.toml` (`[auth.sessions]` commented out); recorded on the map's Notes as outside this map (Gate 0 or P1-12), no blocker raised here. No human decision was made.
+**Evidence:** Linear: KIR-13 status Done with the resolution comment; KIR-23 created under KIR-5, label wayfinder:grilling, related to KIR-13; KIR-5 description shows the Decisions so far line.
+**Rules touched:** section 9 item 4 (no vendor chosen)
+**Next / needs:** L-0219.
+
+### L-0219 · 2026-11-02 02:45 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · CLAIM-RELEASED
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** C-019
+**What / why:** C-019 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0220.
+
+### L-0220 · 2026-11-02 02:45 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · HANDOFF
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** — (C-019 released)
+**What / why:** State: branch claude/matt-pocock-wayfinder-setup-8fd81d, three local commits on origin/main 1a1c51a (setup, the Linear move, this close-out), not pushed, no pull request. The engineering skills are configured: Linear (workspace kiran, team KIR) as tracker, the five triage labels, multi-context domain docs (CONTEXT-MAP.md). The Wayfinder map is KIR-5 with 18 child tickets: KIR-13 done; frontier in Todo: KIR-6, KIR-7, KIR-8 (High), KIR-9, KIR-10, KIR-11, KIR-12, KIR-23; the rest in Backlog behind native blocked-by relations. Next, in order: (1) MJ decides whether to push this branch and open a pull request (needs a reviewer who is not the author, Appendix C); (2) MJ works KIR-6 (governance split, D-08), one decision ticket per session, each claimed here and logged as a DECISION entry quoting MJ; (3) when KIR-8 is decided, fire the KIR-16 research. Gotchas: the plugin's skills did not load in this session, so they were followed by reading their SKILL.md files (v1.2.3) from disk; the WSL session's notes used v1.3.1 names (GLOSSARY-MAP.md), this repo uses CONTEXT-MAP.md. GitHub still has the nine labels created before the move and closed issues 18 to 35 with pointers to Linear. A separate local commit a2b1105 on feat/p0-foundation (main checkout) preserves the unfinished L-0127 re-verifier-11 entry and two failing-by-design tests; it is not on this branch and needs MJ's call (renumber and complete, or withdraw). PR 14 and PR 15 still collide on log, claim and blocker numbers with main and with each other; this branch adds L-0212 to L-0220 and C-019, so whichever merges later renumbers.
+**Evidence:** `pnpm agent:preflight`: PREFLIGHT OK; `node scripts/activity-log-check.mjs origin/main`: OK; `pnpm lint` exit 0; `cmp CLAUDE.md AGENTS.md` identical; run before the commit that holds this entry.
+**Rules touched:** section 11
+**Next / needs:** MJ: push and review this branch or not; work KIR-6; the feat/p0-foundation L-0127 commit.
+
+### L-0221 · 2026-11-02 03:05 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/matt-pocock-wayfinder-setup-8fd81d · PROGRESS
+**Task:** governance docs (agent skills setup, Wayfinder planning)    **Claim:** — (C-019 released)
+**What / why:** Renumbering only. ChatGPT's PLAN-03 session (branch docs/business-domain-expansion) took L-0209 to L-0211 and claim C-018 in parallel with this branch. At MJ's instruction in chat on 2026-11-02 ("wait and renumber after ChatGPT finishes"), ChatGPT's uncommitted work was committed unchanged on its own branch (c088fad), and this branch was rebuilt on top of it: this session's entries, first written as L-0209 to L-0217 with claim C-018, are now L-0212 to L-0220 with claim C-019; their text is otherwise unchanged, so statements in them about the base commit and the active claims describe the state when they were written. The pre-renumber tip is kept as the local branch backup/wayfinder-setup-pre-renumber (2579d82). ChatGPT's claim C-018 is still active in the claims table and its full db:test run has no final result (its L-0211); both are left for that session or MJ. The Linear tickets cite no log numbers; docs/agents/issue-tracker.md now cites L-0217.
+**Evidence:** `git log`: this branch's parent is c088fad, whose parent is origin/main 1a1c51a. `pnpm agent:preflight`, `node scripts/activity-log-check.mjs origin/main`, `pnpm lint` and `cmp CLAUDE.md AGENTS.md` results are in the commit that holds this entry.
+**Rules touched:** section 3, section 4
+**Next / needs:** MJ: push and review docs/business-domain-expansion first, then this branch (it depends on it); work KIR-6.
+
+### L-0222 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · SESSION-START
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020 (L-0224)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries and Appendices A to C (same session as L-0212 to L-0221); (2) status board and blockers read; (3) active claims: C-001 (stale since L-0126, its areas include supabase/tests/ and packages/import/ but only its own files, per its row) and C-018 (ChatGPT, PLAN-03, handed off in L-0211 but never released; released next at MJ's instruction); (4) task is MJ's instruction in chat on 2026-11-02, "start the L-0127 reconciliation", after MJ asked that the useful work of the unmerged re-verifier-11 entry be reconciled with main through a fresh branch, a newly numbered correction entry with complete evidence and properly structured regression tests; (5) branch claude/reverify11-reconcile cut from a88374b (the head of PR 37, which contains PR 36), because main ends at L-0208 and a branch from main would reuse L-0209 a third time; no pull request is opened until PR 36 and PR 37 are merged; worktree clean, `pnpm agent:preflight` OK; (6) local only.
+**Evidence:** `pnpm install --frozen-lockfile` done; `pnpm agent:preflight`: PREFLIGHT OK. Baseline lint, typecheck and test results are in L-0226.
+**Rules touched:** section 2, section 7
+**Next / needs:** L-0223.
+
+### L-0223 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CLAIM-RELEASED
+**Task:** PLAN-03    **Claim:** C-018
+**What / why:** C-018 (ChatGPT, GPT-6, session gpt6-business-domain-20261102, PLAN-03) released at MJ's instruction: MJ asked in chat on 2026-11-02 that the new session "release C-018" after its SESSION-START, because that session ended with its HANDOFF (L-0211) without a CLAIM-RELEASED entry. The row moved to the released table. PLAN-03's own state is unchanged (IN PROGRESS on the board, PR 36).
+**Rules touched:** section 3
+**Next / needs:** L-0224.
+
+### L-0224 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CLAIM
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020
+**What / why:** Verifier work only (section 7): carry the findings of the re-verifier-11 entry onto the current history as a new CORRECTION entry with complete evidence, plus regression tests. The original entry exists only in local commit a2b1105 on branch feat/p0-foundation, numbered L-0127, a number main already uses for another entry; it is not edited, reused or pushed (MJ: do not push feat/p0-foundation as it stands). Areas: two new test files, `supabase/tests/reverify11-attacks.test.ts` and `packages/import/tests/reverify11-import.test.ts`, and this file. Not touched: the code under test (P0-06 harness files, `scripts/activity-log-check.mjs`, `packages/import/src`), the board rows, migrations, apps. This session wrote none of P0-02, P0-06 or P0-09 (maker and checker stay different, section 7).
+**Rules touched:** section 3, section 7, H-23
+**Next / needs:** L-0225.
+
+### L-0225 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · DECISION
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020
+**What / why:** MJ decided in chat on 2026-11-02 how the round-11 defect checks enter main: as expected-failure tests. MJ's message reads "My decision: use `it.fails`" (Vitest 4.1.12), with two safeguards: "Each expected-failure test should have one decisive assertion for its specific defect. Do not allow a database setup error or unrelated exception to count as successful reproduction." and "Keep the control tests as ordinary `it(...)` tests"; and "When a builder fixes a defect, changing `it.fails` to `it` must happen in the same PR as the fix." MJ then said "start the L-0127 reconciliation". This departs from rounds 1 to 10, whose defect checks were committed failing outright (L-0117); without it the checks could not reach main, whose required CI checks must pass. It does not loosen a check: an expected-failure test turns red the moment its defect is fixed, which forces the builder to turn it into an ordinary test in the fix's pull request. Each defect check is paired with an ordinary REPRODUCTION test that fails if the attack scenario itself did not run, so a setup error cannot pass as a reproduced defect.
+**Rules touched:** H-23, section 7
+**Next / needs:** write the two test files.
+
+### L-0226 · 2026-11-02 03:27 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CORRECTION
+**Task:** P0-06, P0-02, P0-09    **Claim:** C-020
+**What / why:**
+P0-06: NOT VERIFIED
+P0-02: NOT VERIFIED
+P0-09: NOT VERIFIED
+
+Independent section 7 re-verification, round 11, carried onto the current history. The original entry exists only in local commit a2b1105 on branch feat/p0-foundation (K repo), where it is numbered L-0127 and was written by the re-verifier-11 workflow against b61494f. Main uses L-0127 for a different entry, so that entry could not be merged; it is cited here as the historical source and was not edited, reused or pushed (MJ: do not push feat/p0-foundation as it stands). I did not write any of P0-02, P0-06 or P0-09 (L-0222 to L-0225). This entry corrects the verdicts the log currently gives for P0-06 (L-0119), P0-02 (L-0120) and P0-09 (L-0121 and L-0188) the same way the original did, and it carries all 13 findings, because every one was re-run on main and every one is still reproducible. None of the three tasks is VERIFIED, so no board row moves (section 7 reopens only VERIFIED work): P0-02 and P0-06 stay IN PROGRESS and P0-09 stays DONE (self-reported).
+
+Findings, all STILL REPRODUCIBLE on origin/main 1a1c51a and on this branch (the code under test has not changed since b61494f: scripts/activity-log-check.mjs, supabase/tests/schema-hygiene.test.ts and packages/import/src are identical; rls-matrix.test.ts only gained table rows and its UPDATE probe, which sets the write column to itself, is unchanged):
+- P0-06 D1 (workflow id V11-D2; H-08, H-13; latent). A column-level UPDATE grant on another column plus a permissive UPDATE policy lets repA write public.app_config directly while the matrix and guards stay green.
+- P0-06 D2 (workflow id V11-D3; H-13; latent). No matrix cell or guard checks TRUNCATE privilege; a TRUNCATE grant lets repA empty a table with no row-level audit. Whether AUDIT_GAPS should require a TRUNCATE trigger is B-17 (MJ).
+- P0-02 D1 (H-25; major per the original). Phone headings with no space before a digit or No (Mobile1, Mobile2, Phone2, PhoneNo, MobileNo, Cell1) are ignored and the run says CLEAN.
+- P0-02 D2 (H-25; minor). Zero-width characters in an area or a name pass the empty and length checks; the run says CLEAN.
+- P0-02 D3 (H-03, H-25; minor). exceljs prints a salon-named hidden tab name on the console or in the thrown error (over 31 characters, a slash, or a duplicate); exit 2.
+- P0-02 D4 (H-03, H-25; note). A tab named after a phone number written in groups is printed in full on the Sheet read line.
+- P0-02 D5 (H-25; note). A duplicate cell address lets an uncalculated formula read as empty and the run says CLEAN.
+- P0-02 O1 (observation). A quote closed by an inch mark on a later line swallows the rows between: CLEAN, 3 of 6 rows read.
+- P0-02 O2 (observation). A UTF-16LE text export fails closed (exit 1) but the message does not name UTF-16.
+- P0-09 D1 (workflow id A7; H-25 against section 7; major per the original, arguable). A new DONE entry for a task whose row already reads VERIFIED (P1-01, P0-08) is accepted; rule 4b runs only on a changed Status cell.
+- P0-09 D2 (workflow id A1; H-25; major per the original, arguable). A duplicate Status header hides a bare VERIFIED in the second Status column.
+- P0-09 D3 (workflow id A2; H-25; minor). Two backslash characters before a pipe shift the checker's cells and hide a bare VERIFIED.
+- P0-09 FP1 (H-25; minor, false positive). A URI connection string whose password is a variable reference is refused by rule 5 on both passes.
+
+Test structure (MJ decision, L-0225): the original failing-by-design checks are replaced by supabase/tests/reverify11-attacks.test.ts and packages/import/tests/reverify11-import.test.ts. Each defect is an ordinary REPRODUCTION test (proves the scenario ran) plus a DEFECT CHECK or FALSE POSITIVE CHECK marked as an expected failure with one decisive assertion; CONTROL and OBSERVATION tests are ordinary. When a builder fixes a defect its expected-failure test starts passing, which Vitest reports as a failure until the marker is changed from the expected-failure form to a normal test, in the same pull request as the fix.
+
+**Evidence:** All runs local, with DATABASE_URL and KIRAN_TEST_DATABASE_URL removed from the environment so only the embedded Postgres was used. No staging, production, Supabase project, GitHub write or network service was contacted by the tests.
+1. Re-check on origin/main 1a1c51a by a read-only subagent in a detached throwaway checkout, using the original test files from a2b1105 unchanged: in packages/import, "Tests 5 failed | 3 passed (8)"; at the root, "pnpm exec vitest run --config supabase/tests/vitest.config.ts reverify11": "Tests 6 failed | 2 passed (8)", 165 s. The 5 and 6 failures are exactly the defect and false-positive checks; the controls and observations passed. Database row counts were 24 and audit 42 (22 and 40 in the original) because migration 20261101100000_invoice_document.sql added two app_config rows; behaviour is the same. Origin/main has no later verifier round: the last is L-0116, and nothing matches round 11.
+2. This branch, packages/import: "Test Files 1 passed (1)", "Tests 9 passed | 5 expected fail (14)", Vitest 4.1.12, 23.85 s. Logged values: D1 clean {"mobile12":true,"phoneNo":true,"mobileNo":true,"cell1":true}; D2 area and name both clean true, rowsRead 1; D3 exit 2 in all three cases with "error: cannot read slash.xlsx: Worksheet name Test Salon 01 / Gulshan cannot include any of the following characters", "error: cannot read dup.xlsx: Worksheet name already exists: Test Salon 02 khata" and the over-31-characters warning naming the full tab; D4 exit 0 with the Sheet read line showing the grouped, international and dashed forms in full; D5 control clean false (row 3, opening_balance) against duplicate-address clean true with no errors; O1 clean true, rowsRead 3; O2 exit 1, UTF-16 not named.
+3. This branch, database file: "Test Files 1 passed (1)", "Tests 8 passed | 6 expected fail (14)". Logged values: P0-06 D1 before {"vis":0,"audit":42}, after repA's update {"vis":24,"audit":66}, harness caughtBy [] over 11 queries and probes INSERT, UPDATE, DELETE; P0-06 D2 before {"n":24,"audit":42}, after repA's TRUNCATE {"n":0,"audit":42}, caughtBy []; P0-09 D1 both new DONE entries exit 0 "activity-log-check OK (1 new log entry, 1 changed files)."; P0-09 D2 exit 0; P0-09 D3 exit 0; P0-09 FP1 both exit 1 "activity-log-check FAILED:".
+4. `pnpm lint` exit 0 (0 errors, 33 warnings, 42 infos; the same warning count as before the two files were added); `pnpm typecheck` exit 0.
+5. Not run or not measured: the full `pnpm db:test` suite (the host is short of memory; CI runs it on the pull request); the planted cases on the CI Supabase stack; GitHub's own rendering of the P0-09 table cases (only the checker's reading was tested); commit-message scanning (B-22); workbooks saved by Excel, LibreOffice or Google Sheets.
+**Rules touched:** H-03, H-08, H-13, H-16, H-23, H-24, H-25; section 7; Appendix C
+**Next / needs:**
+- Builder (a different agent, section 7), P0-06: fix D1 and D2 (a column-aware UPDATE check and a TRUNCATE check); P0-02: fix D1 to D5 and update the runbook (O1 and O2 optional); P0-09: fix D1 to D3 and FP1 and add the D1 rule to Appendix C rule 4. In each fix's pull request change the matching expected-failure test to a normal test; then a different agent re-verifies.
+- MJ: the severity of P0-02 D1 and P0-09 D1 and D2; whether TRUNCATE audit triggers are wanted (B-17); B-27 remains open.
+
+Security checklist (tick honestly):
+[ ] RLS enabled+forced; policies + role x table tests added/updated (H-13) -- policies hold, but the matrix and guards miss a column-level UPDATE grant and a TRUNCATE grant (P0-06 D1, D2)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) -- no schema change; no direct-write grant or policy exists today
+[x] Audit trigger present; hash chain verifies (H-17) -- unchanged; the TRUNCATE trigger question stays with B-17
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) -- synthetic values only, connection strings assembled at run time; but P0-02 D3 and D4 can print tab names
+[x] Governance powers still owner-only + AAL2 (H-15)
+[ ] No control weakened, skipped or "temporarily" disabled (H-16) -- P0-09 D1 to D3 let a stale or uncited VERIFIED stand; P0-02 D1 and D2 give a wrong CLEAN
+[ ] Docs match code; deviations logged (H-25) -- P0-02 D1 to D5; P0-09 D1 to D3 and FP1
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0227 · 2026-11-02 03:27 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CLAIM-RELEASED
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020
+**What / why:** C-020 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0228.
+
+### L-0228 · 2026-11-02 03:27 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · HANDOFF
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** — (C-020 released)
+**What / why:** State: branch claude/reverify11-reconcile, one local commit on a88374b (the head of pull request 37, which contains pull request 36); not pushed, no pull request yet. It holds the CORRECTION L-0226 with all 13 re-run findings and the two new test files; the original L-0127 stays only in local commit a2b1105 on feat/p0-foundation, which must not be pushed. No code under test, board row, migration or app file changed. Next, in order: (1) MJ reviews and merges pull request 36 and then 37 with merge commits (a reviewer other than the author); (2) then rebase this branch onto main (its parents are then already in main, so L-0222 and up still follow main's last entry), push, and open a draft pull request to main; CI should be green with the expected failures; (3) a different agent fixes the 11 defects, one pull request per task if preferred, changing each expected-failure test to a normal test in the same pull request as its fix; (4) a different agent re-verifies. Gotchas: the global DATABASE_URL points at a remote database, so strip it (and KIRAN_TEST_DATABASE_URL) before any test run; the host is short of memory, so run the database tests by file; under Git Bash on Windows `pnpm exec` can report exit status 0 although tests failed, so read the Vitest summary line; the folder .claude/worktrees/reverify11-recheck is left over from a throwaway checkout (git no longer lists it) and needs deleting with a long-path-capable delete; the code-pattern hook on this machine wants magic numbers named and a regex101 link above every regular expression in TypeScript files.
+**Evidence:** see L-0226 items 1 to 5. Immediately before the commit that holds this entry: `pnpm agent:preflight`, `node scripts/activity-log-check.mjs origin/main`, `pnpm lint`, `pnpm typecheck` and `cmp CLAUDE.md AGENTS.md` were run on this tree; their results are in the commit message.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge pull request 36 and 37; a different agent: the builder fixes, then a different agent re-verifies.
+
+### L-0229 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · SESSION-START
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021 (L-0230)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries and Appendices A to C (same session as L-0212 to L-0228); (2) status board and blockers read; B-01 is the blocker this session resolves; (3) active claims read: only C-001, whose areas do not include the files below; (4) task is MJ's instruction in chat on 2026-11-02, "work KIR-6" (Linear KIR-6, a ticket of the Wayfinder map KIR-5); (5) branch claude/kir-6-d08-decision cut from 49bf76d (the head of draft pull request 38, which sits on pull requests 36 and 37) so that log numbers stay sequential; `node scripts/agent-preflight.mjs` OK; (6) local only, nothing pushed.
+**Evidence:** `node scripts/agent-preflight.mjs`: PREFLIGHT OK. Documentation only, so no install, lint, typecheck or database run (see L-0233).
+**Rules touched:** section 2
+**Next / needs:** L-0230.
+
+### L-0230 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · CLAIM
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021
+**What / why:** Record MJ's answer to D-08 / OQ-02 / B-01 where the docs and this file say it is pending. Areas: docs/12-decisions-and-open-questions.md (D-08, OQ-02), docs/00-README.md (fixed decision 2), docs/11-roadmap.md, docs/14-unified-business-domain-prompt.md, docs/gate-0-checklist.md, and this file (section 1, B-01, claims, log). Not touched: docs/06 and docs/13 (they already state the split), code, migrations, tests, the permission matrix, thresholds.
+**Rules touched:** section 3, H-25
+**Next / needs:** L-0231.
+
+### L-0231 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · DECISION
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021
+**What / why:** MJ decided in chat on 2026-11-02. Asked whether the owner alone holds governance (users, bank details, write-offs, price lists, commission plans, vault grants, audit log, configuration) while the manager has full operational access, with three options (A: confirm as documented; B: confirm with a different list; C: reject, manager equals owner), MJ answered "A". D-08 is confirmed as documented in docs/06-security-plan.md section 2 and H-15; OQ-02 is answered yes; B-01 is resolved. Scope of this decision: the principle and the D-08 list in doc 12. It does not settle which role checks each approval kind or what the thresholds are; those stay open as Linear KIR-15 (and KIR-20, KIR-21). One known disagreement is left for KIR-15: doc 00 and doc 12 do not list the same governance items (doc 00 names credit notes as owner-only, the doc 12 D-08 row does not, and doc 06 section 2 and doc 13 section 9 let a manager approve a credit note below a threshold if not the maker). MJ's original wording, "same privileges and access as owner", is superseded for the governance list.
+**Rules touched:** H-15, H-25, H-26
+**Next / needs:** L-0232.
+
+### L-0232 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · CLAIM-RELEASED
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** C-021
+**What / why:** C-021 released (done); no row was left in the active table.
+**Rules touched:** section 3
+**Next / needs:** L-0233.
+
+### L-0233 · 2026-11-02 06:52 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-6-d08-decision · HANDOFF
+**Task:** Wayfinder KIR-6 (D-08 governance split)    **Claim:** — (C-021 released)
+**What / why:** State: branch claude/kir-6-d08-decision, one local commit on 49bf76d; documentation only; not pushed, no pull request. D-08, OQ-02 and B-01 are recorded as confirmed in docs 12, 00, 11, 14, the Gate 0 checklist and this file. Linear KIR-6 is resolved and closed, with its first dependant moved (KIR-15 to Todo; KIR-21 still waits for KIR-7). Next, in order: (1) MJ merges pull requests 36, 37 and 38 in that order with merge commits; (2) then rebase this branch onto main (log numbers stay L-0229 and up), push, and open a pull request; (3) the next map decision is KIR-7 (one approval gate or per-function checks) or KIR-15 (checker per approval kind, which also settles the credit-note item in L-0231). Gotchas: this branch is stacked on three unmerged pull requests, and the repo forbids stacking, so it must not be opened before they merge; no code or matrix changed, so docs 06 and 13 needed no edit.
+**Evidence:** see L-0229 and the commit message: `node scripts/agent-preflight.mjs` and `node scripts/activity-log-check.mjs origin/main` run immediately before the commit.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge pull requests 36, 37, 38; then work KIR-7 or KIR-15.
+
+### L-0234 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · SESSION-START
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022 (L-0235)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries and Appendices A to C (same session as L-0212 to L-0233); (2) status board and blockers read; (3) active claims read: only C-001, whose areas do not include the files below; (4) task is MJ's instruction in chat on 2026-11-02, "work KIR-7" (Linear KIR-7, a ticket of the Wayfinder map KIR-5); (5) branch claude/kir-7-approval-mechanism cut from e228227 (the KIR-6 branch, itself on draft pull request 38) so that log numbers stay sequential; `node scripts/agent-preflight.mjs` OK; (6) local only, nothing pushed.
+**Evidence:** `node scripts/agent-preflight.mjs`: PREFLIGHT OK. Documentation only, so no install, lint, typecheck or database run.
+**Rules touched:** section 2
+**Next / needs:** L-0235.
+
+### L-0235 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · CLAIM
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022
+**What / why:** Record MJ's answers to KIR-7. Areas: docs/12-decisions-and-open-questions.md (new D-25) and this file (claims, log). Not touched: code, migrations, tests, docs 04, 06 and 13 (they change with the implementation, H-25), thresholds, the permission matrix.
+**Rules touched:** section 3
+**Next / needs:** L-0236.
+
+### L-0236 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · DECISION
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022
+**What / why:** MJ decided in chat on 2026-11-02, one question at a time, after a read-only comparison of the shipped consumers, RFC issue 4 (a proposal, never approved) and the TLA+ spec of pull request 14 (design-level evidence only). Recorded as D-25 in doc 12.
+- Q1, mechanism. Options: A, RFC 4's full gate (one authorize function, a registry and a per-kind coverage spec); B, a shared internal helper for the use-time checks with consumers staying separate functions; C, status quo. MJ answered "B".
+- Q2, single use under B. Options: B1, a unique index in each consumer table; B2, one shared append-only registry, control.approval_use. MJ pasted another assistant's analysis recommending B2 and, asked for his own answer, said "B2". The registry (approval id as primary key, consumer type and id, user, time) is the authoritative single-use mechanism: the helper locks the approval, validates it, inserts the registry row, and the consumer completes its action in the same transaction, so a failed action rolls the row back. A replay by the same consumer with identical facts returns the original result; reuse by a different consumer is refused. The registry gets forced row-level security, an audit trigger and an RLS matrix row (H-13).
+- Q3, existing consumers. Options: 1, adjustment and discount both move now, behaviour-preserving; 2, adjustment now and discount later; 3, neither. MJ answered "1". Only the registry insert is added; each consumer keeps its current use-time checks until KIR-14 decides the rule. Past uses of both are back-filled in one pass after a cross-table duplicate check; the unique index on stock_movement.approval_id is retired once the registry holds its uses.
+- Q4, checker role at request. Options: 1, keep it caller-chosen; 2, server-computed with the parameter dropped (RFC 4); 3, keep the parameter as a floor that the server can only raise. MJ answered "3". The server takes the stricter of the caller's level and its own computed level (configured thresholds plus coded floors, write-off always owner); signatures stay the same. The rule for a request with no amount is fixed in the spec.
+- Q5, request replay with different content. Options: 1, keep returning the original silently; 2, refuse it with an error while an identical replay still returns the original; 3, return the original and record an anomaly. MJ answered "2". Choosing 2 includes MJ's approval (H-23) to update exactly two verifier-authored tests that assert the old behaviour: reverify2-attacks.test.ts near line 275 and reverify3-attacks.test.ts near line 107. Nothing else is loosened.
+Not decided here: what the helper checks at use and who may use an approval (KIR-14), expiry and offboarded checkers (KIR-19), the checker per approval kind (KIR-15), credit overrides (KIR-21). This is a design decision; nothing is built until the spec and tickets follow.
+**Rules touched:** H-06, H-08, H-12, H-13, H-16, H-22, H-23, H-26
+**Next / needs:** L-0237.
+
+### L-0237 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · CLAIM-RELEASED
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** C-022
+**What / why:** C-022 released (done); no row was left in the active table.
+**Rules touched:** section 3
+**Next / needs:** L-0238.
+
+### L-0238 · 2026-11-02 07:46 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/kir-7-approval-mechanism · HANDOFF
+**Task:** Wayfinder KIR-7 (approval mechanism)    **Claim:** — (C-022 released)
+**What / why:** State: branch claude/kir-7-approval-mechanism, one local commit on e228227; documentation only; not pushed, no pull request. KIR-7 is answered (L-0236, D-25) and closed on Linear; KIR-14 and KIR-21 move to Todo. Next, in order: (1) MJ merges pull requests 36, 37 and 38 in that order with merge commits; (2) then rebase the KIR-6 and KIR-7 branches onto main in that order (log numbers stay L-0229 and up), push, and open their pull requests; (3) the next map decision is KIR-14 (use-time rules), now unblocked. Gotchas: this branch is stacked on four unmerged branches, and the repo forbids stacked pull requests, so it must not be opened before they merge; docs 04, 06 and 13 change only when the registry is built (H-25).
+**Evidence:** `node scripts/agent-preflight.mjs` and `node scripts/activity-log-check.mjs origin/main` run immediately before the commit; results in the commit message.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge pull requests 36, 37, 38; then work KIR-14.
+
+### L-0239 · 2026-10-31 22:14 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · SESSION-START
 **Task:** — (independent check that the CRM modules built so far work, section 7)    **Claim:** C-011
-**What / why:** MJ asked whether the CRM working check and test had been done; it had not. This session is a different agent from the builder sessions, so it may check the self-reported P1-02 parts a and b, P1-04, P1-06 parts a and b and P1-16. Checklist: (1) this file read: rules, board, claims, blockers, assumptions, the last entries (L-0179 to L-0185); (2) docs/test-report-2026-10-25.md read; (3) C-001 holds scripts, migrations, tests and apps and is untouched: this session changes no code, SQL or test file, and the untracked reverify11 files in the K checkout are not used; (4) blockers B-18 (staging does not expose app and vault_api), B-28, B-29, B-30 touch this check and are not changed; (5) baseline on this branch (cut from main at 13ebec7); (6) local only: embedded Postgres 17 in a temp directory, no staging, no production, ambient DATABASE_URL unset for every command. The branch claude/tla-spec-verification-rebased already uses L-0186 to L-0195 (PR 14), so these entries are numbered L-0196 onward only because the check requires sequence; renumber them on merge, as a39a49a did.
+**What / why:** MJ asked whether the CRM working check and test had been done; it had not. This session is a different agent from the builder sessions, so it may check the self-reported P1-02 parts a and b, P1-04, P1-06 parts a and b and P1-16. Checklist: (1) this file read: rules, board, claims, blockers, assumptions, the last entries (L-0179 to L-0185); (2) docs/test-report-2026-10-25.md read; (3) C-001 holds scripts, migrations, tests and apps and is untouched: this session changes no code, SQL or test file, and the untracked reverify11 files in the K checkout are not used; (4) blockers B-18 (staging does not expose app and vault_api), B-28, B-29, B-30 touch this check and are not changed; (5) baseline on this branch (cut from main at 13ebec7); (6) local only: embedded Postgres 17 in a temp directory, no staging, no production, ambient DATABASE_URL unset for every command. The branch claude/tla-spec-verification-rebased already uses L-0186 to L-0195 (PR 14), so these entries are numbered L-0239 onward only because the check requires sequence; renumber them on merge, as a39a49a did.
 **Evidence:** `pnpm install --frozen-lockfile` exit 0; `pnpm lint` exit 0 (31 warnings, 42 infos, no errors); `pnpm typecheck` exit 0; `pnpm activity:check main HEAD` OK; `pnpm service-role:scan` OK (31 files); `pnpm -r --if-present test`: packages/import 3 files, 50 passed.
 **Rules touched:** section 2, H-19, H-23, H-24
-**Next / needs:** L-0197 (database suite in parts, then the app build and e2e).
+**Next / needs:** L-0240 (database suite in parts, then the app build and e2e).
 
-### L-0197 · 2026-10-31 22:45 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0240 · 2026-10-31 22:45 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** P1-02 (parts a and b), P1-04, P1-06 (parts a and b), P1-16    **Claim:** C-011
 **What / why:** Ran the existing suites and the web build from a clean install on this branch (main at 13ebec7). This is a re-run of the builders' tests, not a new attempt to break the controls, so no task is moved to VERIFIED (section 7 still needs that attempt).
 **Evidence:** `pnpm db:test` (whole suite, embedded Postgres 17, ambient DATABASE_URL unset): 23 files, 1789 passed, 0 failed, 1547 s; the six CRM module files alone (deliveries, inventory, orders, routes, salons, visits): 117 passed in 30 s, exit 0. `NODE_ENV=production pnpm -C apps/web build`: exit 0, 7 routes (`/`, `/app`, `/app/login`, `/office`, `/office/login`, `/office/mfa`, `/_not-found`). `pnpm -C apps/web test:e2e`: NOT RUN to a result, 4 of 4 failed at browser launch because the Playwright Chromium headless shell is not installed on this machine (`browserType.launch: Executable doesn't exist`); this is the machine, not the app, and the browser download was not done without MJ's go-ahead. Grep of the module test titles shows each module has a cap, replay and append-only case; salons, visits, orders have an other-territory case; inventory has maker-checker cases. No staging or production access.
 **Rules touched:** H-19, H-23, H-24
-**Next / needs:** L-0198.
+**Next / needs:** L-0241.
 
-### L-0198 · 2026-10-31 22:50 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · HANDOFF
+### L-0241 · 2026-10-31 22:50 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · HANDOFF
 **Task:** — (independent check of the CRM modules)    **Claim:** — (C-011 released)
-**What / why:** State: the database side of the CRM modules passes in full (1789 of 1789). The web app has only login shells, so there is no CRM screen to click through yet; the rep and office CRM screens belong to P1-03 and later. Not done: the Playwright e2e run (browser missing), the section 7 attempt to break the new modules from a rep token and an office token with fresh attack tests, and any check against staging (B-18 still pending, so login cannot work there). Next steps, in order: (1) MJ allows `pnpm exec playwright install chromium` (a download of roughly 150 MB from Playwright's CDN) so the e2e run can finish; (2) a verifier writes the section 7 attack tests for P1-02, P1-04, P1-06 and P1-16, then moves them to VERIFIED; (3) MJ: B-18, B-28, B-29, B-30, B-13. Gotchas: `pnpm db:test -- name` passes the dashes to vitest and matches no file, use `pnpm db:test name`; the whole suite took 26 minutes here but did not stall; these two entries are numbered L-0196 onward only because the check wants a sequence, and PR 14 already holds L-0186 to L-0195, so one of the two sets must be renumbered when both reach main.
-**Evidence:** see L-0197; `pnpm activity:check main HEAD` run after this entry.
+**What / why:** State: the database side of the CRM modules passes in full (1789 of 1789). The web app has only login shells, so there is no CRM screen to click through yet; the rep and office CRM screens belong to P1-03 and later. Not done: the Playwright e2e run (browser missing), the section 7 attempt to break the new modules from a rep token and an office token with fresh attack tests, and any check against staging (B-18 still pending, so login cannot work there). Next steps, in order: (1) MJ allows `pnpm exec playwright install chromium` (a download of roughly 150 MB from Playwright's CDN) so the e2e run can finish; (2) a verifier writes the section 7 attack tests for P1-02, P1-04, P1-06 and P1-16, then moves them to VERIFIED; (3) MJ: B-18, B-28, B-29, B-30, B-13. Gotchas: `pnpm db:test -- name` passes the dashes to vitest and matches no file, use `pnpm db:test name`; the whole suite took 26 minutes here but did not stall; these two entries are numbered L-0239 onward only because the check wants a sequence, and PR 14 already holds L-0186 to L-0195, so one of the two sets must be renumbered when both reach main.
+**Evidence:** see L-0240; `pnpm activity:check main HEAD` run after this entry.
 **Rules touched:** section 11
 **Next / needs:** MJ: Playwright browser download; B-18, B-28, B-29, B-30, B-13.
 
-### L-0199 · 2026-10-31 23:35 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CORRECTION
+### L-0242 · 2026-10-31 23:35 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CORRECTION
 **Task:** — (independent check of the CRM modules)    **Claim:** —
-**What / why:** Corrects L-0197 and L-0198 on one point: the Playwright e2e run did not stay unfinished. MJ allowed the browser download; `pnpm exec playwright install chromium-headless-shell` fetched Chrome Headless Shell 153.0.8010.12 (114.6 MiB) from Playwright's CDN into the user profile (outside the repo). The e2e step in L-0198 next steps (1) is done. Steps (2) and (3) stand: no section 7 attempt to break the new modules has been made, so no task is VERIFIED.
+**What / why:** Corrects L-0240 and L-0241 on one point: the Playwright e2e run did not stay unfinished. MJ allowed the browser download; `pnpm exec playwright install chromium-headless-shell` fetched Chrome Headless Shell 153.0.8010.12 (114.6 MiB) from Playwright's CDN into the user profile (outside the repo). The e2e step in L-0241 next steps (1) is done. Steps (2) and (3) stand: no section 7 attempt to break the new modules has been made, so no task is VERIFIED.
 **Evidence:** `NODE_ENV=production pnpm -C apps/web test:e2e`: 4 passed, 0 failed, 25.5 s (small-phone layout with Urdu labels NFR-03, a refused sign-in is shown NFR-01, 199.8 KB gzipped JavaScript against the 300 KB cap NFR-02, security headers doc 06 section 7). Only the rep login shell is covered; the repository has no other e2e spec.
 **Rules touched:** H-23, H-24
-**Next / needs:** unchanged from L-0198 (2) and (3).
+**Next / needs:** unchanged from L-0241 (2) and (3).
 
-### L-0200 · 2026-10-31 23:50 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+### L-0243 · 2026-10-31 23:50 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
 **Task:** — (section 7 attempt to break the CRM modules)    **Claim:** C-012
-**What / why:** MJ asked for the attack pass left open in L-0198. Scope: one new test file, `supabase/tests/crm-attacks.test.ts`, which tries from rep, other-territory rep, suspended rep, wrong device, manager, owner at AAL1, anon and service_role to read across territories, dump salons, write money, stock, stage and history tables directly, update or delete append-only rows, replay and backdate, over-order, over-deliver, deliver another rep's order, self-approve a stock adjustment, and reach cost or supplier columns (H-01, H-05, H-06, H-08, H-09, H-12, H-13, H-14, H-15). The file commits only fresh catalogue, territory and salon rows (as the other module files do) and ends its territory assignments; bags, rep days, orders and deliveries happen in rolled-back transactions so the inventory tests that create rep A's bag later in name order are not disturbed. No migration, app or existing test file is changed. A failing attack is reported as a finding, not loosened (H-23).
+**What / why:** MJ asked for the attack pass left open in L-0241. Scope: one new test file, `supabase/tests/crm-attacks.test.ts`, which tries from rep, other-territory rep, suspended rep, wrong device, manager, owner at AAL1, anon and service_role to read across territories, dump salons, write money, stock, stage and history tables directly, update or delete append-only rows, replay and backdate, over-order, over-deliver, deliver another rep's order, self-approve a stock adjustment, and reach cost or supplier columns (H-01, H-05, H-06, H-08, H-09, H-12, H-13, H-14, H-15). The file commits only fresh catalogue, territory and salon rows (as the other module files do) and ends its territory assignments; bags, rep days, orders and deliveries happen in rolled-back transactions so the inventory tests that create rep A's bag later in name order are not disturbed. No migration, app or existing test file is changed. A failing attack is reported as a finding, not loosened (H-23).
 **Rules touched:** section 3, section 7, H-23
-**Next / needs:** L-0201.
+**Next / needs:** L-0244.
 
-### L-0201 · 2026-11-01 01:30 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0244 · 2026-11-01 01:30 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** P1-02 (parts a and b), P1-04, P1-06 (parts a and b), P1-16    **Claim:** C-012
 **What / why:** Section 7 attack pass on the built modules, from a session that did not build them. New file `supabase/tests/crm-attacks.test.ts` (54 tests, no migration or app change). Attacks tried: RLS forced and no anon or write privilege on any table; direct insert, update, delete and truncate on 28 module tables as rep A, rep B, manager, owner, suspended rep, rep on an unapproved device, anon and service_role (all 42501); update and delete of existing rows in five append-only tables as the table owner (trigger refuses); rep B reading or writing rep A's salon through every read and RPC path; list-dump through `my_salons` (capped at 50, phones masked); `reveal_phone` logging and the log's access; every office and owner function from a rep, a suspended rep, a wrong device and anon; owner-only functions from a manager; office functions from owner and manager at AAL1; 20 malformed order shapes; discount tampering (pending approval, no confirmation, no invoice); plan above eligibility (held); replay and backdating of orders, notes, deliveries and counts; delivering another rep's order, over-delivery, double delivery, a cancelled order, a bag going negative; invoice numbers consecutive and unchanged by a failed delivery; a manager approving their own stock adjustment; one approval posting once; rep B confirming or counting rep A's bag. Nothing got through. The first run had 19 failures, all mistakes in the new tests (wrong enum values, wrong column names, a discount test that replayed with list prices, empty tables for the owner-trigger test, line key qty); each was fixed in the test, no check was loosened. Not covered: payments, vault data and offline sync (not built), the web screens (none exist), a real GoTrue MFA login.
-**Evidence:** `pnpm db:test crm-attacks`: 1 file, 54 passed. `pnpm db:test` whole suite: 24 files, 1843 passed, 0 failed, 1446 s (baseline L-0197: 23 files, 1789). `pnpm lint`, `pnpm typecheck`, `pnpm activity:check main HEAD` exit 0. Commit: none yet (uncommitted on this branch).
+**Evidence:** `pnpm db:test crm-attacks`: 1 file, 54 passed. `pnpm db:test` whole suite: 24 files, 1843 passed, 0 failed, 1446 s (baseline L-0240: 23 files, 1789). `pnpm lint`, `pnpm typecheck`, `pnpm activity:check main HEAD` exit 0. Commit: none yet (uncommitted on this branch).
 **Rules touched:** H-06, H-08, H-09, H-12, H-13, H-14, H-15, H-23
-**Next / needs:** L-0202. No task is moved to VERIFIED here: that is MJ's call after reading the findings in L-0202.
+**Next / needs:** L-0245. No task is moved to VERIFIED here: that is MJ's call after reading the findings in L-0245.
 
-### L-0202 · 2026-11-01 01:35 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0245 · 2026-11-01 01:35 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** — (Phase 1 audit against doc 03)    **Claim:** C-012
 **What / why:** MJ asked for a requirement-level audit of the whole of Phase 1. Four read-only agents each audited one group of doc 03 against migrations, tests and apps/web; their tables are in `docs/audit-2026-10-31/` with a summary in its README. Result: 142 IDs; no row has a user interface; the database half of salons, visits, routes, inventory, orders, deliveries and invoices exists; payments (P1-07), vault tables (P1-05), the control layer beyond approvals (P1-08), the offline client (P1-09), dashboards (P1-10), agents (P1-15) and lost-demand capture (P1-17) are not built; the web app is the sign-in and MFA pages. Defects found by reading the SQL, each confirmed by me in the function body unless marked: (1) `update_salon` erases address, lat, lng and chairs when they are not passed; (2) a rep can move a salon's pin, which the distance checks trust; (3) `delivery_mode` is ignored by both delivery functions; (4) `salon_exposure` never falls (A-10); (5) `reveal_phone` has no volume cap; (6) an approved write-off cannot be posted (agent-reported); (7) replay checks differ between functions; (8) `low_stock` pools bags with the warehouse; (9) part deliveries get one invoice each (agent-reported); (10) a rep past midnight Karachi time loses the open day (agent-reported). None has a failing test today.
-**Evidence:** four audit files and the README under `docs/audit-2026-10-31/`; `pnpm activity:check main HEAD` OK after this entry. The agents ran no tests; the test results are in L-0201.
+**Evidence:** four audit files and the README under `docs/audit-2026-10-31/`; `pnpm activity:check main HEAD` OK after this entry. The agents ran no tests; the test results are in L-0244.
 **Rules touched:** H-23, H-24, H-25
-**Next / needs:** L-0203.
+**Next / needs:** L-0246.
 
-### L-0203 · 2026-11-01 01:36 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · BLOCKER
+### L-0246 · 2026-11-01 01:36 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · BLOCKER
 **Task:** — (audit follow-up)    **Claim:** C-012
 **What / why:** B-31: seven questions for MJ raised by the audit (pin edits by reps, a cap on phone reveals, rep day after midnight, invoices for part deliveries, the meaning of delivery_mode, what low_stock counts, how an independent agent is represented). All keep the code as built meanwhile; the one pure code defect (partial `update_salon` erases the pin) needs no decision and is the first fix proposed.
 **Rules touched:** section 9, H-26
 **Next / needs:** MJ: B-31 (a to g).
 
-### L-0204 · 2026-11-01 01:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+### L-0247 · 2026-11-01 01:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
 **Task:** — (attack pass and audit)    **Claim:** C-012
 **What / why:** C-012 released (done): the row moved to the released table.
 **Rules touched:** section 3
-**Next / needs:** L-0205.
+**Next / needs:** L-0248.
 
-### L-0205 · 2026-11-01 01:41 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · HANDOFF
+### L-0248 · 2026-11-01 01:41 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · HANDOFF
 **Task:** — (independent check, attack pass and audit)    **Claim:** — (C-012 released)
-**What / why:** State: branch claude/crm-working-check-test-606a4a, cut from main at 13ebec7, uncommitted: `supabase/tests/crm-attacks.test.ts` (new), `docs/audit-2026-10-31/` (new), `docs/ACTIVITY.md` (entries L-0196 to L-0205, B-31). Full suite green (1843), lint, typecheck, build, log check and the four Playwright tests green. Next steps, in order: (1) MJ reads L-0202 and the README, answers B-31, B-18, B-13; (2) fix defect 1 (partial `update_salon`), a small migration with a test; (3) build the office shell and device approval screen, then the rep shell (README, build order); (4) payments P1-07 backend before any screen that shows balances. Gotchas: `pnpm db:test -- name` matches no file, use `pnpm db:test name`; these entries are numbered from L-0196 only because the log check wants a sequence, and the branch claude/tla-spec-verification-rebased (PR 14) holds L-0186 to L-0195, so one set must be renumbered when both reach main; the Playwright Chromium headless shell was downloaded into the user profile with MJ's go-ahead.
-**Evidence:** see L-0201 and L-0202.
+**What / why:** State: branch claude/crm-working-check-test-606a4a, cut from main at 13ebec7, uncommitted: `supabase/tests/crm-attacks.test.ts` (new), `docs/audit-2026-10-31/` (new), `docs/ACTIVITY.md` (entries L-0239 to L-0248, B-31). Full suite green (1843), lint, typecheck, build, log check and the four Playwright tests green. Next steps, in order: (1) MJ reads L-0245 and the README, answers B-31, B-18, B-13; (2) fix defect 1 (partial `update_salon`), a small migration with a test; (3) build the office shell and device approval screen, then the rep shell (README, build order); (4) payments P1-07 backend before any screen that shows balances. Gotchas: `pnpm db:test -- name` matches no file, use `pnpm db:test name`; these entries are numbered from L-0239 only because the log check wants a sequence, and the branch claude/tla-spec-verification-rebased (PR 14) holds L-0186 to L-0195, so one set must be renumbered when both reach main; the Playwright Chromium headless shell was downloaded into the user profile with MJ's go-ahead.
+**Evidence:** see L-0244 and L-0245.
 **Rules touched:** section 11
 **Next / needs:** MJ: B-31, B-18, B-13.
 
-### L-0206 · 2026-11-01 01:52 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · DECISION
+### L-0249 · 2026-11-01 01:52 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · DECISION
 **Task:** P0-04 (staging kept in step with main)    **Claim:** —
 **What / why:** MJ approved applying main's six unapplied migrations to staging, in chat on 2026-11-01: "Yes, apply them" (in answer to "Apply main's 6 missing migrations to staging?"). Project `iurvazdyxzlspegygldo` (staging, B-12, L-0019), checked first through the Supabase Kiran connector: 7 migrations applied (foundation to device_state_guard), RLS forced on every table, security advisors only the two known INFO items, 0 user profiles. To apply, in file order, each in one transaction with its repository version recorded in `supabase_migrations.schema_migrations` (so no local file is renamed): 20261028050000_inventory, 20261028060000_salons, 20261028070000_visits, 20261028080000_routes, 20261028090000_orders, 20261028100000_deliveries. Not applied: 20261101000000_update_salon_partial (this branch only, not merged). No data is written; no production access. MJ also reported exposing schemas public, extensions, app and vault_api in the Data API settings (B-18); the API still answered 406 for app at 01:50 PKT, re-checked after the migrations.
 **Rules touched:** H-19, section 9 item 3
-**Next / needs:** L-0207 (result).
+**Next / needs:** L-0250 (result).
 
-### L-0207 · 2026-11-01 02:00 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
-**Task:** P1-02 (defect 1 of L-0202)    **Claim:** C-013
-**What / why:** Claim for the fix of `app.update_salon` erasing address, lat, lng and chairs on a partial edit. Logged late: the migration and its tests were written at about 01:45, after C-012 was released (L-0204) and before this claim; this entry records that plainly (section 3). Areas: `supabase/migrations/20261101000000_update_salon_partial.sql` (new), `supabase/tests/crm-attacks.test.ts` (own file, new describe block). No other file.
+### L-0250 · 2026-11-01 02:00 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** P1-02 (defect 1 of L-0245)    **Claim:** C-013
+**What / why:** Claim for the fix of `app.update_salon` erasing address, lat, lng and chairs on a partial edit. Logged late: the migration and its tests were written at about 01:45, after C-012 was released (L-0247) and before this claim; this entry records that plainly (section 3). Areas: `supabase/migrations/20261101000000_update_salon_partial.sql` (new), `supabase/tests/crm-attacks.test.ts` (own file, new describe block). No other file.
 **Rules touched:** section 3, H-23
-**Next / needs:** L-0208.
+**Next / needs:** L-0251.
 
-### L-0208 · 2026-11-01 02:02 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · DONE
-**Task:** P1-02 (defect 1 of L-0202)    **Claim:** C-013
+### L-0251 · 2026-11-01 02:02 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** P1-02 (defect 1 of L-0245)    **Claim:** C-013
 **What / why:** Migration 0014 replaces `app.update_salon` (same signature, so the grants stay): a null parameter now leaves name, address, lat, lng and chairs as they are; a blank name leaves the name; lat and lng move only as a pair (22023 otherwise). Who may call it and the territory checks are unchanged. Whether a rep may move a pin at all stays with MJ (B-31 a). Four regression tests in `crm-attacks.test.ts`.
 **Security checklist:**
 - [x] Requirement implemented as written (SAL-01 edit; MAP-02 pin kept)
@@ -3173,67 +3537,74 @@ Security checklist (tick honestly):
 - [x] Diff read: no secrets or real data
 **Evidence:** without the migration, `pnpm db:test crm-attacks`: 3 of the 4 new tests fail (the partial-edit, blank-name and pair tests), which shows the defect; with it, `pnpm db:test crm-attacks salons.test visits.test`: 3 files, 92 passed; whole suite `pnpm db:test`: 24 files, 1847 passed, 0 failed, 1353 s; `pnpm lint`, `pnpm typecheck` exit 0. Not applied to staging (not merged).
 **Rules touched:** H-07, H-08, H-23, H-25
-**Next / needs:** L-0209.
+**Next / needs:** L-0252.
 
-### L-0209 · 2026-11-01 02:05 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
-**Task:** P1-02 (defect 1 of L-0202)    **Claim:** C-013
+### L-0252 · 2026-11-01 02:05 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** P1-02 (defect 1 of L-0245)    **Claim:** C-013
 **What / why:** C-013 released (done), straight into the released table.
 **Rules touched:** section 3
-**Next / needs:** staging result of L-0206.
+**Next / needs:** staging result of L-0249.
 
-### L-0210 · 2026-11-01 02:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0253 · 2026-11-01 02:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** P0-04 (staging kept in step with main)    **Claim:** —
-**What / why:** Result of L-0206. A subagent applied the six migrations to staging `iurvazdyxzlspegygldo` in file order through the Supabase Kiran connector, each as one execute_sql call (the file text verbatim, then an insert of its repository version into `supabase_migrations.schema_migrations`), all without error; it paused between files 4 and 5 (no writes in the pause). Checked by me afterwards, not taken from its summary. B-18 resolved: MJ exposed `app` and `vault_api` in the Data API settings (and turned off automatic exposure of new tables); the anon probe now gets 42501 "permission denied for schema app" instead of 406, and `control`, `supplier_vault`, `extensions` still answer 406 (not exposed). Not checked: that the applied text equals the files byte for byte (the function count and a definition hash are recorded below for a later comparison); any signed-in call (no user exists on staging until the owner account, Gate 0).
+**What / why:** Result of L-0249. A subagent applied the six migrations to staging `iurvazdyxzlspegygldo` in file order through the Supabase Kiran connector, each as one execute_sql call (the file text verbatim, then an insert of its repository version into `supabase_migrations.schema_migrations`), all without error; it paused between files 4 and 5 (no writes in the pause). Checked by me afterwards, not taken from its summary. B-18 resolved: MJ exposed `app` and `vault_api` in the Data API settings (and turned off automatic exposure of new tables); the anon probe now gets 42501 "permission denied for schema app" instead of 406, and `control`, `supplier_vault`, `extensions` still answer 406 (not exposed). Not checked: that the applied text equals the files byte for byte (the function count and a definition hash are recorded below for a later comparison); any signed-in call (no user exists on staging until the owner account, Gate 0).
 **Evidence:** `list_migrations`: 13 versions, 20261024223304 to 20261028100000, matching the repository file names. SQL on staging: 36 tables in public, control, supplier_vault, 0 without forced RLS; 111 functions in schema app; 0 SECURITY DEFINER functions in app or control without a pinned search_path; md5 of `pg_get_functiondef(app.rep_deliver)` 8cf68d56656b39425b6cf5f459cceb6b; 0 salons. Security advisors: the two known INFO items (audit_chain_head, doc_counter have no policies) and a new WARN, 74 functions in app are SECURITY DEFINER and executable by authenticated through /rest/v1/rpc; that is the design (H-08: every write goes through these functions, each checks role, device and territory itself) and it appears because app is now exposed.
 **Rules touched:** H-08, H-19
 **Next / needs:** MJ: owner account with TOTP on staging (gate-0 checklist), so a signed-in call can be tested.
 
-### L-0211 · 2026-11-01 02:20 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+### L-0254 · 2026-11-01 02:20 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
 **Task:** P0-02, P0-04, P0-05    **Claim:** C-001
 **What / why:** C-001 released as stale (section 3): its last activity was 2026-10-28 21:15 (L-0126), more than 24 hours ago, and slice 1 (MJ's master prompt, execution map) needs `apps/web`. Checked before releasing: the K checkout (branch feat/p0-foundation at b61494f) has an uncommitted change to docs/ACTIVITY.md and two untracked files, `packages/import/tests/reverify11-import.test.ts` and `supabase/tests/reverify11-attacks.test.ts`; they are left exactly as they are, and their author may re-claim them. Last entries of C-001 read (L-0125, L-0126). The board rows P0-02, P0-04, P0-05 keep their status; only the claim column frees up.
 **Rules touched:** section 3
-**Next / needs:** L-0212.
+**Next / needs:** L-0255.
 
-### L-0212 · 2026-11-01 02:21 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
+### L-0255 · 2026-11-01 02:21 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · CLAIM
 **Task:** — (slice 1 of `docs/audit-2026-10-31/execution-map.md`: office shell)    **Claim:** C-014
 **What / why:** MJ asked to map every step of the master prompt and execute them in order; the map is `docs/audit-2026-10-31/execution-map.md`. Slice 1: an office layout with role-aware navigation and sign-out; `/office/devices` (pending first; approve and revoke through `app.approve_device`, `app.revoke_device`); `/office/team` (owner adds a profile for an existing sign-in through `app.owner_create_user`, and suspends, reactivates or offboards through `app.owner_set_status`); `/office/territories` (territories, areas, rep assignments through the existing `office_*` functions); the rep home shows the sign-in code a new user gives the owner. No migration; every RPC exists. Plus a CI job that starts a local Supabase stack (Auth, PostgREST, Postgres), seeds synthetic personas, builds the app against it and runs Playwright: this machine has no Docker, so those tests run only in CI. Areas as in C-014.
 **Rules touched:** section 3, H-14, H-15, H-16
 **Next / needs:** build, then DONE with evidence.
 
-### L-0213 · 2026-11-01 03:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0256 · 2026-11-01 03:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** — (slice 1 of the execution map: office shell)    **Claim:** C-014
 **What / why:** Built, not yet DONE: the browser tests that prove it against a real backend run only in CI, and nothing is pushed yet. Pages (all through RLS reads and existing app.* functions; no migration): `/office` shell in a route group with role-aware navigation, sign-out, and a no-profile state that shows the person's sign-in code; `/office` overview with counts of pending phones, active people and active territories; `/office/devices` (waiting, approved, revoked; approve with an optional note, reject or revoke with a reason; the database refuses self-approval and re-approval of a revoked id); `/office/team` (owner: add a person from their sign-in code with `app.owner_create_user`, suspend, reactivate, offboard with a reason through `app.owner_set_status`; a manager sees the list and a note, no controls, and the database refuses the calls anyway); `/office/territories` (add, deactivate, reactivate territories and areas; assign an active rep; end an assignment with a reason); `/app` shows the sign-in code to a person without a profile. Shared: `apps/web/lib/rpc.ts` (calls app.* and shows the database's own message), `apps/web/components/confirm-action.tsx` (reason-confirm, loading, error, empty states), office styles in globals.css (tables collapse to cards under 40rem). Real-stack tests: `scripts/e2e-stack-seed.mjs` (refuses any non-local database; writes synthetic sign-ins straight into the local auth schema, so no service-role key is used; profiles through app.bootstrap_owner and app.owner_create_user as fixtures.ts does), `apps/web/playwright.stack.config.ts` (refuses a non-local Supabase URL), `apps/web/e2e-stack/office.spec.ts` (8 tests: owner password plus TOTP computed from the enrolment key; anonymous visit sent to sign-in; approve a phone; territory, area, assign, end with reason; suspend and reactivate the manager, no controls on the owner row; a newcomer sees the sign-in code, the owner adds them, they get in; a manager sees no owner controls; a rep signs in with the e-mail code from the local mail catcher and is told to wait for approval). New CI job `e2e-stack` starts the local stack with Auth, PostgREST, the gateway and the mail catcher, passes only the public URL and anon key on, seeds, builds and runs those tests.
 **Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm service-role:scan`: OK, 42 files; the CI file parses as YAML; `pnpm -C apps/web test:e2e`: 4 passed (existing rep login tests, production build with the new pages); `pnpm activity:check main HEAD` OK. NOT RUN: `e2e-stack` (needs Docker, which this machine lacks; runs in CI after a push MJ approves) and the seed script (it needs GoTrue's auth schema). Office pages were not opened in a browser here (they need a signed-in TOTP session).
 **Rules touched:** H-14, H-15, H-16, H-18, H-23, H-24
 **Next / needs:** MJ: approve pushing this branch and opening a pull request so CI runs `e2e-stack`; then DONE with the CI result, or fixes if it fails.
 
-### L-0214 · 2026-11-01 03:55 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0257 · 2026-11-01 03:55 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** — (slice 2 of the execution map: the rep's working day)    **Claim:** C-014 (widened to slice 2, same areas)
 **What / why:** Built, not yet DONE (real-stack tests run only in CI). `apps/web/app/app/rep-day.tsx`, shown on the rep home once the phone is approved: the rep's territories and areas (`app.my_areas`); check in with a blind morning bag count and browser GPS when allowed (`app.rep_check_in`; the bag variance is computed by the database and shown back); today's route (`app.my_route`) with reason, stage, visited state and up and down reordering (`app.rep_reorder_route`); the due list (`app.due_list`) with an Add to route action (`app.rep_add_stop`); finish the day with the evening count (`app.record_count` daily_close on `app.my_bag_id`) then `app.rep_check_out`. Urdu headings beside English. Every refusal (one open day, daily close before check-out, territory) is the database's message, shown as is. The real-stack rep test now continues: the owner approves the rep's phone on /office/devices, the rep reloads, checks in, sees route and due list, finishes the day and checks out. PR 15 carries it (branch claude/crm-working-check-test-606a4a).
 **Evidence:** `pnpm lint` exit 0; `pnpm typecheck` exit 0. NOT RUN: the e2e-stack job on this commit (CI after push); no local browser run of /app (it needs a real session).
 **Rules touched:** H-09, H-14, H-23, H-24
 **Next / needs:** CI result on PR 15; then slice 3 (salons).
 
-### L-0215 · 2026-11-01 07:43 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0258 · 2026-11-01 07:43 PKT · Claude · Opus 5.5 · session cowork-01Y3chvu · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** P0-09 (agent instructions in AGENTS.md and CLAUDE.md)    **Claim:** —
-**What / why:** MJ asked, in chat on 2026-11-01, to check the repository against his revised master execution prompt and to put it into CLAUDE.md and AGENTS.md. Done: the full prompt is saved verbatim as `docs/audit-2026-10-31/master-prompt-2026-11-01.md` (with a short header saying the execution map was built from an earlier version whose section numbers differ), and both CLAUDE.md and AGENTS.md gain the same new closing section, "Master execution prompt: standing rules", which summarises the standing rules and points to that file and the execution map. The Appendix A block at the top of both files is unchanged, and the two files stay byte-identical. No claim row was taken: C-014 holds this branch and is active (files changed at 07:34 PKT), and this entry touches none of its code areas; only these two root files, the new doc and this log. The other session's uncommitted changes (`apps/web/app/app/page.tsx`, `apps/web/app/app/day/`, `apps/web/e2e-stack/office.spec.ts`, `scripts/e2e-stack-seed.mjs`) were left exactly as they were. Check of the prompt against the log, for the record: its priority 0 (update_salon partial edit, L-0208 checklist, P1-02 plain-text cell) is done in commit 1e63ad9; priority 1 (B-18) is RESOLVED in L-0210, but migration 0014 is not applied to staging (not merged); priority 2 (execution map) exists; priorities 3 and 4 (slice 1 and the e2e-stack CI job) are built (L-0213, commit f69bae4) but not DONE, because the e2e-stack job result on PR 15 is not recorded in this log.
+**What / why:** MJ asked, in chat on 2026-11-01, to check the repository against his revised master execution prompt and to put it into CLAUDE.md and AGENTS.md. Done: the full prompt is saved verbatim as `docs/audit-2026-10-31/master-prompt-2026-11-01.md` (with a short header saying the execution map was built from an earlier version whose section numbers differ), and both CLAUDE.md and AGENTS.md gain the same new closing section, "Master execution prompt: standing rules", which summarises the standing rules and points to that file and the execution map. The Appendix A block at the top of both files is unchanged, and the two files stay byte-identical. No claim row was taken: C-014 holds this branch and is active (files changed at 07:34 PKT), and this entry touches none of its code areas; only these two root files, the new doc and this log. The other session's uncommitted changes (`apps/web/app/app/page.tsx`, `apps/web/app/app/day/`, `apps/web/e2e-stack/office.spec.ts`, `scripts/e2e-stack-seed.mjs`) were left exactly as they were. Check of the prompt against the log, for the record: its priority 0 (update_salon partial edit, L-0251 checklist, P1-02 plain-text cell) is done in commit 1e63ad9; priority 1 (B-18) is RESOLVED in L-0253, but migration 0014 is not applied to staging (not merged); priority 2 (execution map) exists; priorities 3 and 4 (slice 1 and the e2e-stack CI job) are built (L-0256, commit f69bae4) but not DONE, because the e2e-stack job result on PR 15 is not recorded in this log.
 **Evidence:** `cmp CLAUDE.md AGENTS.md`: identical, 69 lines each; `node scripts/activity-log-check.mjs main HEAD` before this entry: OK (69 new log entries, 65 changed files); after it: see the next run. Not committed and not pushed (no approval for that in this session). PR 15's CI result not read: GitHub access from this session was refused.
 **Rules touched:** section 3, section 4, H-23, H-24, H-25
 **Next / needs:** MJ: commit these three files with the next commit on this branch; the C-014 session continues slice 3.
 
-### L-0216 · 2026-11-01 08:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0259 · 2026-11-01 08:10 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** — (merge of main into PR 15)    **Claim:** C-014
-**What / why:** Merged main at 711f741 (PR 16, agent compliance kit, entries L-0186 to L-0195) into this branch. This branch's own entries, first written as L-0186 to L-0205, follow main's and are renumbered L-0196 to L-0215 (a39a49a did the same); every reference inside them moved with them, except the two phrases that name PR 14's range. Table rows this branch changed (claims C-001, C-011 to C-014, blocker B-18 resolved and B-31 added, board P1-02) are carried over on top of main's tables. PR 14 still holds L-0186 to L-0195 and needs the same treatment when it merges.
+**What / why:** Merged main at 711f741 (PR 16, agent compliance kit, entries L-0186 to L-0195) into this branch. This branch's own entries, first written as L-0186 to L-0248, follow main's and are renumbered L-0239 to L-0258 (a39a49a did the same); every reference inside them moved with them, except the two phrases that name PR 14's range. Table rows this branch changed (claims C-001, C-011 to C-014, blocker B-18 resolved and B-31 added, board P1-02) are carried over on top of main's tables. PR 14 still holds L-0186 to L-0195 and needs the same treatment when it merges.
 **Evidence:** `node scripts/activity-log-check.mjs main HEAD` after the merge (see the merge commit); `pnpm agent:preflight` from the merged kit.
 **Rules touched:** section 4
 **Next / needs:** CI on PR 15.
 
-### L-0217 · 2026-11-01 09:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
+### L-0260 · 2026-11-01 09:40 PKT · Claude · Claude Code · session crm-working-check-test · branch claude/crm-working-check-test-606a4a · PROGRESS
 **Task:** — (slice 3 of the execution map: salons, rep side; plus the SessionStart hook)    **Claim:** C-014 (widened to slice 3, same areas)
 **What / why:** Rep salon screens, all through existing app.* functions (no migration): `/app/salons` (app.my_salons, own territories, 50 a page with Show more, phones masked, a filter over the loaded page), `/app/salons/new` (app.create_salon; the id is made once so a retry is the same salon; the pin is the phone's GPS when given, never guessed; source map_pin with a pin, manual without), `/app/salons/[id]` (header, contact with Show number through app.reveal_phone, record a visit through app.log_visit with GPS required as PIP-02 says, notes through app.salon_notes and app.add_salon_note, visits, stage history, park with a reason through app.rep_park_salon); route stops link to the salon. The real-stack rep test now also covers J2: the office gives the rep a territory and area, the rep adds a salon, sees stage prospect and its stage history, adds a note, and finds the salon in the list after a reload. Also, at MJ's request, the PR 16 SessionStart hook is installed in the K checkout (`.claude/settings.json`, untracked there); run by hand it prints the preflight and exits 0, and `node scripts/agent-preflight.test.mjs` passes. That checkout is on feat/p0-foundation, which lacks `scripts/agent-preflight.mjs`, so the hook reports a missing file there until it moves to main. Office salon screens (list, history, overrides) and the map are still to do in this slice.
 **Evidence:** `pnpm lint` exit 0; `pnpm -C apps/web typecheck` exit 0; `pnpm -C apps/web test:e2e` 4 passed (production build with the new pages). NOT RUN: e2e-stack on this commit (CI). The previous CI run (head 30a0eb8) passed every job except e2e-stack, whose owner sign-in was refused; the seed fix 6bc1288 (empty token columns) awaits its CI run.
 **Rules touched:** H-14, H-23, H-24
 **Next / needs:** CI on PR 15; then office salon screens.
+
+### L-0261 · 2026-11-02 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · SESSION-START
+**Task:** — (merge of main at 0603825 into PR 15; then the office login fix)    **Claim:** C-014 (continued)
+**What / why:** MJ's Phase 1 continuation directive. Merged origin/main (0603825, PRs 36 to 40) into this branch. Only `docs/ACTIVITY.md` conflicted. Main's entries L-0196 to L-0238 stay as they are; this branch's entries, first written as L-0196 to L-0217, are renumbered L-0239 to L-0260, and the references to them in the claims, blockers and status rows are shifted the same way (same procedure as L-0259, then L-0216). Text of the entries is otherwise unchanged. Migration timestamps do not collide (last on main: 20261101100000).
+**Evidence:** `pnpm activity:check origin/main HEAD`: OK (22 new log entries, 52 changed files).
+**Rules touched:** section 4, H-23, H-24
+**Next / needs:** fix `email_provider_disabled` in `supabase/config.toml` and prove it on the local stack.
 
 ---
 
