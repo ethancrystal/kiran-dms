@@ -2,7 +2,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { rpc } from "@/lib/rpc";
-import { findSalon, label, position, type Salon, VISIT_OUTCOMES } from "@/lib/salons";
+import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
 
 type Note = { id: string; author_id: string; body: string; created_at: string };
 type Visit = {
@@ -21,16 +21,23 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 // PIP-02 visits, MAP-03 notes, doc 06 §4 phone reveal, B-28 parking). Every list and action is
 // an app.* function that checks the rep's territory again; a refusal is shown as the database
 // words it.
-export default function SalonDetail({ params }: { params: Promise<{ id: string }> }) {
+export default function SalonPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string }>;
+}) {
   const { id } = use(params);
-  const [salon, setSalon] = useState<Salon | null>(null);
+  const { saved } = use(searchParams);
+  const [salon, setSalon] = useState<SalonDetail | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [phone, setPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(saved ? "Salon updated." : null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -88,6 +95,11 @@ export default function SalonDetail({ params }: { params: Promise<{ id: string }
       <h1>{salon.name ?? "Unnamed salon"}</h1>
       <p className="muted">
         {salon.area_name} · {label(salon.type)} · <span className="badge">{label(salon.stage)}</span>
+      </p>
+      <p>
+        {salon.address ?? <span className="muted">No address.</span>}
+        {salon.chairs !== null && <span className="muted"> · {salon.chairs} chairs</span>}{" "}
+        <a href={`/app/salons/${id}/edit`}>Edit</a>
       </p>
       {error && (
         <p className="error" role="alert">

@@ -45,17 +45,13 @@ export function salonPage(after?: Salon) {
   return rpc<Salon[]>("my_salons", { p_after_name: after?.name ?? null, p_after_id: after?.id ?? null, p_limit: 50 });
 }
 
-/** Finds one of the rep's salons by paging app.my_salons (there is no wider read path for reps, H-14). */
-export async function findSalon(id: string): Promise<Salon | null> {
-  let after: Salon | undefined;
-  for (let i = 0; i < 40; i++) {
-    const page = await salonPage(after);
-    const hit = page.find((s) => s.id === id);
-    if (hit) return hit;
-    if (page.length < 50) return null;
-    after = page[page.length - 1];
-  }
-  return null;
+/** One salon with the fields the edit form needs, as returned by app.my_salon (migration 0016). */
+export type SalonDetail = Salon & { address: string | null; chairs: number | null };
+
+/** One of the rep's own salons (app.my_salon: same territory scope as app.my_salons, phone masked), or null. */
+export async function findSalon(id: string): Promise<SalonDetail | null> {
+  const rows = await rpc<SalonDetail[]>("my_salon", { p_id: id });
+  return rows?.[0] ?? null;
 }
 
 /** Browser GPS, or null when the phone refuses or has no fix. */

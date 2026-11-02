@@ -274,6 +274,27 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.goto("/app/salons");
   await expect(page.getByRole("link", { name: salonName })).toBeVisible();
 
+  // SAL-01 edit (slice 3): the form starts from the database's values; the saved values come back
+  // from the database after a reload; the note and stage history are untouched.
+  await page.getByRole("link", { name: salonName }).click();
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.waitForURL(/\/edit$/);
+  await expect(page.getByLabel("Salon name")).toHaveValue(salonName);
+  await page.getByLabel("Address").fill("[Test] 7 Fake Market Road");
+  await page.getByLabel("Chairs").fill("4");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.waitForURL(/\/app\/salons\/[0-9a-f-]{36}\?saved=1$/);
+  await expect(page.getByText("Salon updated.")).toBeVisible();
+  await page.goto(page.url().replace("?saved=1", ""));
+  await expect(page.getByText("[Test] 7 Fake Market Road")).toBeVisible();
+  await expect(page.getByText("4 chairs")).toBeVisible();
+  await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();
+  // A recorded field cannot be emptied (null keeps the old value in app.update_salon).
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Address").fill("");
+  await expect(page.getByText(/cannot be emptied/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
+
   await page.goto("/app/day");
   await page.getByRole("button", { name: /Finish the day/ }).click();
   await page.getByRole("button", { name: "Save count and check out" }).click();
