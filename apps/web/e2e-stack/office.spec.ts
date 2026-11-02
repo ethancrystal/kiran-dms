@@ -64,7 +64,39 @@ async function newPage(browser: Browser) {
   return ctx.newPage();
 }
 
+const HTTP_OK = 200;
+const HTTP_UNPROCESSABLE = 422;
+
 test.describe.configure({ mode: "serial" });
+
+// Auth provider guard. Two independent GoTrue switches, both pinned here against the real stack:
+// the email provider must be ON (else every sign-in is 422 email_provider_disabled, seen on
+// a05d771) and self-signup must stay OFF (an address the owner has not created is refused).
+test("auth provider guard: the owner's password grant works and self-signup is refused", async () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  expect(url, "NEXT_PUBLIC_SUPABASE_URL must point at the local stack").toBeTruthy();
+  const headers = { apikey: key ?? "", "content-type": "application/json" };
+
+  const grant = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email: owner.email, password: seed.password }),
+  });
+  const granted = (await grant.json()) as { access_token?: string; error_code?: string; code?: string };
+  expect(granted.error_code ?? granted.code, "email provider must be enabled").not.toBe("email_provider_disabled");
+  expect(grant.status).toBe(HTTP_OK);
+  expect(granted.access_token).toBeTruthy();
+
+  const signup = await fetch(`${url}/auth/v1/signup`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email: `self-signup-${Date.now()}@example.test`, password: "Self-signup-attempt-1!" }),
+  });
+  const refused = (await signup.json()) as { error_code?: string; code?: string };
+  expect(signup.status).toBe(HTTP_UNPROCESSABLE);
+  expect(refused.error_code ?? refused.code).toBe("signup_disabled");
+});
 
 test("owner signs in with password and TOTP and sees the office overview", async ({ page }) => {
   await officeSignIn(page, owner);

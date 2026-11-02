@@ -3599,12 +3599,19 @@ Not decided here: what the helper checks at use and who may use an approval (KIR
 **Rules touched:** H-14, H-23, H-24
 **Next / needs:** CI on PR 15; then office salon screens.
 
-### L-0261 · 2026-11-02 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · SESSION-START
+### L-0261 · 2026-11-02 09:00 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · SESSION-START
 **Task:** — (merge of main at 0603825 into PR 15; then the office login fix)    **Claim:** C-014 (continued)
 **What / why:** MJ's Phase 1 continuation directive. Merged origin/main (0603825, PRs 36 to 40) into this branch. Only `docs/ACTIVITY.md` conflicted. Main's entries L-0196 to L-0238 stay as they are; this branch's entries, first written as L-0196 to L-0217, are renumbered L-0239 to L-0260, and the references to them in the claims, blockers and status rows are shifted the same way (same procedure as L-0259, then L-0216). Text of the entries is otherwise unchanged. Migration timestamps do not collide (last on main: 20261101100000).
 **Evidence:** `pnpm activity:check origin/main HEAD`: OK (22 new log entries, 52 changed files).
 **Rules touched:** section 4, H-23, H-24
 **Next / needs:** fix `email_provider_disabled` in `supabase/config.toml` and prove it on the local stack.
+
+### L-0262 · 2026-11-02 09:30 PKT · Claude · Sonnet 5.5 · session crm-continuation-d90285e3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (slice 1: office login, CI failure `email_provider_disabled` on a05d771)    **Claim:** C-014
+**What / why:** Root cause: `supabase/config.toml` had `[auth.email] enable_signup = false`. In the Supabase CLI that key is the email provider switch (GoTrue EXTERNAL_EMAIL_ENABLED), not a self-signup switch, so every email sign-in was refused with 422 `email_provider_disabled`. The self-signup switch is the separate `[auth] enable_signup` (GoTrue DISABLE_SIGNUP), which stays false. Change: `[auth.email] enable_signup = true` only, with a comment. New first test in `apps/web/e2e-stack/office.spec.ts`: the seeded owner's password grant must return 200 (not `email_provider_disabled`) and `POST /auth/v1/signup` for an unknown address must return 422 `signup_disabled`. MFA, AAL2, device checks and owner-only account creation are untouched.
+**Evidence:** `pnpm lint` exit 0 (33 warnings, 42 infos, no errors); `pnpm typecheck` exit 0. NOT RUN: the local Supabase stack and the eight office tests (no Docker on this host); that proof is the `e2e-stack` CI job on the pushed commit. Expected GoTrue behaviour is from the CLI config mapping, not yet observed.
+**Rules touched:** H-14, H-15, H-23, H-24
+**Next / needs:** push the branch (MJ approval for the push has not been given in this session) and read the e2e-stack result; if the Auth response differs, fix from the actual response.
 
 ---
 
