@@ -82,9 +82,13 @@ export default function Territories() {
                 <h2 id={`t-${t.id}`}>
                   {t.name} {!t.active && <span className="badge suspended">inactive</span>}
                 </h2>
+                {t.active && tReps.length > 0 && (
+                  <span className="muted">End its rep assignments first to make it inactive.</span>
+                )}
                 <button
                   type="button"
                   className="inline link"
+                  disabled={t.active && tReps.length > 0}
                   onClick={async () => {
                     try {
                       await rpc("office_upsert_territory", { p_id: t.id, p_name: t.name, p_active: !t.active });

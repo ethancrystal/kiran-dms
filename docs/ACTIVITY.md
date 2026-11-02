@@ -359,6 +359,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-022 | Wayfinder KIR-7 (approval mechanism) | 2026-11-02 07:46 | done | L-0237 |
 | C-023 | — (verification of execution-map slices 1 to 3) | 2026-11-02 18:07 | done | L-0277 |
 | C-014 | — (execution-map slices 1 to 3) | 2026-11-02 18:25 | done | L-0283 |
+| C-024 | — (B-33 decisions, slices 1 and 3) | 2026-11-02 20:12 | done | L-0287 |
 
 ---
 
@@ -400,7 +401,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-30 | Must a salon created from the map have a pin (lat and lng)? Doc 04 said so; the database does not enforce it, and the offline quick add (PIP-07) may lack GPS (L-0182) | A database check | Not required | MJ | PENDING |
 | B-31 | Audit questions that need MJ (L-0245): (a) may a rep move a salon's pin (`update_salon` lets a rep set lat and lng, which the visit and delivery distance checks measure against)? (b) may a rep reveal every phone in their territory, or is there a daily cap on `reveal_phone` (today logged only)? (c) a rep working past midnight Karachi time loses the open day: allow checkout and visits until the office closes it, or keep? (d) one invoice per delivery, so a part-delivered order has several: keep, or one per order? (e) `delivery_mode` is stored but ignored by `rep_deliver` and `office_deliver`: what should bag_now and warehouse change? (f) should `low_stock` count the warehouse only, not bags? (g) how is an independent agent represented (`app_role` has no agent value; AGT-01 to AGT-06)? | AGT-01 to 06; the matching fixes | Keep the code as built; defect 1 of L-0245 (partial `update_salon` erases the pin) is a code defect and needs no decision | MJ | PENDING |
 | B-32 | Verifier finding (L-0274, L-0275): `app.create_salon` hands its creator the salon's current row on a replay of the id after the creator lost the territory (scope checked after the replay key). Code defect, low; kept as an `it.fails` DEFECT CHECK in `supabase/tests/verify-slices-1-3.test.ts` | Slice 3 VERIFIED | Leave as is until a builder fixes it | builder | RESOLVED (L-0279: migration 0017) |
-| B-33 | Verifier questions (L-0275): (a) should an inactive territory stop giving its assigned rep the salons (today my_salons, my_salon, reveal_phone, notes and due_list still work)? (b) may the office assign a rep to an inactive territory (database allows, page hides)? (c) is offboarding final (database lets the owner set an offboarded person active; page says "for good")? (d) should `update_salon` keep a recorded address when given an empty string, as it keeps an empty name? | Slices 1 and 3 VERIFIED | Keep the code as built | MJ | PENDING |
+| B-33 | Verifier questions (L-0275): (a) should an inactive territory stop giving its assigned rep the salons (today my_salons, my_salon, reveal_phone, notes and due_list still work)? (b) may the office assign a rep to an inactive territory (database allows, page hides)? (c) is offboarding final (database lets the owner set an offboarded person active; page says "for good")? (d) should `update_salon` keep a recorded address when given an empty string, as it keeps an empty name? | Slices 1 and 3 VERIFIED | Keep the code as built | MJ | RESOLVED (L-0284: a refuse until ended, b refuse, c final, d keep) |
 
 ---
 
@@ -3797,6 +3798,44 @@ Frontend review (code read, not run in a browser here): every button calls an ap
 **Evidence:** run 41451859391 on 56dd794 green in all six jobs; `pnpm activity:check origin/main` OK before the commit.
 **Rules touched:** section 11
 **Next / needs:** MJ: merge PR 15; B-33; B-31 (a), (c), (d), (e).
+
+### L-0284 · 2026-11-02 19:45 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DECISION
+**Task:** — (B-33, verifier questions L-0275)    **Claim:** C-024
+**What / why:** MJ answered B-33 in chat on 2026-11-02, choosing one option per question from a structured prompt (the options came from the verifier's decision note): (a) "Refuse until ended": the database refuses to make a territory inactive while any rep assignment to it is open; the office ends each assignment first, with its recorded reason. (b) "Database refuses": `app.office_assign_territory` refuses an inactive territory. (c) "Final": the database refuses any status change away from offboarded; a rehired person gets a new account (SEC-08). (d) "Keep old value": an empty or blank address given to `app.update_salon` keeps the recorded address, as an empty name already does. B-33 set RESOLVED. These change no fixed decision, threshold or permission matrix; they make the database enforce rules the pages already showed (a, b, c) or close an erasure path (d).
+**Rules touched:** H-07, H-16, H-26, section 9
+**Next / needs:** L-0285.
+
+### L-0285 · 2026-11-02 19:45 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · CLAIM
+**Task:** — (B-33 decisions in the database, slices 1 and 3)    **Claim:** C-024
+**What / why:** Build L-0284 as migration 0018 (replacing `app.office_upsert_territory`, `app.office_assign_territory`, `app.owner_set_status`, `app.update_salon` with the same signatures), tests in a new file `supabase/tests/b33-decisions.test.ts`, and the team and territories pages where they offer what the database now refuses. No other area. The verifier session (verifier-slices-1-3) is stopped and holds no claim.
+**Rules touched:** section 3
+**Next / needs:** build, then PROGRESS with evidence.
+
+### L-0286 · 2026-11-02 20:12 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · DONE
+**Task:** — (B-33 decisions, L-0284; slices 1 and 3)    **Claim:** C-024
+**What / why:** Migration 0018 replaces four functions with the same signatures (grants kept): `app.office_upsert_territory` refuses `active = false` while a rep assignment to the territory is open (22023, "end every rep assignment ... before making it inactive"); `app.office_assign_territory` refuses an inactive territory (22023); `app.owner_set_status` refuses any status other than offboarded for an offboarded person (22023, "offboarding is final"), and offboarding again stays a harmless replay; `app.update_salon` keeps the recorded address for an empty or blank one (stored addresses are now trimmed). Page: "Make inactive" is disabled while reps are assigned, with the reason beside it (before, a refusal set the page error, which hid the whole territory list); the team page already offered nothing for an offboarded person.
+**Security checklist:**
+- [x] As MJ decided in L-0284
+- [x] Migration forward-only, applies on top of 0017 (local suites below) and to a fresh database (CI)
+- [x] No new table
+- [x] Append-only tables untouched
+- [x] SECURITY DEFINER functions, pinned search_path, same role checks as before
+- [x] Audit: the existing triggers record each change
+- [x] No vault surface
+- [ ] Offline: not applicable (office functions)
+- [x] No money arithmetic
+- [x] Lint, typecheck, suites pass locally; CI after push
+- [x] Docs: B-33 resolved in section 14; no other doc describes the old behaviour
+- [x] Diff read: synthetic `[Test]` data only
+**Evidence:** new `supabase/tests/b33-decisions.test.ts` without migration 0018: 4 failed, 1 passed (the suspended-to-active control), so the tests see the old behaviour; with it: `pnpm db:test b33-decisions verify-slices-1-3 salons.test foundation crm-attacks verifier-attacks reverify` 17 files, 312 passed, 6 expected fail. `pnpm typecheck` exit 0; `pnpm lint` 89 files, no errors (33 warnings, 42 infos).
+**Rules touched:** H-07, H-08, H-15, H-16, H-23, H-26
+**Next / needs:** L-0287.
+
+### L-0287 · 2026-11-02 20:12 PKT · Claude · Opus 5.5 · session 850c6865 · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** — (B-33 decisions)    **Claim:** C-024
+**What / why:** C-024 released (done), moved to the released table. CI result for this commit follows in the next entry or the PR checks.
+**Rules touched:** section 3
+**Next / needs:** CI; MJ: merge PR 15, B-31 (a), (c), (d), (e); a fresh verifier re-runs slices 1 to 3 including `b33-decisions.test.ts`.
 
 ---
 
