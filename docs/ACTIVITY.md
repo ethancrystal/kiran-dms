@@ -332,7 +332,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-018 | ChatGPT GPT-6 session gpt6-business-domain-20261102 branch docs/business-domain-expansion | PLAN-03 | — | docs/14-unified-business-domain-prompt.md, docs/diagrams/business-domain.mmd, docs/00-README.md, docs/12-decisions-and-open-questions.md, SPEC.md, AGENTS.md, CLAUDE.md, docs/ACTIVITY.md | 2026-11-02 02:22 | 2026-11-02 03:30 | 2026-11-02 02:41 (L-0211) |
 | C-001 | Claude · Opus 5.5 · session ee095e06 · branch feat/p0-foundation (K repo) (started as Fable 5.1) | P0-02, P0-04, P0-05 (open); P0-09 (DONE self-reported, awaiting re-verification); P1-01 VERIFIED (L-0061) | SEC-02, SEC-03, SEC-04; NFR-12; doc 05 | `scripts/` (activity-log-check, staging-smoke), `supabase/migrations/`, `supabase/tests/` (own files only; reverify5 anchor per L-0110 and L-0118; reverify10 graphql_public case per L-0125), `apps/web/`, `docs/gate-0-checklist.md`, `docs/test-report-2026-10-25.md`, `packages/import/`, `docs/runbooks/`, `.github/workflows/ci.yml`, `.gitignore` | 2026-10-25 02:57 | after B-18 and the owner account exist | 2026-10-28 21:15 (L-0126) |
 
 **Released / expired claims** (kept for history; never deleted):
@@ -351,6 +350,8 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-016 | P1-06 (part c, invoice document data) | 2026-11-01 10:49 | done | L-0200 |
 | C-017 | P1-06 (part c, plan template validation) | 2026-11-01 12:07 | done | L-0207 |
 | C-019 | governance docs (agent skills setup, Wayfinder planning) | 2026-11-02 02:45 | done | L-0219 |
+| C-018 | PLAN-03 | 2026-11-02 03:15 | done | L-0223 |
+| C-020 | P0-06, P0-02, P0-09 (re-verification round 11 reconciled) | 2026-11-02 03:27 | done | L-0227 |
 
 ---
 
@@ -3274,6 +3275,93 @@ Security checklist (tick honestly):
 **Evidence:** `git log`: this branch's parent is c088fad, whose parent is origin/main 1a1c51a. `pnpm agent:preflight`, `node scripts/activity-log-check.mjs origin/main`, `pnpm lint` and `cmp CLAUDE.md AGENTS.md` results are in the commit that holds this entry.
 **Rules touched:** section 3, section 4
 **Next / needs:** MJ: push and review docs/business-domain-expansion first, then this branch (it depends on it); work KIR-6.
+
+### L-0222 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · SESSION-START
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020 (L-0224)
+**What / why:** Checklist: (1) read docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 1 to 15, the last 20 entries and Appendices A to C (same session as L-0212 to L-0221); (2) status board and blockers read; (3) active claims: C-001 (stale since L-0126, its areas include supabase/tests/ and packages/import/ but only its own files, per its row) and C-018 (ChatGPT, PLAN-03, handed off in L-0211 but never released; released next at MJ's instruction); (4) task is MJ's instruction in chat on 2026-11-02, "start the L-0127 reconciliation", after MJ asked that the useful work of the unmerged re-verifier-11 entry be reconciled with main through a fresh branch, a newly numbered correction entry with complete evidence and properly structured regression tests; (5) branch claude/reverify11-reconcile cut from a88374b (the head of PR 37, which contains PR 36), because main ends at L-0208 and a branch from main would reuse L-0209 a third time; no pull request is opened until PR 36 and PR 37 are merged; worktree clean, `pnpm agent:preflight` OK; (6) local only.
+**Evidence:** `pnpm install --frozen-lockfile` done; `pnpm agent:preflight`: PREFLIGHT OK. Baseline lint, typecheck and test results are in L-0226.
+**Rules touched:** section 2, section 7
+**Next / needs:** L-0223.
+
+### L-0223 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CLAIM-RELEASED
+**Task:** PLAN-03    **Claim:** C-018
+**What / why:** C-018 (ChatGPT, GPT-6, session gpt6-business-domain-20261102, PLAN-03) released at MJ's instruction: MJ asked in chat on 2026-11-02 that the new session "release C-018" after its SESSION-START, because that session ended with its HANDOFF (L-0211) without a CLAIM-RELEASED entry. The row moved to the released table. PLAN-03's own state is unchanged (IN PROGRESS on the board, PR 36).
+**Rules touched:** section 3
+**Next / needs:** L-0224.
+
+### L-0224 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CLAIM
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020
+**What / why:** Verifier work only (section 7): carry the findings of the re-verifier-11 entry onto the current history as a new CORRECTION entry with complete evidence, plus regression tests. The original entry exists only in local commit a2b1105 on branch feat/p0-foundation, numbered L-0127, a number main already uses for another entry; it is not edited, reused or pushed (MJ: do not push feat/p0-foundation as it stands). Areas: two new test files, `supabase/tests/reverify11-attacks.test.ts` and `packages/import/tests/reverify11-import.test.ts`, and this file. Not touched: the code under test (P0-06 harness files, `scripts/activity-log-check.mjs`, `packages/import/src`), the board rows, migrations, apps. This session wrote none of P0-02, P0-06 or P0-09 (maker and checker stay different, section 7).
+**Rules touched:** section 3, section 7, H-23
+**Next / needs:** L-0225.
+
+### L-0225 · 2026-11-02 03:15 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · DECISION
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020
+**What / why:** MJ decided in chat on 2026-11-02 how the round-11 defect checks enter main: as expected-failure tests. MJ's message reads "My decision: use `it.fails`" (Vitest 4.1.12), with two safeguards: "Each expected-failure test should have one decisive assertion for its specific defect. Do not allow a database setup error or unrelated exception to count as successful reproduction." and "Keep the control tests as ordinary `it(...)` tests"; and "When a builder fixes a defect, changing `it.fails` to `it` must happen in the same PR as the fix." MJ then said "start the L-0127 reconciliation". This departs from rounds 1 to 10, whose defect checks were committed failing outright (L-0117); without it the checks could not reach main, whose required CI checks must pass. It does not loosen a check: an expected-failure test turns red the moment its defect is fixed, which forces the builder to turn it into an ordinary test in the fix's pull request. Each defect check is paired with an ordinary REPRODUCTION test that fails if the attack scenario itself did not run, so a setup error cannot pass as a reproduced defect.
+**Rules touched:** H-23, section 7
+**Next / needs:** write the two test files.
+
+### L-0226 · 2026-11-02 03:27 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CORRECTION
+**Task:** P0-06, P0-02, P0-09    **Claim:** C-020
+**What / why:**
+P0-06: NOT VERIFIED
+P0-02: NOT VERIFIED
+P0-09: NOT VERIFIED
+
+Independent section 7 re-verification, round 11, carried onto the current history. The original entry exists only in local commit a2b1105 on branch feat/p0-foundation (K repo), where it is numbered L-0127 and was written by the re-verifier-11 workflow against b61494f. Main uses L-0127 for a different entry, so that entry could not be merged; it is cited here as the historical source and was not edited, reused or pushed (MJ: do not push feat/p0-foundation as it stands). I did not write any of P0-02, P0-06 or P0-09 (L-0222 to L-0225). This entry corrects the verdicts the log currently gives for P0-06 (L-0119), P0-02 (L-0120) and P0-09 (L-0121 and L-0188) the same way the original did, and it carries all 13 findings, because every one was re-run on main and every one is still reproducible. None of the three tasks is VERIFIED, so no board row moves (section 7 reopens only VERIFIED work): P0-02 and P0-06 stay IN PROGRESS and P0-09 stays DONE (self-reported).
+
+Findings, all STILL REPRODUCIBLE on origin/main 1a1c51a and on this branch (the code under test has not changed since b61494f: scripts/activity-log-check.mjs, supabase/tests/schema-hygiene.test.ts and packages/import/src are identical; rls-matrix.test.ts only gained table rows and its UPDATE probe, which sets the write column to itself, is unchanged):
+- P0-06 D1 (workflow id V11-D2; H-08, H-13; latent). A column-level UPDATE grant on another column plus a permissive UPDATE policy lets repA write public.app_config directly while the matrix and guards stay green.
+- P0-06 D2 (workflow id V11-D3; H-13; latent). No matrix cell or guard checks TRUNCATE privilege; a TRUNCATE grant lets repA empty a table with no row-level audit. Whether AUDIT_GAPS should require a TRUNCATE trigger is B-17 (MJ).
+- P0-02 D1 (H-25; major per the original). Phone headings with no space before a digit or No (Mobile1, Mobile2, Phone2, PhoneNo, MobileNo, Cell1) are ignored and the run says CLEAN.
+- P0-02 D2 (H-25; minor). Zero-width characters in an area or a name pass the empty and length checks; the run says CLEAN.
+- P0-02 D3 (H-03, H-25; minor). exceljs prints a salon-named hidden tab name on the console or in the thrown error (over 31 characters, a slash, or a duplicate); exit 2.
+- P0-02 D4 (H-03, H-25; note). A tab named after a phone number written in groups is printed in full on the Sheet read line.
+- P0-02 D5 (H-25; note). A duplicate cell address lets an uncalculated formula read as empty and the run says CLEAN.
+- P0-02 O1 (observation). A quote closed by an inch mark on a later line swallows the rows between: CLEAN, 3 of 6 rows read.
+- P0-02 O2 (observation). A UTF-16LE text export fails closed (exit 1) but the message does not name UTF-16.
+- P0-09 D1 (workflow id A7; H-25 against section 7; major per the original, arguable). A new DONE entry for a task whose row already reads VERIFIED (P1-01, P0-08) is accepted; rule 4b runs only on a changed Status cell.
+- P0-09 D2 (workflow id A1; H-25; major per the original, arguable). A duplicate Status header hides a bare VERIFIED in the second Status column.
+- P0-09 D3 (workflow id A2; H-25; minor). Two backslash characters before a pipe shift the checker's cells and hide a bare VERIFIED.
+- P0-09 FP1 (H-25; minor, false positive). A URI connection string whose password is a variable reference is refused by rule 5 on both passes.
+
+Test structure (MJ decision, L-0225): the original failing-by-design checks are replaced by supabase/tests/reverify11-attacks.test.ts and packages/import/tests/reverify11-import.test.ts. Each defect is an ordinary REPRODUCTION test (proves the scenario ran) plus a DEFECT CHECK or FALSE POSITIVE CHECK marked as an expected failure with one decisive assertion; CONTROL and OBSERVATION tests are ordinary. When a builder fixes a defect its expected-failure test starts passing, which Vitest reports as a failure until the marker is changed from the expected-failure form to a normal test, in the same pull request as the fix.
+
+**Evidence:** All runs local, with DATABASE_URL and KIRAN_TEST_DATABASE_URL removed from the environment so only the embedded Postgres was used. No staging, production, Supabase project, GitHub write or network service was contacted by the tests.
+1. Re-check on origin/main 1a1c51a by a read-only subagent in a detached throwaway checkout, using the original test files from a2b1105 unchanged: in packages/import, "Tests 5 failed | 3 passed (8)"; at the root, "pnpm exec vitest run --config supabase/tests/vitest.config.ts reverify11": "Tests 6 failed | 2 passed (8)", 165 s. The 5 and 6 failures are exactly the defect and false-positive checks; the controls and observations passed. Database row counts were 24 and audit 42 (22 and 40 in the original) because migration 20261101100000_invoice_document.sql added two app_config rows; behaviour is the same. Origin/main has no later verifier round: the last is L-0116, and nothing matches round 11.
+2. This branch, packages/import: "Test Files 1 passed (1)", "Tests 9 passed | 5 expected fail (14)", Vitest 4.1.12, 23.85 s. Logged values: D1 clean {"mobile12":true,"phoneNo":true,"mobileNo":true,"cell1":true}; D2 area and name both clean true, rowsRead 1; D3 exit 2 in all three cases with "error: cannot read slash.xlsx: Worksheet name Test Salon 01 / Gulshan cannot include any of the following characters", "error: cannot read dup.xlsx: Worksheet name already exists: Test Salon 02 khata" and the over-31-characters warning naming the full tab; D4 exit 0 with the Sheet read line showing the grouped, international and dashed forms in full; D5 control clean false (row 3, opening_balance) against duplicate-address clean true with no errors; O1 clean true, rowsRead 3; O2 exit 1, UTF-16 not named.
+3. This branch, database file: "Test Files 1 passed (1)", "Tests 8 passed | 6 expected fail (14)". Logged values: P0-06 D1 before {"vis":0,"audit":42}, after repA's update {"vis":24,"audit":66}, harness caughtBy [] over 11 queries and probes INSERT, UPDATE, DELETE; P0-06 D2 before {"n":24,"audit":42}, after repA's TRUNCATE {"n":0,"audit":42}, caughtBy []; P0-09 D1 both new DONE entries exit 0 "activity-log-check OK (1 new log entry, 1 changed files)."; P0-09 D2 exit 0; P0-09 D3 exit 0; P0-09 FP1 both exit 1 "activity-log-check FAILED:".
+4. `pnpm lint` exit 0 (0 errors, 33 warnings, 42 infos; the same warning count as before the two files were added); `pnpm typecheck` exit 0.
+5. Not run or not measured: the full `pnpm db:test` suite (the host is short of memory; CI runs it on the pull request); the planted cases on the CI Supabase stack; GitHub's own rendering of the P0-09 table cases (only the checker's reading was tested); commit-message scanning (B-22); workbooks saved by Excel, LibreOffice or Google Sheets.
+**Rules touched:** H-03, H-08, H-13, H-16, H-23, H-24, H-25; section 7; Appendix C
+**Next / needs:**
+- Builder (a different agent, section 7), P0-06: fix D1 and D2 (a column-aware UPDATE check and a TRUNCATE check); P0-02: fix D1 to D5 and update the runbook (O1 and O2 optional); P0-09: fix D1 to D3 and FP1 and add the D1 rule to Appendix C rule 4. In each fix's pull request change the matching expected-failure test to a normal test; then a different agent re-verifies.
+- MJ: the severity of P0-02 D1 and P0-09 D1 and D2; whether TRUNCATE audit triggers are wanted (B-17); B-27 remains open.
+
+Security checklist (tick honestly):
+[ ] RLS enabled+forced; policies + role x table tests added/updated (H-13) -- policies hold, but the matrix and guards miss a column-level UPDATE grant and a TRUNCATE grant (P0-06 D1, D2)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) -- no schema change; no direct-write grant or policy exists today
+[x] Audit trigger present; hash chain verifies (H-17) -- unchanged; the TRUNCATE trigger question stays with B-17
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) -- synthetic values only, connection strings assembled at run time; but P0-02 D3 and D4 can print tab names
+[x] Governance powers still owner-only + AAL2 (H-15)
+[ ] No control weakened, skipped or "temporarily" disabled (H-16) -- P0-09 D1 to D3 let a stale or uncited VERIFIED stand; P0-02 D1 and D2 give a wrong CLEAN
+[ ] Docs match code; deviations logged (H-25) -- P0-02 D1 to D5; P0-09 D1 to D3 and FP1
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+### L-0227 · 2026-11-02 03:27 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · CLAIM-RELEASED
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** C-020
+**What / why:** C-020 released (done); the row moved to the released table.
+**Rules touched:** section 3
+**Next / needs:** L-0228.
+
+### L-0228 · 2026-11-02 03:27 PKT · Claude · Opus 5.5 · session 28d8e7f1 · branch claude/reverify11-reconcile · HANDOFF
+**Task:** P0-06, P0-02, P0-09 (reconcile re-verification round 11)    **Claim:** — (C-020 released)
+**What / why:** State: branch claude/reverify11-reconcile, one local commit on a88374b (the head of pull request 37, which contains pull request 36); not pushed, no pull request yet. It holds the CORRECTION L-0226 with all 13 re-run findings and the two new test files; the original L-0127 stays only in local commit a2b1105 on feat/p0-foundation, which must not be pushed. No code under test, board row, migration or app file changed. Next, in order: (1) MJ reviews and merges pull request 36 and then 37 with merge commits (a reviewer other than the author); (2) then rebase this branch onto main (its parents are then already in main, so L-0222 and up still follow main's last entry), push, and open a draft pull request to main; CI should be green with the expected failures; (3) a different agent fixes the 11 defects, one pull request per task if preferred, changing each expected-failure test to a normal test in the same pull request as its fix; (4) a different agent re-verifies. Gotchas: the global DATABASE_URL points at a remote database, so strip it (and KIRAN_TEST_DATABASE_URL) before any test run; the host is short of memory, so run the database tests by file; under Git Bash on Windows `pnpm exec` can report exit status 0 although tests failed, so read the Vitest summary line; the folder .claude/worktrees/reverify11-recheck is left over from a throwaway checkout (git no longer lists it) and needs deleting with a long-path-capable delete; the code-pattern hook on this machine wants magic numbers named and a regex101 link above every regular expression in TypeScript files.
+**Evidence:** see L-0226 items 1 to 5. Immediately before the commit that holds this entry: `pnpm agent:preflight`, `node scripts/activity-log-check.mjs origin/main`, `pnpm lint`, `pnpm typecheck` and `cmp CLAUDE.md AGENTS.md` were run on this tree; their results are in the commit message.
+**Rules touched:** section 11
+**Next / needs:** MJ: merge pull request 36 and 37; a different agent: the builder fixes, then a different agent re-verifies.
 
 ---
 
