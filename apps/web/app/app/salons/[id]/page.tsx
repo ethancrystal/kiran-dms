@@ -21,15 +21,8 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 // PIP-02 visits, MAP-03 notes, doc 06 §4 phone reveal, B-28 parking). Every list and action is
 // an app.* function that checks the rep's territory again; a refusal is shown as the database
 // words it.
-export default function SalonPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string }>;
-}) {
+export default function SalonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { saved } = use(searchParams);
   const [salon, setSalon] = useState<SalonDetail | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -37,7 +30,7 @@ export default function SalonPage({
   const [phone, setPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(saved ? "Salon updated." : null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -260,7 +253,7 @@ function VisitForm({ salonId, onDone }: { salonId: string; onDone: (outcome: str
         ))}
       </select>
       <label htmlFor="vnotes">Notes (optional)</label>
-      <input id="vnotes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
+      <input id="vnotes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
       {error && (
         <p className="error" role="alert">
           {error}

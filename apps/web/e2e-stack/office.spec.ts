@@ -283,9 +283,11 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByLabel("Address").fill("[Test] 7 Fake Market Road");
   await page.getByLabel("Chairs").fill("4");
   await page.getByRole("button", { name: "Save changes" }).click();
-  await page.waitForURL(/\/app\/salons\/[0-9a-f-]{36}\?saved=1$/);
-  await expect(page.getByText("Salon updated.")).toBeVisible();
-  await page.goto(page.url().replace("?saved=1", ""));
+  // The confirmation shows the row app.update_salon returned, then the salon page reloads it.
+  await expect(page.getByText(`Salon updated: ${salonName} · [Test] 7 Fake Market Road · 4 chairs.`)).toBeVisible();
+  await page.getByRole("link", { name: "Back to the salon" }).click();
+  await page.waitForURL(/\/app\/salons\/[0-9a-f-]{36}$/);
+  await page.reload();
   await expect(page.getByText("[Test] 7 Fake Market Road")).toBeVisible();
   await expect(page.getByText("4 chairs")).toBeVisible();
   await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();

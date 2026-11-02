@@ -340,6 +340,10 @@ function CountForm({
 function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One client id per closing, so a retry after a refused check-out replays the same count
+  // instead of recording a second daily close; once saved, the count is not sent again.
+  const [closeId] = useState(() => crypto.randomUUID());
+  const [counted, setCounted] = useState(false);
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)}>
@@ -353,6 +357,7 @@ function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) =
           {error}
         </p>
       )}
+      {counted && <p className="muted">Your evening count is saved; only the check-out is left.</p>}
       <CountForm
         title="Evening bag count"
         help="Count your bag again before you check out (INV-05). The office compares it with your sales."
@@ -362,14 +367,16 @@ function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) =
           setError(null);
           try {
             const bagId = await rpc<string | null>("my_bag_id");
-            if (bagId)
+            if (bagId && !counted) {
               await rpc("record_count", {
-                p_client_id: crypto.randomUUID(),
+                p_client_id: closeId,
                 p_location_id: bagId,
                 p_kind: "daily_close",
                 p_counted: counted,
                 p_counted_at_client: new Date().toISOString(),
               });
+              setCounted(true);
+            }
             await rpc("rep_check_out", { p_at_client: new Date().toISOString() });
             setOpen(false);
             await onDone("Day closed. Thank you.");

@@ -18,6 +18,8 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The row app.update_salon returned: the confirmation shows what the database stored.
+  const [saved, setSaved] = useState<{ name: string | null; address: string | null; chairs: number | null } | null>(null);
 
   useEffect(() => {
     Promise.all([findSalon(id), rpc<AreaRow[]>("my_areas")])
@@ -83,7 +85,7 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
           setBusy(true);
           setError(null);
           try {
-            await rpc("update_salon", {
+            const row = await rpc<{ name: string | null; address: string | null; chairs: number | null }>("update_salon", {
               p_id: id,
               p_name: form.name.trim() || null,
               p_type: form.type,
@@ -93,9 +95,11 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
               p_lng: null,
               p_chairs: form.chairs.trim() === "" ? null : Number(form.chairs),
             });
-            window.location.assign(`/app/salons/${id}?saved=1`);
+            setSaved(row);
+            setSalon((s) => (s ? { ...s, ...row } : s));
           } catch (err) {
             setError((err as Error).message);
+          } finally {
             setBusy(false);
           }
         }}
@@ -149,6 +153,12 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
           {busy ? "Saving…" : "Save changes"}
         </button>
       </form>
+      {saved && (
+        <output className="ok">
+          Salon updated: {saved.name ?? "Unnamed salon"} · {saved.address ?? "no address"}
+          {saved.chairs !== null && ` · ${saved.chairs} chairs`}. <a href={`/app/salons/${id}`}>Back to the salon</a>
+        </output>
+      )}
     </main>
   );
 }

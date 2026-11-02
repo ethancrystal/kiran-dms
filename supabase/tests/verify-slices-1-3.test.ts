@@ -577,10 +577,9 @@ describe("slice 1 and 3: ending an assignment takes the salon away at once, on e
     }
   });
 
-  // it.fails: this check FAILS today (the defect exists), so the suite stays green while it is open;
-  // when app.create_salon re-checks scope on a replay, this starts failing and must become a plain it().
-  // Reported in ACTIVITY (verifier-slices-1-3), same convention as reverify11-attacks.test.ts.
-  it.fails("DEFECT CHECK (slice 3, H-14): replaying its own old create_salon id does not hand the rep the salon's current row", async () => {
+  // Was it.fails while B-32 was open (verifier-slices-1-3, L-0274); migration 0017 fixed it, so
+  // it is a plain it() as this comment's earlier text required (ACTIVITY L-0279).
+  it("DEFECT CHECK (slice 3, H-14): replaying its own old create_salon id does not hand the rep the salon's current row", async () => {
     // The office has since changed the salon; the rep no longer holds the territory.
     await one(MANAGER, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] office-corrected address')", [SA, AA2]);
     // The replay key is (creator, area, type), and the salon now sits in area A2.
