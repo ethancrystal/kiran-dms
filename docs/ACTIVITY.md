@@ -333,7 +333,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-014 | Claude · Opus 5.5 · Claude Code · branch claude/crm-working-check-test-606a4a | — (slices 1 and 2 of the execution map: office shell, rep day) | SEC-02, SEC-03, SEC-04, PIP-01, ADM-01 | `apps/web/app/office/` (layout, devices, team, territories), `apps/web/app/app/` (sign-in code, rep day), `apps/web/lib/`, `apps/web/e2e/` (new specs), `.github/workflows/ci.yml` (new job), `supabase/tests/setup/` read only | 2026-11-01 02:20 | 2026-11-01 | 2026-11-01 (L-0255) |
-| C-023 | Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a | — (verification of execution-map slices 1 to 3) | SEC-02, SEC-03, SEC-04, SEC-08, PIP-01, PIP-02, SAL-01, SAL-05, MAP-02, ADM-01 | `supabase/tests/verify-slices-1-3.test.ts` (new), `docs/ACTIVITY.md` (log) | 2026-11-02 17:11 | 2026-11-02 | 2026-11-02 (L-0275) |
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -359,6 +358,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-020 | P0-06, P0-02, P0-09 (re-verification round 11 reconciled) | 2026-11-02 03:27 | done | L-0227 |
 | C-021 | Wayfinder KIR-6 (record D-08) | 2026-11-02 06:52 | done | L-0232 |
 | C-022 | Wayfinder KIR-7 (approval mechanism) | 2026-11-02 07:46 | done | L-0237 |
+| C-023 | — (verification of execution-map slices 1 to 3) | 2026-11-02 18:07 | done | L-0277 |
 
 ---
 
@@ -3714,6 +3714,26 @@ Frontend review (code read, not run in a browser here): every button calls an ap
 **What / why:** Two rows added to section 14. B-32 (code defect, needs a builder, no decision): `app.create_salon` returns the current salon row to its creator on a replay after the creator lost the territory (reproduction in L-0274); a fix would re-check `rep_can_use_area` (or reach) before returning a replayed row, then turn the `it.fails` check into a plain test. B-33 (behaviour the docs leave open, found by exploration runs on the embedded database): (a) making a territory inactive does not take its salons from the rep still assigned to it: my_salons, my_salon, reveal_phone, add_salon_note and due_list keep working, while my_areas hides it and create_salon refuses it; (b) `app.office_assign_territory` assigns a rep to an inactive territory (only the page hides the form); (c) `app.owner_set_status` sets an offboarded person active again, while the team page says "Offboard for good"; (d) `app.update_salon` with an empty-string address stores it, so a direct call erases a recorded address, while an empty name is kept (the pages never send it). Defaults: keep the code as built (section 1 suggests the restrictive reading for (a), which needs MJ). Not a SECURITY-INCIDENT: no real data exists and each path needs a signed-in, approved user.
 **Rules touched:** section 1, section 9 item 8, H-07, H-14, H-16
 **Next / needs:** MJ: B-33 (a) to (d). A builder: fix B-32.
+
+### L-0276 · 2026-11-02 18:07 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · PROGRESS
+**Task:** — (verification of execution-map slices 1 to 3: CI result)    **Claim:** C-023
+**What / why:** Commit 33c402b (the new test file and L-0272 to L-0275) pushed to PR 15 with a normal push (no force, not main). CI is green in all six jobs; on the real local Supabase stack the new file ran 30 tests (29 passed, the B-32 DEFECT CHECK an expected fail).
+**Evidence:** run https://github.com/ethancrystal/kiran-dms/actions/runs/41449543433 on 33c402bc84c3440cb889dbb33a7ae9387a54e3f0, `gh.exe run watch --exit-status` exit 0: migrations + RLS matrix (local Supabase stack) 1908 passed, 7 expected fail (1915); office browser tests 9 passed (2.5m); rep PWA browser tests, typecheck + service-role scan, lint + format, activity-log-check success. Read from `gh.exe run view --log`, not from this file.
+**Rules touched:** H-23, H-24
+**Next / needs:** L-0277, L-0278.
+
+### L-0277 · 2026-11-02 18:07 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · CLAIM-RELEASED
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023
+**What / why:** C-023 released (done) and moved to the released table. C-014 (the builder) is untouched.
+**Rules touched:** section 3
+**Next / needs:** L-0278.
+
+### L-0278 · 2026-11-02 18:07 PKT · Claude · Opus 5.5 · session verifier-slices-1-3 · branch claude/crm-working-check-test-606a4a · HANDOFF
+**Task:** — (verification of execution-map slices 1 to 3)    **Claim:** C-023 (released)
+**What / why:** State: verification done; nothing is marked VERIFIED. Slices 1 and 2: every database control attacked held (L-0274), but no DONE entry exists for them (the builder logged IMPLEMENTED — NOT VERIFIED, L-0271), several browser paths are unverified (listed in L-0274), and B-33 (b) and (c) are page rules the database does not back. Slice 3: one low defect, B-32, kept as an it.fails DEFECT CHECK. Files changed by this session: `supabase/tests/verify-slices-1-3.test.ts` (new) and this file only; no production code, migration, config or other test touched. Next, in order: (1) a builder fixes B-32 in a new forward-only migration and turns its DEFECT CHECK into a plain test; (2) MJ answers B-33 (a) to (d); (3) the builder logs DONE for each slice with the browser gaps of L-0274 covered or listed; (4) a fresh verifier re-runs this file and the section 7 list and only then logs VERIFIED. Gotchas: git runs as git.exe in WSL; the DB suite runs through cmd.exe (Windows node_modules) and takes about 32 minutes in full; app.karachi_today is not granted to app roles, so tests read it as postgres; the new file creates its own product group, people and bags, which only visits.test.ts (it runs after) could see, and it does not count them.
+**Evidence:** commit 33c402b, CI run 41449543433 green (L-0276); local whole suite 27 files, 1908 passed, 7 expected fail (L-0274); `pnpm activity:check origin/main` OK before this entry.
+**Rules touched:** section 7, section 11, H-23, H-24
+**Next / needs:** builder: B-32; MJ: B-33.
 
 ---
 
