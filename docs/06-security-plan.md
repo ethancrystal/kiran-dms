@@ -60,7 +60,7 @@ Permissions are enforced in three places that must agree: RLS policies (data), `
 
 ### 2.1 Salon customer identity and authorization boundary
 
-A Salon Customer is an external customer membership, not a fourth internal staff role. Do not add salon to user_profile.role or infer a portal identity from salon_contact.phone. Use a separately auditable membership linking an authenticated auth user to an explicitly authorized salon. The owner or manager creates and revokes salon accounts (D-30, ACTIVITY L-0363); whether it is invitation-only or public sign-up with review, whether one login may hold several salons and whether salon staff get sub-users are open (ACTIVITY B-40). Default one membership to one salon; multiple-salon membership requires an explicit decision and additional RLS tests.
+A Salon Customer is an external customer membership, not a fourth internal staff role. Do not add salon to user_profile.role or infer a portal identity from salon_contact.phone. Use a separately auditable membership linking an authenticated auth user to an explicitly authorized salon. The owner or manager creates and revokes salon accounts (D-30, ACTIVITY L-0363); access is invitation-only (the owner or manager invites; no public sign-up) and one salon per login (D-30, ACTIVITY L-0376); whether salon staff get their own sub-user logins is open (ACTIVITY B-40), none meanwhile. Default one membership to one salon; multiple-salon membership requires an explicit decision and additional RLS tests.
 
 | Capability | Salon customer | Enforcement boundary |
 |---|---|---|

@@ -261,7 +261,7 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | Item | Blocks | Default meanwhile |
 |---|---|---|
 | Staging: apply migrations 0014 to 0024 (H-19; staging has 13 of 24) | Every screen built since 2026-11-01 on staging; Gate 0 | Local and CI only |
-| B-40: order rework open points (do reps still deliver and collect; salon portal membership; what the cash cap blocks) | The rep-delivery half of the order rework; the salon portal; CTL-17 | Rep delivery and collection as today; no portal |
+| B-40: order rework open points (salon staff sub-users; what the cash cap blocks; salon edits of portal orders) | Salon staff logins; CTL-17; portal order edits | No sub-users; no cap; office edits only |
 | B-31 (a) to (g): pin moves, phone-reveal cap, past midnight, invoice per delivery, delivery_mode, low_stock scope, agents | The matching fixes; P1-15 | Code as built |
 | B-39: approval use-time rules (who may use, use-time check, expiry, offboarded checker, credit override, write-off) | P1-08 | D-25 registry may be built; the open rules keep today's behaviour |
 | B-38: service-role scan fails an empty bundle directory | — | Leave as is |
