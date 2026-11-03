@@ -137,6 +137,7 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
 
       <section aria-labelledby="stages-h">
         <h2 id="stages-h">Stage history</h2>
+        {stages.length === 0 && <p className="muted">No stage changes recorded.</p>}
         <ul className="plain">
           {stages.map((s) => (
             <li key={`${s.created_at}-${s.to_stage}`}>
@@ -205,7 +206,9 @@ function EditForm({ salon, areas, onDone }: { salon: Salon; areas: Area[]; onDon
   const cleared = (Object.keys(was) as (keyof typeof was)[]).filter((k) => was[k] !== null && form[k].trim() === "");
   const halfPin = (form.lat.trim() === "") !== (form.lng.trim() === "");
   const pinChanged = form.lat.trim() !== String(salon.lat ?? "") || form.lng.trim() !== String(salon.lng ?? "");
-  const blocked = cleared.length > 0 || halfPin;
+  // Chairs: a whole number 0 to 200 (the column's check), so a decimal never reaches the integer parameter.
+  const badChairs = form.chairs.trim() !== "" && !(/^\d+$/.test(form.chairs.trim()) && Number(form.chairs) <= 200);
+  const blocked = cleared.length > 0 || halfPin || badChairs;
 
   return (
     <form
@@ -273,6 +276,11 @@ function EditForm({ salon, areas, onDone }: { salon: Salon; areas: Area[]; onDon
       <input id="lat" value={form.lat} onChange={set("lat")} type="number" min={-90} max={90} step="0.000001" />
       <label htmlFor="lng">Pin longitude</label>
       <input id="lng" value={form.lng} onChange={set("lng")} type="number" min={-180} max={180} step="0.000001" />
+      {badChairs && (
+        <p className="error" role="alert">
+          Chairs must be a whole number from 0 to 200.
+        </p>
+      )}
       {halfPin && (
         <p className="error" role="alert">
           A pin needs both latitude and longitude.

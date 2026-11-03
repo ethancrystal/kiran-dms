@@ -12,6 +12,7 @@
  * A test named "DEFECT CHECK" is an `it.fails`: it asserts the secure end state, fails today because
  * the defect is real, and keeps the suite green until a builder fixes it; then it must become a
  * plain `it()` with the same assertion (convention of reverify11-attacks.test.ts, H-23).
+ * All six were turned into plain it() after migration 0019 fixed B-34 (ACTIVITY L-0299).
  */
 import { randomUUID } from "node:crypto";
 import pg from "pg";
@@ -121,7 +122,7 @@ const isActive = async (t: string) => (await pg1("select active from public.terr
 
 // ------------------------------------------------------------ B-33 (a) and (b) ----
 describe("B-33 (a) and (b) under two office sessions at once (PIP-01)", () => {
-  it.fails("DEFECT CHECK (B-33 a/b, race): assigning a rep while another session makes the territory inactive leaves no open assignment on an inactive territory", async () => {
+  it("DEFECT CHECK (B-33 a/b, race): assigning a rep while another session makes the territory inactive leaves no open assignment on an inactive territory", async () => {
     // Session 1 (manager) assigns REP to the active territory T1 and has not committed yet.
     // Session 2 (owner) makes T1 inactive: its "no open assignment" check cannot see session 1's row.
     const { r1, r2 } = await race(
@@ -140,7 +141,7 @@ describe("B-33 (a) and (b) under two office sessions at once (PIP-01)", () => {
     expect(state.active || state.open === 0).toBe(true);
   });
 
-  it.fails("DEFECT CHECK (B-33 b, race): making a territory inactive while another session assigns a rep to it leaves no open assignment on an inactive territory", async () => {
+  it("DEFECT CHECK (B-33 b, race): making a territory inactive while another session assigns a rep to it leaves no open assignment on an inactive territory", async () => {
     // Session 1 (owner) makes T2 inactive and has not committed yet; session 2 (manager) assigns REP:
     // its "territory is active" check reads the committed row, which is still active.
     const { r1, r2 } = await race(
@@ -209,7 +210,7 @@ describe("the four functions migration 0018 replaced keep their role boundaries"
 
 // ------------------------------------------------------------------- B-33 (c) ----
 describe("B-33 (c): offboarding is final (SEC-08)", () => {
-  it.fails("DEFECT CHECK (B-33 c, race): a reactivation sent while another session offboards the person does not undo the offboarding", async () => {
+  it("DEFECT CHECK (B-33 c, race): a reactivation sent while another session offboards the person does not undo the offboarding", async () => {
     // Session 1 (owner, tab 1) offboards LEAVER and has not committed yet. Session 2 (owner, tab 2)
     // sets LEAVER active: its "already offboarded?" check reads the committed row (active), then its
     // UPDATE waits on session 1's row lock and, once session 1 commits, overwrites offboarded.
@@ -282,14 +283,14 @@ describe("B-33 (d): a blank address keeps the recorded one (SAL-01)", () => {
     for (const blank of [null, "", "     "]) expect(await addressAfter(blank as string)).toBe(ADDRESS);
   });
 
-  it.fails("DEFECT CHECK (B-33 d): a tab-only address keeps the recorded address", async () => {
+  it("DEFECT CHECK (B-33 d): a tab-only address keeps the recorded address", async () => {
     // btrim() with no second argument strips spaces only, so a tab is not blank to the database.
     const after = await addressAfter("\t");
     if (after !== ADDRESS) await one(MANAGER, "select app.update_salon($1, null, 'barber', $2, $3)", [S, A1, ADDRESS]);
     expect(after).toBe(ADDRESS);
   });
 
-  it.fails("DEFECT CHECK (B-33 d): a line-break or no-break-space address keeps the recorded address", async () => {
+  it("DEFECT CHECK (B-33 d): a line-break or no-break-space address keeps the recorded address", async () => {
     const results: string[] = [];
     for (const blank of ["\n", "\u00a0", " \r\n\u00a0"]) {
       results.push(await addressAfter(blank));
@@ -298,7 +299,7 @@ describe("B-33 (d): a blank address keeps the recorded one (SAL-01)", () => {
     expect(results).toEqual([ADDRESS, ADDRESS, ADDRESS]);
   });
 
-  it.fails("DEFECT CHECK (B-33 d, same rule for the name): a tab-only name keeps the recorded name", async () => {
+  it("DEFECT CHECK (B-33 d, same rule for the name): a tab-only name keeps the recorded name", async () => {
     // The salon name check is length(btrim(name)) between 2 and 120, so two tabs pass it.
     const after = (await one(MANAGER, "select (app.update_salon($1, $2, 'barber', $3)).name", [S, "\t\t", A1])).name as string;
     if (after !== NAME) await one(MANAGER, "select app.update_salon($1, $2, 'barber', $3)", [S, NAME, A1]);

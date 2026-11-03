@@ -84,6 +84,13 @@ try {
   await create(people.rep2, "rep", "+920000000103");
   // newcomer has a sign-in but no profile: the tests add it through the Team page.
 
+  // Rep One has a bag (owner only, A-08), empty of stock: the evening count then has a bag to
+  // close, so check-out depends on the daily close being sent (B-35, INV-05). Rep Two has none.
+  await as(people.owner.id, "aal2", null, "select app.office_create_location($1, 'rep_bag', '[Test] Rep One bag', $2, 1000000)", [
+    randomUUID(),
+    people.rep.id,
+  ]);
+
   // Rep Two's phone asks for approval, as the rep app does on first open.
   const device = `web-${randomUUID()}`;
   await as(people.rep2.id, "aal1", device, "select app.register_device($1, 'android', '[Test] phone')", [device]);

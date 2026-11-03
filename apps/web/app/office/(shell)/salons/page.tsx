@@ -23,6 +23,8 @@ export default function OfficeSalons() {
   const [list, setList] = useState<Row[]>([]);
   const [stage, setStage] = useState("");
   const [search, setSearch] = useState("");
+  // The term actually queried: set when the filter form is submitted, which also goes back to page 1.
+  const [term, setTerm] = useState("");
   const [page, setPage] = useState(0);
   const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export default function OfficeSalons() {
         .order("id")
         .range(page * PAGE, page * PAGE + PAGE);
       if (stage) q = q.eq("stage", stage);
-      if (search.trim()) q = q.ilike("name", `%${search.trim().replace(/[%_\\]/g, "\\$&")}%`);
+      if (term) q = q.ilike("name", `%${term.replace(/[%_\\]/g, "\\$&")}%`);
       const r = await rows<Row>(q);
       setMore(r.length > PAGE);
       setList(r.slice(0, PAGE));
@@ -48,7 +50,7 @@ export default function OfficeSalons() {
     } finally {
       setLoading(false);
     }
-  }, [page, stage, search]);
+  }, [page, stage, term]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -61,13 +63,16 @@ export default function OfficeSalons() {
         onSubmit={(e) => {
           e.preventDefault();
           setPage(0);
-          void load();
+          setTerm(search.trim());
         }}
       >
         <label>
           Name contains
           <input value={search} onChange={(e) => setSearch(e.target.value)} maxLength={120} />
         </label>
+        <button type="submit" className="inline">
+          Search
+        </button>
         <label>
           Stage
           <select

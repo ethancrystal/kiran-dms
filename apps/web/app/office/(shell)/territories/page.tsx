@@ -20,6 +20,9 @@ export default function Territories() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // A refused action is shown above the list; `error` is only for a list that could not load,
+  // so a refusal never hides the territories (B-35).
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -47,6 +50,7 @@ export default function Territories() {
   }, [load]);
 
   const done = async (message: string) => {
+    setActionError(null);
     setNotice(message);
     await load();
   };
@@ -57,6 +61,11 @@ export default function Territories() {
     <>
       <h1>Territories</h1>
       {notice && <output className="ok">{notice}</output>}
+      {actionError && (
+        <p className="error" role="alert">
+          {actionError}
+        </p>
+      )}
       <NameForm
         label="New territory"
         button="Add territory"
@@ -95,7 +104,7 @@ export default function Territories() {
                       await done(`${t.name} is now ${t.active ? "inactive" : "active"}.`);
                     } catch (e) {
                       setNotice(null);
-                      setError((e as Error).message);
+                      setActionError((e as Error).message);
                     }
                   }}
                 >
@@ -124,7 +133,8 @@ export default function Territories() {
                             });
                             await done(`${a.name} is now ${a.active ? "inactive" : "active"}.`);
                           } catch (e) {
-                            setError((e as Error).message);
+                            setNotice(null);
+                            setActionError((e as Error).message);
                           }
                         }}
                       >
