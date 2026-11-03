@@ -47,7 +47,7 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | **Users: create, role, suspend, offboard** | — | — | **Owner only** |
 | Device approval for reps | — | Yes | Yes |
 | Territories, route days | — | Yes | Yes |
-| Commission plans / payout approval | — | View | **Owner only** |
+| Commission rates | — | Set and change (D-31) | Set and change; payout approval owner-only |
 | **Vault (supplier, costs, POs, receipts)** | — | If granted by owner (default: granted) | Yes; grants are owner-only |
 | Exports (watermarked) | — | Operational reports | All |
 | **Audit log, anomaly flags, cases** | — | Read own-team flags | **Owner: read all; nobody can write** |

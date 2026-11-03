@@ -340,7 +340,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0388 |
+| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0389 |
 | C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
 
 
@@ -4503,6 +4503,13 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **What / why:** MJ approved the design spec in chat ("Spec approved"). Implementation plan for PR A written: docs/superpowers/plans/2026-11-03-office-orders-and-cards.md (9 tasks: decisions in docs D-31 and D-32, schema, office order creation through a shared builder, order cards and conversion, assigned-rep reads and delivery, test fixtures moved to the office path, closing the rep order path, screens, verification), with PR B (delivery approval) and PR C (commission) outlined for their own plans. No code yet.
 **Evidence:** `node scripts/activity-log-check.mjs origin/main` before commit (result in the commit message).
 **Next / needs:** MJ reviews the plan and chooses how it is executed.
+
+### L-0389 · 2026-11-03 23:26 PKT · Claude · Sonnet 5.5 · session orders-impl-20261103 · branch claude/orders-delivery-commission · PROGRESS
+**Task:** P1-06 rework under D-30; delivery approval; commission (plan task 1)    **Claim:** C-039
+**What / why:** MJ's decisions of L-0385 are recorded in the planning docs before any code is written. Doc 12: D-31 (commission is a percentage per rep, set and changed by the owner or manager, earned on delivered and invoiced value of orders assigned to the rep, rate changes apply from the change onward, earned only with no payouts, date-range view) and D-32 (a rep's delivery is an immutable submission; only the owner's or manager's approval writes the delivery, sale movement, invoice, installments and order status; rejected goods stay in pending custody until the office settles them) added after D-30; D-10 marked Superseded by D-31; D-08 notes the amendment for commission rates only (creating users stays owner-only). Doc 03: CTL-13 now bases commission on delivered and invoiced value of orders assigned to the rep, and ORD-01 gains the optional assigned rep. Doc 06: the matrix row for commission rates now lets the manager set and change them, with payout approval owner-only. Documentation only; no code, no migration. CTL-13 keeps its Phase 2 marker, its clawback clause and its new-salon bonus clause as they were, because L-0385 did not address them.
+**Evidence:** `node scripts/activity-log-check.mjs origin/main` and `pnpm lint` before commit (results in the task report and the commit).
+**Rules touched:** section 1, H-22, H-26
+**Next / needs:** plan task 2 (schema).
 
 ---
 
