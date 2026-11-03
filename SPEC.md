@@ -1,6 +1,6 @@
 # Kiran DMS — Spec (index)
 
-This file is the **entry point**, not a second source of truth. The planning set in [`docs/`](docs/00-README.md) (docs 00–14) decides *what* is built, and [`docs/ACTIVITY.md`](docs/ACTIVITY.md) decides *how* it is built. If this file and a doc disagree, the doc wins and this file is wrong. Fix it in the same pull request (H-25). This file never adds a requirement; new ideas go to [doc 12](docs/12-decisions-and-open-questions.md) first.
+This file is the **entry point**, not a second source of truth. The planning set in [`docs/`](docs/00-README.md) (docs 00–15) decides *what* is built, and [`docs/ACTIVITY.md`](docs/ACTIVITY.md) decides *how* it is built. If this file and a doc disagree, the doc wins and this file is wrong. Fix it in the same pull request (H-25). This file never adds a requirement; new ideas go to [doc 12](docs/12-decisions-and-open-questions.md) first.
 
 Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load in Phase 1) are recorded in [ACTIVITY L-0128](docs/ACTIVITY.md). This spec includes them.
 
@@ -12,16 +12,18 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 
 | User | What the system does for them | Doc |
 |---|---|---|
-| **Salaried rep** (door to door, Kiran's stock and cash) | Shows which salons to visit, what is due, and what to carry. Takes orders and collections offline on a cheap Android phone, and proves the rep did the job honestly | [02](docs/02-growth-pipeline.md), [08](docs/08-field-sales-and-rep-controls.md) |
+| **Salaried rep** (door to door, Kiran's stock and cash) | Shows which salons to visit, what is due, and what to carry. Takes orders on salon visits and records field activity/location; approved rep workflows work offline | [02](docs/02-growth-pipeline.md), [08](docs/08-field-sales-and-rep-controls.md) |
+| **Salon customer** (direct business customer) | Uses a secure salon account to view its own catalogue, assigned prices, safe stock quantities, orders and documents, and can independently submit orders | [03](docs/03-requirements.md), [06](docs/06-security-plan.md), [15](docs/15-field-sales-distribution-engineering-plan.md) |
 | **Independent agent** (buys stock outright, resells, reports nothing) | Buys cash-and-carry at an agent price and sees their own purchases and the agent catalogue | [08 §10](docs/08-field-sales-and-rep-controls.md), D-15 to D-17 |
 | **Owner** | Sees everything from a phone. Holds the governance powers and the supplier secret | [06 §2](docs/06-security-plan.md), [07](docs/07-supplier-confidentiality.md) |
 | **Manager** | Full day-to-day operations: stock, cash, territories, approvals below the owner's thresholds | [06 §2](docs/06-security-plan.md), [13 §9](docs/13-anti-fraud-controls.md) |
 
-**The job.** Make it **safe and fast to put more sales agents on the road** ([doc 01](docs/01-business-context.md)) by tracking three things:
+**The job.** Operate a controlled Karachi salon-distribution network through field representatives and a salon customer portal ([doc 15](docs/15-field-sales-distribution-engineering-plan.md)) by tracking four connected areas:
 
-- **Salons:** a mapped pipeline with due re-orders.
-- **Supply:** stock custody, lost demand and restocking.
-- **Money:** the khata, installments and the daily handover.
+- **Customers and coverage:** salon records, locations, territories, assignments and visits.
+- **Sales:** representative-placed and salon-placed orders through one canonical order engine.
+- **Supply:** shared products, salon-specific selling prices, stock custody, availability and fulfilment.
+- **Money:** invoices, installments, collections, receivables and the daily handover.
 
 **Success in 12 months** ([doc 01](docs/01-business-context.md)):
 - 3× active salons;
@@ -32,7 +34,7 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 - every new rep productive within 2 weeks;
 - monthly sales through independent agents, in rupees (D-21; target to be set by the owner, OQ-21).
 
-**Scope and order.** Phase 0 is foundations, and Phase 1 is the MVP: the khata, the bag and the controls. Their exit gates and build order are in [doc 11](docs/11-roadmap.md) and ACTIVITY §12. Requirement IDs are in [doc 03](docs/03-requirements.md).
+**Scope and order.** Phase 0 is foundations, and Phase 1 is the existing MVP: the khata, the bag and the controls. The salon portal and dual-channel order requirements are specified in docs 03, 06 and 15 and sequenced in doc 11, subject to the existing phase gates. ACTIVITY §12 remains the live implementation status; requirement IDs are in doc 03.
 
 **Non-goals for now:** accounting, payroll, consumer e-commerce and multi-city features ([doc 01](docs/01-business-context.md)).
 
@@ -91,6 +93,13 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 3. Monthly sales through agents are reported in rupees (D-21).
 4. Lost demand by SKU and reason shows what the supplier shortage cost (DEM-03, D-18).
 5. A new rep can be onboarded and taking orders within **one working day**; offboarding takes under 10 minutes from one screen (doc 01 system goal 1, SEC-08).
+
+**J6 — A salon places a repeat order** ([doc 15](docs/15-field-sales-distribution-engineering-plan.md))
+1. The salon user signs in; the server resolves the salon from active membership, not a client-supplied ID (SAL-11, SEC-13/14).
+2. The portal shows the shared active catalogue, that salon's assigned prices and safe aggregate stock only (SAL-12, INV-12).
+3. The salon submits its basket; the common server-side order engine validates price, stock, credit and idempotency (ORD-11/12).
+4. The salon sees only its own order state and permitted documents (ORD-13).
+5. The order is not counted as a rep visit or rep-taken order. The office processes it through the shared order-to-cash workflow; confirmation follows OQ-31.
 
 ## 4. Phase 1 feature map
 
@@ -162,15 +171,15 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 
 | Path | What |
 |---|---|
-| `docs/` | Planning set 00–14, `ACTIVITY.md` (protocol + live log), `diagrams/`, `runbooks/` |
+| `docs/` | Planning set 00–15, `ACTIVITY.md` (protocol + live log), `diagrams/`, `runbooks/` |
 | `supabase/migrations/` | Forward-only SQL: schemas, tables, RLS, `app.*` functions, guards. One file per task, never edited after merge |
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
-| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner and manager app, `lib/supabase/` the clients |
+| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/salon/` is the salon customer portal, `app/office/` the owner/manager app, `lib/supabase/` the clients |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes to no database |
 | `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |
 
-The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), and the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md).
+The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md), and the module-level field-sales/distribution directive in [doc 15](docs/15-field-sales-distribution-engineering-plan.md).
 
 ## 8. Code style
 

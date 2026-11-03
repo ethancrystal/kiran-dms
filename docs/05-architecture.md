@@ -45,6 +45,16 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 └────────────────────────────────────────────────────────────────┘
 ```
 
+### Customer and workforce application surfaces
+
+The Next.js application has three permission-separated workspace families: /app for the representative PWA, /salon for authenticated salon customers, and /office for Owner/Manager. These are presentation boundaries only; each backend action independently enforces the caller's role, device, territory or salon membership. Keep salon membership separate from the internal staff user_profile role.
+
+The salon portal uses dedicated read/write procedures. Resolve salon ID from active server-side membership, not request parameters. Expose allow-listed catalogue, assigned-price, aggregate-stock, own-order and customer-document data. Never let salon users query internal salon CRM notes, raw stock movements/locations, rep location data or supplier/cost tables. Salon order submission calls the same canonical order domain function as the representative path, passing a verified actor context and source channel rather than duplicating order logic.
+
+### Active representative location architecture
+
+Treat rep_day as the tracking boundary. Accept append-only location samples only from the authenticated, approved device of a rep with an open day. Derive latest position/staleness for office map views; do not expose rep GPS to salon customers or other reps. Check-out/revocation stops new samples. A browser PWA may be suspended in the background; validate supported Android behaviour and do not promise uninterrupted background tracking until a device proof and OQ-32 policy exist.
+
 ## Key design rules
 
 1. **The client is never trusted.** Prices, credit checks, stock availability, stage transitions, numbering, timestamps — all computed in Postgres functions. The client sends intent (`record_payment(salon, amount, method, …)`), the database decides.
