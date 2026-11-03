@@ -341,7 +341,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
-| C-036 | Claude / p1-07-forward-20261103 | P1-07 (part a) | PAY-01/02/03/04/10/11, CTL-02 | Supabase payment migration/tests/RLS matrix/verifier allowlists; docs 04/05/06/09; ACTIVITY | 2026-11-03 17:46 | 2026-11-04 | L-0360 |
+| C-036 | Claude / p1-07-forward-20261103 | P1-07 (part a) | PAY-01/02/03/04/10/11, CTL-02 | Supabase payment migration/tests/RLS matrix/verifier allowlists; docs 04/05/06/09; ACTIVITY | 2026-11-03 17:46 | 2026-11-04 | L-0361 |
 
 
 
@@ -453,7 +453,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-11 | Installment amounts (docs silent): each installment is floor(total × pct / 100) in paisa and the last takes the remainder, so the installments add up to the invoice total exactly; due dates are the delivery's Karachi date plus the template's day offset | L-0198 | Up to a few paisa move between installments; P1-07 reuses `app.plan_schedule` | open |
 | A-12 | Plan templates (docs silent on validation): `app.plan_schedule` refuses a template unless every row is an object whose `pct` and `day_offset` are JSON numbers, `pct` is above 0 (a 0% row is refused; a plan with nothing at delivery starts at a later day instead, doc 09 §1), `day_offset` is a whole number of days from 0, no row is due before the one above it, and the rows add up to exactly 100 | L-0205 | An owner template with a 0% row or rows out of date order is refused until rewritten; nothing is stored or charged wrongly | open |
 | A-13 | The session MJ asked me to continue is the checking session on claude/architecture-rfc (cloud session 01Y3chVr; its entries L-0108 and L-0109 on the unmerged branch claude/architecture-rfc, not the ones on main): its TLA+ spec of RFC issue 4 and the runs it left unfinished. Its transcript was not readable here. (A-09 and A-10 are used on main.) | L-0327 | The work lands on the wrong topic; it touches only docs/specs, so it is easy to drop | open |
-| A-14 | Receivables ageing per rep (PAY-07): a salon's receivable counts in full under every rep currently assigned to its territory (rep_territory with no end date), and under a null rep when the territory has none; not under the rep who sold the invoice | L-0352 | Rep rows move to the selling rep; one query changes, nothing stored | open |
+| A-14 | Receivables ageing per rep (PAY-07): a salon's receivable counts in full under every rep currently assigned to its territory (rep_territory with no end date), and under a null rep when the territory has none; not under the rep who sold the invoice | L-0352 | Rep rows move to the selling rep; one query changes, nothing stored | confirmed (MJ, L-0361) |
 | A-15 | Handover ledger (PAY-05, CTL-03): cash moves only when the rep acknowledges: rep `out` of the expected amount (the database's figure at the count), office `in` of the counted amount; the variance and its reason stay on the handover row (no variance ledger row, no rep debt); a dispute moves nothing and its owner resolution is not built; a rep with a pending or disputed handover cannot be counted again | L-0358 | A different variance or dispute rule changes the acknowledgment function; rows written so far stay as history | confirmed (MJ, L-0360) |
 
 ---
@@ -4330,6 +4330,12 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **What / why:** MJ in chat on 2026-11-03, asked "Is A-15 how variances and disputes should settle?" (when a rep acknowledges a short count the rep's expected amount is cleared and the office is credited with what was counted, the shortfall stays on the handover with its reason and no debt is charged to the rep; a disputed handover moves no money until the owner settles it), answered "Yes, confirm A-15". A-15 is marked confirmed in section 15. Migration 0023 already does this; nothing in the code changes. Still open: how the owner settles a dispute (not built).
 **Rules touched:** section 1, section 15
 **Next / needs:** MJ: A-14, B-37 (office collection), the merge decision for PR 46.
+
+### L-0361 · 2026-11-03 21:30 PKT · Claude · Opus 5.5 · session p1-07-forward-20261103 · branch claude/p1-07-reconcile-main-20261103 · DECISION
+**Task:** P1-07 (PAY-07)    **Claim:** C-036
+**What / why:** MJ in chat on 2026-11-03, asked "For per-rep ageing (A-14), count a salon under its territory's rep or the selling rep?", answered "Territory rep". A-14 is marked confirmed in section 15: a salon's receivable counts under every rep currently assigned to its territory, and under no rep when the territory has none. Migration 0022 already does this; nothing in the code changes.
+**Rules touched:** section 1, section 15
+**Next / needs:** MJ: B-37 (office collection), the merge decision for PR 46.
 
 ---
 
