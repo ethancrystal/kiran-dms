@@ -30,6 +30,11 @@
 | D-24 | 2026-11-02 | An Investor / Capital Partner is a separate business persona from an Independent Agent (D-15) and a salaried Rep. Investor contributions and any batch return are governed by a separate agreement; they are not agent purchases, commissions or recruitment rewards | MJ's instruction to track product investment, allocation and investor/company profit separately | Confirmed |
 | D-25 | 2026-11-02 | Approvals: consumers stay separate functions and share one internal helper for the use-time checks; a shared append-only registry (control.approval_use) is the only single-use mechanism; adjustment and discount move onto it now, behaviour-preserving; the requested checker role is a floor the server can only raise; a request replayed with different content is refused | Shipped consumers already disagree on use-time checks; reuse of an approval must be impossible by construction; closes caller under-routing and silent replay (Linear KIR-7) | Confirmed by MJ (ACTIVITY L-0236) |
 
+| D-26 | 2026-11-03 | Direct salons may use authenticated customer portal accounts and independently submit orders. Representatives may also take orders during physical visits. Both channels use one canonical order/fulfilment system and are explicitly attributed by channel and authenticated actor | MJ confirmed salon self-service ordering in addition to rep-placed orders; ACTIVITY L-0308 | Confirmed |
+| D-27 | 2026-11-03 | A salon does not need a Google Maps listing to exist in Kiran DMS. Manual address/location and internal map pins are valid; external place IDs are optional | MJ has location information for salons that are not listed on Google Maps; the Kiran customer master is the source of truth | Confirmed |
+| D-28 | 2026-11-03 | Direct salons share one active product catalogue; selling prices may vary by salon and governed price changes remain Owner-only under D-08. Authorized business-facing users may see customer-safe product stock quantities, but not supplier/cost/margin or internal stock custody/location detail | MJ clarified common catalogue, salon-specific pricing and stock quantity visibility; security boundaries remain governed by D-08/D-15 | Confirmed |
+| D-29 | 2026-11-03 | Representative location is a managed system capability during field work, bounded by an active rep day; precise cadence, background behaviour, retention, accuracy and employee notice remain open in OQ-32 | MJ requested representative location tracking; technical and operational policy must be settled before claiming continuous tracking | Confirmed |
+
 ## Open questions
 
 | ID | Question | Why it matters | Who answers | Needed by |
@@ -64,6 +69,9 @@
 | OQ-28 | Does the company receive an operator/management fee, a share of batch profit, a return on its own capital, both or neither? | Separates business/operator earnings from investor distributions | MJ | Before profit-sharing implementation |
 | OQ-29 | What information may an investor see: their own contribution and allocation, batch progress, product details, financial costs, and statements? Is an authenticated investor portal approved? | Defines privacy, RLS and portal scope; supplier identity and other investors' records remain restricted by default | MJ | Before investor UI or permissions |
 | OQ-30 | Who may create agreements, receive contributions, allocate capital, close a batch, approve the settlement and release principal/profit payments? | Defines maker-checker, owner governance, audit and payment authority | MJ | Before workflow permissions are approved |
+
+| OQ-31 | Should a salon portal order auto-confirm after server validation, or enter an office approval queue? Define allowed edits/cancellations, reservation timing, customer acknowledgement and timeout/expiry rules | Determines the salon order state transition and stock reservation policy | MJ | Before salon portal order implementation |
+| OQ-32 | What is the representative location policy: ping cadence, permitted hours, accuracy threshold, stale state, background mode/device support, retention period, employee notice and off-shift handling? | Determines location capture architecture, privacy, storage, battery impact and acceptance tests | MJ | Before active location tracking implementation |
 
 ## How to use this file
 

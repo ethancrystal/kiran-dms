@@ -14,17 +14,20 @@ flowchart TB
       REPAPP["Rep PWA\nTerritories, routes, bag, visits, orders, collections"]
       AGENTAPP["Agent Workspace\nOwn catalogue, availability, paid purchases"]
       INVESTORAPP["Proposed Investor Workspace\nOwn contributions, batch allocations, statements"]
-      SALON_TOUCH["Customer-facing documents\nInvoices, receipts, statements, reminders"]
+      SALON_PORTAL["Salon Customer Portal\nCatalogue, salon price, safe stock, own orders"]
+      SALON_TOUCH["Customer notifications and documents\nInvoices, receipts, statements, reminders"]
       VAULTUI["Restricted Procurement / Vault UI\nAuthorised internal Kiran users only"]
     end
 
     subgraph CORE["Shared business operating platform"]
       IAM["Identity, roles, permissions, MFA, devices"]
       CRM["Salon CRM and pipeline"]
+      FIELD["Field operations\nRep day, route, GPS visits, active-day location"]
       CATALOG["Product, SKU and selling-price catalogue"]
       PROCUREMENT["Supplier records, purchase orders, goods receipts"]
       INVENTORY["Warehouse stock, batches and stock movements"]
-      SALON_SALES["Salon orders, deliveries, invoices, payments, receivables"]
+      SALON_SALES["One salon order engine\nrep_visit + salon_portal, fulfilment, invoices, receivables"]
+      PUBLIC_STOCK["Customer-safe aggregate stock projection"]
       AGENT_SALES["Agent cash-and-carry sales"]
       CAPITAL["Investor capital ledger\nContributions and batch allocations"]
       SETTLEMENT["Batch accounting and settlement\nContract-governed; not a guaranteed return"]
@@ -37,7 +40,7 @@ flowchart TB
     REP --> REPAPP
     AGENT --> AGENTAPP
     INVESTOR --> INVESTORAPP
-    SALON --> SALON_TOUCH
+    SALON --> SALON_PORTAL
     SUPPLIER -. "Goods and documents delivered to authorised staff; no supplier login assumed" .-> VAULTUI
 
     OFFICE --> IAM
@@ -46,11 +49,19 @@ flowchart TB
     OFFICE --> CATALOG
     OFFICE --> INVENTORY
     REPAPP --> CRM
+    REPAPP --> FIELD
     REPAPP --> SALON_SALES
+    OFFICE --> FIELD
+    FIELD --> CRM
+    FIELD --> SALON_SALES
     AGENTAPP --> AGENT_SALES
     INVESTORAPP --> CAPITAL
     INVESTORAPP --> SETTLEMENT
-    SALON_TOUCH --> SALON_SALES
+    SALON_PORTAL --> IAM
+    SALON_PORTAL --> CATALOG
+    SALON_PORTAL --> PUBLIC_STOCK
+    SALON_PORTAL --> SALON_SALES
+    SALON_SALES --> SALON_TOUCH
     VAULTUI --> PROCUREMENT
     VAULTUI --> VAULT
 
@@ -58,6 +69,7 @@ flowchart TB
     CATALOG --> SALON_SALES
     CATALOG --> AGENT_SALES
     INVENTORY --> SALON_SALES
+    INVENTORY --> PUBLIC_STOCK
     INVENTORY --> AGENT_SALES
     CRM --> SALON_SALES
 

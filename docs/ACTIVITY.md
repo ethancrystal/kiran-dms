@@ -250,6 +250,9 @@ Updated in place; every change mirrored in the log. Task IDs: `P{phase}-{nn}`. R
 | PLAN-01 | Planning set docs `00`–`13` written to `Kiran Company/plan/` | DONE | 2026-10-25 |
 | PLAN-02 | This protocol (ACTIVITY.md) | DONE | 2026-10-25 |
 | PLAN-03 | Unified business-domain architecture brief and diagram | IN PROGRESS | 2026-11-02 |
+| PLAN-04 | Karachi dual-channel field-sales and distribution engineering plan | DONE (self-reported) | 2026-11-03 |
+| PLAN-05 | Publish the field-sales and distribution plan through a docs-only PR to main | IN PROGRESS | 2026-11-03 |
+| PLAN-06 | Merge PR 44 on MJ's explicit approval | DONE | 2026-11-03 |
 
 ### Phase 0 — Foundations
 
@@ -334,6 +337,10 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
+| C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
+
+
+
 
 **Released / expired claims** (kept for history; never deleted):
 
@@ -366,6 +373,9 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-027 | — (governance: who merges) | 2026-11-03 12:19 | done | L-0302 |
 | C-028 | - (create_salon blanks, B-34/B-35 follow-up) | 2026-11-03 | done | L-0305 |
 | C-025 | — (re-verification of execution-map slices 1 to 3 on merged main 3630998) | 2026-11-02 22:43 | done | L-0294 |
+| C-029 | PLAN-04 | 2026-11-03 13:56 | done | L-0310 |
+| C-030 | PLAN-05 | 2026-11-03 14:07 | abandoned | L-0315 |
+| C-031 | PLAN-06 | 2026-11-03 14:13 | done | L-0320 |
 
 ---
 
@@ -410,6 +420,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-33 | Verifier questions (L-0275): (a) should an inactive territory stop giving its assigned rep the salons (today my_salons, my_salon, reveal_phone, notes and due_list still work)? (b) may the office assign a rep to an inactive territory (database allows, page hides)? (c) is offboarding final (database lets the owner set an offboarded person active; page says "for good")? (d) should `update_salon` keep a recorded address when given an empty string, as it keeps an empty name? | Slices 1 and 3 VERIFIED | Keep the code as built | MJ | RESOLVED (L-0284: a refuse until ended, b refuse, c final, d keep) |
 | B-34 | Re-verifier findings on merged main 3630998 (L-0290, L-0291): MJ's B-33 rules (L-0284, migration 0018) can be got around. (1) Race, rules a and b: `app.office_assign_territory` and `app.office_upsert_territory(..., false)` run at the same moment by two office sessions both pass their checks (neither locks the territory row), leaving an inactive territory with an open assignment. (2) Race, rule c: `app.owner_set_status(x, 'active')` sent while another owner session offboards x passes its check, waits on the row lock, then overwrites offboarded with active. (3) Rule d: `btrim` strips spaces only, so an address of a tab, line break or no-break space replaces the recorded address (and a name of two tabs replaces the name). Code defects, low (each needs a signed-in AAL2 office user or, for 3, a rep in the territory calling the RPC directly; the pages trim). Kept as six `it.fails` DEFECT CHECKs in `supabase/tests/reverify-slices-1-3.test.ts` | Slices 1 and 3 VERIFIED | Leave as is until a builder fixes it (lock the territory row, or the profile row, before the check; treat any whitespace as blank) | builder | FIXED, awaiting re-verification (L-0299) |
 | B-35 | Re-verifier finding (L-0296), frontend code defect, slice 2: in `apps/web/app/app/rep-day.tsx` (CloseDay, lines 366 to 370) the submit callback's parameter `counted` (the count lines) shadows the `counted` saved-flag state of line 346, so the guard (bag id present and not counted) is always false and `app.record_count` (daily_close) is never called; `app.rep_check_out` then refuses a rep who has a bag, so such a rep can never finish the day from the page (J1 step 15, INV-05). The CI rep journey has no bag, so it does not see this. Also (minor): a refused territory or area toggle on `/office/territories` sets the page error, which hides the whole territory list (lines 74, 96 to 98, 126 to 127) | Slice 2 VERIFIED | Leave as is until a builder fixes it, with a real-stack browser step for a rep who has a bag | builder | FIXED, awaiting re-verification (L-0299) |
+| B-36 | PR 44 modified `docs/ACTIVITY.md` (alongside its office-layout fix and create_salon migration). PLAN-05 also needs to append its session/claim/handoff records to that same file; the current plan branch is based on PR 44 head ef1bc53. Repository protocol §§2 and 8 require overlapping PR ownership to be resolved before editing the shared area | Publish and merge the docs-only plan PR | Resolved: PR 44 merged separately on MJ's explicit approval; rebase the docs-only plan branch onto updated main | MJ | RESOLVED (L-0319, merge c638c39) |
 
 ---
 
@@ -3970,6 +3981,108 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Task:** - (create_salon blanks, B-34/B-35 follow-up)    **Claim:** C-028
 **What / why:** Work on PR 44 complete (Code Reviewer PASS at d32ad15); C-028 released and moved to done. Merge waits for MJ's OK on PR 44 (L-0301 rule).
 **Next / needs:** MJ OK on PR 44.
+
+### L-0306 · 2026-11-03 13:40 PKT · ChatGPT · GPT-6 · session kiran-plan-20261103 · branch docs/sales-distribution-engineering-plan · SESSION-START
+**Task:** PLAN-04 (Karachi dual-channel field-sales and distribution engineering plan)    **Claim:** C-029
+**What / why:** Isolated documentation work in a new worktree based on PR 44 head ef1bc53. Read the repository's governing instructions, compliance protocol, ACTIVITY rules and relevant planning documents. No production systems or business data accessed.
+**Next / needs:** Establish planning baseline; preserve existing requirements and unresolved decisions.
+
+### L-0307 · 2026-11-03 13:40 PKT · ChatGPT · GPT-6 · session kiran-plan-20261103 · branch docs/sales-distribution-engineering-plan · CLAIM
+**Task:** PLAN-04 (Karachi dual-channel field-sales and distribution engineering plan)    **Claim:** C-029
+**What / why:** Scope: translate the current business direction into a module-level engineering plan; reconcile docs 00, 02-06, 08, 11, 12 and 14; add doc 15; distinguish representative and salon portal order channels; define customer identity, attribution, location tracking, catalogue/price/stock visibility, office operations, data boundaries and acceptance gates. Planning/documentation only; no implementation or permission changes.
+**Rules touched:** H-01 to H-27 remain in force; docs/AGENT-COMPLIANCE-PROTOCOL.md, docs/ACTIVITY.md §§1-10.
+**Next / needs:** Append-only progress and final handoff with baseline evidence.
+
+### L-0308 · 2026-11-03 13:54 PKT · ChatGPT · GPT-6 · session kiran-plan-20261103 · branch docs/sales-distribution-engineering-plan · PROGRESS
+**Task:** PLAN-04 (Karachi dual-channel field-sales and distribution engineering plan)    **Claim:** C-029
+**What / why:** Added docs/15 as the module-level engineering plan and reconciled the planning index, growth pipeline, requirements, domain model, architecture, security boundary, field-sales controls, roadmap, decisions, unified domain brief, project spec and business-domain diagram. D-26 through D-29 record the confirmed customer order channel, Maps-independent salon master, shared catalogue/salon pricing/customer-safe stock visibility and active-day rep location scope. OQ-31/32 preserve the unapproved confirmation and tracking-policy choices. No application code, migrations, permissions or production systems changed.
+**Evidence:** New plan is 583 lines. Working branch is isolated from the PR 44 source checkout. Preflight passed. Baseline lint passed. Baseline typecheck is blocked by missing exceljs in the shared local dependency tree. Baseline DB suite is still running and has emitted activity-check regression output while entries were temporarily outside the §16 log; placement was corrected before final validation.
+**Next / needs:** Re-run activity check, lint and DB suite against the corrected working tree; then hand off the plan without changing implementation status.
+
+### L-0309 · 2026-11-03 13:56 PKT · ChatGPT · GPT-6 · session kiran-plan-20261103 · branch docs/sales-distribution-engineering-plan · HANDOFF
+**Task:** PLAN-04 (Karachi dual-channel field-sales and distribution engineering plan)    **Claim:** C-029
+**What / why:** Planning handoff complete. The new doc 15 defines M01-M12, the three actor workspaces, end-to-end workflows, logical domain relationships, trust boundaries, S0-S9 dependency sequence, acceptance matrix and unresolved decisions. Existing plan documents now consistently describe salon portal ordering alongside real representative-visit ordering. Correction to L-0308: doc 15 is 463 lines, not 583. The full database suite was stopped before completion after a prolonged run; no pass is claimed. Typecheck did not pass because exceljs is absent from the shared local dependency tree. These are environment/test limitations, not evidence of successful verification.
+**Evidence:** pnpm agent:preflight passed. pnpm activity:check passed with 6 new log entries and 17 changed files. pnpm lint passed (91 files, 33 warnings, 42 infos). git diff --check passed. Working branch has planning-only changes; source PR 44 checkout remains separate and untouched.
+**Security checklist:** No production access or deployment. No production or customer data read or changed. No secrets or supplier identifiers introduced. No application code, migrations, RLS, MFA, device, approval, audit or permission controls changed. No existing worktree changes overwritten.
+**Next / needs:** Independent review of the planning diff and MJ approval before any implementation sequencing changes.
+
+### L-0310 · 2026-11-03 13:56 PKT · ChatGPT · GPT-6 · session kiran-plan-20261103 · branch docs/sales-distribution-engineering-plan · CLAIM-RELEASED
+**Task:** PLAN-04 (Karachi dual-channel field-sales and distribution engineering plan)    **Claim:** C-029
+**What / why:** Documentation planning work handed off. Claim C-029 released. No implementation status or phase gate is being claimed.
+**Next / needs:** Independent review and owner decisions OQ-31 and OQ-32 before the affected implementations.
+
+### L-0311 · 2026-11-03 14:01 PKT · ChatGPT · GPT-6 · session kiran-plan-merge-20261103 · branch docs/sales-distribution-engineering-plan · SESSION-START
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-030
+**What / why:** MJ explicitly requested merging the new engineering plan to main. The current plan branch is based on PR 44 head ef1bc53 and contains PR 44 code in its ancestry. To avoid merging PR 44 without its own approval, this task will transfer only the planning/documentation changes to a new branch based on the freshly fetched origin/main. Read AGENTS.md, CLAUDE.md, the full agent compliance protocol, ACTIVITY rules/status/claims/blockers and the planning source documents. No production access.
+**Next / needs:** Add the integration claim and prepare a documentation-only branch; PR review, exact-head CI and merge commit remain mandatory.
+
+### L-0312 · 2026-11-03 14:01 PKT · ChatGPT · GPT-6 · session kiran-plan-merge-20261103 · branch docs/sales-distribution-engineering-plan · CLAIM
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-030
+**What / why:** Scope is limited to publishing docs 00-15, SPEC.md, root agent repo-map references and associated ACTIVITY/diagram updates as a docs-only PR. Base must be latest origin/main. Explicitly exclude PR 44 application code/migration and every unrelated worktree. MJ's current chat request authorizes the plan PR, not a different PR or phase/production gate.
+**Rules touched:** ACTIVITY §§1-11 and §16, H-19, H-23-H-26, docs/AGENT-COMPLIANCE-PROTOCOL.md §7.
+**Next / needs:** Preserve source worktree; copy only allowlisted documentation files to a clean main-based branch; verify diff and open PR.
+
+### L-0313 · 2026-11-03 14:08 PKT · ChatGPT · GPT-6 · session kiran-plan-merge-20261103 · branch docs/field-sales-distribution-plan · BLOCKER
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-030
+**What / why:** Stop before publishing or merging. PR 44 is still OPEN and its changed-file list includes docs/ACTIVITY.md, the office layout, a create_salon migration and its regression test. PLAN-05 also needs that same ACTIVITY file for its append-only session, claim, blocker and handoff records. The agent compliance protocol requires stopping when an in-flight PR owns the same file/area. Do not merge PR 44 without separate MJ approval; MJ's current request authorizes only the plan PR. The main-branch ruleset is active and has six required status checks; no ruleset change is needed or authorized.
+**Evidence:** `gh pr view 44` reports head ef1bc53f5a2a8c4b71affcd606bc9904e5b6c4b7 and files apps/web/app/office/(shell)/layout.tsx, docs/ACTIVITY.md, supabase/migrations/20261103100000_create_salon_blanks.sql, supabase/tests/create-salon-blanks.test.ts. `gh api repos/ethancrystal/kiran-dms/rulesets/26299367` reports active ruleset prot with six required checks. No commit, push, PR creation or merge was attempted for PLAN-05.
+**Next / needs:** MJ must approve PR 44 separately so it can be merged first. After that, rebase the prepared documentation-only branch onto updated main, rerun checks, create the plan PR and merge only after its exact-head required checks pass.
+
+### L-0314 · 2026-11-03 14:08 PKT · ChatGPT · GPT-6 · session kiran-plan-merge-20261103 · branch docs/field-sales-distribution-plan · HANDOFF
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-030
+**What / why:** Integration work is prepared but BLOCKED before publication by B-36. A clean local branch `docs/field-sales-distribution-plan` was created from origin/main 61c977576e8495820783ab003e45a3b21625bf96. It contains only documentation and root instruction changes: AGENTS.md, CLAUDE.md, SPEC.md, docs 00, 02-06, 08, 11, 12, 14, 15, ACTIVITY.md and the business-domain diagram. It does not contain PR 44 application code or migration. The original source worktree remains unchanged apart from this task's planning log entries; no worktree was reset or cleaned.
+**Evidence:** `pnpm agent:preflight` PASS; `pnpm activity:check` PASS; `pnpm lint` PASS (pre-existing 33 warnings and 42 infos); `git diff --check` PASS; AGENTS.md and CLAUDE.md parity PASS; Git object-hash parity for the 16 allowlisted files between the source and clean integration worktrees PASS. `pnpm typecheck` was not rerun in this integration branch; the previous local run was blocked by missing exceljs. The full database suite was not completed in the preceding planning session. No PR CI has run because no PR was opened.
+**Security checklist:** No production access or deployment. No real customer, supplier or personal data accessed or changed. No secrets introduced. No application code, migration, RLS, MFA, device, approval, audit or permission controls changed. No unrelated worktree changes overwritten. No branch protection or ruleset changed.
+**Next / needs:** Await MJ's PR-44-specific decision; then rebase this docs-only branch onto main after PR 44 merges and complete its own PR, review, required CI and exact-head merge.
+
+### L-0315 · 2026-11-03 14:08 PKT · ChatGPT · GPT-6 · session kiran-plan-merge-20261103 · branch docs/field-sales-distribution-plan · CLAIM-RELEASED
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-030
+**What / why:** Claim C-030 released as abandoned because B-36 blocks the overlapping ACTIVITY file. PLAN-05 remains BLOCKED; the prepared local documentation-only branch is preserved for continuation after the PR overlap is resolved.
+**Next / needs:** MJ decision on PR 44.
+
+### L-0316 · 2026-11-03 14:09 PKT · ChatGPT · GPT-6 · session kiran-plan-merge-20261103 · branch docs/field-sales-distribution-plan · CORRECTION
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-030
+**What / why:** Corrects L-0314: this task did update AGENTS.md and CLAUDE.md in the isolated plan worktree to include docs 15 and the salon portal route, in addition to ACTIVITY.md. The source plan worktree therefore contains its pre-existing planning diff plus these integration updates; it is not pristine. The original PR 44 code worktree and all unrelated user worktrees were left untouched. The clean target branch was based on origin/main and contains only the allowlisted planning/documentation files. No reset or clean command was used.
+**Next / needs:** B-36 remains the controlling blocker.
+
+### L-0317 · 2026-11-03 14:11 PKT · ChatGPT · GPT-6 · session kiran-pr44-merge-20261103 · branch docs/sales-distribution-engineering-plan · SESSION-START
+**Task:** PLAN-06 (merge PR 44 on MJ's explicit approval)    **Claim:** C-031
+**What / why:** MJ explicitly approved PR 44 in this conversation. Re-read root agent instructions, the compliance protocol and ACTIVITY governance; ran preflight; inspected active claims, blockers, PR state, exact head SHA, changed files and current required checks. This is the PR-44-specific authorization; it does not authorize another PR, a phase gate or production release.
+**Next / needs:** Verify required checks remain green on exact head and merge using a pinned merge commit.
+
+### L-0318 · 2026-11-03 14:11 PKT · ChatGPT · GPT-6 · session kiran-pr44-merge-20261103 · branch docs/sales-distribution-engineering-plan · CLAIM
+**Task:** PLAN-06 (merge PR 44 on MJ's explicit approval)    **Claim:** C-031
+**What / why:** Scope is only merging PR 44, head ef1bc53f5a2a8c4b71affcd606bc9904e5b6c4b7, into main with a merge commit. Do not amend the PR, alter branch protection/rulesets, deploy, touch production or merge any other PR.
+**Evidence:** `pnpm agent:preflight` passed. PR 44 is OPEN and MERGEABLE with base 61c977576e8495820783ab003e45a3b21625bf96 and exact head ef1bc53f5a2a8c4b71affcd606bc9904e5b6c4b7. All six ruleset-required checks passed on that head: agent-policy-files; activity-log-check; migrations + RLS matrix; typecheck + service-role scan; lint + format; rep PWA browser tests. Office browser tests and Vercel preview are also SUCCESS. MJ's PR-specific approval supplies the non-author review under the recorded merge rule L-0301.
+**Next / needs:** Merge pinned to the exact head, then record the resulting merge SHA and close B-36.
+
+### L-0319 · 2026-11-03 14:13 PKT · ChatGPT · GPT-6 · session kiran-pr44-merge-20261103 · branch docs/sales-distribution-engineering-plan · HANDOFF
+**Task:** PLAN-06 (merge PR 44 on MJ's explicit approval)    **Claim:** C-031
+**What / why:** PR 44 merged successfully into main using a merge commit pinned to the exact approved head. The PR contains the Unicode-whitespace handling in salon creation, a generic office profile-read error and regression tests; no separate PR was merged. B-36 is resolved. PLAN-05 can now proceed by creating a fresh docs-only branch from updated main.
+**Evidence:** `gh pr merge 44 --merge --match-head-commit ef1bc53f5a2a8c4b71affcd606bc9904e5b6c4b7` exited 0. GitHub reports PR 44 state MERGED at 2026-11-03T09:13:52Z, merge commit `c638c39f6ed2450dbd927b9f55b155657f46f408`. Updated `origin/main` is the same merge commit with parents `61c977576e8495820783ab003e45a3b21625bf96` and `ef1bc53f5a2a8c4b71affcd606bc9904e5b6c4b7`. All six ruleset-required PR checks passed on the exact head; office browser tests and Vercel preview also passed. Local `pnpm activity:check` passed after the new entries were correctly appended; `git diff --check` passed. No production deploy was initiated.
+**Security checklist:** No production access or data changes. No secrets or real customer/supplier data introduced. PR 44's changes were exactly the four reviewed files; no extra files were merged. No rule/permission changes or ruleset changes. No unrelated local worktrees were modified.
+**Next / needs:** Rebase the prepared planning changes onto updated main and open a separate docs-only PR; do not merge PR 14.
+
+### L-0320 · 2026-11-03 14:13 PKT · ChatGPT · GPT-6 · session kiran-pr44-merge-20261103 · branch docs/sales-distribution-engineering-plan · CLAIM-RELEASED
+**Task:** PLAN-06 (merge PR 44 on MJ's explicit approval)    **Claim:** C-031
+**What / why:** PR 44 merge task completed and claim C-031 released. The docs-only plan work remains a separate, active task under PLAN-05.
+**Next / needs:** Publish PLAN-05 against updated main.
+
+### L-0321 · 2026-11-03 14:20 PKT · ChatGPT · GPT-6 · session kiran-plan-publish-20261103 · branch docs/field-sales-distribution-plan-v2 · SESSION-START
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-032
+**What / why:** Continue the MJ-requested plan publication after PR 44 merged in c638c39. Fresh worktree/branch is based directly on updated origin/main; no PR44 code/migration is present in this branch. Read root agent instructions and preflight state; reviewed the plan diff and preserved source/other worktrees.
+**Next / needs:** Finalize diff, commit and push docs-only branch, open the plan PR, wait for MJ's PR-specific merge approval.
+
+### L-0322 · 2026-11-03 14:20 PKT · ChatGPT · GPT-6 · session kiran-plan-publish-20261103 · branch docs/field-sales-distribution-plan-v2 · CLAIM
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-032
+**What / why:** Scope: publish the approved Karachi salon-distribution engineering plan and its consistent planning/index/security/requirements/domain/roadmap/diagram changes only. Base is main merge c638c39. Exclude application code, SQL migrations, tests, secrets, production configuration and all unrelated user worktrees.
+**Rules touched:** H-01 to H-27 remain in force; docs/AGENT-COMPLIANCE-PROTOCOL.md §§2-9; ACTIVITY §§1-11 and §16.
+**Next / needs:** Inspect exact staged/committed diff, run local checks, push branch, verify PR CI and request MJ review.
+
+### L-0323 · 2026-11-03 14:22 PKT · ChatGPT · GPT-6 · session kiran-plan-publish-20261103 · branch docs/field-sales-distribution-plan-v2 · CORRECTION
+**Task:** PLAN-05 (publish the field-sales and distribution plan through a docs-only PR to main)    **Claim:** C-032
+**What / why:** Corrects L-0309's stated line count for docs/15. The current file has 584 lines, as reported by the working-tree file reader; the earlier figure of 463 was inaccurate. This correction does not change scope or implementation status.
+**Next / needs:** Continue final diff review and PR preparation.
 
 ---
 

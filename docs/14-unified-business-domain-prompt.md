@@ -52,6 +52,7 @@ The existing planning set already defines the salon CRM, field sales, inventory,
 - Product names, variants, prices and costs remain dummy until MJ supplies the real catalogue (OQ-16).
 - The roadmap and phase gates in docs 11 and docs/ACTIVITY.md remain controlling. P1-05, P1-07, P1-10, P1-11 and P1-15 have distinct dependencies and must not be silently treated as complete.
 - Investor/capital management is an additional business domain to specify. It is not currently an approved change to the production permission matrix or a reason to bypass existing phases.
+- MJ confirmed on 2026-11-03 that salon customers may have authenticated portal accounts and can submit their own orders alongside representative-placed orders. Doc 15 defines the module-level target and access model.
 
 ## 3. Business-domain diagram
 
@@ -63,10 +64,11 @@ The diagram deliberately distinguishes:
 - salaried representatives from independent agents;
 - investors from agents;
 - the external supplier from Kiran's restricted internal procurement workflow;
-- salon customer documents from a salon login or self-service portal;
+- the salon customer portal from internal staff workspaces and the internal staff role model;
+- the two salon order channels from the representative visit and acquisition-attribution records;
 - the restricted supplier/cost compartment from ordinary stock and sales records.
 
-The Investor Workspace is labelled proposed. No supplier portal or salon login is assumed. The office console is a workspace for Owner and Manager, not a new unrestricted `admin` role.
+The Investor Workspace remains labelled proposed. An authenticated salon customer portal is required: salons can submit their own orders and view only their own permitted customer data. No supplier portal is assumed. The office console is a workspace for Owner and Manager, not a new unrestricted admin role.
 
 ## 4. Actors and domain boundaries
 
@@ -144,9 +146,9 @@ The rights of an Investor depend on the signed arrangement. An Investor does not
 
 ### 4.6 Salon / Customer
 
-A Salon is a direct business customer in the CRM and order-to-cash workflow. It has pipeline stages, territory, contacts, visit history, credit profile, orders, deliveries, invoices, installments, payments, receipts and customer communication.
+A Salon is a direct business customer in the CRM and order-to-cash workflow. It has pipeline stages, territory, contacts, visit history, credit profile, orders, deliveries, invoices, installments, payments, receipts and customer communication. It may have a separately authenticated customer portal membership linked to its own salon record; a salon contact is not automatically a login.
 
-Do not create an authenticated salon portal as an assumption. Customer-facing invoices, receipts, statements and reminders are separate from an authenticated customer workspace. Independent Agents do not report the salons they serve, so do not infer or import those downstream customers into Kiran's salon CRM.
+The salon portal must let an authorized salon user view the shared active product catalogue, that salon's assigned prices, customer-safe aggregate stock quantities, its own orders/status/history and its own authorized invoices/receipts/statements, and independently submit orders for that salon. Portal users cannot see other salons, internal CRM notes, rep GPS, supplier identity, costs/margins or stock custody details. Representative-placed orders remain a separate channel captured during a genuine visit. Both channels use one canonical order engine. Independent Agents do not report the salons they serve, so do not infer or import those downstream customers into Kiran's salon CRM.
 
 ### 4.7 Supplier
 
@@ -175,7 +177,7 @@ A shared product identity must not mean every role can read every price column.
 
 ### 5.3 Salon CRM to sales and collections
 
-The salon is the source record for customer identity, territory and CRM history. Orders link to salon, permitted Rep, lines and prices captured at order time. Delivery creates stock movements and invoices. Installments and payments update receivables and cash ledgers through the documented write paths. Receipts are independently delivered to the salon. Re-order and collection tasks use the salon's purchase cycle and receivable state.
+The salon is the source record for customer identity, territory and CRM history. The order system accepts two channels: a rep_visit order with an authenticated order-taking rep and genuine visit context, or a salon_portal order created by an authenticated member of that salon. Both create the same canonical sales order and lines, with server-resolved prices and immutable order-time snapshots. The record distinguishes original acquisition rep, current assigned rep, actual order-taking rep, authenticated creator and channel. A portal order does not fabricate a visit or rep attribution. Delivery creates stock movements and invoices. Installments and payments update receivables and cash ledgers through documented write paths. Receipts are independently delivered to the salon. Re-order/retention tasks can use orders from either channel; physical-visit and rep productivity metrics use genuine rep visits only.
 
 ### 5.4 Independent Agent to stock and money
 
@@ -233,7 +235,7 @@ The existing security plan remains binding. New domain access must be designed i
 | Salaried Rep | Own approved device, assigned territories, route, permitted salons, own bag and work records | Supplier data, costs, Investor data, other Rep data, unrestricted exports |
 | Independent Agent | Own account, agent catalogue, permitted quantity availability, own purchases and receipts | Salons, other Agents, supplier identity, Kiran cost/margin, Investor data |
 | Investor | Own contributions, allocations, batch statement and contractual settlement records only, if portal is approved | Other Investors, supplier identity, raw supplier documents, other channels' personal data |
-| Salon / Customer | Customer-facing documents and communications | Internal CRM notes, Rep data, supplier data, cost/margin, other salons |
+| Salon / Customer | Its own profile, shared catalogue, own assigned prices, safe aggregate stock, own orders/status/history and authorized invoices/receipts/statements; may submit own orders | Other salons, internal CRM notes, Rep GPS/field data, supplier data, cost/margin, stock locations/custody and company administration |
 | Supplier | No Kiran DMS login by default | Internal CRM, other suppliers, investor information and company-wide data |
 
 Mandatory controls:

@@ -58,10 +58,12 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Pipeline | PIP-04, 05, 06, 08, 10, 11 (route days, cycle engine, due tasks, sweep mode, geofence flags) |
 | Collections | PAY-06 (bank reconciliation), PAY-08 timers, PAY-09 credit rules automation |
 | Orders | ORD-06 returns, ORD-07 price lists & special pricing, ORD-09 suggestions |
+| Salon portal and dual-channel ordering | SAL-11/12, ORD-11/13, SEC-13/15: secure salon membership, own-salon catalogue/price/stock/order/document reads, portal order submission through the common order engine (subject to OQ-31) |
 | Stock | INV-07 restock suggestions, INV-08 batches/expiry, INV-09 counts, INV-10 valuation (vault) |
 | Vault | VLT-07 column encryption (if not already in Phase 1) |
 | Controls | CTL-10 monthly statements + dispute, CTL-11 automated confirmations, CTL-12 quarantine returns, CTL-13 commission on banked cash, CTL-14 anomaly jobs |
-| Field | FLD-02 scorecard, FLD-03 commissions, FLD-04 onboarding checklist, FLD-05 live map |
+| Field | FLD-02 scorecard, FLD-03 commission workflow only if approved, FLD-04 onboarding checklist, FLD-05 live map |
+| Active location | PIP-12/13: open-rep-day location samples, office current/stale map and approved history; exact tracking policy follows OQ-32 |
 | Messaging | MSG-01, 02, 04 |
 | Reports | RPT-03 funnel, RPT-04 margin (vault), RPT-05 accountant pack |
 | Hiring | Reps 2 and 3 onboarded with the doc 08 runbook; two more territories mapped via discovery + sweep |
@@ -72,7 +74,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 
 - Purchase orders and supplier claims fully in the vault UI; forecasting with seasonality.
 - Multi-warehouse / van stock transfers; second city readiness (data model already allows).
-- Promotions and bundles (ORD-08); salon self-service via WhatsApp ("BALANCE", "REORDER").
+- Promotions and bundles (ORD-08); approved WhatsApp notifications and opt-in reminders may complement the authenticated salon web portal. WhatsApp is not a substitute for the portal's account security or order ledger.
 - Honeytoken salons (SEC-09); discovery refresh job (MAP-10); salon tags (SAL-08).
 - Accounting connector if the accountant wants one; payroll export of commissions.
 - Performance and cost review; security re-test; penetration test by a third party.

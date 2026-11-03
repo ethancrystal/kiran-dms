@@ -55,6 +55,25 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 
 Permissions are enforced in three places that must agree: RLS policies (data), `SECURITY DEFINER` functions (actions), and UI (convenience only — never the control).
 
+### 2.1 Salon customer identity and authorization boundary
+
+A Salon Customer is an external customer membership, not a fourth internal staff role. Do not add salon to user_profile.role or infer a portal identity from salon_contact.phone. Use a separately auditable membership linking an authenticated auth user to an explicitly authorized salon. Invitation/activation/revocation is owner-governed under D-08. Default one membership to one salon; multiple-salon membership requires an explicit decision and additional RLS tests.
+
+| Capability | Salon customer | Enforcement boundary |
+|---|---|---|
+| View catalogue | Shared active products/SKUs | Allow-listed customer read function |
+| View prices | Only own salon's effective approved prices | Server derives salon membership; never accepts salon_id as authority |
+| View stock | Safe aggregate on-hand/available quantity only | Sanitized stock projection; no raw stock tables or locations |
+| Submit order | Own salon only | Dedicated customer RPC; common canonical order engine; idempotency |
+| View orders/documents | Own salon's records only | Membership-scoped reads and private signed document access |
+| View reps/visits | No rep GPS or internal visit notes | No access to field-workforce functions |
+| Manage salon or users | No; correction request only | Office workflow; no direct master-data writes |
+| View supplier/cost/margin | Never | No schema/table/function exposure |
+
+Customer RLS/RPC tests must prove that Salon A cannot read, update, create an order for or download documents for Salon B by changing IDs, URLs, query filters, RPC arguments or object-storage paths. Revoked/suspended memberships must fail immediately. Salon functions must not call rep functions under the salon user's identity and must not grant access to internal CRM notes, rep location, cash/bag custody, price governance, credit decision internals or other salons.
+
+The existing staff roles and office permission matrix below remain unchanged.
+
 ## 3. Authentication and sessions
 
 | Control | Owner / Manager | Rep |
