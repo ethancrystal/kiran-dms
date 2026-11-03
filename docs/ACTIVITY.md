@@ -340,6 +340,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
+| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0387 |
 | C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
 
 
@@ -457,8 +458,9 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-13 | The session MJ asked me to continue is the checking session on claude/architecture-rfc (cloud session 01Y3chVr; its entries L-0108 and L-0109 on the unmerged branch claude/architecture-rfc, not the ones on main): its TLA+ spec of RFC issue 4 and the runs it left unfinished. Its transcript was not readable here. (A-09 and A-10 are used on main.) | L-0327 | The work lands on the wrong topic; it touches only docs/specs, so it is easy to drop | open |
 | A-14 | Receivables ageing per rep (PAY-07): a salon's receivable counts in full under every rep currently assigned to its territory (rep_territory with no end date), and under a null rep when the territory has none; not under the rep who sold the invoice | L-0352 | Rep rows move to the selling rep; one query changes, nothing stored | confirmed (MJ, L-0361) |
 | A-15 | Handover ledger (PAY-05, CTL-03): cash moves only when the rep acknowledges: rep `out` of the expected amount (the database's figure at the count), office `in` of the counted amount; the variance and its reason stay on the handover row (no variance ledger row, no rep debt); a dispute moves nothing and its owner resolution is not built; a rep with a pending or disputed handover cannot be counted again | L-0358 | A different variance or dispute rule changes the acknowledgment function; rows written so far stay as history | confirmed (MJ, L-0360) |
-| A-16 | Delivering rep of an office-created order (D-30, B-40 a): the manager picks the delivering rep when creating or confirming the order, from the reps currently assigned to the salon's territory; the rep then delivers from the bag and collects as today | L-0375 | The order rework's assignment rule changes; nothing is built yet | open |
+| A-16 | Delivering rep of an office-created order (D-30, B-40 a): the manager picks the delivering rep when creating or confirming the order, from the reps currently assigned to the salon's territory; the rep then delivers from the bag and collects as today | L-0375 | The order rework's assignment rule changes; nothing is built yet | confirmed (MJ, L-0385: plus no rep for manager-direct and salon orders) |
 | A-17 | Salon sub-accounts (L-0380): the office invites each staff login, as it does the salon's first login (L-0376); every login is tied to exactly one salon; every login of a salon has the same portal rights (catalogue, prices, its salon's orders and documents; create, and edit or cancel until approval); each order and change records the login that made it; the office can suspend one login without the others | L-0381 | Who may invite (the salon's first login could instead), or narrower rights per login, change the membership table and its RLS; nothing is built yet | rejected (MJ, L-0382: one login per salon for now) |
+| A-18 | An order with no assigned rep (manager-direct, later salon portal) is delivered from the warehouse by the office (`app.office_deliver`) and paid through the office cash or bank-transfer paths | L-0386 | Rep-less orders need another delivery or collection path | open |
 
 ---
 
@@ -4466,6 +4468,35 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **What / why:** Supersedes L-0380. MJ in chat on 2026-11-03: "okay just keep one account for solon for now". Recorded: one portal login per salon for now, invited by the office (L-0376); no staff sub-accounts. A-17 marked rejected. Sub-accounts may be raised again later; adding them would not undo anything built for one login. Docs 03 SEC-13, 06 section 2.1 and 12 (D-30) restored to one login per salon; the B-40 row cites L-0382. Also restamped, before any base accepted them, this branch's own L-0380 and L-0381 (21:56 and 21:57) to 21:55 and 21:56, read from the clock.
 **Rules touched:** section 1, section 4, H-24, H-26
 **Next / needs:** MJ: A-16; the merge decision for this pull request.
+
+### L-0383 · 2026-11-03 22:46 PKT · Claude · Opus 5.5 · session orders-design-20261103 · branch claude/orders-delivery-commission · SESSION-START
+**Task:** P1-06 rework under D-30 (ORD-01, ORD-11, ORD-14); P1-07 delivery approval; commission    **Claim:** C-039
+**What / why:** MJ asked to move further (brainstorming) after PR 47 merged at 486888b. Read this file's rules, claims and blockers; branch cut from origin/main 486888b; worktree clean; no open pull request. The verifier branch claude/gifted-mestorf-be2a40 (unpushed) holds C-038, B-41 and its own L-numbers; this branch avoids C-038 and B-41. This entry starts the design: office orders, rep order cards, delivery approval and commission. No code yet.
+**Next / needs:** L-0384 to L-0387.
+
+### L-0384 · 2026-11-03 22:46 PKT · Claude · Opus 5.5 · session orders-design-20261103 · branch claude/orders-delivery-commission · CLAIM
+**Task:** P1-06 rework under D-30; delivery approval; commission    **Claim:** C-039
+**What / why:** C-039 added to section 13. Areas: sales_order and the order functions (app.create_order and a new office path), new tables order_intake_card, delivery_submission and their decision tables, rep_commission_rate, pending-delivery stock locations and movement kinds, app.rep_deliver and its finalising logic, invoice columns for commission, the related screens and tests, docs 03, 04, 06, 09, 12, and docs/superpowers/specs. Three pull requests in order (design spec section 2).
+**Rules touched:** section 3
+**Next / needs:** L-0385.
+
+### L-0385 · 2026-11-03 22:47 PKT · Claude · Opus 5.5 · session orders-design-20261103 · branch claude/orders-delivery-commission · DECISION
+**Task:** P1-06 rework under D-30; delivery approval; commission    **Claim:** C-039
+**What / why:** MJ's answers in chat on 2026-11-03, during the design. (1) A-16, asked how the delivering rep of a manager-created order is chosen: "Manager picks from territory reps (Recommended) ... and choose no rep if order is placed by client or Manager directly in that case no rep will be assigned to that order". So an order converted from a rep's card gets a rep picked from the salon's territory reps (the card's rep pre-selected); an order the manager creates directly, or a salon places, gets none. (2) Commission, MJ's words: "I also need to calculate the commision of the rep that will be dependent on the percentage set by Manager only when they invite a rep for signup and and that commision will be applied automatically on the order price and will be accumulated in commisions are if that order has an assigned rep, at any point in time a Manager or Rep can visit their commisison area and see the total commision and its details by choosing a date picker module". Follow-up answers: base "Delivered (invoiced) value (Recommended)" (amends D-10 and CTL-13, which said collected and banked cash); rate changes "Yes, from the change onward (Recommended)"; payouts "Earned only, for now (Recommended)"; who sets rates and creates users "Owner+manager set rates; owner creates users (Recommended)" (amends D-08 for commission rates only; user creation stays owner-only). (3) Delivery approval: MJ pasted a requirement titled "Mandatory Manager Approval for Authoritative Business Transactions": reps may submit operational evidence but cannot finalise anything that changes official orders, stock, invoices, financial records or commission attribution; a rep's delivery becomes an immutable submission, stock moves to a pending-delivery suspense location, the owner or manager approves (maker-checker, MFA) and only approval writes the delivery, the sale movement, the invoice, installments and the order status; rejections stay auditable and never restore stock automatically; enforced in PostgreSQL. (4) The design: approach A ("A: extend engine, derive commission (Recommended)"), sections 1 and 2 ("Yes, both look right (Recommended)", including the three ways to settle a rejected delivery), sections 3 and 4 ("Yes, write the spec (Recommended)"). Commissions were Phase 2 (P2-07); MJ brings them into Phase 1 here. The docs follow in the first pull request.
+**Rules touched:** section 1, H-22, H-26
+**Next / needs:** L-0386.
+
+### L-0386 · 2026-11-03 22:48 PKT · Claude · Opus 5.5 · session orders-design-20261103 · branch claude/orders-delivery-commission · ASSUMPTION
+**Task:** P1-06 rework under D-30    **Claim:** C-039
+**What / why:** A-16 is marked confirmed with MJ's addition (L-0385). A-18 added to section 15: an order with no assigned rep (manager-direct, or later salon portal) is delivered from the warehouse by the office (`app.office_deliver`) and paid through the office cash or bank-transfer paths. MJ was asked this and sent a different message instead, so it stays an assumption.
+**Rules touched:** section 15
+**Next / needs:** MJ confirms A-18.
+
+### L-0387 · 2026-11-03 22:49 PKT · Claude · Opus 5.5 · session orders-design-20261103 · branch claude/orders-delivery-commission · PROGRESS
+**Task:** P1-06 rework under D-30; delivery approval; commission    **Claim:** C-039
+**What / why:** Design spec written: docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md (purpose and success, three pull requests in order, decisions, data model per pull request, approval classification, screens, tests, risks). It is a design record; the planning docs stay the source of truth and are updated in the first pull request. No code.
+**Evidence:** `node scripts/activity-log-check.mjs origin/main` before commit (result in the commit message).
+**Next / needs:** MJ reviews the spec; then the implementation plan.
 
 ---
 
