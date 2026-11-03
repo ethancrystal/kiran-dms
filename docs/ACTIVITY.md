@@ -340,7 +340,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0387 |
+| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0388 |
 | C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
 
 
@@ -4497,6 +4497,12 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **What / why:** Design spec written: docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md (purpose and success, three pull requests in order, decisions, data model per pull request, approval classification, screens, tests, risks). It is a design record; the planning docs stay the source of truth and are updated in the first pull request. No code.
 **Evidence:** `node scripts/activity-log-check.mjs origin/main` before commit (result in the commit message).
 **Next / needs:** MJ reviews the spec; then the implementation plan.
+
+### L-0388 · 2026-11-03 23:21 PKT · Claude · Opus 5.5 · session orders-design-20261103 · branch claude/orders-delivery-commission · PROGRESS
+**Task:** P1-06 rework under D-30 (ORD-01, ORD-11, ORD-14)    **Claim:** C-039
+**What / why:** MJ approved the design spec in chat ("Spec approved"). Implementation plan for PR A written: docs/superpowers/plans/2026-11-03-office-orders-and-cards.md (9 tasks: decisions in docs D-31 and D-32, schema, office order creation through a shared builder, order cards and conversion, assigned-rep reads and delivery, test fixtures moved to the office path, closing the rep order path, screens, verification), with PR B (delivery approval) and PR C (commission) outlined for their own plans. No code yet.
+**Evidence:** `node scripts/activity-log-check.mjs origin/main` before commit (result in the commit message).
+**Next / needs:** MJ reviews the plan and chooses how it is executed.
 
 ---
 
