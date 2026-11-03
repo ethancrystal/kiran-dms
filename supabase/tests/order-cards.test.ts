@@ -120,6 +120,12 @@ describe("order card shape", () => {
     expect(await txCode(`${card(cid)} ${close(cid, "dismissed", null, "      ")}`)).toBe(CHECK_VIOLATION);
     expect(await txCode(`${card(cid)} ${officeOrder(oid)} ${close(cid, "dismissed", oid, GOOD_REASON)}`)).toBe(CHECK_VIOLATION);
     expect(await txCode(`${card(cid)} ${close(cid, "dismissed", null, GOOD_REASON)}`)).toBeNull();
+    const other = id();
+    expect(
+      await txCode(
+        `${card(cid)} ${card(other)} ${officeOrder(oid)} ${close(cid, "converted", oid, null)} ${close(other, "converted", oid, null)}`,
+      ),
+    ).toBe(UNIQUE_VIOLATION);
     expect(
       await txCode(`${card(cid)} ${close(cid, "dismissed", null, GOOD_REASON)} ${close(cid, "dismissed", null, GOOD_REASON)}`),
     ).toBe(UNIQUE_VIOLATION);
@@ -156,6 +162,26 @@ describe("order channel, creator, assigned rep (D-30)", () => {
     const repVisitNoDay = `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, rep_id, plan, delivery_mode, subtotal_paisa, total_paisa)
       values ('${oid}', '${oid}', '${SALON}', 'rep_visit', '${fx.repA.id}', '${fx.repA.id}', 'CASH', 'warehouse', ${SKU_PRICE}, ${SKU_PRICE});`;
     expect(await txCode(repVisitNoDay)).toBe(CHECK_VIOLATION);
+  });
+
+  it("a rep_visit order is created by its own rep: created_by differing from rep_id fails", async () => {
+    const oid = id();
+    const otherCreator = `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, rep_id, rep_day_id, plan, delivery_mode, subtotal_paisa, total_paisa)
+      values ('${oid}', '${oid}', '${SALON}', 'rep_visit', '${fx.manager.id}', '${fx.repA.id}', ${REP_DAY}, 'CASH', 'warehouse', ${SKU_PRICE}, ${SKU_PRICE});`;
+    expect(await txCode(otherCreator)).toBe(CHECK_VIOLATION);
+  });
+
+  it("a rep cannot deliver a rep-less office order: the null rep_id does not slip past the ownership check", async () => {
+    const oid = id();
+    const confirmed = `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, plan, delivery_mode, status, subtotal_paisa, total_paisa, confirmed_at)
+      values ('${oid}', '${oid}', '${SALON}', 'office', '${fx.manager.id}', 'CASH', 'warehouse', 'confirmed', ${SKU_PRICE}, ${SKU_PRICE}, now());`;
+    const asRepA = `reset role;
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
+             set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
+      set local role authenticated;`;
+    const deliver = `select app.rep_deliver('${id()}', '${oid}', 'Ayesha at the counter', 24.9, 67.1);`;
+    expect(await txCode(`${confirmed} ${asRepA} ${deliver}`)).toBe("42501");
+    expect(await txError(`${confirmed} ${asRepA} ${deliver}`)).toContain("own orders");
   });
 
   it("an order always records who created it", async () => {

@@ -17,6 +17,9 @@
 --   * public.order_intake_card (a rep's note of what a salon needs) and public.order_intake_card_close
 --     (converted into an order, or dismissed with a reason). Both are append-only and audited.
 --   * The order immutability trigger now also fixes channel, creator, assigned rep and source card.
+--   * Existing rows: created_by is backfilled from rep_id and source_channel reads rep_visit (column default).
+--   * app.rep_deliver is re-issued with one change: a rep-less order is refused (rep_id is distinct from
+--     the caller), because rep_id can now be null and `null <> uid` would have let any rep deliver it.
 -- =============================================================================
 
 -- ------------------------------------------------------------------ channel ----
@@ -28,11 +31,12 @@ alter table public.sales_order
   add column assigned_rep_id uuid references public.user_profile (id),
   add column intake_card_id  uuid;                                   -- FK below, once the card table exists
 
--- The immutability trigger forbids changing these columns, so the backfill of the rows that exist
--- runs with ordinary triggers off (this migration is the only place that does it).
-set local session_replication_role = replica;
-update public.sales_order set created_by = rep_id, source_channel = 'rep_visit';
-set local session_replication_role = origin;
+-- The immutability trigger forbids changing created_by, so the backfill of the rows that exist runs
+-- with that one trigger off; audit and foreign-key triggers still run. Existing rows already read
+-- rep_visit from the column default.
+alter table public.sales_order disable trigger sales_order_guard;
+update public.sales_order set created_by = rep_id;
+alter table public.sales_order enable trigger sales_order_guard;
 
 alter table public.sales_order alter column created_by set not null;
 alter table public.sales_order alter column rep_id drop not null;
@@ -41,7 +45,7 @@ alter table public.invoice alter column rep_id drop not null;
 
 alter table public.sales_order
   add constraint sales_order_channel_shape check (
-    (source_channel <> 'rep_visit' or (rep_id is not null and rep_day_id is not null))
+    (source_channel <> 'rep_visit' or (rep_id is not null and rep_day_id is not null and created_by = rep_id))
     and (source_channel <> 'office' or (rep_id is null and rep_day_id is null)));
 
 comment on column public.sales_order.source_channel is
@@ -128,7 +132,7 @@ create table public.order_intake_card_close (
     (outcome = 'converted' and order_id is not null and reason is null)
     or (outcome = 'dismissed' and order_id is null and length(btrim(coalesce(reason, ''))) >= 5))
 );
-create index order_intake_card_close_order_idx on public.order_intake_card_close (order_id) where order_id is not null;
+create unique index order_intake_card_close_order_idx on public.order_intake_card_close (order_id) where order_id is not null;  -- one order from one card
 comment on table public.order_intake_card_close is
   'D-30. Append-only. How a card ended: converted into an order, or dismissed with a reason of at least 5 characters.';
 
@@ -164,3 +168,41 @@ revoke all on public.order_intake_card, public.order_intake_card_close from publ
 grant select on public.order_intake_card, public.order_intake_card_close to authenticated, service_role;
 
 revoke execute on function control.sales_order_creator() from public, anon, authenticated, service_role;
+
+-- ------------------------------------------------------------ rep delivery ----
+-- Same as migration 0013 except the ownership test: rep_id may now be null (an office order), and
+-- `null <> auth.uid()` is not true, so the old test would have let any rep deliver a rep-less order.
+create or replace function app.rep_deliver(
+  p_client_id uuid, p_order_id uuid, p_received_by_name text, p_lat numeric, p_lng numeric,
+  p_lines jsonb default null, p_mock_location boolean default false, p_delivered_at_client timestamptz default null)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_actor_ready();
+  d      public.delivery;
+  o      public.sales_order;
+  v_day  uuid;
+  v_bag  uuid := app.my_bag_id();
+begin
+  if v_role <> 'rep' then perform app.raise_denied('reps deliver from their bag; the office uses office_deliver'); end if;
+  select * into d from public.delivery where client_id = p_client_id;
+  if d.id is not null then
+    if d.order_id = p_order_id and d.delivered_by = auth.uid() then
+      return (select i from public.invoice i where i.delivery_id = d.id);          -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  select * into o from public.sales_order where id = p_order_id;
+  if o.id is null or o.rep_id is distinct from auth.uid() then perform app.raise_denied('reps deliver only their own orders'); end if;
+  v_day := app.my_open_day_id();
+  if v_day is null then perform app.raise_denied('check in before delivering (PIP-09)'); end if;
+  if not app.rep_can_reach_salon(o.salon_id) then
+    perform app.raise_denied('reps deliver only to salons in their own territories');
+  end if;
+  if v_bag is null then perform app.raise_denied('this rep has no bag to deliver from'); end if;
+  if p_lat is null or p_lng is null then
+    raise exception using errcode = '22023', message = 'GPS is required for a delivery (MJ L-0163)';
+  end if;
+  return app.deliver(p_client_id, p_order_id, v_bag, p_lines, p_received_by_name, p_lat, p_lng, p_mock_location,
+                     p_delivered_at_client, v_day);
+end $$;
