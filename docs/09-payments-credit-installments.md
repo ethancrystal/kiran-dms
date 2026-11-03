@@ -107,7 +107,7 @@ Revised schedules (restructuring) are new installment rows referencing the old o
 
 ## 9. Reports
 
-- Receivables ageing by salon / rep / territory (current, 1–7, 8–15, 16–30, 30+).
+- Receivables ageing by salon / rep / territory (current, 1–7, 8–15, 16–30, 30+). *Built (migration 0022, PAY-07):* `app.office_receivables_ageing(p_group)` with `p_group` `salon`, `territory` or `rep`, for the owner or manager with MFA; reps are refused. Each installment's unpaid remainder is bucketed by days past its due date on Karachi's date: on or before the due date is current, then 1–7, 8–15, 16–30 and 31 or more. Grouped by rep, a salon counts under every rep currently assigned to its territory, and under a null rep when its territory has none (ACTIVITY A-14). Not built: a screen, ageing as of a past date, and a rep's own ageing.
 - Collection efficiency: collected within 7 days of due ÷ due.
 - DSO; installment plan mix; default rate by salon type and territory.
 - Cash position: reps, office, unmatched deposits; handover variance log.

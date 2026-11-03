@@ -246,8 +246,8 @@ describe("internal functions are not callable by app roles", () => {
       "is_rep", "log_visit", "low_stock", "my_areas", "my_bag", "my_bag_id", "my_cash_position", "my_day", "my_orders", "my_route",
       "my_salon", "my_salons", "my_session", "my_territory_ids", "office_assign_territory", "office_cancel_stock_issue",
       "office_create_location", "office_deliver", "office_end_territory", "office_force_close_rep_day",
-      "office_override_stage", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_record_payment",
-      "office_release_credit_hold", "office_rep_cash_position", "office_set_blocked", "office_set_last_purchase",
+      "office_override_stage", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
+      "office_record_payment", "office_release_credit_hold", "office_rep_cash_position", "office_set_blocked", "office_set_last_purchase",
       "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_upsert_area",
       "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
       "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit",
@@ -266,6 +266,7 @@ describe("internal functions are not callable by app roles", () => {
       // Delivery RPCs: migration 0013 (P1-06 part b); MJ standing approval L-0144.
       // Invoice document read: migration 0014 (P1-06 part c); MJ standing approval L-0144.
       // Money-in and receipt/cash reads: migration 0021 (P1-07 part a); test and permission boundary recorded in ACTIVITY C-033/B-37.
+      // Receivables ageing read: migration 0022 (P1-07, PAY-07); MJ standing approval L-0144.
       // One salon for the rep edit form: migration 0016 (slice 3, C-014); MJ standing approval L-0144.
     ]);
     const sr = await run("postgres", `

@@ -179,7 +179,7 @@ The existing public staff identity model remains owner/manager/rep. Do not add s
 - `v_salon_balance` — receivable, overdue amount, oldest due date, next installment.
 - `v_rep_cash_position` — cash in hand now, expected handover today.
 - `v_stock_on_hand` — per location × SKU, with cover days.
-- `v_receivables_ageing` — buckets per salon / rep / territory.
+- `v_receivables_ageing` — buckets per salon / rep / territory. Built as the office function `app.office_receivables_ageing(p_group)` (migration 0022), not a view, so the role check sits in the function like the other office reads.
 - `v_rep_scorecard_daily` — KPIs from doc 02.
 - `v_margin_by_sku` — **vault-gated**: selling price vs cost_snapshot; only callable by vault grantees.
 
