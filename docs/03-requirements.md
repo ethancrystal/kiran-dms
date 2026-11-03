@@ -164,7 +164,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | CTL-14 | Anomaly detection jobs (doc 13 §7) run nightly and feed the owner digest: location/time anomalies, burst-recording, round-number patterns, repeated variances, rep-change churn, duplicate devices, mock-location signals | S | 2 |
 | CTL-15 | Daily owner exception digest (in-app and WhatsApp): every override, adjustment, variance, discount, credit note, unblock, new device, failed sync, vault read, anomaly flag and agent purchase (with a flag on unusually large ones, D-22, OQ-22) from the last 24 h | M | 1 |
 | CTL-16 | Company bank account details used on invoices are owner-only to change, require MFA re-authentication, and trigger a notification to all owner contacts | M | 1 |
-| CTL-17 | Intraday cash cap: when a rep's cash in hand exceeds a configurable threshold (default Rs 50,000), the app blocks new orders until a handover or bank deposit is recorded; the manager is notified | M | 1 |
+| CTL-17 | Intraday cash cap: when a rep's cash in hand exceeds a configurable threshold (default Rs 50,000), the rep's new cash collections are refused until a handover (or bank deposit) is recorded, and the manager is notified (reps no longer place orders, D-30; MJ, ACTIVITY L-0377) | M | 1 |
 | CTL-18 | Salon contact-phone changes require an OTP confirmed on the **new** number and send a notice to the **old** number ("reply NO if this wasn't you"); every change appears in the owner digest; the same phone on more than one salon is flagged | M | 1 |
 
 ### FLD — Field team management
