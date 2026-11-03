@@ -89,6 +89,14 @@ export default function RepHome() {
               Cash handover · <span lang="ur">نقد حوالگی</span>
             </a>
           </p>
+          <p>
+            <a href="/app/cards">My cards</a>
+          </p>
+          <p>
+            <a href="/app/orders">
+              Orders · <span lang="ur">آرڈرز</span>
+            </a>
+          </p>
         </>
       )}
     </main>

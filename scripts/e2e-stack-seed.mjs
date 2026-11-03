@@ -32,6 +32,13 @@ const people = {
   newcomer: person("newcomer", "Newcomer"),
 };
 
+// One priced product for the office order test (D-30): a [Dummy] catalogue entry (no real supplier or
+// product data, H-01), list price Rs 1,500 set by the owner as the price list requires (doc 06 section 2).
+const SKU_PRICE_PAISA = 150_000;
+const CYCLE_DAYS = 30;
+const SKU_SIZE_ML = 100;
+const sku = { id: randomUUID(), code: `DUMMY-${tag.toUpperCase()}`, list_price_paisa: SKU_PRICE_PAISA };
+
 const c = new pg.Client({ connectionString: url });
 await c.connect();
 try {
@@ -91,6 +98,34 @@ try {
     people.rep.id,
   ]);
 
+  // The [Dummy] catalogue: product group, product and SKU through the office catalogue functions,
+  // then the list price through app.owner_set_sku_price (owner only, with a reason).
+  const group = randomUUID();
+  const product = randomUUID();
+  await as(people.owner.id, "aal2", null, "select app.office_upsert_product_group($1, $2, $3)", [
+    group,
+    `[Dummy] Hair colour ${tag}`,
+    CYCLE_DAYS,
+  ]);
+  await as(people.owner.id, "aal2", null, "select app.office_upsert_product($1, $2, $3, $4)", [
+    product,
+    group,
+    "[Dummy] Kiran",
+    "[Dummy] Hair colour",
+  ]);
+  await as(people.owner.id, "aal2", null, "select app.office_upsert_sku($1, $2, $3, $4, 'ml', $5)", [
+    sku.id,
+    product,
+    sku.code,
+    "[Dummy] Shade 5",
+    SKU_SIZE_ML,
+  ]);
+  await as(people.owner.id, "aal2", null, "select app.owner_set_sku_price($1, $2, $3)", [
+    sku.id,
+    sku.list_price_paisa,
+    "[Test] e2e list price",
+  ]);
+
   // Rep Two's phone asks for approval, as the rep app does on first open.
   const device = `web-${randomUUID()}`;
   await as(people.rep2.id, "aal1", device, "select app.register_device($1, 'android', '[Test] phone')", [device]);
@@ -98,5 +133,5 @@ try {
   await c.end();
 }
 
-writeFileSync(out, JSON.stringify({ password, people }, null, 2));
+writeFileSync(out, JSON.stringify({ password, people, sku }, null, 2));
 console.log(`seeded ${Object.keys(people).length} synthetic people into the local stack -> ${out}`);

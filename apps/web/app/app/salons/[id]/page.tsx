@@ -16,6 +16,8 @@ type Visit = {
 };
 type Stage = { from_stage: string | null; to_stage: string; trigger: string; reason: string | null; created_at: string };
 
+// app.rep_create_card: an order card holds a note of 1 to 2000 characters.
+const CARD_MAX = 2000;
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // One salon, the whole relationship the rep may see (execution map slice 3; SAL-05 in part,
@@ -131,6 +133,8 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
           await done(`Visit recorded: ${label(o)}.`);
         }}
       />
+
+      <CardForm salonId={id} onDone={() => done("Order details saved. The office makes the order from them.")} />
 
       <MoneySection salonId={id} mode="rep" />
 
@@ -311,6 +315,55 @@ function NoteForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
           {error}
         </p>
       )}
+    </form>
+  );
+}
+
+// New Order Details (ORD-14, D-30): reps no longer place orders; the rep writes down what the salon
+// wants and the office makes the order from it. app.rep_create_card checks the rep, the approved phone,
+// the open day and the territory, and its words are shown as they are. One key per attempt (H-08).
+function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<void> }) {
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [clientId, setClientId] = useState(() => crypto.randomUUID());
+  return (
+    <form
+      className="card"
+      aria-labelledby="card-h"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+          await rpc("rep_create_card", {
+            p_client_id: clientId,
+            p_salon_id: salonId,
+            p_body: body.trim(),
+            p_visit_id: null,
+          });
+          setBody("");
+          setClientId(crypto.randomUUID());
+          await onDone();
+        } catch (err) {
+          setError((err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <h2 id="card-h">New Order Details</h2>
+      <p className="muted">Products, shades and quantities the salon wants. The office makes the order.</p>
+      <label htmlFor="card-body">What the salon needs</label>
+      <textarea id="card-body" rows={4} value={body} onChange={(e) => setBody(e.target.value)} required maxLength={CARD_MAX} />
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={busy}>
+        {busy ? "Saving…" : "Save order details"}
+      </button>
     </form>
   );
 }
