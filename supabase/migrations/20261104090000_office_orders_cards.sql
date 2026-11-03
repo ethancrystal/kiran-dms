@@ -30,6 +30,12 @@
 --     app.my_cards (the rep's last 50 cards and how they ended), app.office_open_cards (open cards, up to
 --     200, oldest first), app.office_dismiss_card (a reason of 5 to 500 characters), and
 --     app.office_create_order(p_intake_card_id) converting a card. A card closes once (55000 after that).
+--   * Assigned rep (MJ L-0374, reps still deliver): the order's rep or its assigned rep reads it (RLS on
+--     sales_order, its lines, deliveries and delivery lines; app.my_orders, app.order_remaining), rechecks
+--     it and delivers it (app.rep_deliver). app.deliver writes the invoice's rep as
+--     coalesce(assigned_rep_id, rep_id). A rep still cancels only its own draft. The rep tests in
+--     app.recheck_order, app.cancel_order and app.invoice_document are made NULL-safe (a rep-less order or
+--     invoice let any rep through). New reads: app.my_territory_orders (rep) and app.office_orders (office).
 -- =============================================================================
 
 -- ------------------------------------------------------------------ channel ----
@@ -193,6 +199,8 @@ revoke execute on function control.sales_order_creator() from public, anon, auth
 -- ------------------------------------------------------------ rep delivery ----
 -- Same as migration 0013 except the ownership test: rep_id may now be null (an office order), and
 -- `null <> auth.uid()` is not true, so the old test would have let any rep deliver a rep-less order.
+-- D-30 (MJ L-0374, reps still deliver): the rep may also deliver an office order assigned to it
+-- (assigned_rep_id). Both tests are NULL-safe, so an order with neither is still refused.
 create or replace function app.rep_deliver(
   p_client_id uuid, p_order_id uuid, p_received_by_name text, p_lat numeric, p_lng numeric,
   p_lines jsonb default null, p_mock_location boolean default false, p_delivered_at_client timestamptz default null)
@@ -214,7 +222,9 @@ begin
     raise exception using errcode = '23505', message = 'client_id already used with different content';
   end if;
   select * into o from public.sales_order where id = p_order_id;
-  if o.id is null or o.rep_id is distinct from auth.uid() then perform app.raise_denied('reps deliver only their own orders'); end if;
+  if o.id is null or (o.rep_id is distinct from auth.uid() and o.assigned_rep_id is distinct from auth.uid()) then
+    perform app.raise_denied('reps deliver only their own orders');
+  end if;
   v_day := app.my_open_day_id();
   if v_day is null then perform app.raise_denied('check in before delivering (PIP-09)'); end if;
   if not app.rep_can_reach_salon(o.salon_id) then
@@ -586,4 +596,322 @@ revoke all on function
 grant execute on function
   app.rep_create_card(uuid, uuid, text, uuid), app.my_cards(), app.office_open_cards(),
   app.office_dismiss_card(uuid, text)
+  to authenticated;
+
+-- =============================================================================
+-- Assigned rep reads and delivers (D-30 PR A; MJ L-0374: reps still deliver and collect as now,
+-- until PR B turns a rep's delivery into a submission the office approves).
+-- A rep acts on or reads an order when it is the order's rep (rep_id, a rep_visit order) or its
+-- assigned rep (assigned_rep_id, an office order). Every rep test is NULL-safe: an office order has a
+-- null rep_id, and `null = auth.uid()` inside `not (...)` is null, which an IF treats as "not refused".
+-- Policy changes are SELECT only; no rep gains a write path. A rep still cancels only its OWN draft.
+-- =============================================================================
+
+-- ----------------------------------------------------------- order reads (RLS) ----
+alter policy sales_order_select on public.sales_order
+  using ((select app.is_office())
+         or ((rep_id = (select auth.uid()) or assigned_rep_id = (select auth.uid())) and (select app.self_ok())));
+alter policy sales_order_line_select on public.sales_order_line
+  using ((select app.is_office()) or exists (
+    select 1 from public.sales_order o where o.id = order_id
+      and (o.rep_id = (select auth.uid()) or o.assigned_rep_id = (select auth.uid())) and (select app.self_ok())));
+alter policy delivery_select on public.delivery
+  using ((select app.is_office()) or exists (
+    select 1 from public.sales_order o where o.id = order_id
+      and (o.rep_id = (select auth.uid()) or o.assigned_rep_id = (select auth.uid())) and (select app.self_ok())));
+alter policy delivery_line_select on public.delivery_line
+  using ((select app.is_office()) or exists (
+    select 1 from public.delivery d join public.sales_order o on o.id = d.order_id
+    where d.id = delivery_id
+      and (o.rep_id = (select auth.uid()) or o.assigned_rep_id = (select auth.uid())) and (select app.self_ok())));
+-- invoice_select is unchanged: the invoice row now carries the assigned rep (app.deliver below).
+
+-- ------------------------------------------------------------- order recheck ----
+-- Migration 0012, with the assigned rep allowed and the test NULL-safe (an office order has no rep_id).
+create or replace function app.recheck_order(p_order_id uuid) returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_actor_ready();
+  o      public.sales_order;
+begin
+  select * into o from public.sales_order where id = p_order_id;
+  if o.id is null or not (app.is_office()
+                          or (v_role = 'rep' and coalesce(o.rep_id = auth.uid() or o.assigned_rep_id = auth.uid(), false))) then
+    perform app.raise_denied('only the order''s rep or the office rechecks an order');
+  end if;
+  perform app.set_purpose('order rechecked');
+  return app.evaluate_order(p_order_id);
+end $$;
+
+-- -------------------------------------------------------------- order cancel ----
+-- Migration 0012, unchanged in who may cancel (a rep its own draft, never an assigned rep), with the
+-- rep test NULL-safe: `o.rep_id = auth.uid()` on a rep-less office order is null, and the old test
+-- then let any rep cancel an office draft.
+create or replace function app.cancel_order(p_order_id uuid, p_reason text) returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_actor_ready();
+  o      public.sales_order;
+begin
+  perform app.assert_reason(p_reason);
+  select * into o from public.sales_order where id = p_order_id for update;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  if o.status = 'cancelled' then return o; end if;                          -- replay
+  if not (app.is_office() and o.status in ('draft', 'confirmed'))
+     and not (v_role = 'rep' and coalesce(o.rep_id = auth.uid(), false) and o.status = 'draft') then
+    perform app.raise_denied('a rep cancels only its own draft; the office cancels before delivery (ORD-03)');
+  end if;
+  perform app.set_purpose('order cancelled: ' || p_reason);
+  update control.approval_request
+     set status = 'cancelled', decided_at = now(), decision_reason = 'order cancelled: ' || left(p_reason, 200)
+   where id = o.discount_approval_id and status = 'pending';
+  update public.sales_order
+     set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_reason = left(p_reason, 300)
+   where id = o.id returning * into o;
+  return o;
+end $$;
+
+-- ------------------------------------------------------------------ my_orders ----
+-- Migration 0012, with the orders assigned to the rep listed too. Same columns.
+create or replace function app.my_orders()
+returns table (id uuid, salon_id uuid, salon_name text, status public.order_status, plan public.plan_code,
+               total_paisa bigint, discount_paisa bigint, hold_credit text, hold_discount text, created_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select o.id, o.salon_id, case when app.rep_can_reach_salon(o.salon_id) then s.name end, o.status, o.plan, o.total_paisa, o.discount_paisa, o.hold_credit, o.hold_discount,
+         o.created_at
+  from public.sales_order o join public.salon s on s.id = o.salon_id
+  where app.self_ok() and app.user_role() = 'rep' and (o.rep_id = auth.uid() or o.assigned_rep_id = auth.uid())
+  order by o.created_at desc, o.id
+  limit 50
+$$;
+
+-- ----------------------------------------------------------- order_remaining ----
+-- Migration 0013, with the assigned rep allowed: it needs what is left to deliver.
+create or replace function app.order_remaining(p_order_id uuid)
+returns table (line_no integer, sku_id uuid, ordered integer, delivered integer, remaining integer)
+language sql stable security definer set search_path = '' as $$
+  select x.line_no, x.sku_id, x.ordered, x.delivered, x.remaining
+  from app.order_lines_left(p_order_id) x
+  where app.is_office() or exists (
+    select 1 from public.sales_order o
+    where o.id = p_order_id and (o.rep_id = auth.uid() or o.assigned_rep_id = auth.uid())
+      and app.user_role() = 'rep' and app.self_ok())
+$$;
+
+-- ------------------------------------------------------------------- delivery ----
+-- Migration 0021's app.deliver, unchanged except the invoice's rep: the assigned rep when there is
+-- one, else the order's rep, else null (a rep-less office order delivered by the office). The invoice
+-- read paths (invoice_select, app.invoice_document) key on invoice.rep_id, so the assigned rep reads it.
+create or replace function app.deliver(
+  p_client_id uuid, p_order_id uuid, p_from_location_id uuid, p_lines jsonb, p_received_by_name text,
+  p_lat numeric, p_lng numeric, p_mock_location boolean, p_delivered_at_client timestamptz, p_rep_day_id uuid)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  o       public.sales_order;
+  s       public.salon;
+  d       public.delivery;
+  inv     public.invoice;
+  v_left  integer;
+  v_bad   integer;
+  v_sub   bigint;
+  v_tot   bigint;
+  v_dist  integer;
+  v_done  integer;
+  v_lines jsonb;                                            -- [{order_line_id, sku_id, qty, list_price_paisa, unit_price_paisa}]
+begin
+  select * into o from public.sales_order where id = p_order_id for update;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  if o.status not in ('confirmed', 'partially_delivered') then
+    raise exception using errcode = '22023', message = 'only a confirmed order is delivered (ORD-03)';
+  end if;
+  if length(btrim(coalesce(p_received_by_name, ''))) not between 2 and 80 then
+    raise exception using errcode = '22023', message = 'the name of the person who received the goods is required (MJ L-0163)';
+  end if;
+  -- The lines to deliver: as given (duplicates summed), or everything left.
+  if p_lines is null then
+    select jsonb_agg(jsonb_build_object('order_line_id', x.order_line_id, 'sku_id', x.sku_id, 'qty', x.remaining,
+                                        'list_price_paisa', x.list_price_paisa, 'unit_price_paisa', x.unit_price_paisa))
+      into v_lines
+    from app.order_lines_left(o.id) x where x.remaining > 0;
+  else
+    select count(*) into v_bad
+    from app.parse_lines(p_lines) p
+    left join app.order_lines_left(o.id) x on x.sku_id = p.sku_id
+    where x.order_line_id is null or p.qty > x.remaining;
+    if v_bad > 0 then
+      raise exception using errcode = '22023', message = 'every line must be a SKU of this order, at most what is left to deliver';
+    end if;
+    select jsonb_agg(jsonb_build_object('order_line_id', x.order_line_id, 'sku_id', x.sku_id, 'qty', p.qty,
+                                        'list_price_paisa', x.list_price_paisa, 'unit_price_paisa', x.unit_price_paisa))
+      into v_lines
+    from app.parse_lines(p_lines) p join app.order_lines_left(o.id) x on x.sku_id = p.sku_id;
+  end if;
+  if v_lines is null then
+    raise exception using errcode = '22023', message = 'nothing is left to deliver on this order';
+  end if;
+  -- Units promised to a pending issue out of this location are not available (migration 0008).
+  if exists (select 1 from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint)
+             where app.on_hand(p_from_location_id, t.sku_id) - app.pending_out(p_from_location_id, t.sku_id) < t.qty) then
+    raise exception using errcode = '23514', message = 'insufficient stock at the delivery location (part delivery is allowed)';
+  end if;
+  select * into s from public.salon where id = o.salon_id;
+  if s.lat is not null and p_lat is not null and p_lng is not null then
+    v_dist := app.distance_m(s.lat, s.lng, p_lat, p_lng);
+  end if;
+  select coalesce(sum(t.qty::bigint * t.list_price_paisa), 0), coalesce(sum(t.qty::bigint * t.unit_price_paisa), 0)
+    into v_sub, v_tot from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  select coalesce(sum(x.remaining), 0)::integer into v_left from app.order_lines_left(o.id) x;
+  select coalesce(sum(t.qty), 0)::integer into v_done from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  -- Lock order (M1): the per-salon payment lock comes before the first audited write of this delivery.
+  -- A payment takes that lock first and then writes audited rows; a delivery that wrote its audited
+  -- delivery row (which holds the audit chain head until commit) and only then asked for the lock at
+  -- the invoice would deadlock with it. Nothing above this line writes an audited row. The invoice
+  -- trigger asks for the same lock again later in this transaction, which is free.
+  perform pg_advisory_xact_lock(hashtextextended('payment:' || o.salon_id::text, 0));
+  perform app.set_purpose('order delivered');
+  insert into public.delivery (client_id, order_id, salon_id, from_location_id, delivered_by, delivered_by_role, rep_day_id,
+                               status, received_by_name, lat, lng, distance_from_pin_m, mock_location, delivered_at_client)
+  values (p_client_id, o.id, o.salon_id, p_from_location_id, auth.uid(), app.user_role(), p_rep_day_id,
+          case when v_done = v_left then 'full' else 'partial' end::public.delivery_status, btrim(p_received_by_name),
+          p_lat, p_lng, v_dist, coalesce(p_mock_location, false), p_delivered_at_client)
+  returning * into d;
+  insert into public.delivery_line (delivery_id, order_line_id, sku_id, qty, list_price_paisa, unit_price_paisa, line_total_paisa)
+  select d.id, t.order_line_id, t.sku_id, t.qty, t.list_price_paisa, t.unit_price_paisa, t.qty * t.unit_price_paisa
+  from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  insert into public.stock_movement (client_id, sku_id, qty, from_location_id, kind, source_type, source_id, actor_id)
+  select gen_random_uuid(), t.sku_id, t.qty, p_from_location_id, 'sale', 'delivery', d.id, auth.uid()
+  from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  insert into public.invoice (number, delivery_id, order_id, salon_id, rep_id, plan, subtotal_paisa, discount_paisa,
+                              total_paisa, issued_by)
+  values (app.next_doc_number('INV'), d.id, o.id, o.salon_id, coalesce(o.assigned_rep_id, o.rep_id), o.plan, v_sub, v_sub - v_tot, v_tot, auth.uid())
+  returning * into inv;
+  update public.sales_order set status = case when v_done = v_left then 'delivered' else 'partially_delivered' end::public.order_status
+   where id = o.id and status is distinct from case when v_done = v_left then 'delivered' else 'partially_delivered' end::public.order_status;
+  -- PIP-05: deliveries keep the last purchase per product group (basis orders, migration 0011).
+  insert into public.cycle_estimate as c (salon_id, product_group_id, last_order_on, basis, basis_orders, set_by)
+  select distinct o.salon_id, p.product_group_id, app.karachi_today(), 'orders'::public.cycle_basis, 1, auth.uid()
+  from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint) join public.sku k on k.id = t.sku_id join public.product p on p.id = k.product_id
+  on conflict (salon_id, product_group_id) do update
+    set last_order_on = greatest(c.last_order_on, excluded.last_order_on), basis = 'orders',
+        basis_orders = case when c.basis = 'orders' then c.basis_orders + 1 else 1 end,
+        set_by = excluded.set_by, set_at = now();
+  -- Doc 02: 3 completed orders make a new active salon a regular one.
+  if v_done = v_left and s.stage = 'active_new'
+     and (select count(*) from public.sales_order x where x.salon_id = o.salon_id and x.status in ('delivered', 'closed')) >= 3 then
+    perform app.move_stage(o.salon_id, 'active_regular', 'order', '3 orders delivered');
+  end if;
+  return inv;
+end $$;
+
+-- ----------------------------------------------------------- invoice document ----
+-- Migration 0021's app.invoice_document, unchanged except the access test is NULL-safe: invoice.rep_id
+-- is null for a rep-less office order, and the old `not (... i.rep_id = auth.uid() ...)` was then null,
+-- which returned the document to any rep. The invoice's rep is the assigned rep when there is one.
+-- numbered receipts of payments allocated to the invoice. Same fields, same access guard, same grants.
+create or replace function app.invoice_document(p_invoice_id uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  i      public.invoice;
+  d      public.delivery;
+  s      public.salon;
+  v_area text;
+  v_plan text;
+  v_on   date;
+  v_fy   integer;
+begin
+  select * into i from public.invoice where id = p_invoice_id;
+  if i.id is null then return null; end if;
+  if not (app.is_office() or coalesce(app.user_role() = 'rep' and i.rep_id = auth.uid() and app.self_ok(), false)) then
+    return null;
+  end if;
+  select * into d from public.delivery where id = i.delivery_id;
+  select * into s from public.salon where id = i.salon_id;
+  select a.name into v_area from public.area a where a.id = s.area_id;
+  select t ->> 'name' into v_plan
+  from public.app_config c, jsonb_array_elements(c.value) t
+  where c.key = 'plan.templates' and t ->> 'code' = i.plan::text;
+  v_on := (d.delivered_at at time zone 'Asia/Karachi')::date;
+  v_fy := substring(i.number from 5 for 2)::integer;               -- INV-27-000001: the number carries its financial year
+  return jsonb_build_object(
+    'version', 1,
+    'number', i.number,
+    'financial_year', (2000 + v_fy - 1)::text || '-' || lpad(v_fy::text, 2, '0'),
+    'issued_at', i.issued_at,
+    'company', coalesce((select c.value from public.app_config c where c.key = 'company.profile'), '{}'::jsonb),
+    'bank_accounts', coalesce((select c.value from public.app_config c where c.key = 'company.bank_accounts'), '[]'::jsonb),
+    'salon', jsonb_build_object('name', s.name, 'address', s.address, 'area', v_area),
+    'delivery', jsonb_build_object('delivered_at', d.delivered_at, 'received_by_name', d.received_by_name, 'status', d.status),
+    'plan', jsonb_build_object('code', i.plan, 'name', v_plan),
+    'lines', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'line_no', ol.line_no, 'sku_code', k.code, 'product', p.brand_label || ' ' || p.name,
+               'variant', k.variant, 'qty', dl.qty, 'list_price_paisa', dl.list_price_paisa,
+               'unit_price_paisa', dl.unit_price_paisa, 'line_total_paisa', dl.line_total_paisa)
+             order by ol.line_no)
+      from public.delivery_line dl
+      join public.sales_order_line ol on ol.id = dl.order_line_id
+      join public.sku k on k.id = dl.sku_id
+      join public.product p on p.id = k.product_id
+      where dl.delivery_id = d.id), '[]'::jsonb),
+    'totals', jsonb_build_object('subtotal_paisa', i.subtotal_paisa, 'discount_paisa', i.discount_paisa, 'total_paisa', i.total_paisa),
+    'schedule', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'no', x.seq, 'of', x.of_count, 'due_on', x.due_on, 'pct', x.pct_of_total, 'amount_paisa', x.amount_due_paisa)
+             order by x.seq)
+      from public.installment x where x.invoice_id = i.id), '[]'::jsonb),
+    'receipts', coalesce((
+      select jsonb_agg(jsonb_build_object('number', r.number, 'issued_at', r.issued_at, 'amount_paisa', t.amt)
+                       order by r.issued_at, r.number)
+      from (select a.payment_id, sum(a.amount_paisa)::bigint amt
+            from public.payment_allocation a join public.installment x on x.id = a.installment_id
+            where x.invoice_id = i.id group by a.payment_id) t
+      join public.receipt r on r.payment_id = t.payment_id), '[]'::jsonb),
+    'notices', jsonb_build_array(
+      jsonb_build_object('code', 'no_paper_receipts',
+        'en', 'Only the numbered receipt the system sends to your registered phone is valid. A paper receipt is not valid.',
+        'ur', 'صرف وہ نمبر والی رسید درست ہے جو سسٹم آپ کے رجسٹرڈ فون پر بھیجتا ہے۔ کاغذی رسید درست نہیں۔'),
+      jsonb_build_object('code', 'official_accounts_only',
+        'en', 'Pay only into the company accounts printed on this invoice. Never pay a rep''s personal account or wallet.',
+        'ur', 'ادائیگی صرف اس انوائس پر چھپے کمپنی کے اکاؤنٹس میں کریں۔ کسی ریپ کے ذاتی اکاؤنٹ یا والٹ میں ہرگز نہیں۔')));
+end $$;
+
+-- ------------------------------------------------------------- order lists ----
+-- The rep's territory view (read-only): orders of salons the rep can reach today, whoever made them,
+-- newest 50. The salon's name is shown only while the rep reaches it (always, given the filter, but
+-- kept as in app.my_orders). Reps only, on their approved phone.
+create function app.my_territory_orders()
+returns table (order_id uuid, salon_id uuid, salon_name text, status public.order_status, plan public.plan_code,
+               total_paisa bigint, assigned_rep_id uuid, created_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_role() is distinct from 'rep' or not coalesce(app.self_ok(), false) then
+    perform app.raise_denied('territory orders are listed for reps only, on their approved phone');
+  end if;
+  return query
+  select o.id, o.salon_id, case when app.rep_can_reach_salon(o.salon_id) then s.name end, o.status, o.plan,
+         o.total_paisa, o.assigned_rep_id, o.created_at
+  from public.sales_order o
+  join public.salon s on s.id = o.salon_id
+  where app.rep_can_reach_salon(o.salon_id)
+  order by o.created_at desc, o.id
+  limit 50;
+end $$;
+
+-- The office's order list, newest 200, optionally filtered by status and channel.
+create function app.office_orders(p_status public.order_status default null, p_channel public.order_channel default null)
+returns setof public.sales_order
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.assert_office();
+  return query
+  select o.* from public.sales_order o
+  where (p_status is null or o.status = p_status) and (p_channel is null or o.source_channel = p_channel)
+  order by o.created_at desc, o.id
+  limit 200;
+end $$;
+
+revoke all on function app.my_territory_orders(), app.office_orders(public.order_status, public.order_channel)
+  from public, anon, authenticated, service_role;
+grant execute on function app.my_territory_orders(), app.office_orders(public.order_status, public.order_channel)
   to authenticated;
