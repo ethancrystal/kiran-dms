@@ -25,7 +25,23 @@ export default async function OfficeShell({ children }: { children: React.ReactN
   const { current } = await assurance();
   if (current !== "aal2") redirect("/office/mfa");
 
-  const { data: profile } = await sb.from("user_profile").select("full_name, role, status").eq("id", user.id).maybeSingle();
+  const { data: profile, error: profileError } = await sb
+    .from("user_profile")
+    .select("full_name, role, status")
+    .eq("id", user.id)
+    .maybeSingle();
+  // A failed read is not "no profile": say so, and show no office page.
+  if (profileError) {
+    return (
+      <main>
+        <h1>Office</h1>
+        <p className="error" role="alert">
+          Your profile could not be loaded ({profileError.message}). Reload the page; if it persists, sign in again.
+        </p>
+        <SignOut />
+      </main>
+    );
+  }
   const office = profile && (profile.role === "owner" || profile.role === "manager") && profile.status === "active";
 
   if (!office) {

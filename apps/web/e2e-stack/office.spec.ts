@@ -238,7 +238,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("link", { name: /Start your day/ }).click();
   await page.waitForURL(/\/app\/day$/);
   await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
-  // The rep has no bag yet, so the morning count is empty; check in.
+  // The rep has an empty bag (seed), so the morning count is empty; check in.
   await page.getByRole("button", { name: "Check in" }).click();
   await expect(page.getByText("Checked in. Have a good day.")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Today's route/ })).toBeVisible();
@@ -301,6 +301,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   // open), overrides the stage with a reason, and the history shows it; the rep sees the new pin.
   await office.getByRole("link", { name: "Salons", exact: true }).click();
   await office.getByLabel("Name contains").fill(salonName);
+  await office.getByRole("button", { name: "Search" }).click();
   await office.getByRole("link", { name: salonName }).click();
   await expect(office.getByRole("heading", { name: salonName })).toBeVisible();
   await expect(office.getByLabel("Address")).toHaveValue("[Test] 7 Fake Market Road");
@@ -322,7 +323,10 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
 
   await page.goto("/app/day");
   await page.getByRole("button", { name: /Finish the day/ }).click();
+  // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
+  const closeCount = page.waitForRequest((r) => r.url().includes("/rpc/record_count") && r.method() === "POST");
   await page.getByRole("button", { name: "Save count and check out" }).click();
+  expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
 });

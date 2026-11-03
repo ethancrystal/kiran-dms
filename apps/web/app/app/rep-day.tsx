@@ -363,7 +363,7 @@ function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) =
         help="Count your bag again before you check out (INV-05). The office compares it with your sales."
         bag={bag}
         button="Save count and check out"
-        onSubmit={async (counted) => {
+        onSubmit={async (lines) => {
           setError(null);
           try {
             const bagId = await rpc<string | null>("my_bag_id");
@@ -372,7 +372,7 @@ function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) =
                 p_client_id: closeId,
                 p_location_id: bagId,
                 p_kind: "daily_close",
-                p_counted: counted,
+                p_counted: lines,
                 p_counted_at_client: new Date().toISOString(),
               });
               setCounted(true);

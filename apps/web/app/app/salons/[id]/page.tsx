@@ -175,6 +175,7 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
 
       <section aria-labelledby="stages-h">
         <h2 id="stages-h">Stage history</h2>
+        {stages.length === 0 && <p className="muted">No stage changes recorded.</p>}
         <ul className="plain">
           {stages.map((s) => (
             <li key={`${s.created_at}-${s.to_stage}`}>

@@ -69,6 +69,9 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
   )
     .filter(([k, was]) => was !== null && form[k].trim() === "")
     .map(([k]) => k);
+  // Chairs: a whole number 0 to 200 (the column's check), so a decimal never reaches the integer parameter.
+  const badChairs = form.chairs.trim() !== "" && !(/^\d+$/.test(form.chairs.trim()) && Number(form.chairs) <= 200);
+  const blocked = cleared.length > 0 || badChairs;
 
   return (
     <main>
@@ -81,7 +84,7 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          if (cleared.length > 0) return;
+          if (blocked) return;
           setBusy(true);
           setError(null);
           try {
@@ -139,6 +142,11 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
           Pin: {salon.lat !== null && salon.lng !== null ? `${salon.lat}, ${salon.lng}` : "not set"}. To move the pin, ask the
           office.
         </p>
+        {badChairs && (
+          <p className="error" role="alert">
+            Chairs must be a whole number from 0 to 200.
+          </p>
+        )}
         {cleared.length > 0 && (
           <p className="error" role="alert">
             {cleared.map(label).join(", ")} cannot be emptied once recorded. Correct it instead.
@@ -149,7 +157,7 @@ export default function EditSalon({ params }: { params: Promise<{ id: string }> 
             {error}
           </p>
         )}
-        <button type="submit" disabled={busy || cleared.length > 0}>
+        <button type="submit" disabled={busy || blocked}>
           {busy ? "Saving…" : "Save changes"}
         </button>
       </form>
