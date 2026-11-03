@@ -32,11 +32,13 @@ export default async function OfficeShell({ children }: { children: React.ReactN
     .maybeSingle();
   // A failed read is not "no profile": say so, and show no office page.
   if (profileError) {
+    // Server-side log only; the page shows a generic message so database details never reach the browser.
+    console.error("office layout: profile read failed", profileError);
     return (
       <main>
         <h1>Office</h1>
         <p className="error" role="alert">
-          Your profile could not be loaded ({profileError.message}). Reload the page; if it persists, sign in again.
+          Your profile could not be loaded. Reload the page; if it persists, sign in again.
         </p>
         <SignOut />
       </main>

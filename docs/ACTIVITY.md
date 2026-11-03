@@ -3936,6 +3936,20 @@ NOT VERIFIED (not run anywhere): in a browser, device revocation, offboarding, t
 **Rules touched:** section 3
 **Next / needs:** CI result; MJ.
 
+
+### L-0301 · 2026-11-03 12:25 PKT · Developer · Grok Bot · session dev-1103 · branch dev/create-salon-blanks · CLAIM
+**Task:** - (follow-up to B-34 item 3 from Code Reviewer on PR 42; PR 42 review note 7)    **Claim:** -
+**What / why:** Developer (Grok Bot, not Claude) cut dev/create-salon-blanks from main e802ed2 in its own worktree outside .claude/worktrees; no Claude worktree touched. Scope: (1) app.create_salon still used btrim(), which strips only the plain space, so a tab-only name, address, contact name or note got through; (2) the office layout showed the raw database error text when the profile read failed. No business rule changes.
+**Rules touched:** section 3
+**Next / needs:** PROGRESS with evidence.
+
+### L-0302 · 2026-11-03 12:25 PKT · Developer · Grok Bot · session dev-1103 · branch dev/create-salon-blanks · PROGRESS
+**Task:** - (create_salon Unicode blanks; office layout generic error)    **Claim:** -
+**What / why:** (1) Migration 0020 (`20261103100000_create_salon_blanks.sql`) replaces app.create_salon with the migration 0017 body unchanged except that name, address, contact name and note go through app.blank_to_null (migration 0019). Signature, grants, scope and replay checks unchanged. A whitespace-only name is stored as no name, the same result a plain-space name already had (salon.name allows null); it is not refused. (2) `apps/web/app/office/(shell)/layout.tsx`: the page now says only that the profile could not be loaded; the error object is written to the server log with console.error. Nothing here is VERIFIED; it goes to Code Reviewer.
+**Evidence:** new `supabase/tests/create-salon-blanks.test.ts` (tab, line break, no-break space, ideographic space): 9 passed with migration 0020; with migration 0020 moved out, all 9 failed, so the tests catch the defect. Five related DB test files: 103 passed apart from those. Full DB suite, typecheck and lint: see the PR checks.
+**Rules touched:** H-08, H-16, H-23
+**Next / needs:** push, open the PR, CI, Code Reviewer.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
