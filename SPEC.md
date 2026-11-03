@@ -12,7 +12,7 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 
 | User | What the system does for them | Doc |
 |---|---|---|
-| **Salaried rep** (door to door, Kiran's stock and cash) | Shows which salons to visit, what is due, and what to carry. Takes orders on salon visits and records field activity/location; approved rep workflows work offline | [02](docs/02-growth-pipeline.md), [08](docs/08-field-sales-and-rep-controls.md) |
+| **Salaried rep** (door to door, Kiran's stock and cash) | Shows which salons to visit, what is due, and what to carry. Records visits and New Order Details cards for the manager (D-30), collects payments and records field activity/location; approved rep workflows work offline | [02](docs/02-growth-pipeline.md), [08](docs/08-field-sales-and-rep-controls.md) |
 | **Salon customer** (direct business customer) | Uses a secure salon account to view its own catalogue, assigned prices, safe stock quantities, orders and documents, and can independently submit orders | [03](docs/03-requirements.md), [06](docs/06-security-plan.md), [15](docs/15-field-sales-distribution-engineering-plan.md) |
 | **Independent agent** (buys stock outright, resells, reports nothing) | Buys cash-and-carry at an agent price and sees their own purchases and the agent catalogue | [08 §10](docs/08-field-sales-and-rep-controls.md), D-15 to D-17 |
 | **Owner** | Sees everything from a phone. Holds the governance powers and the supplier secret | [06 §2](docs/06-security-plan.md), [07](docs/07-supplier-confidentiality.md) |
@@ -21,7 +21,7 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 **The job.** Operate a controlled Karachi salon-distribution network through field representatives and a salon customer portal ([doc 15](docs/15-field-sales-distribution-engineering-plan.md)) by tracking four connected areas:
 
 - **Customers and coverage:** salon records, locations, territories, assignments and visits.
-- **Sales:** representative-placed and salon-placed orders through one canonical order engine.
+- **Sales:** office-placed orders (often from a rep's order card) and salon-placed orders through one canonical order engine (D-30).
 - **Supply:** shared products, salon-specific selling prices, stock custody, availability and fulfilment.
 - **Money:** invoices, installments, collections, receivables and the daily handover.
 
@@ -60,9 +60,9 @@ Phase 1 started before Gate 0 by MJ's decision (D-20).
 Each journey is accepted only when every line under it is shown by a test or, where marked, by the pilot. The IDs point to the requirement; the requirement is the authority.
 
 **J1 — A salaried rep's day** ([doc 02](docs/02-growth-pipeline.md), [doc 08 §3](docs/08-field-sales-and-rep-controls.md))
-1. Morning check-in confirms the bag count; no order is possible without it (PIP-09, CTL-05).
+1. Morning check-in confirms the bag count; no visit, order card or payment is possible without it (PIP-09, CTL-05).
 2. The route lists the day's stops with a reason each: re-order due, collection due, at risk, prospect, delivery (PIP-03, PIP-06 thin, D-19).
-3. At a salon the rep logs the visit, takes an order or a collection, or taps "asked for, could not sell" in **≤ 60 s each, with no signal** (PIP-02, ORD-10, DEM-01, NFR-01).
+3. At a salon the rep logs the visit, saves an order card or records a collection, or taps "asked for, could not sell" in **≤ 60 s each, with no signal** (PIP-02, ORD-10, DEM-01, NFR-01).
 4. Everything captured offline syncs **within 60 s of reconnecting**; a replay never doubles an effect; a server rejection is shown to the rep (NFR-01, H-08).
 5. The salon receives a numbered system receipt on its phone for every payment (CTL-01, D-09).
 6. Evening: bag close and a two-party cash handover with the manager (the rep acknowledges the counted figure in their own app); variance is **Rs 0 and 0 units**, or a case is opened the same day (INV-05, PAY-05, CTL-03, doc 11 exit criterion 2).
@@ -99,7 +99,7 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 2. The portal shows the shared active catalogue, that salon's assigned prices and safe aggregate stock only (SAL-12, INV-12).
 3. The salon submits its basket; the common server-side order engine validates price, stock, credit and idempotency (ORD-11/12).
 4. The salon sees only its own order state and permitted documents (ORD-13).
-5. The order is not counted as a rep visit or rep-taken order. The office processes it through the shared order-to-cash workflow; confirmation follows OQ-31.
+5. The order is not counted as a rep visit or rep-taken order. The office processes it through the shared order-to-cash workflow; it waits for the manager's approval (D-30).
 
 ## 4. Phase 1 feature map
 
@@ -138,10 +138,10 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 
 | Constraint | Target | Source |
 |---|---|---|
-| Offline | Capture visits, orders, payments, prospects and lost demand with no signal; sync ≤ 60 s after reconnecting | NFR-01 |
+| Offline | Capture visits, order cards, payments, prospects and lost demand with no signal; sync ≤ 60 s after reconnecting | NFR-01 |
 | Cheap phone | First load ≤ 3 s on 3G after install; interactions ≤ 200 ms; rep app shell ≤ 300 KB gzipped; 3–4 year old Android, 2–3 GB RAM | NFR-02, doc 01 |
 | Language | English and Urdu (Nastaliq-safe font); Roman Urdu accepted in free text | NFR-03 |
-| Speed of a field action | ≤ 60 s for quick add, a visit, an order or a tap | PIP-07, MAP-02 |
+| Speed of a field action | ≤ 60 s for quick add, a visit, an order card or a tap | PIP-07, MAP-02 |
 | Cost | ≤ USD 60 a month at launch scale (≤ 10 reps, ≤ 3,000 salons) | NFR-09 |
 | Recovery | RPO ≤ 24 h, RTO ≤ 4 h | NFR-10 |
 
@@ -218,7 +218,7 @@ The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc
 | **Invariant and attack tests** | Controls hold under attack: append-only, maker ≠ checker, no negative stock, single-use approvals, territory isolation, replays | `supabase/tests/*.test.ts` | Running in CI |
 | **Schema hygiene** | Every table has RLS and an audit trigger; every SECURITY DEFINER function pins `search_path`; anon can execute nothing | `supabase/tests/schema-hygiene.test.ts` | Running in CI |
 | **Package unit tests** | Import mapping and normalisers | `packages/import/tests/` | Running in CI |
-| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline order, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen with Urdu labels, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order, payment and lost-demand flows are added with P1-09 |
+| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline visit, order card, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen with Urdu labels, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order, payment and lost-demand flows are added with P1-09 |
 | **Field test** | Offline capture in a basement salon with no signal (Phase 1 exit criterion 6) | Pilot, [doc 11](docs/11-roadmap.md) | Phase 1 pilot |
 
 **Rules for tests:**
@@ -260,7 +260,12 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 
 | Item | Blocks | Default meanwhile |
 |---|---|---|
-| B-18: expose schemas `app` and `vault_api` on staging (Supabase dashboard) | Login and device registration on staging; Gate 0 | Nothing works against staging |
+| Staging: apply migrations 0014 to 0024 (H-19; staging has 13 of 24) | Every screen built since 2026-11-01 on staging; Gate 0 | Local and CI only |
+| B-40: order rework open points (do reps still deliver and collect; salon portal membership; what the cash cap blocks) | The rep-delivery half of the order rework; the salon portal; CTL-17 | Rep delivery and collection as today; no portal |
+| B-31 (a) to (g): pin moves, phone-reveal cap, past midnight, invoice per delivery, delivery_mode, low_stock scope, agents | The matching fixes; P1-15 | Code as built |
+| B-39: approval use-time rules (who may use, use-time check, expiry, offboarded checker, credit override, write-off) | P1-08 | D-25 registry may be built; the open rules keep today's behaviour |
+| B-38: service-role scan fails an empty bundle directory | — | Leave as is |
+| OQ-32: rep location policy | Location tracking (PIP-12/13) | Event GPS only |
 | Owner account creation and MFA (human-only, ACTIVITY §10) | P0-05, Gate 0 | — |
 | OQ-01: the real Excel file | P0-02 real run, opening balances | Synthetic data |
 | OQ-13: pilot territory and pilot rep | P0-03, P1-13 pilot | — |
@@ -271,9 +276,7 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | OQ-20: agent identity data | Agent 1 | Name and phone only |
 | OQ-21: monthly target for sales through agents (Rs) | Agent channel goal | No target; the figure is reported monthly |
 | OQ-22: what counts as an unusually large agent purchase | Digest flag | No flag; every agent purchase is listed anyway |
-| D-08: manager vs owner governance split | Permission matrix | Owner-only governance (doc 06 §2) |
 | A-08: rep bag limits owner-only (may be relaxed to the manager) | — | Owner only |
-| Renumbering of branch `claude/architecture-rfc` | Merging it | Not merged |
 | B-13: branch protection on `main` with the five CI check names (ACTIVITY L-0175) | Binding CI | A pull request merges whatever its checks say |
 | B-28: may reps park a salon (doc 02) against the doc 06 matrix (rep: no manual stage change) | Matrix wording | Rep parking stays, as doc 02 says |
 | A-09, A-10: opening last purchase; exposure as confirmed installment orders | P1-07 | As stated in ACTIVITY §15 |

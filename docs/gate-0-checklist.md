@@ -1,5 +1,7 @@
 # Gate 0 checklist — Phase 0 exit (for MJ)
 
+> **Update 2026-11-03 (ACTIVITY L-0370).** Parts of this page are out of date; where they disagree, this note and ACTIVITY §12 win. Action 1 is done (B-18 resolved, L-0253). Action 4 is done (ruleset "prot", six required checks, L-0195). Staging has migrations 0001 to 0013 only; 0014 to 0024 need MJ's approval to apply (H-19). Action 3, the owner account, is still not done. Task status: P0-06 is IN PROGRESS (its earlier VERIFIED was reopened, L-0116); P1-01 is VERIFIED (L-0116) for migrations up to 0007 only; P0-08 VERIFIED (L-0030); nothing built since has been independently verified.
+
 Status as of 2026-10-26, staging project `iurvazdyxzlspegygldo` ("Supabase Kiran"). Gate 0 is signed only by MJ (ACTIVITY §8). The exit criteria come from `docs/11-roadmap.md`. The independent end-to-end check of the same day is in `docs/test-report-2026-10-25.md`.
 
 ## Your human-only actions, in order

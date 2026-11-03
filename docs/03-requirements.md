@@ -63,19 +63,20 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| ORD-01 | Create an order for a salon: lines (SKU, qty, unit price from active price list; in Phase 1 the SKU's current list price, copied onto the line, and price lists with dates are ORD-07), discounts within rep's allowed % (default 0), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
-| ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0163). Hard stop for reps; Mg/O can override with reason | M | 1 |
-| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery: by the rep for its own draft, by Mg/O with a reason for a draft or confirmed order | M | 1 |
+| ORD-01 | Create an order for a salon (the office, or the salon in its portal; reps do not create orders, D-30): lines (SKU, qty, unit price from active price list; in Phase 1 the SKU's current list price, copied onto the line, and price lists with dates are ORD-07), discounts below list only with approval (CTL-07), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
+| ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0163). Hard stop for salon portal orders; Mg/O can override with reason | M | 1 |
+| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O with a reason (what a salon may edit or cancel on its own portal order is open, ACTIVITY B-40) | M | 1 |
 | ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
 | ORD-05 | Invoice/receipt PDF or image: Kiran branding, salon, lines, totals, payment plan schedule, receipt numbers. **Never** shows supplier or cost | M | 1 |
 | ORD-06 | Returns: full/partial return of delivered goods with reason; stock movement back to location; credit note | S | 2 |
 | ORD-07 | Price lists with effective dates; per-salon special pricing (Owner-only writes under D-08) | S | 2 |
 | ORD-08 | Promotions / bundles (e.g., starter kit for new salons, buy-10-get-1) | C | 3 |
-| ORD-09 | Order history and "frequently bought" suggestions per salon shown to rep while ordering | S | 2 |
-| ORD-10 | Offline order creation; synced and credit-rechecked on reconnect; rep warned if the check fails | M | 1 |
-| ORD-11 | One canonical order system accepts explicit rep_visit and salon_portal channels; stores authenticated creator and nullable order-taking rep/rep_day/visit; preserves original acquisition rep and effective-dated current assignment separately | M | 2 |
-| ORD-12 | Authenticated salon user submits an order only for the salon resolved from active server-side membership; idempotent submission; same server-side catalogue, salon pricing, stock, credit and order-state checks as rep orders | M | 2 |
-| ORD-13 | Salon user reads only its own submitted orders, current states, permitted history and customer documents; salon-originated order confirmation policy is controlled by OQ-31 | M | 2 |
+| ORD-09 | Order history and "frequently bought" suggestions per salon shown to whoever creates the order (office or salon portal) | S | 2 |
+| ORD-10 | Superseded by D-30: reps no longer create orders. The rep's offline work is visits, payments and order-intake cards (ORD-14, NFR-01) | — | — |
+| ORD-14 | A rep records the salon's requirements as an order-intake ("New Order Details") card; the office sees open cards, converts one into an order, and the card is closed and linked to that order (D-30) | M | 1 |
+| ORD-11 | One canonical order system accepts explicit office and salon_portal channels (D-30); stores the authenticated creator, the order-intake card it came from (nullable) and the delivering rep when one is assigned; preserves original acquisition rep and effective-dated current assignment separately | M | 2 |
+| ORD-12 | Authenticated salon user submits an order only for the salon resolved from active server-side membership; idempotent submission; same server-side catalogue, salon pricing, stock, credit and order-state checks as office orders | M | 2 |
+| ORD-13 | Salon user reads only its own submitted orders, current states, permitted history and customer documents; a salon-originated order waits for the manager's approval and nothing is reserved or delivered before confirmation (OQ-31 answered, D-30) | M | 2 |
 
 ### PAY — Payments, installments, cash, bank
 
@@ -139,7 +140,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | SEC-10 | Backups: PITR + weekly encrypted off-site export; restore drill quarterly | M | 1 |
 | SEC-11 | Maker-checker: the user who initiates an approval-gated action can never approve it; approvals are recorded with approver, time and reason | M | 1 |
 | SEC-12 | Audit log lives in a schema no application role can write to directly (populated by triggers), is hash-chained, and is mirrored nightly to write-only storage controlled by the owner | M | 1 |
-| SEC-13 | Salon portal identity is a separate customer membership linked to specific salon IDs, never an internal staff role; account invitation, activation, suspension and revocation are owner-governed and audited | M | 2 |
+| SEC-13 | Salon portal identity is a separate customer membership linked to specific salon IDs, never an internal staff role; accounts are created, suspended and revoked by the owner or manager and audited (D-30; membership model open, ACTIVITY B-40) | M | 2 |
 | SEC-14 | Salon portal RLS/RPCs enforce own-salon-only access to profile, price, aggregate stock, orders and customer documents; cross-salon ID tampering and revoked membership are denied by database tests | M | 2 |
 | SEC-15 | Salon/customer functions expose only allow-listed public catalogue/price/aggregate-stock/customer-document data; no supplier, cost, margin, internal inventory location, rep GPS or internal CRM notes | M | 2 |
 

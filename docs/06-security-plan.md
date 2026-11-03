@@ -29,8 +29,9 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | See salons | Own territories only; phones masked in lists | All | All |
 | Create/edit salon, pins, notes | Own territories | All | All |
 | Change salon stage manually | — | With reason | With reason |
-| Log visits, orders, deliveries, payments | Own | Own + on behalf (flagged) | Same as manager |
-| Discount below list price | Request only | Approve (not own requests) | Approve |
+| Log visits, deliveries, payments | Own | Own + on behalf (flagged) | Same as manager |
+| Create official sales orders (D-30) | — (records order-intake cards; reads its territories' orders) | Yes; converts a rep's card into an order | Same as manager |
+| Discount below list price | — (no orders, D-30) | Approve (not own requests) | Approve |
 | Credit limit override / unblock salon | — | Yes, logged, capped per salon/month | Yes |
 | Handover count | Acknowledge only | Enter count | Enter count |
 | Bank deposit recording | — | Yes | Yes |
@@ -53,13 +54,13 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | Daily exception digest | — | Receives a team copy | Receives full digest |
 | Break-glass SQL | — | — | Owner + developer, two-person, logged |
 
-The permission matrix above remains the approved business requirement. **Payments as built (B-37 resolved by MJ, ACTIVITY L-0362):** a rep records its own collections at the salon (`app.rep_record_payment`); the owner or manager records cash collected from a salon (`app.office_record_cash`, migration 0024; the cash enters the office pool, never a rep's ledger, flagged `office_collected`) and a bank transfer on behalf (`app.office_record_payment`, flagged `on_behalf`). Who may place an order changes with L-0363 (office and salon portal only; reps write order cards); that rework is not built yet, so this matrix's "orders: Rep own" still describes the code until it lands.
+The permission matrix above remains the approved business requirement. **Payments as built (B-37 resolved by MJ, ACTIVITY L-0362):** a rep records its own collections at the salon (`app.rep_record_payment`); the owner or manager records cash collected from a salon (`app.office_record_cash`, migration 0024; the cash enters the office pool, never a rep's ledger, flagged `office_collected`) and a bank transfer on behalf (`app.office_record_payment`, flagged `on_behalf`). Who may place an order follows D-30 (ACTIVITY L-0363): the office and the salon portal only; reps record order-intake cards. That rework is not built yet: until it lands, the code still lets a rep create an order (`app.create_order`) and does not let the office.
 
 Permissions are enforced in three places that must agree: RLS policies (data), `SECURITY DEFINER` functions (actions), and UI (convenience only — never the control).
 
 ### 2.1 Salon customer identity and authorization boundary
 
-A Salon Customer is an external customer membership, not a fourth internal staff role. Do not add salon to user_profile.role or infer a portal identity from salon_contact.phone. Use a separately auditable membership linking an authenticated auth user to an explicitly authorized salon. Invitation/activation/revocation is owner-governed under D-08. Default one membership to one salon; multiple-salon membership requires an explicit decision and additional RLS tests.
+A Salon Customer is an external customer membership, not a fourth internal staff role. Do not add salon to user_profile.role or infer a portal identity from salon_contact.phone. Use a separately auditable membership linking an authenticated auth user to an explicitly authorized salon. The owner or manager creates and revokes salon accounts (D-30, ACTIVITY L-0363); whether it is invitation-only or public sign-up with review, whether one login may hold several salons and whether salon staff get sub-users are open (ACTIVITY B-40). Default one membership to one salon; multiple-salon membership requires an explicit decision and additional RLS tests.
 
 | Capability | Salon customer | Enforcement boundary |
 |---|---|---|

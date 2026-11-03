@@ -58,7 +58,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Pipeline | PIP-04, 05, 06, 08, 10, 11 (route days, cycle engine, due tasks, sweep mode, geofence flags) |
 | Collections | PAY-06 (bank reconciliation), PAY-08 timers, PAY-09 credit rules automation |
 | Orders | ORD-06 returns, ORD-07 price lists & special pricing, ORD-09 suggestions |
-| Salon portal and dual-channel ordering | SAL-11/12, ORD-11/13, SEC-13/15: secure salon membership, own-salon catalogue/price/stock/order/document reads, portal order submission through the common order engine (subject to OQ-31) |
+| Salon portal and dual-channel ordering | SAL-11/12, ORD-11/13, SEC-13/15: secure salon membership, own-salon catalogue/price/stock/order/document reads, portal order submission through the common order engine (manager approval first, D-30) |
 | Stock | INV-07 restock suggestions, INV-08 batches/expiry, INV-09 counts, INV-10 valuation (vault) |
 | Vault | VLT-07 column encryption (if not already in Phase 1) |
 | Controls | CTL-10 monthly statements + dispute, CTL-11 automated confirmations, CTL-12 quarantine returns, CTL-13 commission on banked cash, CTL-14 anomaly jobs |

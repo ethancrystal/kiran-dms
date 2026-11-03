@@ -30,16 +30,16 @@ A salon must be registrable with a name, contact details, address, area/landmark
 
 ### 2.2 Two order channels, one order system
 
-Both representatives and salon customers may create orders.
+The office (owner or manager) and salon customers create orders; representatives do not (D-30, ACTIVITY L-0363).
 
-- **Representative channel:** a representative visits a salon, records the visit, opens that salon's account, builds an order and submits it on the salon's behalf.
+- **Office channel:** the manager or owner creates the order in the Orders area, often from a representative's order-intake card: the rep agrees the salon's requirements on the rep's screen and saves a "New Order Details" card; the manager converts it into an order and the card is closed and linked to it.
 - **Salon portal channel:** an authenticated salon user signs into the portal, views the shared catalogue and that salon's assigned prices, builds an order and submits it for that salon.
 
 Both channels create the same canonical sales-order aggregate and use the same server-side SKU, price, stock, credit, duplicate-submission and order-state rules. Do not create separate order ledgers or separate inventory calculations.
 
 The channel and actor are recorded explicitly. A salon portal order is not a representative visit and must not be credited as a physical visit, visit conversion or rep-taken order.
 
-The office confirmation policy for salon-originated orders remains open (OQ-31). Do not silently choose between auto-confirmation after validation and an office approval queue. Keep the state machine decision-gated until MJ confirms the commercial rule.
+A salon-originated order waits for the manager's approval; nothing is reserved or delivered before confirmation (OQ-31 answered, D-30). What a salon may edit or cancel, and any cutoff, remain open (ACTIVITY B-40).
 
 ### 2.3 Catalogue, salon pricing and stock visibility
 
@@ -84,7 +84,7 @@ Primary capabilities:
 - Map with known salon pins, manually created prospect pins and the rep's own position.
 - Visit arrival/check-in, GPS/time capture, outcome, notes and optional evidence photo.
 - Salon profile and visit/order history limited to the rep's authorized scope.
-- New Order from the currently visited salon.
+- New Order Details card for the currently visited salon (reps do not create orders, D-30).
 - Order status, delivery task, collections, receipts, bag stock, handover and day close according to approved scope.
 - Offline support for approved rep workflows, with idempotent sync and explicit conflict handling.
 - No access to supplier/cost data or other representatives' private GPS trail.
@@ -120,7 +120,7 @@ Primary capabilities:
 - Confirm/reject/hold/release actions according to approved workflow and role.
 - Dispatch, delivery, invoice, return, payment, reconciliation and receivables.
 - Exception review, audit trail and management reporting.
-- Secure salon account invitations, suspension and account-to-salon membership management under owner-controlled user governance.
+- Secure salon account invitations, suspension and account-to-salon membership management by the owner or manager (D-30; membership model open, ACTIVITY B-40).
 
 ## 4. Module map
 
@@ -257,7 +257,7 @@ The modules define the target product boundary. They do not claim that correspon
 **Engineer**
 - Use one canonical sales_order and sales_order_line model.
 - Record at minimum: salon ID, channel/source, authenticated creator, created timestamp, idempotency key, order-taker rep (nullable), rep day (nullable), visit (nullable), status, price/credit snapshots and totals.
-- Valid channels are explicit values such as rep_visit and salon_portal; do not infer channel from a user-supplied label.
+- Valid channels are explicit values such as office and salon_portal (D-30); do not infer channel from a user-supplied label.
 - Representative order creation derives the authenticated rep, verifies authorized salon access, verifies an open rep day and required visit context, and records the actual order-taking rep.
 - Salon portal order creation derives salon identity from an active authenticated membership and must not accept arbitrary salon, rep, rep-day or visit identity.
 - Both channels call the same transactional domain function/service for SKU validity, quantity, price resolution, credit rules, availability, idempotency and order persistence.
@@ -271,7 +271,7 @@ The modules define the target product boundary. They do not claim that correspon
 - One end-to-end rep visit order and one portal order create records in the same order queue and share downstream fulfilment/payment logic.
 - The two orders are distinguishable by source, creator and order-taker attribution.
 - Portal orders never create a fake visit, rep-day or rep sale.
-- Rep orders cannot be attributed to another rep by client-supplied IDs.
+- Order-intake cards cannot be attributed to another rep by client-supplied IDs.
 - Invalid SKU, inactive product, bad quantity, stale price, insufficient stock, credit hold, suspended membership, duplicate idempotency key and cross-salon ID tampering are tested.
 
 ### M08 - Fulfilment, delivery, invoices, receipts and returns
@@ -360,18 +360,18 @@ The modules define the target product boundary. They do not claim that correspon
 4. Server normalizes/validates fields and checks likely duplicates.
 5. Salon receives internal ID and source/acquisition attribution.
 6. Authorized office user verifies details and assigns territory/current representative.
-7. If portal access is approved, an owner-controlled invite is sent to a verified contact and accepted before membership activates.
+7. If portal access is approved, the owner or manager creates the salon's account for a verified contact (D-30); the invitation model is open (ACTIVITY B-40).
 
-### 5.2 Representative visits a salon and takes an order
+### 5.2 Representative visits a salon and records the order details
 
 1. Rep starts an approved workday and completes existing check-in gates.
 2. App displays assigned route and salon pins.
 3. Rep navigates to the salon and records arrival. Server records time and accepted GPS metadata.
 4. Rep selects visit outcome and records notes.
-5. For an order, rep opens New Order from the salon record.
-6. App loads the same catalogue/price/availability rules used by the portal.
-7. Rep selects SKUs and quantities; server resolves price and validates stock/credit.
-8. Server creates a rep_visit order with authenticated rep, open rep day, visit and immutable snapshots.
+5. For an order, the rep and the salon agree the requirements on the rep's screen and the rep saves a New Order Details card.
+6. The card waits for the office; the rep does not create an order (D-30).
+7. The manager opens the card in the Orders area and creates the official order; the server resolves price and validates stock and credit.
+8. The card is closed and linked to the order; the card and visit are kept as provenance.
 9. Office processes the order. Delivery, invoice, collection and status use the common workflow.
 
 ### 5.3 Salon independently places an order
@@ -382,7 +382,7 @@ The modules define the target product boundary. They do not claim that correspon
 4. Salon builds basket and submits with an idempotency key.
 5. Server reloads current prices, product state and stock; rechecks applicable credit and order constraints.
 6. Server creates a salon_portal order. created_by is the authenticated salon user; order_taking_rep_id, rep_day_id and visit_id are null unless a separately verified business event supplies a legitimate relation.
-7. Salon receives acknowledgement of the true order state. Office queue handles the order under OQ-31.
+7. Salon receives acknowledgement of the true order state. The order waits in the manager's approval queue; nothing is reserved or delivered before confirmation (D-30).
 8. Salon tracks the same order through shared status/document workflow.
 
 ### 5.4 Office fulfilment and closure
@@ -525,7 +525,7 @@ The independent reviewer verifies evidence from the exact commit, not an impleme
 | Inventory integrity | Delivery, reservation, cancellation, return and adjustment post exactly-once movements |
 | Visit integrity | GPS, server timestamp, accuracy, distance and outcome recorded; visit is append-only |
 | Live tracking | Only open-day active rep pings accepted; stale/missing/invalid/replayed signals handled |
-| Portal order policy | OQ-31 policy is explicit, auditable and covered by state-transition tests |
+| Portal order policy | Manager approval first (D-30) is explicit, auditable and covered by state-transition tests |
 | Order-to-cash | Fulfilment, partial delivery, invoice, payment, allocation and statement reconcile |
 | Reporting | Portal orders do not inflate physical visit/productive-visit/rep-taken-order metrics |
 | Notifications | Failure/retry does not duplicate orders, payments, deliveries or receipts |
@@ -544,7 +544,7 @@ Required test layers:
 
 The following choices affect implementation and must be resolved through docs 12 and ACTIVITY, not guessed by an agent:
 
-- **OQ-31 - Salon order confirmation:** auto-confirm when server validation passes, or submit into an office approval queue? Define edits/cancellation and order cutoff behaviour too.
+- **OQ-31 - Salon order confirmation:** answered (D-30): the manager approves first. Still open: salon edits, cancellation and order cutoff (ACTIVITY B-40).
 - **OQ-32 - Representative location policy:** ping cadence, permitted hours, background collection expectations, accuracy threshold, stale state, retention, notice and supported Android/device approach.
 - **OQ-09 - Rep pay/commission:** remains unresolved. Do not calculate commission or deductions from example values.
 - **OQ-16 - Real product catalogue:** actual products, variants, units, pack configuration and prices are required before replacing dummy product data.
