@@ -1,6 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { MoneySection } from "@/components/money-section";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
 
@@ -130,6 +131,8 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
           await done(`Visit recorded: ${label(o)}.`);
         }}
       />
+
+      <MoneySection salonId={id} mode="rep" />
 
       <section aria-labelledby="notes-h">
         <h2 id="notes-h">

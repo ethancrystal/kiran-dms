@@ -80,9 +80,16 @@ export default function RepHome() {
         </div>
       )}
       {state.kind === "ready" && state.session.device_status === "approved" && (
-        <a className="btn" href="/app/day">
-          Start your day · <span lang="ur">دن شروع کریں</span>
-        </a>
+        <>
+          <a className="btn" href="/app/day">
+            Start your day · <span lang="ur">دن شروع کریں</span>
+          </a>
+          <p>
+            <a href="/app/handovers">
+              Cash handover · <span lang="ur">نقد حوالگی</span>
+            </a>
+          </p>
+        </>
       )}
     </main>
   );

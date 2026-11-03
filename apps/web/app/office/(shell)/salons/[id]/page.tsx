@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { MoneySection } from "@/components/money-section";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, SALON_TYPES } from "@/lib/salons";
 
@@ -122,6 +123,8 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
       </section>
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
+
+      <MoneySection salonId={id} mode="office" />
 
       <section className="card" aria-labelledby="stage-h">
         <h2 id="stage-h">Change stage</h2>

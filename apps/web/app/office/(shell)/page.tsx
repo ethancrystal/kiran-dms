@@ -46,7 +46,10 @@ export default async function OfficeHome() {
           Some figures could not be loaded (shown as —). Reload the page; if it persists, sign in again.
         </p>
       )}
-      <p className="muted">Stock, orders, payments and reports are not built yet.</p>
+      <p className="muted">
+        Receivables ageing is under <Link href="/office/receivables">Receivables</Link>. Stock, order and payment screens are not
+        built yet.
+      </p>
     </>
   );
 }
