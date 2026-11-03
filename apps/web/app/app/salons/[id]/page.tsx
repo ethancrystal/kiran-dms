@@ -3,6 +3,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
+import { MoneySection } from "./money";
 
 type Note = { id: string; author_id: string; body: string; created_at: string };
 type Visit = {
@@ -130,6 +131,8 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
           await done(`Visit recorded: ${label(o)}.`);
         }}
       />
+
+      <MoneySection salonId={id} />
 
       <section aria-labelledby="notes-h">
         <h2 id="notes-h">

@@ -266,6 +266,12 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByRole("heading", { name: salonName })).toBeVisible();
   await expect(page.getByText("prospect").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Stage history" })).toBeVisible();
+  // P1-07 (PAY-02, PAY-04): the salon's account comes from app.salon_balance and app.salon_installments.
+  // A new salon owes nothing, so the database's zero is shown and no payment form is offered.
+  await expect(page.getByRole("heading", { name: "Account · حساب" })).toBeVisible();
+  await expect(page.getByTestId("balance")).toHaveText("Rs 0");
+  await expect(page.getByText("Nothing is owed.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Record payment" })).toHaveCount(0);
   await page.getByLabel("New note").fill("[Test] owner asked for a price list");
   await page.getByRole("button", { name: "Add note" }).click();
   await expect(page.getByText("Note added.")).toBeVisible();
@@ -329,4 +335,22 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
+});
+
+test("a manager opens Receivables and reads the real ageing for each grouping (PAY-07)", async ({ page }) => {
+  await officeSignIn(page, manager);
+  const calls: Array<{ p_group?: string }> = [];
+  page.on("request", (req) => {
+    if (req.url().includes("/rpc/office_receivables_ageing")) calls.push(req.postDataJSON() ?? {});
+  });
+  await page.getByRole("link", { name: "Receivables", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Receivables" })).toBeVisible();
+  // The seeded stack has no invoices, so the database answers with no rows: the page says so, with no error.
+  await expect(page.getByText("Nothing is owed.")).toBeVisible();
+  await page.getByRole("radio", { name: "Territory" }).check();
+  await expect(page.getByText("Nothing is owed.")).toBeVisible();
+  await page.getByRole("radio", { name: "Rep" }).check();
+  await expect(page.getByText("Nothing is owed.")).toBeVisible();
+  await expect(page.locator("p.error")).toHaveCount(0);
+  expect(calls.map((c) => c.p_group)).toEqual(["salon", "territory", "rep"]);
 });
