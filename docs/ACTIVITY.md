@@ -364,7 +364,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-024 | — (B-33 decisions, slices 1 and 3) | 2026-11-02 20:12 | done | L-0287 |
 | C-026 | — (fix B-34, B-35; slices 1 to 3) | 2026-11-03 12:01 | done | L-0300 |
 | C-027 | — (governance: who merges) | 2026-11-03 12:19 | done | L-0302 |
-| C-028 | - (create_salon blanks, B-34/B-35 follow-up) | 2026-11-03 | active | L-0303 |
+| C-028 | - (create_salon blanks, B-34/B-35 follow-up) | 2026-11-03 | done | L-0305 |
 | C-025 | — (re-verification of execution-map slices 1 to 3 on merged main 3630998) | 2026-11-02 22:43 | done | L-0294 |
 
 ---
@@ -3964,8 +3964,12 @@ NOT VERIFIED (not run anywhere): in a browser, device revocation, offboarding, t
 **Evidence:** new `supabase/tests/create-salon-blanks.test.ts` (tab, line break, no-break space, ideographic space): 9 passed with migration 0020; with migration 0020 moved out, all 9 failed, so the tests catch the defect. Five related DB test files: 103 passed apart from those. Full DB suite, typecheck and lint: see the PR checks.
 **Rules touched:** H-08, H-16, H-23
 **Next / needs:** push, open the PR, CI, Code Reviewer.
+Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-only becomes null, same as name and contact name.
 
-Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-only becomes null, same as name and contact name. B-34 and B-35 rows stay as they are until Code Reviewer, a non-author, records VERIFIED.
+### L-0305 · 2026-11-03 12:35 PKT · Developer · Grok Bot · session dev-1103 · branch dev/create-salon-blanks · CLAIM-RELEASED
+**Task:** - (create_salon blanks, B-34/B-35 follow-up)    **Claim:** C-028
+**What / why:** Work on PR 44 complete (Code Reviewer PASS at d32ad15); C-028 released and moved to done. Merge waits for MJ's OK on PR 44 (L-0301 rule).
+**Next / needs:** MJ OK on PR 44.
 
 ---
 
