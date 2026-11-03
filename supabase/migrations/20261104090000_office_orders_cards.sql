@@ -31,9 +31,9 @@
 --     200, oldest first), app.office_dismiss_card (a reason of 5 to 500 characters), and
 --     app.office_create_order(p_intake_card_id) converting a card. A card closes once (55000 after that).
 --   * Assigned rep (MJ L-0374, reps still deliver): the order's rep or its assigned rep reads it (RLS on
---     sales_order, its lines, deliveries and delivery lines; app.my_orders, app.order_remaining), rechecks
---     it and delivers it (app.rep_deliver). app.deliver writes the invoice's rep as
---     coalesce(assigned_rep_id, rep_id). A rep still cancels only its own draft. The rep tests in
+--     sales_order, its lines, deliveries and delivery lines; app.my_orders, app.order_remaining) and
+--     delivers it (app.rep_deliver); only the order's own rep rechecks it (a recheck can confirm, a write).
+--     app.deliver writes the invoice's rep as coalesce(assigned_rep_id, rep_id). A rep still cancels only its own draft. The rep tests in
 --     app.recheck_order, app.cancel_order and app.invoice_document are made NULL-safe (a rep-less order or
 --     invoice let any rep through). New reads: app.my_territory_orders (rep) and app.office_orders (office).
 -- =============================================================================
@@ -71,7 +71,8 @@ alter table public.invoice alter column rep_id drop not null;
 alter table public.sales_order
   add constraint sales_order_channel_shape check (
     (source_channel <> 'rep_visit' or (rep_id is not null and rep_day_id is not null and created_by = rep_id))
-    and (source_channel <> 'office' or (rep_id is null and rep_day_id is null)));
+    and (source_channel <> 'office' or (rep_id is null and rep_day_id is null))
+    and (source_channel <> 'rep_visit' or assigned_rep_id is null));   -- only office orders are assigned
 
 comment on column public.sales_order.source_channel is
   'D-30. Where the order came from: rep_visit (existing rep orders), office (made by the owner or a manager), salon_portal (reserved).';
@@ -601,10 +602,11 @@ grant execute on function
 -- =============================================================================
 -- Assigned rep reads and delivers (D-30 PR A; MJ L-0374: reps still deliver and collect as now,
 -- until PR B turns a rep's delivery into a submission the office approves).
--- A rep acts on or reads an order when it is the order's rep (rep_id, a rep_visit order) or its
--- assigned rep (assigned_rep_id, an office order). Every rep test is NULL-safe: an office order has a
+-- A rep reads and delivers an order when it is the order's rep (rep_id, a rep_visit order) or its
+-- assigned rep (assigned_rep_id, an office order); only the order's own rep rechecks or cancels it
+-- (both can change the order). Every rep test is NULL-safe: an office order has a
 -- null rep_id, and `null = auth.uid()` inside `not (...)` is null, which an IF treats as "not refused".
--- Policy changes are SELECT only; no rep gains a write path. A rep still cancels only its OWN draft.
+-- Policy changes are SELECT only; no rep gains a write path beyond delivery (MJ L-0374).
 -- =============================================================================
 
 -- ----------------------------------------------------------- order reads (RLS) ----
@@ -627,7 +629,9 @@ alter policy delivery_line_select on public.delivery_line
 -- invoice_select is unchanged: the invoice row now carries the assigned rep (app.deliver below).
 
 -- ------------------------------------------------------------- order recheck ----
--- Migration 0012, with the assigned rep allowed and the test NULL-safe (an office order has no rep_id).
+-- Migration 0012, with the rep test NULL-safe (an office order has no rep_id, and `null = uid` inside
+-- `not (...)` let any rep through). Only the order's own rep or the office rechecks: a recheck can
+-- confirm a draft, a write, and the assigned rep gains no write path (MJ: reps get no new writes).
 create or replace function app.recheck_order(p_order_id uuid) returns public.sales_order
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -636,7 +640,7 @@ declare
 begin
   select * into o from public.sales_order where id = p_order_id;
   if o.id is null or not (app.is_office()
-                          or (v_role = 'rep' and coalesce(o.rep_id = auth.uid() or o.assigned_rep_id = auth.uid(), false))) then
+                          or (v_role = 'rep' and coalesce(o.rep_id = auth.uid(), false))) then
     perform app.raise_denied('only the order''s rep or the office rechecks an order');
   end if;
   perform app.set_purpose('order rechecked');
@@ -807,8 +811,9 @@ end $$;
 -- ----------------------------------------------------------- invoice document ----
 -- Migration 0021's app.invoice_document, unchanged except the access test is NULL-safe: invoice.rep_id
 -- is null for a rep-less office order, and the old `not (... i.rep_id = auth.uid() ...)` was then null,
--- which returned the document to any rep. The invoice's rep is the assigned rep when there is one.
--- numbered receipts of payments allocated to the invoice. Same fields, same access guard, same grants.
+-- which returned the document to any rep. Access: the office, or a rep (on its approved phone) who is
+-- the invoice's rep; app.deliver writes that as the order's assigned rep when there is one, else the
+-- order's own rep, so the assigned rep reads it. Same fields and grants as migration 0021.
 create or replace function app.invoice_document(p_invoice_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare

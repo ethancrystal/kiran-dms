@@ -32,6 +32,7 @@ const CREDIT_LIMIT = 100000000;
 const GROUP_CYCLE_DAYS = 21;
 const SKU_SIZE = 100;
 const DENIED = "42501";
+const CHECK_VIOLATION = "23514";
 
 const T_A = id(),
   AREA_A = id(),
@@ -45,9 +46,13 @@ const GROUP = id(),
   WH = id();
 const BAG_A = `(select l.id from public.stock_location l where l.kind = 'rep_bag' and l.owner_user_id = '${fx.repA.id}')`;
 
-type P = "repA" | "repB" | "manager" | "managerAal1" | "owner";
-const PERSON: Record<P, "repA" | "repB" | "manager" | "owner"> = {
+type P = "repA" | "repAWrongDevice" | "suspendedRep" | "repB" | "manager" | "managerAal1" | "owner";
+const WRONG_DEVICE = "dev-not-approved-0000";
+// The fixture person behind each test persona.
+const PERSON: Record<P, "repA" | "suspendedRep" | "repB" | "manager" | "owner"> = {
   repA: "repA",
+  repAWrongDevice: "repA",
+  suspendedRep: "suspendedRep",
   repB: "repB",
   manager: "manager",
   managerAal1: "manager",
@@ -55,11 +60,12 @@ const PERSON: Record<P, "repA" | "repB" | "manager" | "owner"> = {
 };
 const asUser = (k: P) => {
   const who = PERSON[k];
-  const aal = k.startsWith("rep") || k === "managerAal1" ? "aal1" : "aal2";
+  const device = k === "repAWrongDevice" ? WRONG_DEVICE : fx[who].device;
+  const aal = k.startsWith("rep") || k === "suspendedRep" || k === "managerAal1" ? "aal1" : "aal2";
   return `
   reset role;
   select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx[who].id, role: "authenticated", aal })}', true),
-         set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx[who].device })}', true);
+         set_config('request.headers', '${JSON.stringify({ "x-kiran-device": device })}', true);
   set local role authenticated;`;
 };
 type Step = [P | "postgres", string];
@@ -248,17 +254,42 @@ describe("the assigned rep delivers an office order (D-30, L-0374)", () => {
     expect(r).toEqual({ hidden: true, pinned: true });
   });
 
-  it("the assigned rep may recheck the order; rep B may not (42501)", async () => {
+  it("the assigned rep may not recheck the office order (a recheck can confirm a draft, a write); nor may rep B", async () => {
     const ocid = id();
-    const [o] = await tx([
-      officeOrder(ocid, { rep: fx.repA.id }),
+    const as = (who: P): Step[] => [
+      officeOrder(ocid, { rep: fx.repA.id, unitPrice: DISCOUNTED }),
       pin(ocid),
-      ["repA", `select (app.recheck_order(${OID})).status::text as status;`],
-    ]);
+      [who, `select app.recheck_order(${OID});`],
+    ];
+    expect(await txCode(as("repA"))).toBe(DENIED);
+    expect(await txError(as("repA"))).toContain("only the order's rep or the office");
+    expect(await txCode(as("repB"))).toBe(DENIED);
+  });
+
+  it("a legacy rep_visit order's own rep still rechecks it", async () => {
+    const ocid = id();
+    const [o] = await tx([repOrder(ocid), pin(ocid), ["repA", `select (app.recheck_order(${OID})).status::text as status;`]]);
     expect(o.status).toBe("confirmed");
-    const asB = [officeOrder(ocid, { rep: fx.repA.id }), pin(ocid), ["repB", `select app.recheck_order(${OID});`] as Step];
-    expect(await txCode(asB)).toBe(DENIED);
-    expect(await txError(asB)).toContain("only the order's rep or the office");
+  });
+
+  it("a rep_visit order cannot carry an assigned rep (sales_order_channel_shape, 23514)", async () => {
+    const oid = id();
+    const insert: Step = [
+      "postgres",
+      `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, rep_id, rep_day_id, assigned_rep_id,
+                                       plan, delivery_mode, subtotal_paisa, total_paisa)
+       values ('${oid}', '${oid}', '${SALON}', 'rep_visit', '${fx.repA.id}', '${fx.repA.id}',
+               (select d.id from public.rep_day d where d.rep_id = '${fx.repA.id}' and d.day = ${TODAY}), '${fx.repA.id}',
+               'CASH', 'bag_now', ${UNIT}, ${UNIT});`,
+    ];
+    expect(await txCode([insert])).toBe(CHECK_VIOLATION);
+  });
+
+  it("rep A on an unapproved phone cannot deliver its assigned order (42501, device check)", async () => {
+    const ocid = id();
+    const steps = [officeOrder(ocid, { rep: fx.repA.id }), ...repDeliver(id(), ocid, "repAWrongDevice")];
+    expect(await txCode(steps)).toBe(DENIED);
+    expect(await txError(steps)).toContain("device");
   });
 });
 
@@ -306,6 +337,45 @@ describe("the assigned rep reads the office order; another rep does not", () => 
       remaining_rows: 1,
       document: true,
     });
+  });
+
+  it("a rep-less office order in rep A's own territory is listed in my_territory_orders and hidden everywhere else", async () => {
+    const [ocid, dcid] = [id(), id()];
+    const repLess: Step[] = [
+      officeOrder(ocid),
+      pin(ocid),
+      [
+        "manager",
+        `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
+                    '${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb)).id;`,
+      ],
+      pin(ocid, dcid),
+    ];
+    const [shape] = await tx([
+      ...repLess,
+      ["postgres", `select source_channel::text, rep_id, assigned_rep_id from public.sales_order where client_id = '${ocid}';`],
+    ]);
+    expect(shape).toEqual({ source_channel: "office", rep_id: null, assigned_rep_id: null });
+    const [r] = await tx([...repLess, sees("repA", ocid, dcid)]);
+    expect(r).toEqual({
+      my_orders: 0,
+      territory: 1,
+      order_rows: 0,
+      line_rows: 0,
+      delivery_rows: 0,
+      delivery_line_rows: 0,
+      invoice_rows: 0,
+      remaining_rows: 0,
+      document: false,
+    });
+    const deliver = [...repLess, ...repDeliver(id(), ocid)];
+    expect(await txCode(deliver)).toBe(DENIED);
+    expect(await txError(deliver)).toContain("own orders");
+    const internal: Step = [
+      "repA",
+      `select app.deliver('${id()}', ${OID}, ${BAG_A}, null, 'Ayesha at the counter', 24.9, 67.1, false, null, null);`,
+    ];
+    expect(await txCode([...repLess, internal])).toBe(DENIED);
   });
 
   it("rep B sees none of it", async () => {
@@ -358,7 +428,9 @@ describe("app.my_territory_orders", () => {
     expect(forB.map((r) => r.cid)).toEqual([other]);
   });
 
-  it("is for reps only: the office and anon are refused 42501", async () => {
+  it("is for reps on their approved phone: a wrong device, a suspended rep, the office and anon are refused 42501", async () => {
+    expect(await txCode([["repAWrongDevice", "select * from app.my_territory_orders();"]])).toBe(DENIED);
+    expect(await txCode([["suspendedRep", "select * from app.my_territory_orders();"]])).toBe(DENIED);
     expect(await sqlstate(MANAGER, "select * from app.my_territory_orders()")).toBe(DENIED);
     expect(await sqlstate(OWNER, "select * from app.my_territory_orders()")).toBe(DENIED);
     expect(await sqlstate("anon", "select * from app.my_territory_orders()")).toBe(DENIED);
