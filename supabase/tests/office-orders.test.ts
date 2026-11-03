@@ -28,6 +28,7 @@ const SKU_SIZE = 100;
 const DENIED = "42501";
 const BAD_INPUT = "22023";
 const DUPLICATE = "23505";
+const CHECK_VIOLATION = "23514";
 
 const T_A = id(),
   AREA_A = id(),
@@ -74,9 +75,18 @@ const create = (who: P, cid: string, a: OrderArgs = {}): Step => [
 const order = (cid: string): Step => [
   "postgres",
   `select o.id, o.status, o.source_channel, o.created_by, o.rep_id, o.rep_day_id, o.assigned_rep_id, o.delivery_mode,
-          o.hold_credit, o.hold_discount, o.total_paisa, a.kind as approval_kind, a.maker_id as approval_maker
+          o.hold_credit, o.hold_discount, o.total_paisa, o.discount_paisa, o.discount_by_owner,
+          a.kind as approval_kind, a.maker_id as approval_maker,
+          (select count(*)::int from control.approval_request r where r.subject_type = 'sales_order' and r.subject_id = o.id) as approvals
    from public.sales_order o left join control.approval_request a on a.id = o.discount_approval_id
    where o.client_id = '${cid}';`,
+];
+const APPROVAL_OF = (cid: string) => `(select o.discount_approval_id from public.sales_order o where o.client_id = '${cid}')`;
+const ORDER_OF = (cid: string) => `(select o.id from public.sales_order o where o.client_id = '${cid}')`;
+const TODAY = "(now() at time zone 'Asia/Karachi')::date";
+const OPEN_DAY: Step = [
+  "postgres",
+  `insert into public.rep_day (rep_id, day) values ('${fx.repA.id}', ${TODAY}) on conflict (rep_id, day) do nothing;`,
 ];
 
 beforeAll(async () => {
@@ -156,6 +166,12 @@ describe("the office creates orders (D-30)", () => {
     expect(await txCode([create("owner", id(), { rep: id() })])).toBe(BAD_INPUT);
   });
 
+  it("a suspended rep, even in the salon's territory, as the assigned rep is refused 22023", async () => {
+    const suspend: Step = ["owner", `select app.owner_set_status('${fx.repA.id}', 'suspended', '[Test] on leave');`];
+    expect(await txError([suspend, create("manager", id(), { rep: fx.repA.id })])).toContain("active rep");
+    expect(await txCode([suspend, create("manager", id(), { rep: fx.repA.id })])).toBe(BAD_INPUT);
+  });
+
   it("a rep and a manager without MFA (aal1) are refused 42501", async () => {
     expect(await txCode([create("repA", id())])).toBe(DENIED);
     expect(await txCode([create("managerAal1", id())])).toBe(DENIED);
@@ -172,7 +188,71 @@ describe("the office creates orders (D-30)", () => {
       approval_kind: "discount",
       approval_maker: fx.manager.id,
       created_by: fx.manager.id,
+      discount_by_owner: false,
+      approvals: 1,
     });
+  });
+
+  it("once the owner approves the manager's discount, a recheck confirms the order (maker = created_by)", async () => {
+    const cid = id();
+    const [o] = await tx([
+      create("manager", cid, { unitPrice: DISCOUNTED }),
+      ["owner", `select app.decide_approval(${APPROVAL_OF(cid)}, true, 'matches the competitor price');`],
+      ["manager", `select (app.recheck_order(${ORDER_OF(cid)})).id;`],
+      order(cid),
+    ]);
+    expect(o).toMatchObject({ status: "confirmed", hold_discount: null, approval_maker: fx.manager.id });
+  });
+
+  it("the owner's own discount needs no approval (MJ 2026-11-04): confirmed at once, discount_by_owner recorded", async () => {
+    const cid = id();
+    const [o] = await tx([create("owner", cid, { unitPrice: DISCOUNTED }), order(cid)]);
+    expect(o).toMatchObject({
+      status: "confirmed",
+      hold_discount: null,
+      discount_by_owner: true,
+      approval_kind: null,
+      approvals: 0,
+      created_by: fx.owner.id,
+    });
+    expect(Number(o.discount_paisa)).toBe(UNIT - DISCOUNTED);
+  });
+
+  it("the owner's order without a discount does not carry discount_by_owner", async () => {
+    const cid = id();
+    const [o] = await tx([create("owner", cid), order(cid)]);
+    expect(o).toMatchObject({ status: "confirmed", discount_by_owner: false });
+  });
+
+  it("a rep's discount never gets discount_by_owner: it still requests an approval and waits", async () => {
+    const cid = id();
+    const [o] = await tx([
+      OPEN_DAY,
+      ["repA", `select (app.create_order('${cid}', '${SALON}', 'CASH', 'bag_now', ${lines(1, DISCOUNTED)})).id;`],
+      order(cid),
+    ]);
+    expect(o).toMatchObject({
+      status: "draft",
+      hold_discount: "pending",
+      discount_by_owner: false,
+      source_channel: "rep_visit",
+      approval_maker: fx.repA.id,
+      approvals: 1,
+    });
+  });
+
+  it("the database refuses discount_by_owner without a discount", async () => {
+    const oid = id();
+    expect(
+      await txCode([
+        [
+          "postgres",
+          `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, plan, delivery_mode,
+                                           subtotal_paisa, total_paisa, discount_by_owner)
+           values ('${oid}', '${oid}', '${SALON}', 'office', '${fx.owner.id}', 'CASH', 'warehouse', ${UNIT}, ${UNIT}, true);`,
+        ],
+      ]),
+    ).toBe(CHECK_VIOLATION);
   });
 
   it("a replay returns the same order; a changed replay is refused 23505", async () => {

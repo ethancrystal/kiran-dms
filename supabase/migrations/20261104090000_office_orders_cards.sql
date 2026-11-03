@@ -24,6 +24,8 @@
 --     discount approval, insert, evaluation) with created_by = the caller; app.create_order (rep path,
 --     same signature) and the new app.office_create_order (owner or manager, D-30) both call it.
 --     app.evaluate_order matches the discount approval's maker against created_by instead of rep_id.
+--   * sales_order.discount_by_owner (MJ 2026-11-04, "Yes, no approval"): the owner's own discount on an
+--     office order needs no approval request and holds nothing; the audit insert row records it.
 -- =============================================================================
 
 -- ------------------------------------------------------------------ channel ----
@@ -33,7 +35,16 @@ alter table public.sales_order
   add column source_channel  public.order_channel not null default 'rep_visit',
   add column created_by      uuid references public.user_profile (id),
   add column assigned_rep_id uuid references public.user_profile (id),
-  add column intake_card_id  uuid;                                   -- FK below, once the card table exists
+  add column intake_card_id  uuid,                                   -- FK below, once the card table exists
+  add column discount_by_owner boolean not null default false;
+
+-- MJ 2026-11-04 (chat, "Yes, no approval"): the owner's own discount on an office order needs no
+-- approval request; the order's audit insert row records it (discount_by_owner and the amounts).
+alter table public.sales_order drop constraint sales_order_discount_approval;
+alter table public.sales_order
+  add constraint sales_order_discount_approval
+    check ((discount_paisa > 0) = (discount_approval_id is not null or discount_by_owner)),
+  add constraint sales_order_discount_by_owner check (not discount_by_owner or discount_paisa > 0);
 
 -- The immutability trigger forbids changing created_by, so the backfill of the rows that exist runs
 -- with that one trigger off; audit and foreign-key triggers still run. Existing rows already read
@@ -83,11 +94,13 @@ begin
   end if;
   if (new.id, new.client_id, new.salon_id, new.rep_id, new.rep_day_id, new.visit_id, new.plan, new.delivery_mode,
       new.subtotal_paisa, new.discount_paisa, new.total_paisa, new.discount_approval_id, new.created_at,
-      new.created_at_client, new.source_channel, new.created_by, new.assigned_rep_id, new.intake_card_id)
+      new.created_at_client, new.source_channel, new.created_by, new.assigned_rep_id, new.intake_card_id,
+      new.discount_by_owner)
      is distinct from
      (old.id, old.client_id, old.salon_id, old.rep_id, old.rep_day_id, old.visit_id, old.plan, old.delivery_mode,
       old.subtotal_paisa, old.discount_paisa, old.total_paisa, old.discount_approval_id, old.created_at,
-      old.created_at_client, old.source_channel, old.created_by, old.assigned_rep_id, old.intake_card_id) then
+      old.created_at_client, old.source_channel, old.created_by, old.assigned_rep_id, old.intake_card_id,
+      old.discount_by_owner) then
     raise exception using errcode = '42501', message = 'an order''s parties and amounts are immutable';
   end if;
   if old.status in ('cancelled', 'closed') then
@@ -230,6 +243,8 @@ declare
   v_cnt   integer;
   v_thr   jsonb;
   v_owner boolean;
+  -- MJ 2026-11-04: the owner's own discount on an office order needs no approval. Reps never get it.
+  v_by_owner boolean := p_channel = 'office' and app.user_role() = 'owner';
   a       control.approval_request;
 begin
   if p_plan is null or p_delivery_mode is null then
@@ -261,8 +276,8 @@ begin
     raise exception using errcode = '22023', message = 'a SKU appears once in an order';
   end if;
   perform app.set_purpose('order taken');
-  if v_disc > 0 then
-    v_thr := (select c.value from public.app_config c where c.key = 'approval.discount.owner_above');
+  if v_disc > 0 and not v_by_owner then
+    v_thr :=(select c.value from public.app_config c where c.key = 'approval.discount.owner_above');
     -- doc 13 §9: the owner decides above the threshold; a missing threshold sends it to the owner.
     v_owner := v_thr is null or jsonb_typeof(v_thr -> 'pct') <> 'number' or jsonb_typeof(v_thr -> 'paisa') <> 'number'
                or v_disc * 100 > v_sub * (v_thr ->> 'pct')::numeric or v_disc > (v_thr ->> 'paisa')::numeric;
@@ -275,10 +290,10 @@ begin
   end if;
   insert into public.sales_order (id, client_id, salon_id, rep_id, rep_day_id, visit_id, plan, delivery_mode,
                                   subtotal_paisa, discount_paisa, total_paisa, discount_approval_id, created_at_client,
-                                  source_channel, created_by, assigned_rep_id, intake_card_id)
+                                  source_channel, created_by, assigned_rep_id, intake_card_id, discount_by_owner)
   values (v_id, p_client_id, p_salon_id, p_rep_id, p_rep_day_id, p_visit_id, p_plan, p_delivery_mode,
           v_sub, v_disc, v_sub - v_disc, a.id, p_created_at_client,
-          p_channel, auth.uid(), p_assigned_rep_id, p_intake_card_id);
+          p_channel, auth.uid(), p_assigned_rep_id, p_intake_card_id, v_disc > 0 and v_by_owner);
   insert into public.sales_order_line (order_id, line_no, sku_id, qty, list_price_paisa, unit_price_paisa, line_total_paisa)
   select v_id, e.ord::integer, k.id, (e.val ->> 'qty')::integer, k.list_price_paisa,
          coalesce((e.val ->> 'unit_price_paisa')::bigint, k.list_price_paisa),
@@ -367,7 +382,8 @@ end $$;
 
 -- ------------------------------------------------------------ order checks ----
 -- Same as migration 0012 except the discount approval must be made by the order's creator
--- (created_by) rather than its rep: an office order has no rep, and the office user is the maker.
+-- (created_by) rather than its rep: an office order has no rep, and the office user is the maker;
+-- and an owner's own discount (discount_by_owner, MJ 2026-11-04) holds nothing.
 create or replace function app.evaluate_order(p_order_id uuid) returns public.sales_order
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -390,7 +406,7 @@ begin
                when c.blocked then 'blocked'
                when o.plan > c.plan_eligibility then 'plan_not_allowed'
                when v_exp + o.total_paisa > c.credit_limit_paisa then 'over_limit' end;
-  if o.discount_paisa > 0 then
+  if o.discount_paisa > 0 and not o.discount_by_owner then          -- the owner's own discount is approved
     select * into a from control.approval_request where id = o.discount_approval_id;
     v_hd := case when a.status = 'approved' and a.kind = 'discount' and a.subject_type = 'sales_order'
                       and a.subject_id = o.id and a.maker_id = o.created_by
