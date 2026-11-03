@@ -480,7 +480,10 @@ describe("who may record a payment, and the CTL-02 flags", () => {
     expect(suspended).toContain("no active user profile for this session");
   });
 
-  it("the office records a bank transfer on behalf, flagged on_behalf, and never cash", async () => {
+  // Until L-0362 the table refused any office cash row (B-37). MJ resolved B-37 on 2026-11-03: the office
+  // may record cash (app.office_record_cash, office-cash.test.ts); the table still refuses a rep payment
+  // with no rep day (and so no open day and no GPS).
+  it("the office records a bank transfer on behalf, flagged on_behalf; a rep payment with no rep day is refused", async () => {
     const p = id();
     const rows = await tx([
       ...standard(),
@@ -488,9 +491,9 @@ describe("who may record a payment, and the CTL-02 flags", () => {
       ["postgres", `select flags::text f, recorded_by_role::text r, rep_day_id from public.payment where client_id = '${p}'`],
     ]);
     expect(rows[0]).toEqual({ f: '["on_behalf"]', r: "manager", rep_day_id: null });
-    const insertCash = `insert into public.payment (client_id, salon_id, recorded_by, recorded_by_role, method, amount_paisa)
-                        values (gen_random_uuid(), '${SALON}', '${fx.manager.id}', 'manager', 'cash', ${HALF_UNIT})`;
-    expect(await sqlstate("postgres", insertCash)).toBe("23514");
+    const repWithoutDay = `insert into public.payment (client_id, salon_id, recorded_by, recorded_by_role, method, amount_paisa)
+                        values (gen_random_uuid(), '${SALON}', '${fx.repA.id}', 'rep', 'cash', ${HALF_UNIT})`;
+    expect(await sqlstate("postgres", repWithoutDay)).toBe("23514");
   });
 
   // Owner steps change the existing settings first; every step runs in one rolled-back transaction.

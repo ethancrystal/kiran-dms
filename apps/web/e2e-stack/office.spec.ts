@@ -316,6 +316,9 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await office.getByLabel("Pin longitude").fill("67.0011");
   await office.getByRole("button", { name: "Save changes" }).click();
   await expect(office.getByText("Salon updated.")).toBeVisible();
+  // L-0362: the office salon page has the account section in office mode; a new salon owes nothing.
+  await expect(office.getByTestId("balance")).toHaveText("Rs 0");
+  await expect(office.getByRole("button", { name: "Record payment" })).toHaveCount(0);
   await office.getByLabel("New stage").selectOption("visited");
   await office.getByRole("button", { name: "Change stage" }).click();
   await office.getByLabel("Reason").fill("[Test] confirmed by phone");

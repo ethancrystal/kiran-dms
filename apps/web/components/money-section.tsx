@@ -22,12 +22,47 @@ type Installment = {
 };
 type Receipt = { number: string };
 type Method = "cash" | "bank_transfer";
+/** Who is recording: a rep at the salon (GPS, open day) or the office (owner or manager, MFA; L-0362). */
+export type MoneyMode = "rep" | "office";
 
-// The salon's account for the rep at the salon (PAY-02, PAY-04, PAY-11; doc 09 §3): what is owed,
-// installment by installment, and recording a payment. The database checks the open day, the device,
-// the territory and GPS, allocates oldest due first and issues the receipt number; this page shows
-// what it says. Sending the receipt to the salon is not built (B-08).
-export function MoneySection({ salonId }: { salonId: string }) {
+type PayArgs = { clientId: string; salonId: string; method: Method; paisa: number; bankName: string; bankRef: string };
+
+// The database function each recorder calls. A rep sends its GPS and the phone time (CTL-02); the
+// office records cash with app.office_record_cash and a bank transfer with app.office_record_payment.
+async function record(mode: MoneyMode, a: PayArgs): Promise<Receipt> {
+  const bank = a.method === "bank_transfer";
+  if (mode === "office") {
+    return bank
+      ? rpc<Receipt>("office_record_payment", {
+          p_client_id: a.clientId,
+          p_salon_id: a.salonId,
+          p_amount_paisa: a.paisa,
+          p_bank_name: a.bankName,
+          p_bank_reference: a.bankRef,
+        })
+      : rpc<Receipt>("office_record_cash", { p_client_id: a.clientId, p_salon_id: a.salonId, p_amount_paisa: a.paisa });
+  }
+  const gps = await position();
+  if (!gps) throw new Error("A payment needs your location (CTL-02). Allow location for this site and try again.");
+  return rpc<Receipt>("rep_record_payment", {
+    p_client_id: a.clientId,
+    p_salon_id: a.salonId,
+    p_method: a.method,
+    p_amount_paisa: a.paisa,
+    p_lat: gps.lat,
+    p_lng: gps.lng,
+    p_bank_name: bank ? a.bankName : null,
+    p_bank_reference: bank ? a.bankRef : null,
+    p_mock_location: false,
+    p_recorded_at_client: new Date().toISOString(),
+  });
+}
+
+// A salon's account (PAY-02, PAY-04, PAY-11; doc 09 §3): what is owed, installment by installment, and
+// recording a payment, for the rep at the salon or for the office. The database checks who may record,
+// allocates oldest due first and issues the receipt number; this section shows what it says. Sending
+// the receipt to the salon is not built (B-08).
+export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMode }) {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [due, setDue] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +140,7 @@ export function MoneySection({ salonId }: { salonId: string }) {
           {Number(balance.balance_paisa) > 0 && (
             <PaymentForm
               salonId={salonId}
+              mode={mode}
               onDone={async (number) => {
                 setReceipt(number);
                 await load();
@@ -117,7 +153,15 @@ export function MoneySection({ salonId }: { salonId: string }) {
   );
 }
 
-function PaymentForm({ salonId, onDone }: { salonId: string; onDone: (receipt: string) => Promise<void> }) {
+function PaymentForm({
+  salonId,
+  mode,
+  onDone,
+}: {
+  salonId: string;
+  mode: MoneyMode;
+  onDone: (receipt: string) => Promise<void>;
+}) {
   const [method, setMethod] = useState<Method>("cash");
   const [amount, setAmount] = useState("");
   const [bankName, setBankName] = useState("");
@@ -139,20 +183,7 @@ function PaymentForm({ salonId, onDone }: { salonId: string; onDone: (receipt: s
           if (method === "bank_transfer" && (!bankName.trim() || !bankRef.trim())) {
             throw new Error("A bank transfer needs the bank name and the transfer reference.");
           }
-          const gps = await position();
-          if (!gps) throw new Error("A payment needs your location (CTL-02). Allow location for this site and try again.");
-          const r = await rpc<Receipt>("rep_record_payment", {
-            p_client_id: clientId,
-            p_salon_id: salonId,
-            p_method: method,
-            p_amount_paisa: paisa,
-            p_lat: gps.lat,
-            p_lng: gps.lng,
-            p_bank_name: method === "bank_transfer" ? bankName.trim() : null,
-            p_bank_reference: method === "bank_transfer" ? bankRef.trim() : null,
-            p_mock_location: false,
-            p_recorded_at_client: new Date().toISOString(),
-          });
+          const r = await record(mode, { clientId, salonId, method, paisa, bankName: bankName.trim(), bankRef: bankRef.trim() });
           setAmount("");
           setBankName("");
           setBankRef("");
