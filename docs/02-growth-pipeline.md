@@ -72,18 +72,18 @@ This is what the app enforces, hour by hour.
 | Morning | **Check-in** | Rep opens app, confirms stock in bag matches system's "van stock" for them | Stock custody starts the day reconciled |
 | Morning | **Today's route** | Shows ordered stops with, per stop: stage, last order, cycle status, amount due today, suggested pitch | No "who should I visit?"; no salon forgotten |
 | Each stop | **Visit** | Rep taps "arrived" (GPS + time captured), picks outcome: order / collection / sample / intro / no decision / closed-not-interested; notes | Proof of presence; outcome data feeds stages |
-| Each stop | **Order** | Rep builds order from price list; app checks stock in bag vs warehouse; chooses payment plan (cash / 2 / 4 instalments) within the salon's credit limit | Credit limit enforced at the point of sale |
+| Each stop | **Order details** | Rep and salon agree the requirements on the rep's screen; the rep saves a New Order Details card; the manager turns it into the order and chooses the payment plan within the salon's credit limit (D-30) | Credit limit enforced when the office creates the order |
 | Each stop | **Deliver** | If stock is in bag: deliver now, invoice generated. If not: order goes to "to deliver" for tomorrow or warehouse dispatch | Stock movement recorded at the moment it happens |
 | Each stop | **Collect** | Rep records cash received or bank transfer (bank, reference). Receipt sent to salon's WhatsApp instantly with a receipt number | Salon has independent proof; rep cannot under-report without the salon noticing |
 | Each stop | **Prospect** | New salon found: long-press the map to drop a pin with photo and note in 60 seconds; or tap *Find salons near me* to pull every online-listed salon within ~3 km and convert the ones worth visiting | Pipeline top grows every day; discovery uses live GPS so it is also proof of presence |
 | Evening | **Handover** | App shows "cash you should have: Rs X". Manager counts, enters amount, variance (if any) is logged against the rep | Daily cash reconciliation, zero tolerance |
 | Evening | **Stock close** | App shows expected bag stock; rep confirms; variance logged | Daily stock reconciliation |
 
-A rep who skips check-in cannot take orders. A rep with an unreconciled handover from yesterday sees a red banner and the manager is notified.
+A rep who skips check-in cannot record visits, order cards or payments. A rep with an unreconciled handover from yesterday sees a red banner and the manager is notified.
 
 ### Two order channels
 
-A salon may receive orders through either an in-person representative visit or its authenticated customer portal. The rep opens the salon record and takes an order on the salon's behalf; the salon may also sign in and independently submit an order. Both create the same canonical order and pass through the same server-side price, stock, credit, fulfilment and payment rules. The order records its channel, actual creator and (only for a genuine field order) the order-taking representative and visit. A portal order is not a rep visit and must not inflate visit, productive-visit or rep-taken-order metrics. Reorder/retention metrics may count orders from either channel.
+A salon may receive orders through either an in-person representative visit or its authenticated customer portal. The rep opens the salon record and saves a New Order Details card that the manager turns into an order (D-30); the salon may also sign in and independently submit an order. Both create the same canonical order and pass through the same server-side price, stock, credit, fulfilment and payment rules. The order records its channel, actual creator and (only for a genuine field order) the order-taking representative and visit. A portal order is not a rep visit and must not inflate visit, productive-visit or rep-taken-order metrics. Reorder/retention metrics may count orders from either channel.
 
 ## The repeat-cycle engine (retention)
 
@@ -135,7 +135,7 @@ Full detail on plans, credit limits and reconciliation is in doc 09.
 - Days sales outstanding (DSO)
 - Stock-out lines, stock cover (days of sales on hand) per SKU
 - Orders and order value by source channel (rep visit / salon portal) and state (submitted / confirmed / delivered / invoiced / paid / outstanding)
-- Salon portal repeat-order activity, reported separately from rep physical visits and rep-taken orders
+- Salon portal repeat-order activity, reported separately from rep physical visits and rep order cards
 - Gross margin (owner/manager only — requires cost prices from the vault)
 
 ## Management rhythm the system supports

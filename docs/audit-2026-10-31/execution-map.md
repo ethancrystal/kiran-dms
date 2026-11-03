@@ -1,5 +1,7 @@
 # Execution map of the master prompt (Phase 1 completion)
 
+> **Update 2026-11-03 (ACTIVITY L-0370).** The rows below were last refreshed on 2026-11-01. Since then: G2 is done (CI job "office browser tests" runs Playwright on a real local stack); slices 1 to 3 have screens (office shell, rep day, salons) with the B-34/B-35 fixes awaiting re-verification; payments (module H) are built: migrations 0021 to 0024 with receivables, handover and office cash screens (PR 46, self-reported, not verified); slice 4 (orders) is reshaped by D-30: office and salon portal create orders, reps record order-intake cards. Staging still has 13 migrations. ACTIVITY §12 is the live status.
+
 One row per step of MJ's master execution prompt (2026-11-01), mapped to what exists, the evidence, the slice that covers it, and any human action. It indexes the four requirement tables and the README in this folder; it does not repeat them. Status words are the prompt's own. Updated as slices land; ACTIVITY.md is the record if they disagree.
 
 This is many sessions of work. Each slice below is one claim, one branch and one pull request (prompt §12). Slices run in this order because each needs the one before.

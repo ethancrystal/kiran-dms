@@ -124,8 +124,8 @@ Kiran runs two field channels side by side:
 
 ## 11. Salon orders and performance attribution
 
-Representatives continue to take orders during genuine physical salon visits, using the salon record and the New Order action. A salon may also independently place repeat orders through its authenticated customer portal. Both channels use the same server-side product, salon-price, stock, credit, order-state and fulfilment rules.
+Representatives no longer place orders (D-30): during a genuine visit the rep records the salon's requirements as a New Order Details card, and the manager turns it into the order. A salon may also independently place repeat orders through its authenticated customer portal. Both channels use the same server-side product, salon-price, stock, credit, order-state and fulfilment rules.
 
 Every order must retain its actual source channel and authenticated creator. Keep the salon's original acquisition rep, current assigned rep and the order-taking rep as separate facts. Reassignment must not rewrite historical attribution. A salon-portal order has the salon user as creator and no order-taking rep, rep-day or visit; it must not fabricate field activity.
 
-Rep KPIs for physical visits, productive visits, visit-to-order conversion and rep-taken order volume count genuine rep activity only. Salon portal orders may contribute to salon reorder/retention and business-wide order reporting, but must be shown as a separate channel. Report submitted, confirmed, delivered, invoiced, collected and banked amounts separately. OQ-09 remains open; this section does not approve a commission or payout formula.
+Rep KPIs for physical visits, productive visits, visit-to-card conversion and rep cards turned into orders count genuine rep activity only. Salon portal orders may contribute to salon reorder/retention and business-wide order reporting, but must be shown as a separate channel. Report submitted, confirmed, delivered, invoiced, collected and banked amounts separately. OQ-09 remains open; this section does not approve a commission or payout formula.
