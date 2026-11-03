@@ -217,6 +217,8 @@ If MJ is not available, keep working on unblocked tasks. **Silence is not approv
 
 An agent may *prepare* checklists, scripts and runbooks for these, but must not perform them or ask for the secrets to perform them.
 
+**Merging pull requests (MJ, L-0301):** an agent may merge a pull request only after MJ says so in chat for that pull request, with every required check green on the exact head commit, using a merge commit pinned to that head (`--match-head-commit`; never squash, rebase or force). MJ's approval of one pull request does not cover another. MJ's OK counts as the review by someone who is not the author (Appendix C). Merging never approves a phase gate or a production release, which stay MJ's (H-19), and agents never change a ruleset or branch protection.
+
 ---
 
 ## 11. Handoff protocol
@@ -361,6 +363,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-014 | — (execution-map slices 1 to 3) | 2026-11-02 18:25 | done | L-0283 |
 | C-024 | — (B-33 decisions, slices 1 and 3) | 2026-11-02 20:12 | done | L-0287 |
 | C-026 | — (fix B-34, B-35; slices 1 to 3) | 2026-11-03 12:01 | done | L-0300 |
+| C-027 | — (governance: who merges) | 2026-11-03 12:19 | done | L-0302 |
 | C-025 | — (re-verification of execution-map slices 1 to 3 on merged main 3630998) | 2026-11-02 22:43 | done | L-0294 |
 
 ---
@@ -3935,6 +3938,18 @@ NOT VERIFIED (not run anywhere): in a browser, device revocation, offboarding, t
 **What / why:** C-026 released (the fixes are committed on this branch); moved to the released table. Status board rows are not changed: slices 1 to 3 stay as the re-verifier left them until a fresh verifier re-checks.
 **Rules touched:** section 3
 **Next / needs:** CI result; MJ.
+
+### L-0301 · 2026-11-03 12:19 PKT · Claude · Sonnet 5.5 · session 850c6865 · branch claude/merge-rule · DECISION
+**Task:** — (governance: who merges pull requests)    **Claim:** C-027
+**What / why:** MJ asked in chat on 2026-11-03 to change "the rule of only MJ can merge". No sentence in the repository said that: MJ merging was practice (handoff entries say "MJ merges"), Appendix C says merges to main need one reviewer who is not the author, and section 10 reserves production releases and phase gates, not merging. Asked which rule he wants, MJ chose "Agents merge on your OK". Recorded: an agent merges a pull request only after MJ says so in chat for that pull request, with every required check green on the exact head, by merge commit pinned to that head; one approval does not cover another; MJ's OK is the non-author review; merging never approves a phase gate or production release (H-19); agents never change a ruleset or branch protection. Written into section 10 of this file and into the Change control line of CLAUDE.md and AGENTS.md (both files get the same sentence, so they stay identical). It matches how PRs 15, 41 and 42 were merged. No GitHub setting changed, and the ruleset is unchanged (the office browser tests are still not a required check; that is MJ's change).
+**Rules touched:** H-19, H-26, section 10
+**Next / needs:** L-0302.
+
+### L-0302 · 2026-11-03 12:19 PKT · Claude · Sonnet 5.5 · session 850c6865 · branch claude/merge-rule · CLAIM-RELEASED
+**Task:** — (merge rule)    **Claim:** C-027
+**What / why:** Text only; C-027 released, moved to the released table. Evidence follows in the commit (preflight, activity check). The branch needs its own pull request and MJ's OK to merge, as the new rule says.
+**Rules touched:** section 3
+**Next / needs:** MJ: OK to merge the pull request.
 
 ---
 
