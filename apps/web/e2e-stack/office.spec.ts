@@ -421,6 +421,8 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   browser,
   page,
 }) => {
+  // A second manager sign-in waits for the next TOTP step (up to 30 s) before the test's own work.
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
   expect(repPhone, "the rep journey kept the rep's signed-in phone").not.toBeNull();
   await officeSignIn(page, manager);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Orders", exact: true }).click();

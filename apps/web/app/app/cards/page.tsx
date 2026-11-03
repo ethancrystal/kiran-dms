@@ -13,6 +13,8 @@ type Card = {
   reason: string | null;
 };
 
+// Characters of the order id shown to the rep: enough to quote it to the office.
+const SHORT_ID = 8;
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const STATUS_TEXT: Record<Card["status"], string> = {
   open: "Open",
@@ -74,7 +76,7 @@ export default function MyCards() {
               <br />
               <span className="muted">
                 {when(c.created_at)}
-                {c.status === "converted" && " · the office made an order from it"}
+                {c.status === "converted" && c.order_id && ` · made into order ${c.order_id.slice(0, SHORT_ID)}`}
                 {c.status === "dismissed" && c.reason && ` · ${c.reason}`}
               </span>
             </li>
