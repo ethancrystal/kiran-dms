@@ -28,7 +28,7 @@
 --     office order needs no approval request and holds nothing; the audit insert row records it.
 --   * Order cards (ORD-14): app.rep_create_card (a rep, approved phone, open day, salon in its territory),
 --     app.my_cards (the rep's last 50 cards and how they ended), app.office_open_cards (open cards, up to
---     200, oldest first), app.office_dismiss_card (a reason of 5+ characters), and
+--     200, oldest first), app.office_dismiss_card (a reason of 5 to 500 characters), and
 --     app.office_create_order(p_intake_card_id) converting a card. A card closes once (55000 after that).
 -- =============================================================================
 
@@ -376,6 +376,16 @@ begin
     if k.salon_id is distinct from p_salon_id then
       raise exception using errcode = '22023', message = 'the order card is for another salon';
     end if;
+    -- A concurrent call with this client_id may have converted the card while this one waited on the
+    -- lock: check the replay again now that its order is visible, before the already-closed test.
+    select * into o from public.sales_order where client_id = p_client_id;
+    if o.id is not null then
+      if o.created_by = auth.uid() and o.salon_id = p_salon_id and o.plan = p_plan
+         and o.intake_card_id is not distinct from p_intake_card_id then
+        return o;                                                              -- replay
+      end if;
+      raise exception using errcode = '23505', message = 'client_id already used with different content';
+    end if;
     if exists (select 1 from public.order_intake_card_close x where x.card_id = k.id) then
       raise exception using errcode = '55000', message = 'this order card is already closed';
     end if;
@@ -476,6 +486,9 @@ declare
   v_body text := btrim(p_body);
 begin
   if v_role <> 'rep' then perform app.raise_denied('only reps save order cards'); end if;
+  if p_client_id is null then
+    raise exception using errcode = '22023', message = 'a card needs a client_id (idempotency key, H-08)';
+  end if;
   select * into k from public.order_intake_card where client_id = p_client_id;
   if k.id is not null then
     if k.rep_id = auth.uid() and k.salon_id = p_salon_id and k.body = v_body
@@ -540,7 +553,7 @@ begin
   limit 200;
 end $$;
 
--- The office closes a card without an order, with a reason of at least 5 characters. The card row is
+-- The office closes a card without an order, with a reason of 5 to 500 characters. The card row is
 -- locked first, so a dismissal and a conversion cannot both close it (55000 for the second).
 create function app.office_dismiss_card(p_card_id uuid, p_reason text)
 returns public.order_intake_card_close
@@ -551,8 +564,8 @@ declare
   x        public.order_intake_card_close;
   v_reason text := btrim(p_reason);
 begin
-  if v_reason is null or length(v_reason) < 5 then
-    raise exception using errcode = '22023', message = 'a dismissal needs a reason of at least 5 characters';
+  if v_reason is null or length(v_reason) not between 5 and 500 then
+    raise exception using errcode = '22023', message = 'a dismissal needs a reason of 5 to 500 characters';
   end if;
   select * into k from public.order_intake_card c where c.id = p_card_id for update;
   if k.id is null then raise exception using errcode = '22023', message = 'unknown order card'; end if;

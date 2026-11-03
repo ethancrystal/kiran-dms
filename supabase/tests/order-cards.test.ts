@@ -227,20 +227,22 @@ const BAD_INPUT = "22023";
 const DUPLICATE = "23505";
 const CLOSED = "55000";
 const FOUR_CHARS = "shut";
+const REASON_MAX = 500;
 const BODY = "two tubes of shade 5, one developer";
 
-type P = "repA" | "repB" | "repAWrongDevice" | "manager" | "owner";
+type P = "repA" | "repB" | "repAWrongDevice" | "manager" | "managerAal1" | "owner";
 type Persona = "repA" | "repB" | "manager" | "owner";
 const PERSONA: Record<P, Persona> = {
   repA: "repA",
   repB: "repB",
   repAWrongDevice: "repA",
   manager: "manager",
+  managerAal1: "manager",
   owner: "owner",
 };
 const asUser = (k: P) => {
   const who = PERSONA[k];
-  const aal = who === "manager" || who === "owner" ? "aal2" : "aal1";
+  const aal = (who === "manager" || who === "owner") && k !== "managerAal1" ? "aal2" : "aal1";
   const device = k === "repAWrongDevice" ? "dev-not-approved-0000" : fx[who].device;
   return `
   reset role;
@@ -450,5 +452,46 @@ describe("the office converts or dismisses a card (ORD-14, D-30)", () => {
     expect(await stxCode([openDay("repA"), newCard("repA", cid), dismiss("repA", cid)])).toBe(DENIED);
     expect(await stxCode([openDay("repA"), newCard("repA", cid), convert("repA", cid, id())])).toBe(DENIED);
     expect(await stxCode([["manager", `select app.office_dismiss_card('${id()}', '${GOOD_REASON}');`]])).toBe(BAD_INPUT);
+  });
+
+  it("on a converted card the replay test runs before the closed test: same call returns the order, changed is 23505, new client_id is 55000", async () => {
+    const [cid, ocid] = [id(), id()];
+    const made: Step[] = [openDay("repA"), newCard("repA", cid), convert("manager", cid, ocid)];
+    const [first, again] = await stx([
+      ...made,
+      [
+        "manager",
+        `select o.id from public.sales_order o where o.client_id = '${ocid}'
+         union all
+         select (app.office_create_order('${ocid}', '${SALON}', 'CASH', ${cardLines}, '${fx.repA.id}', ${CARD_OF(cid)})).id;`,
+      ],
+    ]);
+    expect(again.id).toBe(first.id);
+    expect(await stxCode([...made, convert("owner", cid, ocid)])).toBe(DUPLICATE);
+    expect(await stxCode([...made, convert("manager", cid, id())])).toBe(CLOSED);
+  });
+
+  it("a dismissal reason over 500 characters is refused 22023; exactly 500 is accepted", async () => {
+    const cid = id();
+    const base: Step[] = [openDay("repA"), newCard("repA", cid)];
+    expect(await stxCode([...base, dismiss("manager", cid, "x".repeat(REASON_MAX + 1))])).toBe(BAD_INPUT);
+    expect(await stxCode([...base, dismiss("manager", cid, "x".repeat(REASON_MAX))])).toBeNull();
+  });
+
+  it("a manager without MFA (aal1) is refused 42501 on the queue, dismissal and conversion", async () => {
+    const cid = id();
+    const base: Step[] = [openDay("repA"), newCard("repA", cid)];
+    expect(await stxCode([...base, ["managerAal1", "select * from app.office_open_cards();"]])).toBe(DENIED);
+    expect(await stxCode([...base, dismiss("managerAal1", cid)])).toBe(DENIED);
+    expect(await stxCode([...base, convert("managerAal1", cid, id())])).toBe(DENIED);
+  });
+
+  it("anon is refused 42501 on every card RPC; a null client_id is refused 22023", async () => {
+    expect(await sqlstate("anon", "select * from app.my_cards()")).toBe(DENIED);
+    expect(await sqlstate("anon", "select * from app.office_open_cards()")).toBe(DENIED);
+    expect(await sqlstate("anon", `select app.office_dismiss_card('${id()}', '${GOOD_REASON}')`)).toBe(DENIED);
+    const nullClient: Step = ["repA", `select app.rep_create_card(null, '${SALON}', '${BODY}');`];
+    expect(await stxCode([openDay("repA"), nullClient])).toBe(BAD_INPUT);
+    expect(await stxError([openDay("repA"), nullClient])).toContain("client_id");
   });
 });
