@@ -90,7 +90,9 @@ export default function RepHome() {
             </a>
           </p>
           <p>
-            <a href="/app/cards">My cards</a>
+            <a href="/app/cards">
+              My cards · <span lang="ur">میرے کارڈ</span>
+            </a>
           </p>
           <p>
             <a href="/app/orders">

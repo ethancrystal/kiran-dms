@@ -30,7 +30,7 @@ type Sku = {
   code: string;
   variant: string;
   list_price_paisa: number;
-  product: { name: string; brand_label: string } | null;
+  product: { name: string } | null;
 };
 type Rep = { id: string; full_name: string };
 type RepLink = { rep: { id: string; full_name: string; role: string; status: string } | null };
@@ -44,6 +44,8 @@ const PLANS: Array<[string, string]> = [
 ];
 const MAX_LINES = 50; // app.build_order: an order has 1 to 50 lines.
 const SALON_LIMIT = 500;
+// Rupees as typed: up to 9 digits and 2 decimals (lib/money.ts toPaisa).
+const PRICE_MAX_CHARS = 12;
 const SKU_LIMIT = 1000;
 const QTY_MAX = 10_000;
 
@@ -114,6 +116,9 @@ export function OrderForm({
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A failed read of the catalogue, salons or reps: kept apart from the submit error, so a submit
+  // does not hide it.
+  const [loadError, setLoadError] = useState<string | null>(null);
   // One key per attempt: a retry after a lost answer is the same order (H-08, ORD-10).
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
 
@@ -135,7 +140,7 @@ export function OrderForm({
           rows<Sku>(
             db()
               .from("sku")
-              .select("id, code, variant, list_price_paisa, product:product_id(name, brand_label)")
+              .select("id, code, variant, list_price_paisa, product:product_id(name)")
               .eq("active", true)
               .not("list_price_paisa", "is", null)
               .order("code")
@@ -145,7 +150,7 @@ export function OrderForm({
         setSalons(s);
         setSkus(k);
       } catch (e) {
-        setError((e as Error).message);
+        setLoadError((e as Error).message);
       }
     };
     void read();
@@ -166,7 +171,7 @@ export function OrderForm({
           setRepNote(`${card.rep_name} no longer covers this salon's territory, so no rep is selected.`);
         }
       } catch (e) {
-        setError((e as Error).message);
+        setLoadError((e as Error).message);
       } finally {
         setRepsLoading(false);
       }
@@ -230,6 +235,12 @@ export function OrderForm({
               </option>
             ))}
           </select>
+          {salons.length === SALON_LIMIT && (
+            <p className="muted">
+              Showing the first {SALON_LIMIT} salons by name. A salon further down the list cannot be picked here yet; an order
+              for it can be made from a rep&apos;s order card.
+            </p>
+          )}
         </>
       )}
 
@@ -266,7 +277,7 @@ export function OrderForm({
             placeholder="List price"
             value={l.price}
             onChange={(e) => setLine(l.key, { price: e.target.value })}
-            maxLength={12}
+            maxLength={PRICE_MAX_CHARS}
           />
           {lines.length > 1 && (
             <button type="button" className="inline link" onClick={() => setLines((all) => all.filter((x) => x.key !== l.key))}>
@@ -312,6 +323,11 @@ export function OrderForm({
       )}
       {repNote && <p className="muted">{repNote}</p>}
 
+      {loadError && (
+        <p className="error" role="alert">
+          {loadError}
+        </p>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}

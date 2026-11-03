@@ -445,6 +445,10 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   await expect(page.getByText(`Order created for ${journeySalon}: confirmed · ${total}.`)).toBeVisible();
 
   // The card is closed as converted, so it leaves the queue; the order is listed from app.office_orders.
+  // The queue reloads after the order is made; ListState marks loading with aria-busy and hides the list
+  // meanwhile, so the card's absence is read only once the reload is done.
+  const queue = page.locator("section", { has: page.getByRole("heading", { name: "Order cards waiting" }) });
+  await expect(queue.locator("[aria-busy]")).toHaveCount(0);
   await expect(queued).toHaveCount(0);
   const row = page.getByRole("row").filter({ hasText: journeySalon });
   await expect(row).toContainText("confirmed");
@@ -454,10 +458,12 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   // Data survives a reload: the database answers the same.
   await page.reload();
   await expect(page.getByRole("row").filter({ hasText: journeySalon })).toContainText("confirmed");
+  await expect(queue.locator("[aria-busy]")).toHaveCount(0);
   await expect(page.getByRole("listitem").filter({ hasText: CARD_TEXT })).toHaveCount(0);
 
   // The rep's phone: the order is in its territory list, assigned to it, and still nothing makes an order.
-  const phone = await (await browser.newContext({ storageState: repPhone ?? undefined })).newPage();
+  const phoneContext = await browser.newContext({ storageState: repPhone ?? undefined });
+  const phone = await phoneContext.newPage();
   await phone.goto("/app/orders");
   const mine = phone.getByRole("listitem").filter({ hasText: journeySalon });
   await expect(mine).toContainText("confirmed");
@@ -466,4 +472,5 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   await expect(phone.getByRole("button")).toHaveCount(0);
   await phone.goto("/app/cards");
   await expect(phone.getByRole("listitem").filter({ hasText: CARD_TEXT }).getByText("Converted", { exact: true })).toBeVisible();
+  await phoneContext.close();
 });

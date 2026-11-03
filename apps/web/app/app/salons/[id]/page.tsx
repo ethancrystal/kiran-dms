@@ -18,6 +18,7 @@ type Stage = { from_stage: string | null; to_stage: string; trigger: string; rea
 
 // app.rep_create_card: an order card holds a note of 1 to 2000 characters.
 const CARD_MAX = 2000;
+const CARD_ROWS = 4;
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // One salon, the whole relationship the rep may see (execution map slice 3; SAL-05 in part,
@@ -355,7 +356,14 @@ function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
       <h2 id="card-h">New Order Details</h2>
       <p className="muted">Products, shades and quantities the salon wants. The office makes the order.</p>
       <label htmlFor="card-body">What the salon needs</label>
-      <textarea id="card-body" rows={4} value={body} onChange={(e) => setBody(e.target.value)} required maxLength={CARD_MAX} />
+      <textarea
+        id="card-body"
+        rows={CARD_ROWS}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        required
+        maxLength={CARD_MAX}
+      />
       {error && (
         <p className="error" role="alert">
           {error}

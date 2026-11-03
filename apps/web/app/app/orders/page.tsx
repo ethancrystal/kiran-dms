@@ -32,8 +32,10 @@ export default function TerritoryOrders() {
     setError(null);
     try {
       const [o, u] = await Promise.all([rpc<Order[]>("my_territory_orders"), supabaseBrowser().auth.getUser()]);
+      // Without the rep's own id the page cannot tell "Assigned to you" from another rep: show the error.
+      if (u.error || !u.data.user) throw new Error("Could not read your sign-in. Reload the page or sign in again.");
       setList(o ?? []);
-      setMe(u.data.user?.id ?? null);
+      setMe(u.data.user.id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -72,7 +74,7 @@ export default function TerritoryOrders() {
         </p>
       )}
       {!loading && !error && list.length === 0 && <p className="muted">No orders in your territories yet.</p>}
-      {list.length > 0 && (
+      {!error && list.length > 0 && (
         <ul className="plain">
           {list.map((o) => (
             <li key={o.order_id}>
