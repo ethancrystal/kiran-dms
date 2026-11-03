@@ -8,8 +8,8 @@
 --
 -- What is built (the schema, office order creation, order cards and their conversion):
 --   * public.order_channel and sales_order.source_channel (rep_visit, office, salon_portal). Every
---     existing order is a rep_visit order. The column keeps a default of rep_visit only so that the
---     rep path app.create_order, which is refused for reps in a later task, still inserts today.
+--     existing order is a rep_visit order. The column keeps a default of rep_visit, which is what
+--     the orders made before D-30 by the rep path app.create_order (now closed, see the end) read.
 --   * sales_order.created_by (the auth user who made the order; backfilled from rep_id), assigned_rep_id
 --     (the rep who delivers and, later, earns commission on it) and intake_card_id (the card it came from).
 --   * sales_order.rep_id and rep_day_id become optional, and invoice.rep_id too, so an office order that
@@ -21,8 +21,10 @@
 --   * app.rep_deliver is re-issued with one change: a rep-less order is refused (rep_id is distinct from
 --     the caller), because rep_id can now be null and `null <> uid` would have let any rep deliver it.
 --   * app.build_order (internal, no grant) holds the shared order engine of migration 0012 (line checks,
---     discount approval, insert, evaluation) with created_by = the caller; app.create_order (rep path,
---     same signature) and the new app.office_create_order (owner or manager, D-30) both call it.
+--     discount approval, insert, evaluation) with created_by = the caller; the new
+--     app.office_create_order (owner or manager, D-30) calls it.
+--   * app.create_order (rep path) keeps its signature and grant but refuses every caller (42501, "reps
+--     no longer place orders: record an order card (D-30)"); it is redefined at the end of this file.
 --     app.evaluate_order matches the discount approval's maker against created_by instead of rep_id.
 --   * sales_order.discount_by_owner (MJ 2026-11-04, "Yes, no approval"): the owner's own discount on an
 --     office order needs no approval request and holds nothing; the audit insert row records it.
@@ -320,7 +322,8 @@ end $$;
 
 -- ------------------------------------------------------------ rep order path ----
 -- Same signature, checks and messages as migration 0012; the shared part now lives in app.build_order.
--- Still open to reps until a later task of PR A refuses it (D-30).
+-- Superseded within this migration: "rep order path closed" at the end of the file redefines it to
+-- refuse every caller (D-30), so this version is never callable once the migration has run.
 create or replace function app.create_order(
   p_client_id uuid, p_salon_id uuid, p_plan public.plan_code, p_delivery_mode public.delivery_mode, p_lines jsonb,
   p_visit_id uuid default null, p_created_at_client timestamptz default null)
@@ -920,3 +923,21 @@ revoke all on function app.my_territory_orders(), app.office_orders(public.order
   from public, anon, authenticated, service_role;
 grant execute on function app.my_territory_orders(), app.office_orders(public.order_status, public.order_channel)
   to authenticated;
+
+-- ---------------------------------------------------------- rep order path closed ----
+-- D-30 (MJ): reps no longer place orders. At a visit a rep records an order card (app.rep_create_card)
+-- and the office makes the order (app.office_create_order, through app.build_order). app.create_order
+-- keeps its signature, language, SECURITY DEFINER, search_path and its EXECUTE grant to authenticated
+-- (create or replace keeps the grants of migration 0012), so an old phone build gets a clear refusal
+-- rather than "function does not exist". It refuses every caller (42501) as its first statement: no
+-- declaration runs anything (no app.assert_actor_ready), and nothing is read or written. anon holds no
+-- EXECUTE on it and is refused by Postgres before the body runs. Orders it made before stay as they are
+-- (source_channel rep_visit) and keep their rep's read, deliver, recheck and cancel-own-draft paths.
+create or replace function app.create_order(
+  p_client_id uuid, p_salon_id uuid, p_plan public.plan_code, p_delivery_mode public.delivery_mode, p_lines jsonb,
+  p_visit_id uuid default null, p_created_at_client timestamptz default null)
+returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+begin
+  raise exception using errcode = '42501', message = 'reps no longer place orders: record an order card (D-30)';
+end $$;

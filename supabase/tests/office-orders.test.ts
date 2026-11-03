@@ -1,7 +1,7 @@
 /**
  * Office order creation (migration 20261104090000, PR A, D-30): the owner or a manager makes an
- * order with app.office_create_order. It goes through the same builder as the rep path
- * (app.build_order: line validation, discount approval, insert, credit and discount checks), with
+ * order with app.office_create_order. It goes through the builder the rep path used until D-30 closed
+ * it (app.build_order: line validation, discount approval, insert, credit and discount checks), with
  * source_channel 'office', created_by the caller and no rep or rep day. An assigned rep must be an
  * active rep covering the salon's territory. Reps and an office user without MFA (aal1) are refused.
  *
@@ -30,6 +30,7 @@ const DENIED = "42501";
 const BAD_INPUT = "22023";
 const DUPLICATE = "23505";
 const CHECK_VIOLATION = "23514";
+const REP_PATH_CLOSED = "reps no longer place orders: record an order card (D-30)";
 
 const T_A = id(),
   AREA_A = id(),
@@ -225,19 +226,24 @@ describe("the office creates orders (D-30)", () => {
     expect(o).toMatchObject({ status: "confirmed", discount_by_owner: false });
   });
 
-  it("a rep's discount never gets discount_by_owner: it still requests an approval and waits", async () => {
+  it("a rep's discount never gets discount_by_owner: the rep path is closed (D-30), so it makes no order at all", async () => {
+    // Before D-30 a rep's discounted order was a rep_visit draft waiting on an approval. Now the rep path
+    // refuses first, on the rep's open day too; only the owner's own office discount skips the approval.
+    const repDiscount: Step = [
+      "repA",
+      `select (app.create_order('${id()}', '${SALON}', 'CASH', 'bag_now', ${lines(1, DISCOUNTED)})).id;`,
+    ];
+    expect(await txCode([OPEN_DAY, repDiscount])).toBe(DENIED);
+    expect(await txError([OPEN_DAY, repDiscount])).toContain(REP_PATH_CLOSED);
     const cid = id();
-    const [o] = await tx([
-      OPEN_DAY,
-      ["repA", `select (app.create_order('${cid}', '${SALON}', 'CASH', 'bag_now', ${lines(1, DISCOUNTED)})).id;`],
-      order(cid),
-    ]);
+    const [o] = await tx([OPEN_DAY, create("manager", cid, { unitPrice: DISCOUNTED, rep: fx.repA.id }), order(cid)]);
     expect(o).toMatchObject({
       status: "draft",
       hold_discount: "pending",
       discount_by_owner: false,
-      source_channel: "rep_visit",
-      approval_maker: fx.repA.id,
+      source_channel: "office",
+      assigned_rep_id: fx.repA.id,
+      approval_maker: fx.manager.id,
       approvals: 1,
     });
   });

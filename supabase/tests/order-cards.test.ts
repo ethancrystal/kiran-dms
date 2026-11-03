@@ -14,6 +14,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate, type Who } from "./helpers/db";
+import { legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -30,6 +31,9 @@ const CHECK_VIOLATION = "23514";
 const UNIQUE_VIOLATION = "23505";
 const SHORT_REASON = "no";
 const GOOD_REASON = "salon closed down";
+const ONE_UNIT = 1;
+const CHANNEL_SHAPE = "sales_order_channel_shape";
+const REP_PATH_CLOSED = "reps no longer place orders: record an order card (D-30)";
 
 const T_A = id(),
   AREA_A = id(),
@@ -143,15 +147,11 @@ describe("order card shape", () => {
 
 describe("order channel, creator, assigned rep (D-30)", () => {
   it("an existing rep order keeps source_channel rep_visit and created_by = rep_id", async () => {
+    // A legacy row as the closed rep path (D-30) wrote it in migration 0012: it names neither the channel
+    // nor the creator, so the column default (rep_visit) and control.sales_order_creator fill them in.
     const cid = id();
-    const lines = `'${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb`;
     const rows = await tx(`
-      reset role;
-      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
-             set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
-      set local role authenticated;
-      select app.create_order('${cid}', '${SALON}', 'CASH', 'bag_now', ${lines});
-      reset role;
+      ${legacyOrderSql({ clientId: cid, salonId: SALON, skuId: SKU, qty: ONE_UNIT, unitPaisa: SKU_PRICE, repId: fx.repA.id, plan: "CASH", namesChannelAndCreator: false })}
       select source_channel::text, created_by = rep_id as by_rep, rep_id = '${fx.repA.id}' as is_rep_a, rep_day_id is not null as has_day,
              assigned_rep_id is null as no_assignee, intake_card_id is null as no_card
       from public.sales_order where client_id = '${cid}';`);
@@ -160,17 +160,30 @@ describe("order channel, creator, assigned rep (D-30)", () => {
     ]);
   });
 
+  it("the rep path that made those orders is closed for its own rep too (D-30)", async () => {
+    const lines = `'${JSON.stringify([{ sku_id: SKU, qty: ONE_UNIT }])}'::jsonb`;
+    const call = `
+      reset role;
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
+             set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
+      set local role authenticated;
+      select app.create_order('${id()}', '${SALON}', 'CASH', 'bag_now', ${lines});`;
+    expect(await txCode(call)).toBe(DENIED);
+    expect(await txError(call)).toContain(REP_PATH_CLOSED);
+  });
+
   it("the channel decides the shape: rep_visit has a rep and a rep day, office has neither", async () => {
     const oid = id();
     const rows = await tx(
       `${officeOrder(oid)} select source_channel::text, rep_id, rep_day_id from public.sales_order where id = '${oid}';`,
     );
     expect(rows).toEqual([{ source_channel: "office", rep_id: null, rep_day_id: null }]);
-    expect(await txCode(officeOrder(id(), `'${fx.repA.id}'`))).toBe(CHECK_VIOLATION);
-    expect(await txCode(officeOrder(id(), "null", REP_DAY))).toBe(CHECK_VIOLATION);
     const repVisitNoDay = `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, rep_id, plan, delivery_mode, subtotal_paisa, total_paisa)
       values ('${oid}', '${oid}', '${SALON}', 'rep_visit', '${fx.repA.id}', '${fx.repA.id}', 'CASH', 'warehouse', ${SKU_PRICE}, ${SKU_PRICE});`;
-    expect(await txCode(repVisitNoDay)).toBe(CHECK_VIOLATION);
+    const badShapes = [officeOrder(id(), `'${fx.repA.id}'`), officeOrder(id(), "null", REP_DAY), repVisitNoDay];
+    const results = await Promise.all(badShapes.map(async (sql) => [await txCode(sql), await txError(sql)]));
+    // Each fails on the channel shape check itself, not on some other constraint.
+    expect(results).toEqual(badShapes.map(() => [CHECK_VIOLATION, expect.stringContaining(CHANNEL_SHAPE)]));
   });
 
   it("a rep_visit order is created by its own rep: created_by differing from rep_id fails", async () => {
@@ -178,6 +191,7 @@ describe("order channel, creator, assigned rep (D-30)", () => {
     const otherCreator = `insert into public.sales_order (id, client_id, salon_id, source_channel, created_by, rep_id, rep_day_id, plan, delivery_mode, subtotal_paisa, total_paisa)
       values ('${oid}', '${oid}', '${SALON}', 'rep_visit', '${fx.manager.id}', '${fx.repA.id}', ${REP_DAY}, 'CASH', 'warehouse', ${SKU_PRICE}, ${SKU_PRICE});`;
     expect(await txCode(otherCreator)).toBe(CHECK_VIOLATION);
+    expect(await txError(otherCreator)).toContain(CHANNEL_SHAPE);
   });
 
   it("a rep cannot deliver a rep-less office order: the null rep_id does not slip past the ownership check", async () => {
