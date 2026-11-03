@@ -11,13 +11,13 @@ A rep for this business walks or bikes a territory, talks to salon owners and he
 - Basic smartphone fluency and Roman Urdu/Urdu literacy.
 - Stamina and route discipline over sales flair; the system supplies the pitch and the schedule.
 
-Pay structure (proposal, to be set by the owner): modest fixed salary + commission on **collected and banked** cash (not on invoiced sales) + a bonus per new salon that places a **second paid** order. This alignment is itself an anti-fraud control: fake orders, uncollected sales and churned "new" salons earn nothing.
+Pay structure (proposal, to be set by the owner): modest fixed salary + commission on **collected and banked** cash (not on invoiced sales) (superseded by D-31: delivered and invoiced value; rates set by owner or manager) + a bonus per new salon that places a **second paid** order. This alignment is itself an anti-fraud control: fake orders, uncollected sales and churned "new" salons earn nothing.
 
 ## 2. Onboarding — from offer to first order in one working day
 
 | Step | What happens | System support |
 |---|---|---|
-| 1. Profile | Owner creates the user (owner-only): name, phone, CNIC (encrypted), photo, emergency contact, guarantor, commission plan, start date | FLD-01 |
+| 1. Profile | Owner creates the user (owner-only): name, phone, CNIC (encrypted), photo, emergency contact, guarantor, commission rate (set by the owner or manager, D-31), start date | FLD-01 |
 | 2. Device | Rep installs the PWA on their (approved) phone; first login via an email one-time code (ACTIVITY L-0101) registers the device; manager approves it | SEC-03 |
 | 3. Territory | Manager assigns one territory and the route days | PIP-01, PIP-04 |
 | 4. Training (half day) | The in-app checklist walks the rep through: check-in, map and pins, nearby discovery, visit outcomes, building an order, payment plans and credit limits, recording cash vs. transfer, receipts to WhatsApp, bag stock, evening handover and stock close, and the **rules** in §4 | FLD-04 |
@@ -30,7 +30,7 @@ Pay structure (proposal, to be set by the owner): modest fixed salary + commissi
 - **Mon–Sat:** one route per day from the territory's route days; the app builds a draft route from due reorders, collections, at-risk salons, deliveries, and a prospect quota (e.g., 4 new prospects/day). The rep can add pins from the map or nearby discovery and re-order the route.
 - **Daily check-in** (bag count confirmed) → route → **daily handover + stock close** with the manager. No exceptions: an open handover blocks the next day.
 - **Weekly:** scorecard review with the manager (visits, productive visits, new prospects, conversions, reorder rate, collection rate, variances). Random **spot check** of bag stock at least once a week, recorded in-app (CTL-05). Random **balance confirmation calls** by owner/manager to 3–5 of the rep's salons (CTL-11).
-- **Monthly:** commission statement generated from banked collections; owner approves payout; territory and credit-limit reviews.
+- **Monthly:** commission statement generated from banked collections (superseded by D-31: delivered and invoiced value; rates set by owner or manager); owner approves payout (payouts are not built, D-31); territory and credit-limit reviews.
 
 ## 4. Rules every rep signs (and the app enforces)
 
@@ -39,7 +39,7 @@ Pay structure (proposal, to be set by the owner): modest fixed salary + commissi
 3. **Cash is Kiran's from the moment it is received.** It is handed over the same day; the rep acknowledges the counted figure in their own app (CTL-03). Variance is the rep's responsibility.
 4. **Stock in the bag is Kiran's.** Daily close must match. Shortfalls are recovered from commission (policy) and investigated.
 5. **Prices come from the app.** No verbal discounts; any price below list needs manager approval in the app before the invoice (CTL-07).
-6. **Only official bank accounts.** Salons pay transfers to Kiran's accounts printed on the invoice; a rep never gives a personal account or wallet number. Transfers are matched to the bank statement; unmatched transfers earn no commission (CTL-13).
+6. **Only official bank accounts.** Salons pay transfers to Kiran's accounts printed on the invoice; a rep never gives a personal account or wallet number. Transfers are matched to the bank statement; unmatched transfers earn no commission (CTL-13; the commission base is now delivered and invoiced value, D-31, so this control needs its own review).
 7. **Every visit is logged with an outcome**, including "not present" and "not interested". The app only credits a visit when "arrived" was tapped on site.
 8. **Salon data stays in the app.** No copying lists, no sharing screenshots, no personal notebooks of salon phones. The app masks phone numbers and logs every reveal (SEC-06, MAP-12).
 9. **One person, one device, one login.** No sharing of phones or OTPs (SEC-03).
@@ -91,7 +91,7 @@ The scorecard (FLD-02, KPIs in doc 02) drives a simple ladder:
 4. Manager counts returned bag stock → return movement; any shortfall becomes a case and a payroll deduction record.
 5. Owner reassigns territories; the system re-generates routes for the new rep.
 6. The system sends the affected salons a message from Kiran introducing the new rep and restating that only system receipts are valid — so the old rep cannot keep collecting "on Kiran's behalf".
-7. Final commission statement computed on banked collections to date, minus deductions; owner approves.
+7. Final commission statement computed on banked collections to date (superseded by D-31: delivered and invoiced value; rates set by owner or manager), minus deductions; owner approves.
 8. Honeytoken salons assigned to that rep are retired and replaced.
 
 ## 9. What the system must provide (summary of requirements this doc depends on)
@@ -109,7 +109,7 @@ Kiran runs two field channels side by side:
 | Price | Salon list price | Agent price per SKU, set by the owner (AGT-02, OQ-17) |
 | Reports back | Visits, orders, collections, handover, bag counts | **Nothing required**: no visits, handover, counts or salon list. Optionally a pre-order request (D-23) |
 | Sees in the app | Own territory's salons (masked), own bag, routes | Own purchases, the agent catalogue with availability (quantities only). Never salons, other agents, cost or supplier |
-| Earns | Salary + commission on banked cash (D-10) | Their own resale margin only |
+| Earns | Salary + commission on delivered and invoiced value (D-31, superseding D-10) | Their own resale margin only |
 | Risk to Kiran | Custody (cash, stock) | Almost none: paid before release, so there is no receivable and nothing to reconcile |
 
 **Who can be an agent:** anyone who wants to (D-17), women included, for example someone running a home-based parlor or serving parlors in their own area. The owner creates every agent account (governance, H-15) with minimum identity data (OQ-20). Agents sign in like reps (email code, approved device).

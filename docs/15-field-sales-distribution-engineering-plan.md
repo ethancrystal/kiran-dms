@@ -64,7 +64,7 @@ A later reassignment must not rewrite acquisition history or historical order at
 
 ### 2.5 Existing governance and adjacent business channels
 
-Preserve D-08: Owner and Manager have documented operational permissions; governance powers such as price-list management, user/role management, bank details, write-offs/credit notes, commission plans, vault grants, audit log and system configuration remain owner-only as documented. "Admin area" means the existing permission-governed office workspace, not a new unrestricted admin role.
+Preserve D-08: Owner and Manager have documented operational permissions; governance powers such as price-list management, user/role management, bank details, write-offs/credit notes, commission plans, vault grants, audit log and system configuration remain owner-only as documented (commission rates: owner or manager, D-31, MJ L-0385). "Admin area" means the existing permission-governed office workspace, not a new unrestricted admin role.
 
 Preserve independent-agent D-15 and investor/capital-partner D-24 as separate domains. Salon customer, employee, agent, investor and supplier are not interchangeable identities.
 
