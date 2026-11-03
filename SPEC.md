@@ -261,7 +261,6 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | Item | Blocks | Default meanwhile |
 |---|---|---|
 | Staging: apply migrations 0014 to 0024 (H-19; staging has 13 of 24) | Every screen built since 2026-11-01 on staging; Gate 0 | Local and CI only |
-| B-40 (b): may salon staff have their own portal logins? | Salon staff logins | No sub-users |
 | B-31 (a) to (g): pin moves, phone-reveal cap, past midnight, invoice per delivery, delivery_mode, low_stock scope, agents | The matching fixes; P1-15 | Code as built |
 | B-39: approval use-time rules (who may use, use-time check, expiry, offboarded checker, credit override, write-off) | P1-08 | D-25 registry may be built; the open rules keep today's behaviour |
 | B-38: service-role scan fails an empty bundle directory | — | Leave as is |
