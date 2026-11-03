@@ -14,6 +14,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, OWNER, REP_A, REP_B, run, sqlstate, type Who } from "./helpers/db";
+import { legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -104,9 +105,18 @@ const officeOrder = (cid: string, a: OrderArgs = {}, who: P = "manager"): Step =
   `select (app.office_create_order('${cid}', '${a.salon ?? SALON}', '${a.plan ?? "INST4"}', ${lines(a.qty ?? INST4_QTY, a.unitPrice)},
            ${sqlId(a.rep ?? null)})).id;`,
 ];
+// A legacy rep_visit order (the shape the retired rep path left): rep A's own confirmed order, built directly.
 const repOrder = (cid: string): Step => [
-  "repA",
-  `select (app.create_order('${cid}', '${SALON}', 'INST4', 'bag_now', ${lines(INST4_QTY)})).id;`,
+  "postgres",
+  legacyOrderSql({
+    clientId: cid,
+    salonId: SALON,
+    skuId: SKU,
+    qty: INST4_QTY,
+    unitPaisa: UNIT,
+    repId: fx.repA.id,
+    plan: "INST4",
+  }),
 ];
 // Pins the order first, then delivers it as the given person.
 const repDeliver = (dcid: string, ocid: string, who: P = "repA"): Step[] => [

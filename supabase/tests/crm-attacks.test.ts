@@ -86,6 +86,11 @@ const order = (cid: string, l: Array<[string, number]>, salon = SALON_A, who: P 
   who,
   `select app.create_order('${cid}', '${salon}', '${plan}', 'bag_now', ${lines(l)});`,
 ];
+// Set-up: the manager makes the order and names rep A to deliver it (D-30), so it is a bag_now order for rep A's bag.
+const officeOrder = (cid: string, l: Array<[string, number]>, salon = SALON_A, plan = "CASH"): Step => [
+  "manager",
+  `select app.office_create_order('${cid}', '${salon}', '${plan}', ${lines(l)}, '${fx.repA.id}');`,
+];
 const rawOrder = (cid: string, rawLines: string, salon = SALON_A): Step => [
   "repA",
   `select app.create_order('${cid}', '${salon}', 'CASH', 'bag_now', ${rawLines});`,
@@ -319,7 +324,7 @@ describe("direct writes are refused to every application role (H-06, H-08)", () 
       ["stage_event", [], "update public.stage_event set reason = 'x'", "delete from public.stage_event"],
       [
         "sales_order_line",
-        [order(id(), [[SKU1, 1]])],
+        [officeOrder(id(), [[SKU1, 1]])],
         "update public.sales_order_line set qty = qty + 1",
         "delete from public.sales_order_line",
       ],
@@ -631,18 +636,18 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
   it("a plan above the salon's eligibility (a brand-new salon on INST4) is held and cannot be delivered (SAL-04)", async () => {
     const o = id();
     const r = await tx([
-      order(o, [[SKU1, 1]], SALON_A, "repA", "INST4"),
+      officeOrder(o, [[SKU1, 1]], SALON_A, "INST4"),
       ["postgres", `select status::text status, hold_credit, hold_discount from public.sales_order where client_id = '${o}';`],
     ]);
     // Created and held (plan_not_allowed), not confirmed.
     expect(r[0].hold_credit).not.toBeNull();
     expect(r[0].status).not.toBe("confirmed");
     // An INST4 order for a salon with no credit profile must not become an invoice.
-    expect(await code([order(o, [[SKU1, 1]], SALON_A, "repA", "INST4"), deliver(id(), o)])).not.toBeNull();
+    expect(await code([officeOrder(o, [[SKU1, 1]], SALON_A, "INST4"), deliver(id(), o)])).not.toBeNull();
     // A rep cannot lift the hold themselves.
     expect(
       await code([
-        order(o, [[SKU1, 1]], SALON_A, "repA", "INST4"),
+        officeOrder(o, [[SKU1, 1]], SALON_A, "INST4"),
         ["repA", `select app.office_release_credit_hold(${oid(o)}, 'self release');`],
       ]),
     ).toBe("42501");
@@ -698,7 +703,7 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
 
   it("an order the rep cancels or another rep cancels: rep B cannot cancel rep A's order", async () => {
     const o = id();
-    const e = await code([order(o, [[SKU1, 1]]), ["repB", `select app.cancel_order(${oid(o)}, 'intruder');`]]);
+    const e = await code([officeOrder(o, [[SKU1, 1]]), ["repB", `select app.cancel_order(${oid(o)}, 'intruder');`]]);
     expect(e).not.toBeNull();
   });
 });
@@ -707,22 +712,22 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
 describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
   it("rep B cannot deliver rep A's order, and a rep cannot call office_deliver", async () => {
     const o = id();
-    expect(await code([order(o, [[SKU1, 1]]), deliver(id(), o, null, "repB")])).not.toBeNull();
+    expect(await code([officeOrder(o, [[SKU1, 1]]), deliver(id(), o, null, "repB")])).not.toBeNull();
     expect(
-      await code([order(o, [[SKU1, 1]]), ["repA", `select app.office_deliver('${id()}', ${oid(o)}, '${WH}', 'Name');`]]),
+      await code([officeOrder(o, [[SKU1, 1]]), ["repA", `select app.office_deliver('${id()}', ${oid(o)}, '${WH}', 'Name');`]]),
     ).toBe("42501");
   });
 
   it("delivering more than ordered, a SKU not on the order, or zero is refused", async () => {
     const o = id();
     for (const l of [[[SKU1, 3]], [[SKU2, 1]], [[SKU1, 0]], [[SKU1, -1]]] as Array<Array<[string, number]>>) {
-      expect(await code([order(o, [[SKU1, 2]]), deliver(id(), o, l)])).not.toBeNull();
+      expect(await code([officeOrder(o, [[SKU1, 2]]), deliver(id(), o, l)])).not.toBeNull();
     }
   });
 
   it("a full delivery cannot be followed by a second delivery under a new client id", async () => {
     const o = id();
-    const r = await code([order(o, [[SKU1, 2]]), deliver(id(), o), deliver(id(), o)]);
+    const r = await code([officeOrder(o, [[SKU1, 2]]), deliver(id(), o), deliver(id(), o)]);
     expect(r).not.toBeNull();
   });
 
@@ -731,7 +736,7 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       o2 = id(),
       d = id();
     const r = await tx([
-      order(o1, [
+      officeOrder(o1, [
         [SKU1, 2],
         [SKU2, 1],
       ]),
@@ -746,12 +751,14 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       ],
     ]);
     expect(r[0]).toEqual({ invoices: 1, moves: 2, sku1_in_bag: 18 });
-    expect(await code([order(o1, [[SKU1, 2]]), deliver(d, o1), order(o2, [[SKU1, 1]]), deliver(d, o2)])).toBe("23505");
+    expect(await code([officeOrder(o1, [[SKU1, 2]]), deliver(d, o1), officeOrder(o2, [[SKU1, 1]]), deliver(d, o2)])).toBe(
+      "23505",
+    );
   });
 
   it("the bag cannot go negative: delivering more than the bag holds is refused and no invoice exists", async () => {
     const o = id();
-    const r = await code([order(o, [[SKU1, 21]]), deliver(id(), o)]);
+    const r = await code([officeOrder(o, [[SKU1, 21]]), deliver(id(), o)]);
     expect(r).not.toBeNull();
     const inv = await tx([
       [
@@ -765,7 +772,7 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
   it("a cancelled order cannot be delivered", async () => {
     const o = id();
     expect(
-      await code([order(o, [[SKU1, 1]]), ["repA", `select app.cancel_order(${oid(o)}, 'attack');`], deliver(id(), o)]),
+      await code([officeOrder(o, [[SKU1, 1]]), ["manager", `select app.cancel_order(${oid(o)}, 'attack');`], deliver(id(), o)]),
     ).not.toBeNull();
   });
 
@@ -778,10 +785,10 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', null, null, null);`,
       `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, null, null);`,
     ]) {
-      expect(await code([order(o, [[SKU1, 1]]), ["repA", bad]])).not.toBeNull();
+      expect(await code([officeOrder(o, [[SKU1, 1]]), ["repA", bad]])).not.toBeNull();
     }
     const r = await tx([
-      order(o, [[SKU1, 1]]),
+      officeOrder(o, [[SKU1, 1]]),
       [
         "repA",
         `select (app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, 67.1, null, false, '2001-01-01T00:00:00Z')).*;`,
@@ -800,8 +807,8 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
     const o1 = id(),
       o2 = id();
     const r = await tx([
-      order(o1, [[SKU1, 1]]),
-      order(o2, [[SKU2, 1]]),
+      officeOrder(o1, [[SKU1, 1]]),
+      officeOrder(o2, [[SKU2, 1]]),
       deliver(id(), o1),
       deliver(id(), o2),
       [
@@ -814,14 +821,14 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
     expect(n[1] - n[0]).toBe(1);
     expect(
       await code([
-        order(o1, [[SKU1, 1]]),
+        officeOrder(o1, [[SKU1, 1]]),
         deliver(id(), o1),
         ["postgres", `update public.invoice set total_paisa = total_paisa - 1 where order_id = ${oid(o1)};`],
       ]),
     ).not.toBeNull();
     expect(
       await code([
-        order(o1, [[SKU1, 1]]),
+        officeOrder(o1, [[SKU1, 1]]),
         deliver(id(), o1),
         ["postgres", `delete from public.invoice where order_id = ${oid(o1)};`],
       ]),
@@ -833,8 +840,8 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       o2 = id();
     const before = await tx([["postgres", `select coalesce(max(substr(number, 8)::int), 0) m from public.invoice;`]]);
     const after = await tx([
-      order(o1, [[SKU1, 21]]),
-      order(o2, [[SKU1, 1]]),
+      officeOrder(o1, [[SKU1, 21]]),
+      officeOrder(o2, [[SKU1, 1]]),
       [
         "repA",
         `do $$ begin perform app.rep_deliver('${id()}', ${oid(o1)}, 'Ayesha at the counter', 24.9, 67.1, null); exception when others then null; end $$;`,

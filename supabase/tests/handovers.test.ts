@@ -90,8 +90,8 @@ const collected = (amount = COLLECTED): Step[] => {
   const [ocid, dcid] = [id(), id()];
   return [
     [
-      "repA",
-      `select app.create_order('${ocid}', '${SALON}', 'INST4', 'bag_now', '${JSON.stringify([{ sku_id: SKU, qty: INST4_QTY }])}'::jsonb);`,
+      "manager",
+      `select app.office_create_order('${ocid}', '${SALON}', 'INST4', '${JSON.stringify([{ sku_id: SKU, qty: INST4_QTY }])}'::jsonb, '${fx.repA.id}');`,
     ],
     [
       "repA",

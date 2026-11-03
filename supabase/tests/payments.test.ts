@@ -127,11 +127,11 @@ const txCode = (steps: Step[]) => sqlstate("postgres", script(steps));
 
 const lines = (qty: number) => `'${JSON.stringify([{ sku_id: SKU1, qty }])}'::jsonb`;
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
-// An order for SALON on a plan, delivered in full by rep A: one invoice with its installments.
+// An order the manager makes for SALON on a plan and names rep A to deliver, delivered in full by rep A: one invoice with its installments.
 const delivered = (qty: number, plan = "INST4"): Step[] => {
   const [ocid, dcid] = [id(), id()];
   return [
-    ["repA", `select app.create_order('${ocid}', '${SALON}', '${plan}', 'bag_now', ${lines(qty)});`],
+    ["manager", `select app.office_create_order('${ocid}', '${SALON}', '${plan}', ${lines(qty)}, '${fx.repA.id}');`],
     ["repA", `select app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1);`],
   ];
 };
@@ -247,8 +247,8 @@ describe("an uneven total (A-11)", () => {
     const [ocid, dcid] = [id(), id()];
     return [
       [
-        "repA",
-        `select app.create_order('${ocid}', '${SALON}', 'INST4', 'bag_now', '${JSON.stringify([{ sku_id: SKU2, qty: 1 }])}'::jsonb);`,
+        "manager",
+        `select app.office_create_order('${ocid}', '${SALON}', 'INST4', '${JSON.stringify([{ sku_id: SKU2, qty: 1 }])}'::jsonb, '${fx.repA.id}');`,
       ],
       ["repA", `select app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1);`],
     ];
