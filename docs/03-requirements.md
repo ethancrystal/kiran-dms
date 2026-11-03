@@ -140,7 +140,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | SEC-10 | Backups: PITR + weekly encrypted off-site export; restore drill quarterly | M | 1 |
 | SEC-11 | Maker-checker: the user who initiates an approval-gated action can never approve it; approvals are recorded with approver, time and reason | M | 1 |
 | SEC-12 | Audit log lives in a schema no application role can write to directly (populated by triggers), is hash-chained, and is mirrored nightly to write-only storage controlled by the owner | M | 1 |
-| SEC-13 | Salon portal identity is a separate customer membership linked to specific salon IDs, never an internal staff role; accounts are created, suspended and revoked by the owner or manager and audited (D-30): invitation-only, one salon per login (ACTIVITY L-0376); salon staff get their own logins under the salon's account, and each order records which login placed or changed it (ACTIVITY L-0380, A-17) | M | 2 |
+| SEC-13 | Salon portal identity is a separate customer membership linked to specific salon IDs, never an internal staff role; accounts are created, suspended and revoked by the owner or manager and audited (D-30): invitation-only, one salon per login (ACTIVITY L-0376); one login per salon for now, no staff sub-accounts (ACTIVITY L-0382) | M | 2 |
 | SEC-14 | Salon portal RLS/RPCs enforce own-salon-only access to profile, price, aggregate stock, orders and customer documents; cross-salon ID tampering and revoked membership are denied by database tests | M | 2 |
 | SEC-15 | Salon/customer functions expose only allow-listed public catalogue/price/aggregate-stock/customer-document data; no supplier, cost, margin, internal inventory location, rep GPS or internal CRM notes | M | 2 |
 
