@@ -383,7 +383,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-035 | — (merge main forward into PR 14, renumber, rule text) | 2026-11-03 17:33 | done | L-0340 |
 | C-033 | P1-07 (part a reconciliation) | 2026-11-03 17:46 | done (handed over to C-036) | L-0347 |
 | C-036 | P1-07 (part a, ageing, screens, handover, office cash) | 2026-11-03 21:06 | done | L-0367 |
-| C-037 | — (documentation and log bookkeeping after PR 46) | 2026-11-03 21:20 | done | L-0373 |
+| C-037 | — (documentation and log bookkeeping after PR 46) | 2026-11-03 21:10 | done | L-0373 |
 
 ---
 
@@ -432,7 +432,7 @@ Agents add rows here; **MJ** (or whoever MJ names) resolves them and the resolve
 | B-37 | Payment recorder scope discrepancy (old P1-07 worktree L-0245/L-0246): docs/06 §2 says Rep records own payments and Manager and Owner record own plus on-behalf payments. The proposed part-a implementation currently supports Rep self-collection and Office on-behalf bank transfer only; it does not support Manager/Owner self-collection or office cash. Changing the fixed permission matrix or adding office cash custody is owner-controlled (H-26). | Claiming PAY-02 permission coverage complete; office collection of cash from salons (manager or owner self-collection, office-recorded cash payments). The rep-to-office handover is not blocked (MJ, L-0356) | Keep the narrower existing RPC behavior; no office cash and no Manager/Owner self-collection until MJ decides. Do not change D-08 or the permission matrix. | MJ | RESOLVED (L-0362: the office may record cash; it goes to office cash) |
 | B-38 | Carried over from the unmerged branch claude/architecture-rfc (its B-26, L-0106): `scripts/service-role-scan.mjs` counts source and bundle files with one counter (`scanned`). CI runs it as `--bundle apps/web/.next/static` with the default `apps` and `packages` roots, so a missing bundle directory fails but an existing **empty** one passes, because the source files were counted. Reproduced here (L-0328): `--bundle` on an empty directory exits 0. Approve requiring at least one scanned file per `--bundle` directory (H-18), with a test? | — (not exploitable by an app role; no data exposed) | Leave as is | MJ | PENDING |
 | B-39 | RFC issue 4 decisions, from the issue's five open questions and the independent review (L-0329; details in `docs/specs/approval-lifecycle/README.md`). (a) Is a write-off owner-only at any amount (doc 13, D-08, the spec) or may a manager approve small ones (docs 03, 06, 10)? (b) Who may use an approval, and may the checker run the gated action (doc 03 SEC-11 says the user who initiates)? (c) Use-time rule: the stored decided level (RFC wording) or the checker's current role and status (what `app.office_post_adjustment` on main does)? And does `adjustment` move onto `authorize_action` (one single-use registry) or keep its own path? (d) May one owner suspend or demote another? (e) Is `credit_override` an approval with no checker below caps (doc 13) or a hard manager cap with a direct owner override (docs 06, 09 and the P1-06 code on main, `app.assert_manager_override_allowed`)? (f) A second call for the same kind and consumer with different facts: raise, or return the original? (g) RFC questions 1 (expiry) and 5 (checker offboarded before use). | RFC 4 implementation; P1-08 | Follow D-25 (L-0236): the shared control.approval_use registry may be built and adjustment and discount moved onto it, behaviour-preserving; until (b), (c), (e) and (g) are answered, today's behaviour stays (L-0370) | MJ | PENDING |
-| B-40 | Order rework open points (D-30, L-0363, L-0371): (a) do reps still deliver orders from their bag and collect payments; (b) salon portal membership: invitation-only by the office or public sign-up with review, one salon or several per login, salon staff sub-users; (c) what the intraday cash cap (CTL-17) blocks now that reps do not place orders; (d) what a salon may edit or cancel on its portal order, and any cutoff. B-31 (d) and (e) are decided with (a) | Rep-delivery half of the order rework; the salon portal; CTL-17 | Rep delivery and collection as today; no portal; no cap | MJ | PENDING |
+| B-40 | Order rework open points (D-30, L-0363, L-0371): (a) ANSWERED (L-0374): reps still deliver orders and collect payments as now; (b) salon portal membership: invitation-only by the office or public sign-up with review, one salon or several per login, salon staff sub-users; (c) what the intraday cash cap (CTL-17) blocks now that reps do not place orders; (d) what a salon may edit or cancel on its portal order, and any cutoff. B-31 (d) and (e) are decided with (a) | The salon portal; CTL-17; salon edits of portal orders | Rep delivery and collection as today (confirmed, L-0374); no portal; no cap | MJ | PART RESOLVED ((a) L-0374); (b) to (d) PENDING |
 
 ---
 
@@ -457,6 +457,7 @@ Any assumption an agent makes to proceed goes here **and** in a log `ASSUMPTION`
 | A-13 | The session MJ asked me to continue is the checking session on claude/architecture-rfc (cloud session 01Y3chVr; its entries L-0108 and L-0109 on the unmerged branch claude/architecture-rfc, not the ones on main): its TLA+ spec of RFC issue 4 and the runs it left unfinished. Its transcript was not readable here. (A-09 and A-10 are used on main.) | L-0327 | The work lands on the wrong topic; it touches only docs/specs, so it is easy to drop | open |
 | A-14 | Receivables ageing per rep (PAY-07): a salon's receivable counts in full under every rep currently assigned to its territory (rep_territory with no end date), and under a null rep when the territory has none; not under the rep who sold the invoice | L-0352 | Rep rows move to the selling rep; one query changes, nothing stored | confirmed (MJ, L-0361) |
 | A-15 | Handover ledger (PAY-05, CTL-03): cash moves only when the rep acknowledges: rep `out` of the expected amount (the database's figure at the count), office `in` of the counted amount; the variance and its reason stay on the handover row (no variance ledger row, no rep debt); a dispute moves nothing and its owner resolution is not built; a rep with a pending or disputed handover cannot be counted again | L-0358 | A different variance or dispute rule changes the acknowledgment function; rows written so far stay as history | confirmed (MJ, L-0360) |
+| A-16 | Delivering rep of an office-created order (D-30, B-40 a): the manager picks the delivering rep when creating or confirming the order, from the reps currently assigned to the salon's territory; the rep then delivers from the bag and collects as today | L-0375 | The order rework's assignment rule changes; nothing is built yet | open |
 
 ---
 
@@ -4386,30 +4387,42 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Rules touched:** section 4, H-24
 **Next / needs:** L-0370.
 
-### L-0370 · 2026-11-03 21:15 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · PROGRESS
+### L-0370 · 2026-11-03 21:09 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · PROGRESS
 **Task:** — (documentation follows the decisions, H-25)    **Claim:** C-037
 **What / why:** (1) D-30 added to doc 12 for MJ's order decision (L-0363) and B-37's answer (L-0362): office (owner or manager) and salon portal create orders; reps record New Order Details cards that the manager converts and links; portal orders wait for manager approval and nothing is reserved or delivered before confirmation; reps see orders read-only. D-26 marked amended by D-30; OQ-31 marked answered. (2) Docs reconciled to D-30: doc 06 section 2 matrix (orders row split out; rep discount row; salon accounts created by owner or manager, membership open) and the B-37 note; doc 03 ORD-01, 02, 03, 09, 10 (superseded), 11, 12, 13, SEC-13 and new ORD-14 (order-intake cards, M, Phase 1); doc 15 sections 2.2, 3 (rep New Order Details), M07 channel values, 5.1 invite step, 5.2 journey, 5.3 portal approval, acceptance row and OQ-31 bullet; doc 02 journey rows; doc 04 planned channel fields; doc 08; doc 11; doc 14; SPEC.md journeys, NFR rows, the rep PWA test row and the section 11 list (stale D-08, B-18 and renumbering rows removed; staging migrations, B-31, B-38, B-39, B-40 and OQ-32 added). (3) Status pages: docs/gate-0-checklist.md and docs/audit-2026-10-31/execution-map.md get a dated update note saying what changed and that section 12 wins. (4) Tables: B-39's default now follows D-25 (the approval_use registry may be built, behaviour-preserving; the open use-time rules keep today's behaviour) instead of "build nothing from RFC 4"; B-14 marked moot under D-30 (MJ to close); the stale C-001 in the P0-02, P0-04 and P0-05 "Claimed by" cells cleared (released as stale, L-0254); P1-06 and P1-10 rows say what D-30 changes and that the receivables screen exists. The code still lets reps create orders and not the office; that is the next build, not this change.
 **Evidence:** `git diff --stat` on this branch before the log entries: 12 docs changed, 60 insertions, 50 deletions; every replacement anchored to its exact text (the edit script refused any anchor not found exactly once). Checks in the HANDOFF.
 **Rules touched:** H-25, H-26 (no decision changed here; D-30 records MJ's own words)
 **Next / needs:** L-0371.
 
-### L-0371 · 2026-11-03 21:16 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · BLOCKER
+### L-0371 · 2026-11-03 21:09 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · BLOCKER
 **Task:** — (order rework, D-30)    **Claim:** C-037
 **What / why:** B-40 added to section 14: what MJ's order decision (L-0363) left open. (a) Do reps still deliver orders from their bag and collect payments (rep_deliver and rep_record_payment exist; an office-created order has no rep or rep day today)? (b) Salon portal membership: invitation-only by the office or public sign-up with review; one salon per login or several; salon staff sub-users? (c) The intraday cash cap (CTL-17) blocks "new orders" when a rep's cash is above Rs 50,000; reps no longer place orders, so what should it block? (d) What a salon may edit or cancel on its own portal order, and any cutoff. B-31 (d) and (e) (invoice per delivery, delivery_mode) are decided together with (a). Defaults meanwhile: rep delivery and collection as today; no portal; no cap.
 **Rules touched:** section 9, H-26
 **Next / needs:** MJ: B-40 (a) to (d).
 
-### L-0372 · 2026-11-03 21:20 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · HANDOFF
+### L-0372 · 2026-11-03 21:10 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · HANDOFF
 **Task:** — (documentation and log bookkeeping)    **Claim:** C-037
 **What / why:** State: the docs follow D-30 and B-37's answer; the PR 46 merge and its approval are recorded; my timestamp errors are corrected; C-036 released; B-40 opened; B-39's default aligned with D-25. Nothing in the code changed: reps can still create orders until the order rework lands. Next steps, in order: (1) MJ reviews and approves this pull request (it owns this file while open); (2) MJ answers B-40; (3) build the order rework parts that need no answer (office order creation, the Orders area, rep order-intake cards) on a new branch with a new claim; (4) an independent verifier checks P1-07 and the B-34/B-35 fixes (proposed as its own session; it must not open a pull request that edits this file until this one merges); (5) MJ approves applying migrations 0014 to 0024 to staging and creates the owner account (G1). Gotchas: Git Bash's `date` ignores TZ on this host and prints UTC; read Karachi time with PowerShell.
 **Evidence:** Run on this branch: `node scripts/activity-log-check.mjs origin/main`, `pnpm agent:preflight`, `pnpm lint`; results in the commit message and the pull request.
 **Rules touched:** section 11
 **Next / needs:** MJ: approve this pull request; B-40.
 
-### L-0373 · 2026-11-03 21:20 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · CLAIM-RELEASED
+### L-0373 · 2026-11-03 21:10 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · CLAIM-RELEASED
 **Task:** — (documentation and log bookkeeping)    **Claim:** C-037
 **What / why:** C-037 released (done) and moved to the released table.
 **Next / needs:** L-0372.
+
+### L-0374 · 2026-11-03 21:15 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · DECISION
+**Task:** — (order rework, D-30; B-40 a)    **Claim:** C-037
+**What / why:** MJ in chat on 2026-11-03, asked "Do reps still deliver orders and collect payments (B-40a)?", answered "Yes, as now". Recorded: under D-30 reps no longer place orders, but they keep delivering orders from their bag (`app.rep_deliver`) and collecting payments (`app.rep_record_payment`) as built; the cash handover and the office cash path stay as they are. B-40 (a) marked answered; (b) to (d) stay open. Not decided by this answer: B-31 (d) invoice per delivery and (e) what `delivery_mode` does; the code keeps one invoice per delivery and ignores `delivery_mode` until MJ says otherwise. Also corrected, before any base accepted them, the times of this branch's own entries L-0370 to L-0373 (they read 21:15 to 21:20, after their commit at 21:11) to 21:09 and 21:10, and C-037's release time to 21:10; L-0369's statement that times are read from the clock from then on was not kept for those four, and is kept from this entry.
+**Rules touched:** section 1, section 4, H-24
+**Next / needs:** L-0375.
+
+### L-0375 · 2026-11-03 21:16 PKT · Claude · Opus 5.5 · session docs-reconcile-20261103 · branch claude/docs-reconcile-orders-20261103 · ASSUMPTION
+**Task:** — (order rework, D-30)    **Claim:** C-037
+**What / why:** A-16 added to section 15. An order the office creates has no rep, but under L-0374 a rep still delivers it. Taken for the rework: the manager picks the delivering rep when creating or confirming the order, from the reps currently assigned to the salon's territory (the same rule as A-14); the rep then delivers from the bag and collects as today. Not built yet.
+**Rules touched:** section 15
+**Next / needs:** MJ confirms A-16 or names another rule.
 
 ---
 
