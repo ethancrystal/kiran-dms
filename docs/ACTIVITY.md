@@ -341,7 +341,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
-| C-036 | Claude / p1-07-forward-20261103 | P1-07 (part a) | PAY-01/02/03/04/10/11, CTL-02 | Supabase payment migration/tests/RLS matrix/verifier allowlists; docs 04/05/06/09; ACTIVITY | 2026-11-03 17:46 | 2026-11-04 | L-0350 |
+| C-036 | Claude / p1-07-forward-20261103 | P1-07 (part a) | PAY-01/02/03/04/10/11, CTL-02 | Supabase payment migration/tests/RLS matrix/verifier allowlists; docs 04/05/06/09; ACTIVITY | 2026-11-03 17:46 | 2026-11-04 | L-0354 |
 
 
 
@@ -4285,6 +4285,12 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Evidence:** Before the migration, `pnpm exec vitest run --config supabase/tests/vitest.config.ts receivables-ageing`: 22 failed, "function app.office_receivables_ageing(unknown) does not exist". After: 22 passed. Then the targeted run `deliveries invoice-document payments receivables-ageing reverify3-attacks rls-matrix schema-hygiene service-role-scan verifier-attacks`: 9 files passed, 1845 tests passed, 65.6 s, exit 0 (outside the Claude Code sandbox, embedded Postgres on 127.0.0.1, DATABASE_URL removed). `pnpm typecheck` exit 0; `pnpm lint` exit 0 (93 files, 33 warnings, 42 infos, after `biome format --write` on the new test file); `pnpm service-role:scan` OK, 50 files. The whole suite was not run; CI runs it.
 **Rules touched:** H-08, H-10, H-13 (no new table), H-16, H-23, H-24, H-25
 **Next / needs:** an office ageing screen; MJ: A-14, B-37 scope question in L-0351; OK to push and open the pull request.
+
+### L-0354 · 2026-11-03 18:55 PKT · Claude · Opus 5.5 · session p1-07-forward-20261103 · branch claude/p1-07-reconcile-main-20261103 · DECISION
+**Task:** P1-07 (PAY-01, PAY-02, PAY-03, PAY-04, PAY-07, PAY-10, PAY-11, CTL-02)    **Claim:** C-036
+**What / why:** MJ in chat on 2026-11-03, asked whether to push this branch and open its pull request: "Yes, push and open PR" (execution map gate G3). This covers pushing claude/p1-07-reconcile-main-20261103 and opening one pull request to main with part a and the PAY-07 ageing read. It does not cover merging it: that needs MJ's separate approval for this pull request, every required check green on its exact head, and a merge commit pinned to that head (section 10). origin/main is still 92535a1 and no other open pull request touches these files.
+**Rules touched:** section 10, H-19
+**Next / needs:** push, open the pull request, read CI on its head; MJ: B-37, A-14, the merge decision.
 
 ---
 
