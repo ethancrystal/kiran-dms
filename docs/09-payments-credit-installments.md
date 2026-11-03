@@ -77,6 +77,8 @@ Payments cannot be edited or deleted. The intended correction is a **reversal** 
 - Rep cash position = Σ cash payments recorded − Σ handovers (visible to rep, manager, owner).
 - **Handover** (CTL-03): manager enters counted cash; the system shows expected; the rep **acknowledges** on their own device. Variance requires a reason and is final only after acknowledgment. If the rep disputes, the handover locks as `disputed` for the owner.
 - **Office cash** = Σ handovers − Σ bank deposits. Must be deposited within 2 working days (CTL-04). Deposits carry a slip photo and are matched to bank statement lines.
+
+*Built (migration 0023, PAY-05, CTL-03; MJ L-0356):* `app.office_count_handover` (owner or manager with MFA) records the counted cash; the expected figure is the rep's ledger balance at that moment, computed by the database; a different count needs a reason. `app.rep_respond_handover` lets the rep, on the approved phone, acknowledge (final: the rep's ledger `out` of the expected amount, the office's `in` of the counted amount; the variance stays on the handover, A-15) or dispute with a reason (nothing moves; locked for the owner). While a rep has a pending or disputed handover, it cannot be counted again. Reads: `app.my_handovers`, `app.office_handovers`, `app.office_cash_position`. Screens: `/office/handovers` and `/app/handovers`. Not built: the owner's resolution of a dispute, an open handover blocking the next day (doc 08) and the red banner (doc 02), bank deposits (CTL-04), the intraday cash cap (CTL-17), petty expenses.
 - Petty expenses out of office cash are recorded as `expense` ledger entries with receipts; owner approval above a threshold.
 
 ## 6. Bank transfers and reconciliation

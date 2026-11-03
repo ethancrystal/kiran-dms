@@ -327,6 +327,14 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.reload();
   await expect(page.getByText("Pin: 24.8607, 67.0011.")).toBeVisible();
 
+  // CTL-03, the rep's side: the handover page reads app.my_cash_position and app.my_handovers. The
+  // seeded rep has collected nothing, so the database's zero and an empty list are shown.
+  await page.goto("/app");
+  await page.getByRole("link", { name: /Cash handover/ }).click();
+  await page.waitForURL(/\/app\/handovers$/);
+  await expect(page.getByTestId("my-cash")).toHaveText("Rs 0");
+  await expect(page.getByText("No handovers yet.")).toBeVisible();
+
   await page.goto("/app/day");
   await page.getByRole("button", { name: /Finish the day/ }).click();
   // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
@@ -343,7 +351,8 @@ test("a manager opens Receivables and reads the real ageing for each grouping (P
   page.on("request", (req) => {
     if (req.url().includes("/rpc/office_receivables_ageing")) calls.push(req.postDataJSON() ?? {});
   });
-  await page.getByRole("link", { name: "Receivables", exact: true }).click();
+  // The overview also links to Receivables, so click the one in the office menu.
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Receivables", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Receivables" })).toBeVisible();
   // The seeded stack has no invoices, so the database answers with no rows: the page says so, with no error.
   await expect(page.getByText("Nothing is owed.")).toBeVisible();
@@ -353,4 +362,21 @@ test("a manager opens Receivables and reads the real ageing for each grouping (P
   await expect(page.getByText("Nothing is owed.")).toBeVisible();
   await expect(page.locator("p.error")).toHaveCount(0);
   expect(calls.map((c) => c.p_group)).toEqual(["salon", "territory", "rep"]);
+});
+
+test("a manager opens Cash handover; counting a rep who holds nothing is refused by the database (PAY-05, CTL-03)", async ({
+  page,
+}) => {
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Cash handover", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Cash handover" })).toBeVisible();
+  await expect(page.getByTestId("office-cash")).toHaveText("Rs 0");
+  await expect(page.getByText("No handovers yet.")).toBeVisible();
+  await page.getByLabel("Rep", { exact: true }).selectOption({ label: rep.name });
+  // The expected figure is the database's: the seeded rep has collected no cash.
+  await expect(page.getByTestId("expected")).toHaveText("Rs 0");
+  await page.getByLabel("Cash counted (Rs)").fill("0");
+  await page.getByRole("button", { name: "Record count" }).click();
+  await expect(page.getByText("nothing to hand over: the rep holds no cash and none was counted")).toBeVisible();
+  await expect(page.getByText("No handovers yet.")).toBeVisible();
 });

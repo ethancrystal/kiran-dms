@@ -655,6 +655,40 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Cash handover (migration 0023, P1-07, PAY-05, CTL-03): the office reads all; a rep reads its own
+  // handovers and the answers to them, on its approved phone.
+  {
+    table: "public.handover",
+    writeCol: "counted_paisa",
+    select: {
+      anon: "denied",
+      repA: `rep_id = ${me("repA")}`,
+      repAWrongDevice: "false",
+      repB: `rep_id = ${me("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.handover_response",
+    writeCol: "note",
+    select: {
+      anon: "denied",
+      repA: `handover_id in (select h.id from public.handover h where h.rep_id = ${me("repA")})`,
+      repAWrongDevice: "false",
+      repB: `handover_id in (select h.id from public.handover h where h.rep_id = ${me("repB")})`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",

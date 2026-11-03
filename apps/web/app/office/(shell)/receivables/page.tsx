@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
+import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
 
 type Group = "salon" | "territory" | "rep";
@@ -31,13 +32,6 @@ const BUCKETS: Array<[keyof Row, string]> = [
   ["overdue_paisa", "Overdue"],
   ["total_paisa", "Total owed"],
 ];
-const PAISA_PER_RUPEE = 100;
-const PAISA_DIGITS = 2;
-
-/** Paisa from the database (integers, H-10) shown as rupees: 150000 → "Rs 1,500". */
-const rupees = (paisa: number) =>
-  `Rs ${(Number(paisa) / PAISA_PER_RUPEE).toLocaleString("en-PK", { maximumFractionDigits: PAISA_DIGITS })}`;
-
 // A row with no name: a salon never named, or (grouped by rep) salons whose territory has no rep.
 const NO_NAME: Record<Group, string> = { salon: "Unnamed salon", territory: "—", rep: "No rep assigned" };
 const nameOf = (r: Row, group: Group) => r.group_name ?? NO_NAME[group];

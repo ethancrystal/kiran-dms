@@ -12,6 +12,7 @@ const NAV = [
   { href: "/office/territories", label: "Territories" },
   { href: "/office/salons", label: "Salons" },
   { href: "/office/receivables", label: "Receivables" },
+  { href: "/office/handovers", label: "Cash handover" },
 ];
 
 // The office shell (execution map, slice 1). Signed in with TOTP (SEC-02) and an active owner or
