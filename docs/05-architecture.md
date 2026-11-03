@@ -27,7 +27,7 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 ┌──────────────────────── Rep phone (PWA) ───────────────────────┐
 │ Next.js client · IndexedDB cache + outbox · service worker     │
 │ Reads: capped app.* functions (own territories, masked phones) │
-│ Writes: RPC calls (log_visit, create_order, record_payment)    │
+│ Writes: RPC calls (log_visit, create_order, rep_record_payment)│
 └───────────────┬────────────────────────────────────────────────┘
                 │ HTTPS (anon key + user JWT; AAL/device checked)
 ┌───────────────▼─────────────── Supabase ───────────────────────┐
@@ -57,7 +57,7 @@ Treat rep_day as the tracking boundary. Accept append-only location samples only
 
 ## Key design rules
 
-1. **The client is never trusted.** Prices, credit checks, stock availability, stage transitions, numbering, timestamps — all computed in Postgres functions. The client sends intent (`record_payment(salon, amount, method, …)`), the database decides.
+1. **The client is never trusted.** Prices, credit checks, stock availability, stage transitions, numbering, timestamps — all computed in Postgres functions. A representative submits a collection through `app.rep_record_payment`; the office currently records only on-behalf bank transfers through `app.office_record_payment`. Both call internal `app.record_payment`, which application roles cannot execute directly. The database decides.
 2. **RLS on every table, deny by default.** Policies are written per role per table and tested automatically (doc 06). Reps' policies are scoped by `rep_territory`. Service-role keys exist only in Edge Functions and CI, never in a browser.
 3. **One write path for sensitive data.** Direct `INSERT`s on money, stock and stage tables are revoked from application roles; only `SECURITY DEFINER` functions (with explicit role checks and `search_path` pinned) insert. This is what makes "append-only" and "maker ≠ checker" real.
 4. **Vault isolation** (doc 07): separate schema, not exposed via PostgREST, column encryption, function-only access, separate access log.

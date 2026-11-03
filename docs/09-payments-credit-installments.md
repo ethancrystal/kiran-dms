@@ -50,20 +50,22 @@ Every change is a `credit_event`; the salon card shows the history.
 
 ## 3. Recording a payment
 
-The only way to record a payment is `app.record_payment()` from the rep (or manager/owner) app, which:
+The write path is `app.record_payment()` (internal, never called by an app role) behind the wrapper RPCs `app.rep_record_payment` and `app.office_record_payment` (see the note below the list), which:
 
 1. Requires an open `rep_day` and an approved device (reps).
 2. Captures server time, client time, GPS, distance from the salon pin.
 3. Requires `method`: `cash` or `bank_transfer` (bank name + reference mandatory; slip photo recommended; the app can OCR the reference later).
-4. Allocates oldest-due-first unless the rep selects specific installments.
-5. Writes `payment`, `payment_allocation`, `cash_ledger_entry` (for cash), and queues a **receipt** with a gapless number to the salon's registered phone (CTL-01).
+4. Allocates oldest-due-first. The rep choosing specific installments is the target; only oldest-first is built so far (see the note below the list).
+5. Writes `payment`, `payment_allocation`, `cash_ledger_entry` (for cash), and creates a **receipt** row with a gapless number, to be sent to the salon's registered phone (CTL-01; the sending is not built yet).
 6. Flags: distance > 300 m, time > 2 h after "arrived", round amounts repeated, amount ≠ any installment and ≠ total due (CTL-02, doc 13).
 
-Payments cannot be edited or deleted. A mistake is corrected by a **reversal** (negative payment referencing the original) that needs an approval from someone other than the maker, and the salon receives a corrected receipt.
+*Built in P1-07 part a (migration 0021, ACTIVITY L-0325/L-0327 and the payment reconciliation handoff):* the write path is two public wrapper RPCs, `app.rep_record_payment` (a rep: open day, approved device, own territories, GPS; cash or bank transfer) and `app.office_record_payment` (owner or manager: a bank transfer on behalf, always flagged `on_behalf`, never cash). Both call the internal `app.record_payment`, which no application role can execute; it is idempotent on `client_id` (one call per key at a time; an exact replay returns the same receipt, any changed persisted fact is refused) and does steps 4 and 5 of the list above. Step 5 creates the receipt row only (number, payment, salon, primary contact); **sending it is not built**: SMS and WhatsApp delivery wait for the adapter (B-08), so CTL-01 (delivery within 60 s) is still pending and a payment has no delivery record yet. Step 6: the distance and lateness flags are built (plus `no_visit`, `distance_unknown`, `mock_location`, `on_behalf`). Not built yet: the rep choosing specific installments, the round-amount flag (a detector, doc 13 D-04), the slip photo, advances above what is owed (section 10), collection outside the rep's territory, office-recorded cash, and Manager/Owner self-collection. The latter actor-scope gap is B-37; the permission matrix remains unchanged pending MJ's decision.
+
+Payments cannot be edited or deleted. The intended correction is a **reversal** that needs an approval from someone other than the maker, with a corrected receipt to the salon. **It is not built** (P1-07 part a): no reversal column or negative row exists, and the use-time rules for approvals are still open (KIR-14, D-25), so a mistaken payment can only be raised with the owner for now.
 
 ## 4. Receipts and statements — the salon as auditor
 
-- **Receipt** per payment: number, date, salon, amount, method, remaining schedule, "This is your only valid proof of payment. Verify any receipt by sending its number to Kiran's WhatsApp". Sent within 60 s of recording (or on sync).
+- **Receipt** per payment: number, date, salon, amount, method, remaining schedule, "This is your only valid proof of payment. Verify any receipt by sending its number to Kiran's WhatsApp". Sent within 60 s of recording (or on sync): the target; the sending is not built (B-08).
 - **Monthly statement** to every salon with a balance: opening balance, invoices, payments, closing balance, upcoming installments, with a one-tap "Yeh ghalat hai / This is wrong" reply that opens a dispute visible to the owner (CTL-10).
 - **Balance check on demand**: a salon can send "BALANCE" to Kiran's WhatsApp number and receive its current balance automatically.
 - Why this matters: the salon has the opposite interest to a dishonest rep. If a rep pockets Rs 2,000 of a Rs 4,800 collection and records Rs 2,800, the salon's receipt says Rs 2,800 — and the salon objects. Collusion between rep and salon is then the only remaining route, and §7 of doc 13 covers it.
