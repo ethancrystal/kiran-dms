@@ -39,7 +39,7 @@ Both channels create the same canonical sales-order aggregate and use the same s
 
 The channel and actor are recorded explicitly. A salon portal order is not a representative visit and must not be credited as a physical visit, visit conversion or rep-taken order.
 
-A salon-originated order waits for the manager's approval; nothing is reserved or delivered before confirmation (OQ-31 answered, D-30). What a salon may edit or cancel, and any cutoff, remain open (ACTIVITY B-40).
+A salon-originated order waits for the manager's approval; nothing is reserved or delivered before confirmation (OQ-31 answered, D-30). Until the manager approves it, the salon may edit or cancel its own order; after approval it may not, so the approval is the cutoff (ACTIVITY L-0378).
 
 ### 2.3 Catalogue, salon pricing and stock visibility
 
@@ -544,7 +544,7 @@ Required test layers:
 
 The following choices affect implementation and must be resolved through docs 12 and ACTIVITY, not guessed by an agent:
 
-- **OQ-31 - Salon order confirmation:** answered (D-30): the manager approves first. Still open: salon edits, cancellation and order cutoff (ACTIVITY B-40).
+- **OQ-31 - Salon order confirmation:** answered (D-30): the manager approves first. The salon may edit or cancel until approval, not after (ACTIVITY L-0378).
 - **OQ-32 - Representative location policy:** ping cadence, permitted hours, background collection expectations, accuracy threshold, stale state, retention, notice and supported Android/device approach.
 - **OQ-09 - Rep pay/commission:** remains unresolved. Do not calculate commission or deductions from example values.
 - **OQ-16 - Real product catalogue:** actual products, variants, units, pack configuration and prices are required before replacing dummy product data.

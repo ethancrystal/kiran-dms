@@ -65,7 +65,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 |---|---|---|---|
 | ORD-01 | Create an order for a salon (the office, or the salon in its portal; reps do not create orders, D-30): lines (SKU, qty, unit price from active price list; in Phase 1 the SKU's current list price, copied onto the line, and price lists with dates are ORD-07), discounts below list only with approval (CTL-07), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
 | ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0163). Hard stop for salon portal orders; Mg/O can override with reason | M | 1 |
-| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O with a reason (what a salon may edit or cancel on its own portal order is open, ACTIVITY B-40) | M | 1 |
+| ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O with a reason (a salon may edit or cancel its own portal order until the manager approves it, not after (ACTIVITY L-0378)) | M | 1 |
 | ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
 | ORD-05 | Invoice/receipt PDF or image: Kiran branding, salon, lines, totals, payment plan schedule, receipt numbers. **Never** shows supplier or cost | M | 1 |
 | ORD-06 | Returns: full/partial return of delivered goods with reason; stock movement back to location; credit note | S | 2 |
