@@ -6,7 +6,7 @@
 --       ACTIVITY D-30 (MJ: reps no longer create orders; the office does, directly or from a rep's
 --       card; the salon portal is reserved), L-0363, L-0385 (a rep-less order is delivered by the office).
 --
--- What is built (schema only; the functions that use it come in later tasks of PR A):
+-- What is built (the schema, office order creation; cards' RPCs come in later tasks of PR A):
 --   * public.order_channel and sales_order.source_channel (rep_visit, office, salon_portal). Every
 --     existing order is a rep_visit order. The column keeps a default of rep_visit only so that the
 --     rep path app.create_order, which is refused for reps in a later task, still inserts today.
@@ -20,6 +20,10 @@
 --   * Existing rows: created_by is backfilled from rep_id and source_channel reads rep_visit (column default).
 --   * app.rep_deliver is re-issued with one change: a rep-less order is refused (rep_id is distinct from
 --     the caller), because rep_id can now be null and `null <> uid` would have let any rep deliver it.
+--   * app.build_order (internal, no grant) holds the shared order engine of migration 0012 (line checks,
+--     discount approval, insert, evaluation) with created_by = the caller; app.create_order (rep path,
+--     same signature) and the new app.office_create_order (owner or manager, D-30) both call it.
+--     app.evaluate_order matches the discount approval's maker against created_by instead of rep_id.
 -- =============================================================================
 
 -- ------------------------------------------------------------------ channel ----
@@ -206,3 +210,217 @@ begin
   return app.deliver(p_client_id, p_order_id, v_bag, p_lines, p_received_by_name, p_lat, p_lng, p_mock_location,
                      p_delivered_at_client, v_day);
 end $$;
+
+-- ------------------------------------------------------------ order builder ----
+-- Internal (no grant): the part of the order engine shared by every channel. Same checks, messages,
+-- discount approval and insert as app.create_order in migration 0012, with the channel, the rep, the
+-- rep day, the assigned rep and the source card passed in, and created_by = the signed-in caller.
+-- The caller's wrapper has already checked who may order for this salon and handled the replay.
+create function app.build_order(
+  p_client_id uuid, p_salon_id uuid, p_plan public.plan_code, p_delivery_mode public.delivery_mode, p_lines jsonb,
+  p_channel public.order_channel, p_rep_id uuid, p_rep_day_id uuid, p_visit_id uuid, p_assigned_rep_id uuid,
+  p_intake_card_id uuid, p_created_at_client timestamptz)
+returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id    uuid := gen_random_uuid();
+  v_sub   bigint;
+  v_disc  bigint;
+  v_n     integer;
+  v_cnt   integer;
+  v_thr   jsonb;
+  v_owner boolean;
+  a       control.approval_request;
+begin
+  if p_plan is null or p_delivery_mode is null then
+    raise exception using errcode = '22023', message = 'a plan and a delivery mode are required';
+  end if;
+  if p_lines is null or jsonb_typeof(p_lines) <> 'array' or jsonb_array_length(p_lines) not between 1 and 50 then
+    raise exception using errcode = '22023', message = 'an order has 1 to 50 lines';
+  end if;
+  -- Lines: [{sku_id, qty, unit_price_paisa?}]; the unit price defaults to the list price.
+  with x as (
+    select e.ord, (e.val ->> 'sku_id')::uuid as sku_id, (e.val ->> 'qty')::integer as qty,
+           (e.val ->> 'unit_price_paisa')::bigint as unit_price
+    from jsonb_array_elements(p_lines) with ordinality as e(val, ord))
+  select count(*), count(distinct x.sku_id),
+         sum(x.qty::bigint * k.list_price_paisa), sum(x.qty::bigint * (k.list_price_paisa - coalesce(x.unit_price, k.list_price_paisa)))
+    into v_cnt, v_n, v_sub, v_disc
+  from x left join public.sku k on k.id = x.sku_id;
+  if exists (
+       select 1 from jsonb_array_elements(p_lines) e(val)
+       left join public.sku k on k.id = (e.val ->> 'sku_id')::uuid
+       left join public.product p on p.id = k.product_id
+       where k.id is null or not k.active or not p.active or k.list_price_paisa is null
+          or (e.val ->> 'qty') is null or (e.val ->> 'qty')::integer not between 1 and 10000
+          or coalesce((e.val ->> 'unit_price_paisa')::bigint, k.list_price_paisa) not between 1 and k.list_price_paisa) then
+    raise exception using errcode = '22023',
+      message = 'every line needs an active, priced SKU, a quantity of 1 to 10000 and a unit price above 0 and at most the list price';
+  end if;
+  if v_n <> v_cnt then
+    raise exception using errcode = '22023', message = 'a SKU appears once in an order';
+  end if;
+  perform app.set_purpose('order taken');
+  if v_disc > 0 then
+    v_thr := (select c.value from public.app_config c where c.key = 'approval.discount.owner_above');
+    -- doc 13 §9: the owner decides above the threshold; a missing threshold sends it to the owner.
+    v_owner := v_thr is null or jsonb_typeof(v_thr -> 'pct') <> 'number' or jsonb_typeof(v_thr -> 'paisa') <> 'number'
+               or v_disc * 100 > v_sub * (v_thr ->> 'pct')::numeric or v_disc > (v_thr ->> 'paisa')::numeric;
+    -- The approval's maker is the caller (app.request_approval), the same person as the order's created_by.
+    a := app.request_approval(gen_random_uuid(), 'discount', 'sales_order', v_id,
+                              jsonb_build_object('salon_id', p_salon_id, 'subtotal_paisa', v_sub, 'discount_paisa', v_disc,
+                                                 'total_paisa', v_sub - v_disc),
+                              'discount below list price (CTL-07)',
+                              case when v_owner then 'owner' else 'manager' end::public.app_role);
+  end if;
+  insert into public.sales_order (id, client_id, salon_id, rep_id, rep_day_id, visit_id, plan, delivery_mode,
+                                  subtotal_paisa, discount_paisa, total_paisa, discount_approval_id, created_at_client,
+                                  source_channel, created_by, assigned_rep_id, intake_card_id)
+  values (v_id, p_client_id, p_salon_id, p_rep_id, p_rep_day_id, p_visit_id, p_plan, p_delivery_mode,
+          v_sub, v_disc, v_sub - v_disc, a.id, p_created_at_client,
+          p_channel, auth.uid(), p_assigned_rep_id, p_intake_card_id);
+  insert into public.sales_order_line (order_id, line_no, sku_id, qty, list_price_paisa, unit_price_paisa, line_total_paisa)
+  select v_id, e.ord::integer, k.id, (e.val ->> 'qty')::integer, k.list_price_paisa,
+         coalesce((e.val ->> 'unit_price_paisa')::bigint, k.list_price_paisa),
+         (e.val ->> 'qty')::integer * coalesce((e.val ->> 'unit_price_paisa')::bigint, k.list_price_paisa)
+  from jsonb_array_elements(p_lines) with ordinality as e(val, ord)
+  join public.sku k on k.id = (e.val ->> 'sku_id')::uuid;
+  return app.evaluate_order(v_id);
+end $$;
+
+-- ------------------------------------------------------------ rep order path ----
+-- Same signature, checks and messages as migration 0012; the shared part now lives in app.build_order.
+-- Still open to reps until a later task of PR A refuses it (D-30).
+create or replace function app.create_order(
+  p_client_id uuid, p_salon_id uuid, p_plan public.plan_code, p_delivery_mode public.delivery_mode, p_lines jsonb,
+  p_visit_id uuid default null, p_created_at_client timestamptz default null)
+returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role  public.app_role := app.assert_actor_ready();
+  o       public.sales_order;
+  v_day   uuid;
+begin
+  if v_role <> 'rep' then perform app.raise_denied('only reps take orders in Phase 1'); end if;
+  select * into o from public.sales_order where client_id = p_client_id;
+  if o.id is not null then
+    if o.rep_id = auth.uid() and o.salon_id = p_salon_id and o.plan = p_plan then return o; end if;   -- replay
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  v_day := app.my_open_day_id();
+  if v_day is null then perform app.raise_denied('check in before taking orders (PIP-09)'); end if;
+  if not app.rep_can_reach_salon(p_salon_id) then
+    perform app.raise_denied('reps take orders only for salons in their own territories');
+  end if;
+  if p_plan is null or p_delivery_mode is null then
+    raise exception using errcode = '22023', message = 'a plan and a delivery mode are required';
+  end if;
+  if p_visit_id is not null and not exists (
+       select 1 from public.visit v where v.id = p_visit_id and v.rep_id = auth.uid() and v.salon_id = p_salon_id
+         and v.rep_day_id = v_day) then
+    raise exception using errcode = '22023', message = 'the visit must be the rep''s visit to this salon today';
+  end if;
+  return app.build_order(p_client_id, p_salon_id, p_plan, p_delivery_mode, p_lines, 'rep_visit', auth.uid(), v_day,
+                         p_visit_id, null, null, p_created_at_client);
+end $$;
+
+-- --------------------------------------------------------- office order path ----
+-- D-30: the owner or a manager makes an order for any salon. No rep and no rep day; an assigned rep
+-- (who delivers it from the bag) must be an active rep currently covering the salon's territory,
+-- otherwise the office delivers it from the warehouse. Idempotent on client_id (ORD-10): the same
+-- creator, salon, plan and card get the same order back. Converting an order card comes in a later task.
+create function app.office_create_order(
+  p_client_id uuid, p_salon_id uuid, p_plan public.plan_code, p_lines jsonb,
+  p_assigned_rep_id uuid default null, p_intake_card_id uuid default null)
+returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_office();
+  o      public.sales_order;
+  v_area uuid;
+begin
+  if p_intake_card_id is not null then
+    raise exception using errcode = '22023', message = 'converting an order card is not available yet';
+  end if;
+  select * into o from public.sales_order where client_id = p_client_id;
+  if o.id is not null then
+    if o.created_by = auth.uid() and o.salon_id = p_salon_id and o.plan = p_plan
+       and o.intake_card_id is not distinct from p_intake_card_id then
+      return o;                                                                -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  select s.area_id into v_area from public.salon s where s.id = p_salon_id;
+  if not found then raise exception using errcode = '22023', message = 'unknown salon'; end if;
+  if p_assigned_rep_id is not null and not (
+       exists (select 1 from public.user_profile u
+                where u.id = p_assigned_rep_id and u.role = 'rep' and u.status = 'active')
+       and exists (select 1 from public.rep_territory rt join public.area a on a.territory_id = rt.territory_id
+                    where rt.rep_id = p_assigned_rep_id and rt.to_date is null and a.id = v_area)) then
+    raise exception using errcode = '22023',
+      message = 'the assigned rep must be an active rep who covers this salon''s territory';
+  end if;
+  return app.build_order(p_client_id, p_salon_id, p_plan,
+                         case when p_assigned_rep_id is null then 'warehouse' else 'bag_now' end::public.delivery_mode,
+                         p_lines, 'office', null, null, null, p_assigned_rep_id, p_intake_card_id, null);
+end $$;
+
+-- ------------------------------------------------------------ order checks ----
+-- Same as migration 0012 except the discount approval must be made by the order's creator
+-- (created_by) rather than its rep: an office order has no rep, and the office user is the maker.
+create or replace function app.evaluate_order(p_order_id uuid) returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  o     public.sales_order;
+  c     record;
+  v_exp bigint;
+  v_hc  text;
+  v_hd  text;
+  a     control.approval_request;
+  s     public.salon;
+  v_del integer;
+begin
+  select * into o from public.sales_order where id = p_order_id for update;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  if o.status <> 'draft' then return o; end if;
+  perform 1 from public.salon where id = o.salon_id for update;           -- one credit check per salon at a time
+  c := app.credit_of(o.salon_id);
+  v_exp := app.salon_exposure(o.salon_id);
+  v_hc := case when o.plan = 'CASH' then null
+               when c.blocked then 'blocked'
+               when o.plan > c.plan_eligibility then 'plan_not_allowed'
+               when v_exp + o.total_paisa > c.credit_limit_paisa then 'over_limit' end;
+  if o.discount_paisa > 0 then
+    select * into a from control.approval_request where id = o.discount_approval_id;
+    v_hd := case when a.status = 'approved' and a.kind = 'discount' and a.subject_type = 'sales_order'
+                      and a.subject_id = o.id and a.maker_id = o.created_by
+                      and (a.payload ->> 'total_paisa')::bigint = o.total_paisa then null
+                 when a.status = 'pending' then 'pending'
+                 else 'rejected' end;
+  end if;
+  update public.sales_order
+     set hold_credit = v_hc, hold_discount = v_hd,
+         credit_snapshot = jsonb_build_object('plan_eligibility', c.plan_eligibility, 'credit_limit_paisa', c.credit_limit_paisa,
+                                              'blocked', c.blocked, 'exposure_paisa', v_exp, 'checked_at', now())
+   where id = o.id returning * into o;
+  if o.hold_discount is null and (o.hold_credit is null or o.credit_override_by is not null) then
+    update public.sales_order set status = 'confirmed', confirmed_at = now() where id = o.id returning * into o;
+    -- Doc 02: an order makes the salon active (a dormant or at-risk salon restarts as active).
+    select * into s from public.salon where id = o.salon_id;
+    if s.stage in ('prospect', 'visited', 'trial', 'parked', 'dormant', 'at_risk') then
+      select count(*) into v_del from public.sales_order x where x.salon_id = o.salon_id and x.status in ('delivered', 'closed');
+      perform app.move_stage(o.salon_id, case when s.stage = 'at_risk' and v_del >= 3 then 'active_regular'
+                                              else 'active_new' end::public.salon_stage, 'order', 'order confirmed');
+    end if;
+  end if;
+  return o;
+end $$;
+
+-- ---------------------------------------------------- order path privileges ----
+-- app.build_order is internal (no grant to any role); app.office_create_order is an RPC for the office.
+revoke execute on function
+  app.build_order(uuid, uuid, public.plan_code, public.delivery_mode, jsonb, public.order_channel, uuid, uuid, uuid,
+                  uuid, uuid, timestamptz),
+  app.office_create_order(uuid, uuid, public.plan_code, jsonb, uuid, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function app.office_create_order(uuid, uuid, public.plan_code, jsonb, uuid, uuid) to authenticated;

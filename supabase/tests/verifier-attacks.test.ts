@@ -245,7 +245,7 @@ describe("internal functions are not callable by app roles", () => {
       "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invoice_document", "is_aal2", "is_office", "is_owner",
       "is_rep", "log_visit", "low_stock", "my_areas", "my_bag", "my_bag_id", "my_cash_position", "my_day", "my_handovers", "my_orders", "my_route",
       "my_salon", "my_salons", "my_session", "my_territory_ids", "office_assign_territory", "office_cancel_stock_issue",
-      "office_cash_position", "office_count_handover", "office_create_location", "office_deliver", "office_end_territory",
+      "office_cash_position", "office_count_handover", "office_create_location", "office_create_order", "office_deliver", "office_end_territory",
       "office_force_close_rep_day", "office_handovers", "office_override_stage", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
       "office_record_cash", "office_record_payment", "office_release_credit_hold", "office_rep_cash_position", "office_set_blocked", "office_set_last_purchase",
       "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_upsert_area",
@@ -270,6 +270,7 @@ describe("internal functions are not callable by app roles", () => {
       // Handover count, answer and reads: migration 0023 (P1-07, PAY-05, CTL-03); MJ standing approval L-0144.
       // Office cash collection: migration 0024 (P1-07, PAY-02; MJ resolved B-37, L-0362); standing approval L-0144.
       // One salon for the rep edit form: migration 0016 (slice 3, C-014); MJ standing approval L-0144.
+      // office_create_order: migration 0025 (D-30 PR A); MJ standing approval L-0144.
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
