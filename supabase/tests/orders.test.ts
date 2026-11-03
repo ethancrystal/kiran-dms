@@ -341,7 +341,9 @@ describe("the rep order path is closed (D-30)", () => {
     expect(f?.message).toContain("permission denied");
   });
 
-  it("the refusal writes nothing: no order, no line, no approval request", async () => {
+  // The call is caught inside a block (a savepoint), so this proves the discounted call is refused, not
+  // that a partial write would be undone: afterwards neither an order nor a discount request exists.
+  it("a discounted rep-path call is refused too: no order and no discount request exist afterwards", async () => {
     const cid = id();
     const discounted = lines([{ sku: SKU1, qty: QTY.single, price: PRICE_SKU1_DISCOUNTED }]);
     const r = await tx([
