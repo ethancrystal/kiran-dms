@@ -2,14 +2,14 @@
 
 **Kiran Company** distributes hair styling and hair care products to salons and beauty parlors across Karachi. Today the business runs on Excel, cash and memory. This planning set defines **Kiran DMS** — a Distribution Management System that combines a salon CRM, a field-sales pipeline, order-to-cash with installments, and inventory/restocking — built so that the company can hire door-to-door sales reps and grow without losing control of cash, stock, the salon list, or the identity of its supplier.
 
-Status: **Planning v1 — 2026-10-25.** The build is under way: Phase 1 started before Gate 0 on MJ's decision (D-20), and the live status is the board in [ACTIVITY.md](ACTIVITY.md) §12. These documents remain the brief and the source of truth for the build; [SPEC.md](../SPEC.md) at the repo root is a short index into them.
+Status: **Planning v2 — 2026-11-03.** This revision incorporates salon customer portal ordering, representative-placed orders, manual salon location capture, salon-specific prices, customer-safe stock quantities and active-day representative location tracking. This is a planning update only; it does not mark implementation or any phase gate complete. The live implementation status remains the board in [ACTIVITY.md](ACTIVITY.md) §12. These documents are the planning source of truth; [SPEC.md](../SPEC.md) is the short index.
 
 > ## Building this system? Read [ACTIVITY.md](ACTIVITY.md) first — it is mandatory.
 > It is the build protocol (hard rules, definition of done, phase gates) and the live record (status board, claims, blockers, append-only log) that every agent, AI or human, must follow and update. Work without a log entry there is treated as not done.
 
 ## What we are building, in one paragraph
 
-A mobile-first web app (installable PWA) for reps in the field and a back-office web app for the owner and manager, on one Postgres database with row-level security. Reps work a daily route of salons, take orders, deliver stock, collect cash or bank transfers against installment schedules, and hand cash over every evening. The owner and manager see every salon, every rupee due, every unit of stock, and every rep's day — and are the only people who can see who the supplier is or what anything costs. The system turns "sales depends on who remembers to call" into a repeatable pipeline: prospect → first order → repeat cycle → collection.
+A coordinated web application with three workspaces over one PostgreSQL database with row-level security: a mobile-first representative PWA, an authenticated salon customer portal, and an office workspace for Owner/Manager. Representatives visit salons, capture GPS-stamped visits, take orders on behalf of salons, deliver stock and collect payments. Salon users can independently place and track their own orders through the portal. Both channels use the same catalogue, salon-specific price resolver, stock availability, order state machine, fulfilment, invoice and payment records. Office users manage salons, assignments, representatives, stock, pricing, orders and exceptions under the existing D-08 permission split. Supplier identity and cost data remain restricted.
 
 ## Reading order
 
@@ -28,12 +28,14 @@ A mobile-first web app (installable PWA) for reps in the field and a back-office
 | 11 | [Roadmap](11-roadmap.md) | Phases, MVP scope, milestones, acceptance criteria |
 | 12 | [Decisions and open questions](12-decisions-and-open-questions.md) | Decision log and everything still to be settled |
 | 13 | [Anti-fraud and control framework](13-anti-fraud-controls.md) | Every way a rep, manager, salon or outsider could cheat — and the control that stops or catches it |
+| 14 | [Unified business domains and agent execution brief](14-unified-business-domain-prompt.md) | How supplier, salon portal, rep, agent, investor and office domains connect; boundaries, security and execution rules |
+| 15 | [Field sales and distribution engineering plan](15-field-sales-distribution-engineering-plan.md) | Target modules, three workspaces, dual-channel orders, data ownership, location tracking, inventory, security, delivery sequence and acceptance criteria |
 | — | [**ACTIVITY (mandatory for builders)**](ACTIVITY.md) | Build protocol, hard rules, definition of done, phase gates, status board, claims, blockers, append-only activity log |
 
 ## Fixed decisions (do not re-open without updating doc 12)
 
 1. **Niche:** hair styling and hair care products for salons/parlors. Not general cosmetics.
-2. **Roles at launch:** Owner, Manager, Sales Rep. The Manager has the **same operational access** as the Owner (salons, orders, stock, cash, credit, reps' days). A short list of **governance powers is Owner-only** — user accounts, company bank details, write-offs and credit notes, price lists, commission plans, vault grants, the audit log, and system configuration — because "nobody, including the manager, can do anything dubious" is only achievable if someone sits above the manager (doc 13). *Pending MJ's confirmation — see doc 12, D-08.* **Agent** role added by D-15 (2026-10-28): independent agents buy stock outright with cash or transfer before it leaves the warehouse, resell it themselves and report nothing back; they see only their own purchases and the agent catalogue.
+2. **Internal staff roles:** Owner, Manager and Sales Rep. The Manager has the documented operational access; governance powers remain Owner-only under D-08 (doc 06). The **Agent** role is a separate independent resale channel under D-15. **Salon customer portal membership is a separate external-customer identity**, linked to a specific salon; it is not a staff role and does not inherit staff, agent or investor permissions. The salon user can view its own customer data and submit its own orders through the shared order system.
 3. **Supplier is classified:** supplier identity, pricing and terms are visible to Owner and Manager only. Enforced in the database, not just the UI.
 4. **Payments:** cash, local bank transfer, and installment plans of 2 or 4 instalments.
 5. **Stack:** Next.js + Supabase (Postgres with RLS, Auth, Storage, Edge Functions), PWA for reps, hosted on Vercel + Supabase. See doc 05 for why.

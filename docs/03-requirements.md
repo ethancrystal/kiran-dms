@@ -8,7 +8,7 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| SAL-01 | Create a salon with: name, type (ladies' parlor / men's salon / unisex / bridal studio / barber / hair studio / spa or wellness centre offering hair services / home-based parlor / beauty academy or training institute / other), address, area, GPS pin, phone(s), owner/contact name, chairs (size), photo of frontage (stored once storage exists, ACTIVITY L-0146), notes, source (`map_pin` / `nearby_search` / `sweep` / `excel_import` / `referral` / `manual`). "Salon" means **any business anywhere in Karachi that offers hair care, hair treatment or hair beauty to end users** | M | 1 |
+| SAL-01 | Create a salon with: name, type (ladies' parlor / men's salon / unisex / bridal studio / barber / hair studio / spa or wellness centre offering hair services / home-based parlor / beauty academy or training institute / other), address, area, GPS pin, phone(s), owner/contact name, chairs (size), photo of frontage (stored once storage exists, ACTIVITY L-0146), notes, source (`map_pin` / `nearby_search` / `sweep` / `excel_import` / `referral` / `manual`). "Salon" means **any business anywhere in Karachi that offers hair care, hair treatment or hair beauty to end users**. External Maps listings/place IDs are optional; a salon can be created with a manually supplied address and pin/location data or added before its precise coordinates are available | M | 1 |
 | SAL-02 | Each salon belongs to exactly one territory; territory derives from area or is set manually by Mg | M | 1 |
 | SAL-03 | Salon has a pipeline stage (see doc 02) maintained by the system; Mg/O can override with a mandatory reason | M | 1 |
 | SAL-04 | Salon has a credit profile: plan eligibility (cash only / 2 / 4), credit limit (PKR), current exposure, overdue status | M | 1 |
@@ -18,6 +18,8 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 | SAL-08 | Salon tags (e.g., "uses competitor X", "bridal season peak") | C | 3 |
 | SAL-09 | Rep can see and edit only salons in their assigned territories; cannot delete; cannot export | M | 1 |
 | SAL-10 | Bulk import from Excel with field mapping and dry-run preview | M | 1 |
+| SAL-11 | Secure salon customer portal membership: invite/verify customer user, link membership to the exact salon, support activation/suspension/revocation; contact records do not automatically become login identities | M | 2 |
+| SAL-12 | Salon portal reads only its own profile, shared active catalogue, its own assigned prices, safe aggregate stock availability, own orders/status/history and authorized invoices/receipts/statements | M | 2 |
 
 ### PIP — Pipeline, territories, routes, visits
 
@@ -34,6 +36,8 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 | PIP-09 | Rep daily check-in / check-out gating: no orders without check-in; unreconciled handover blocks next day with Mg override. Phase 1 so far (P1-02 part b): an earlier day left open blocks check-in until the office force-closes it with a reason; the handover condition joins with P1-07 | M | 1 |
 | PIP-10 | Visit outcome taxonomy editable by O/Mg | S | 2 |
 | PIP-11 | Geofence warning when "arrived" is tapped > 300 m from salon pin (logged, not blocking) | S | 2 |
+| PIP-12 | Active-workday representative location samples linked to an open rep_day; validate caller/device/coordinates/accuracy/time, expose current/stale state only to authorized office roles, and stop accepting samples after close/revocation | M | 2 |
+| PIP-13 | Office map shows permitted current representative positions and approved history; salon users never see rep GPS. Ping cadence, background mode and retention follow OQ-32 | M | 2 |
 
 ### MAP — Map prospecting and online discovery
 
@@ -65,10 +69,13 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
 | ORD-05 | Invoice/receipt PDF or image: Kiran branding, salon, lines, totals, payment plan schedule, receipt numbers. **Never** shows supplier or cost | M | 1 |
 | ORD-06 | Returns: full/partial return of delivered goods with reason; stock movement back to location; credit note | S | 2 |
-| ORD-07 | Price lists with effective dates; per-salon special pricing (Mg/O only) | S | 2 |
+| ORD-07 | Price lists with effective dates; per-salon special pricing (Owner-only writes under D-08) | S | 2 |
 | ORD-08 | Promotions / bundles (e.g., starter kit for new salons, buy-10-get-1) | C | 3 |
 | ORD-09 | Order history and "frequently bought" suggestions per salon shown to rep while ordering | S | 2 |
 | ORD-10 | Offline order creation; synced and credit-rechecked on reconnect; rep warned if the check fails | M | 1 |
+| ORD-11 | One canonical order system accepts explicit rep_visit and salon_portal channels; stores authenticated creator and nullable order-taking rep/rep_day/visit; preserves original acquisition rep and effective-dated current assignment separately | M | 2 |
+| ORD-12 | Authenticated salon user submits an order only for the salon resolved from active server-side membership; idempotent submission; same server-side catalogue, salon pricing, stock, credit and order-state checks as rep orders | M | 2 |
+| ORD-13 | Salon user reads only its own submitted orders, current states, permitted history and customer documents; salon-originated order confirmation policy is controlled by OQ-31 | M | 2 |
 
 ### PAY — Payments, installments, cash, bank
 
@@ -102,6 +109,8 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | INV-10 | Stock valuation report at cost (O/Mg only; cost from vault) | S | 2 |
 | INV-11 | **Route-linked bag load** (D-19): for a rep's next route day, suggest the bag issue per SKU = expected demand of that day's stops (open orders to deliver from the bag, due reorders × last quantity, a small prospect allowance) − current bag stock, capped by warehouse availability and the bag value limit. Shortages are shown and recorded as demand (DEM-02). The manager issues the suggestion in one step through the two-party issue (CTL-05) | M | 1 |
 
+| INV-12 | Authorized authenticated business users see safe aggregate on-hand and available-to-order quantities per active sellable SKU; salon/rep views never reveal internal locations, rep bag custody, supplier, cost, margin or restricted batch detail. Balances remain derived from append-only movements/reservations | M | 2 |
+
 ### VLT — Supplier vault (classified supplier)
 
 | ID | Requirement | Pri | Phase |
@@ -130,6 +139,9 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | SEC-10 | Backups: PITR + weekly encrypted off-site export; restore drill quarterly | M | 1 |
 | SEC-11 | Maker-checker: the user who initiates an approval-gated action can never approve it; approvals are recorded with approver, time and reason | M | 1 |
 | SEC-12 | Audit log lives in a schema no application role can write to directly (populated by triggers), is hash-chained, and is mirrored nightly to write-only storage controlled by the owner | M | 1 |
+| SEC-13 | Salon portal identity is a separate customer membership linked to specific salon IDs, never an internal staff role; account invitation, activation, suspension and revocation are owner-governed and audited | M | 2 |
+| SEC-14 | Salon portal RLS/RPCs enforce own-salon-only access to profile, price, aggregate stock, orders and customer documents; cross-salon ID tampering and revoked membership are denied by database tests | M | 2 |
+| SEC-15 | Salon/customer functions expose only allow-listed public catalogue/price/aggregate-stock/customer-document data; no supplier, cost, margin, internal inventory location, rep GPS or internal CRM notes | M | 2 |
 
 ### CTL — Anti-fraud controls (detail and rationale in doc 13)
 

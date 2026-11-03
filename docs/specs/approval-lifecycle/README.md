@@ -7,29 +7,29 @@ A model of the design in https://github.com/ethancrystal/kiran-dms/issues/4: req
 ## Provenance
 
 - Written by cloud session 01Y3chVt and checked by cloud session 01Y3chVr on the unmerged branch `claude/architecture-rfc` (commits `ea027b2`, `0c72b1e`, `003727e`, `8f0d329`). Their log entries there are numbered L-0104 to L-0109 and clash with this log, so they are not cited as IDs here.
-- Brought into this log by ACTIVITY **L-0190** (files exactly as in `8f0d329`). An independent four-lens review followed (**L-0191**), and the changes it led to are in **L-0192**: `S10` and `S13`, `SymmAll`, `W10`, the configs `TwoOwnersSmall` and `TwoOwnersMid`, a runner that can fail, and `fetch-tools.sh`. The new invariants do not change which behaviours the model allows.
+- Brought into this log by ACTIVITY **L-0328** (files exactly as in `8f0d329`). An independent four-lens review followed (**L-0329**), and the changes it led to are in **L-0330**: `S10` and `S13`, `SymmAll`, `W10`, the configs `TwoOwnersSmall` and `TwoOwnersMid`, a runner that can fail, and `fetch-tools.sh`. The new invariants do not change which behaviours the model allows.
 - The one-owner clean run and the Mutant and Witness results below predate `S10` and `S13`, which were added afterwards (see the table).
 
 ## Files and results
 
 | File | Purpose | Expected | Result and who ran it |
 |---|---|---|---|
-| `ApprovalLifecycle.tla` | The model | SANY parses | Parsed (01Y3chVr; again in L-0190 and L-0193) |
+| `ApprovalLifecycle.tla` | The model | SANY parses | Parsed (01Y3chVr; again in L-0328 and L-0331) |
 | `ApprovalLifecycle.cfg` | The checker-role use-time rule (S4), one owner account | No violation | **No error**: 20,713,620 distinct states, depth 13, 27 min on 3 workers (01Y3chVr, before `S10`/`S13`; **not re-run here**: it needs a bigger host than this one) |
-| `TwoOwners.cfg` | Same, two owner accounts (OQ-03), with owner symmetry | No violation | **Not completed.** The same config without owner symmetry was stopped after 2 h 06 min on a 2-vCPU host at depth 8 with 21,325,079 distinct states (123,527,144 generated, 15.5 million queued) and **no violation**; a second owner multiplies the state space by an estimated 7 to 13 times (about 3 to 6 times with symmetry), so a full run needs a bigger host (L-0191) |
-| `TwoOwnersMid.cfg` | Two owners, two managers, one subject, one consumer | No violation | **No error**: 4,406,964 distinct states, depth 12, 11 min on a 2-vCPU host; includes S10 and S13 (L-0193) |
-| `TwoOwnersSmall.cfg` | Two owners, one manager, one subject, one consumer | No violation | **No error**: 1,188,224 distinct states, depth 11, 2.5 min; includes S10 and S13 (L-0193) |
-| `OpenQ5.cfg` | Open question 5: checker offboarded before use | `Q5_CheckerActiveAtUse` violated | **Violated** in 5 states (01Y3chVr; L-0190; L-0193) |
+| `TwoOwners.cfg` | Same, two owner accounts (OQ-03), with owner symmetry | No violation | **Not completed.** The same config without owner symmetry was stopped after 2 h 06 min on a 2-vCPU host at depth 8 with 21,325,079 distinct states (123,527,144 generated, 15.5 million queued) and **no violation**; a second owner multiplies the state space by an estimated 7 to 13 times (about 3 to 6 times with symmetry), so a full run needs a bigger host (L-0329) |
+| `TwoOwnersMid.cfg` | Two owners, two managers, one subject, one consumer | No violation | **No error**: 4,406,964 distinct states, depth 12, 11 min on a 2-vCPU host; includes S10 and S13 (L-0331) |
+| `TwoOwnersSmall.cfg` | Two owners, one manager, one subject, one consumer | No violation | **No error**: 1,188,224 distinct states, depth 11, 2.5 min; includes S10 and S13 (L-0331) |
+| `OpenQ5.cfg` | Open question 5: checker offboarded before use | `Q5_CheckerActiveAtUse` violated | **Violated** in 5 states (01Y3chVr; L-0328; L-0331) |
 | `MutantNoRecheck.cfg` | Route not re-checked at use | `S4_CheckerLevelAtUse` violated | **Violated** in 5 states (same) |
 | `MutantNoCoverage.cfg` | Coverage check removed | `S3_GatedActionCovered` violated | **Violated** in 4 states (same) |
 | `MutantReuse.cfg` | Single-use index removed | `S2_SingleUse` violated | **Violated** in 5 states (same) |
-| `Witness.tla` | Reachability witnesses and the RFC-wording check | Each violated | All violated as expected (L-0190; L-0193). `W10` is new |
+| `Witness.tla` | Reachability witnesses and the RFC-wording check | Each violated | All violated as expected (L-0328; L-0331). `W10` is new |
 | `run-all.sh` | Runs everything, compares with the expected result, **exits 1 on any mismatch** | — | See "How to run" |
 | `fetch-tools.sh` | Downloads the pinned `tla2tools.jar` and verifies size and sha256 | — | — |
 
 Each mutant cfg lists one invariant, so TLC stops at that violation. The reviewers re-ran each mutant with every other property switched on (on tiny constants) and the target was the only property that broke, but no committed run shows it: the claim "each mutant breaks exactly one property" rests on that scratch check. `OpenQ5` is not a mutant: it is the spec as written, checked for a property the RFC does not promise.
 
-Counts at the moment of a violation (for example 21,611 distinct states for `MutantReuse` in L-0190 against 14,476 in the earlier session) differ between runs with parallel workers, so only the violated property and the trace length are reproducible.
+Counts at the moment of a violation (for example 21,611 distinct states for `MutantReuse` in L-0328 against 14,476 in the earlier session) differ between runs with parallel workers, so only the violated property and the trace length are reproducible.
 
 ## How to run
 
@@ -69,7 +69,7 @@ A clean run proves little if the model never reaches the states an invariant tal
 | `A1_NeverEscalate` (action property) | `Escalate` fires | Request, ChangeThreshold, Escalate |
 | `R1_DecidedLevelAtUse` | the RFC wording of the use-time rule (see next section) | 5 states |
 
-There is no `W8`. An escalated request that is then approved and used cannot be shown by a plain state predicate. A witness-only history variable in a wrapper module does show it in 6 states (found in the review, L-0191); it is not committed because the wrapper re-lists `Next` by hand and would drift.
+There is no `W8`. An escalated request that is then approved and used cannot be shown by a plain state predicate. A witness-only history variable in a wrapper module does show it in 6 states (found in the review, L-0329); it is not committed because the wrapper re-lists `Next` by hand and would drift.
 
 ## Where the spec differs from RFC #4
 
@@ -93,8 +93,8 @@ Neither point makes the design unsafe. Because the RFC wording is a restriction 
 | S7 | One authorized action per (kind, consumer): an identical replay adds no second row | Safety | `S7_OneActionPerConsumer` | Holds |
 | S8 | Reps request only discounts (the real list also has return_accept and payment_reversal, not modelled) | Safety | `S8_RepKinds` | Holds |
 | S9 | A request has a checker exactly when it is approved or rejected | Structural | `S9_DecidedHasChecker` | Holds |
-| S10 | The decider's role is at least the level decided at (**new, L-0192**) | Safety | `S10_DeciderRankCoversLevel` | Holds on the runs listed above that include it. Closes a gap: with the rank clause of `CanCheck` deleted, S1 to S9 and P1 to P3 all stayed clean |
-| S13 | Every write-off decided is decided by an owner (**new, L-0192**) | Safety | `S13_WriteOffDecidedByOwner` | Same |
+| S10 | The decider's role is at least the level decided at (**new, L-0330**) | Safety | `S10_DeciderRankCoversLevel` | Holds on the runs listed above that include it. Closes a gap: with the rank clause of `CanCheck` deleted, S1 to S9 and P1 to P3 all stayed clean |
+| S13 | Every write-off decided is decided by an owner (**new, L-0330**) | Safety | `S13_WriteOffDecidedByOwner` | Same |
 | G1 | With one owner account, an owner-made write-off is never approved (OQ-02) | Safety, documents a gap | `G1_OwnerWriteOffStuck` | Holds with one owner. Vacuous with two (it needs `W10` to see the change) |
 | Q5 | The checker is still active when the approval is used (OQ-05) | Safety, **not promised by the RFC** | `Q5_CheckerActiveAtUse` | **Violated** (`OpenQ5`). Main's `office_post_adjustment` never reads the checker's status either |
 | P1 | A decided request never changes | Action | `P1_DecidedImmutable` | Holds. The identity of a *pending* request is protected by no property |
@@ -130,9 +130,9 @@ Neither point makes the design unsafe. Because the RFC wording is a restriction 
 
 - **Three kinds stand in for twelve** (`discount`, `write_off`, `credit_override`). The other kinds, `subject_type`, per-kind maker roles and "a kind with no spec entry is refused" are not modelled. `write_off` merges the stock write-off (maker a manager) and the receivable write-off (maker an owner). `credit_override` follows doc 13 ("no checker below caps"); docs 06 and 09 and the P1-06 code now on main (`app.assert_manager_override_allowed`) describe a hard manager cap with a direct owner override.
 - **Coverage is one number**, `amount <= approved`. The RFC's eq/max/min spec over several keys and the per-order discount aggregation are not modelled, and the domain write that follows `authorize_action` is not modelled either, so an uncovered write through the replay path is invisible.
-- **Properties the model cannot see** (found in the review, L-0191; formulas exist for all of them, unadded): the freshness guard in `Decide`; the four `active` guards and `Offboard`; the identity of a pending request; whether the maker-only rule in `Cancel` holds; whether a discount ever *needs* an approval (S3 and S4 are relative to the model's own `Route`). The 4 to 5 state mutants that expose each are in the L-0191 record.
+- **Properties the model cannot see** (found in the review, L-0329; formulas exist for all of them, unadded): the freshness guard in `Decide`; the four `active` guards and `Offboard`; the identity of a pending request; whether the maker-only rule in `Cancel` holds; whether a discount ever *needs* an approval (S3 and S4 are relative to the model's own `Route`). The 4 to 5 state mutants that expose each are in the L-0329 record.
 - **Not modelled:** expiry (OQ-01); the audit hash chain; RLS and grants; the PWA outbox (an offline replay is a stutter step only for an identical replay); concurrency inside a transaction.
 - **Main already overlaps the RFC.** `office_post_adjustment` implements single use (a unique index on `stock_movement.approval_id`), the use-time owner recompute and the checker-role test for kind `adjustment`. If `adjustment` later also goes through `authorize_action`, there would be two single-use registries and S2 would hold per registry only.
 - **Small scope:** 1 rep, 1 or 2 managers, 1 or 2 owners, 2 requests, up to 2 subjects and consumers, amounts 1..2, at most 2 uses. More confidence would need larger bounds or a TLAPS proof of S2 to S4.
 - **A clean TLC run checks the design, not the SQL.** The RFC's boundary tests in `supabase/tests/` are what will prove the implementation matches. Nothing in CI runs `run-all.sh`.
-- **Open questions for MJ** (RFC issue 4 questions 1 to 5, plus the ones the review raised) are collected in ACTIVITY blocker **B-32**.
+- **Open questions for MJ** (RFC issue 4 questions 1 to 5, plus the ones the review raised) are collected in ACTIVITY blocker **B-39**.

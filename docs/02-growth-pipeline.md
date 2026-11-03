@@ -81,6 +81,10 @@ This is what the app enforces, hour by hour.
 
 A rep who skips check-in cannot take orders. A rep with an unreconciled handover from yesterday sees a red banner and the manager is notified.
 
+### Two order channels
+
+A salon may receive orders through either an in-person representative visit or its authenticated customer portal. The rep opens the salon record and takes an order on the salon's behalf; the salon may also sign in and independently submit an order. Both create the same canonical order and pass through the same server-side price, stock, credit, fulfilment and payment rules. The order records its channel, actual creator and (only for a genuine field order) the order-taking representative and visit. A portal order is not a rep visit and must not inflate visit, productive-visit or rep-taken-order metrics. Reorder/retention metrics may count orders from either channel.
+
 ## The repeat-cycle engine (retention)
 
 For each **salon × product group** (e.g., Glamour Salon × hair color), the system tracks the interval between purchases. After two or three purchases it has a cycle estimate. From that:
@@ -130,6 +134,8 @@ Full detail on plans, credit limits and reconciliation is in doc 09.
 - Receivables ageing: current / 1–7 / 8–15 / 16–30 / 30+ days
 - Days sales outstanding (DSO)
 - Stock-out lines, stock cover (days of sales on hand) per SKU
+- Orders and order value by source channel (rep visit / salon portal) and state (submitted / confirmed / delivered / invoiced / paid / outstanding)
+- Salon portal repeat-order activity, reported separately from rep physical visits and rep-taken orders
 - Gross margin (owner/manager only — requires cost prices from the vault)
 
 ## Management rhythm the system supports

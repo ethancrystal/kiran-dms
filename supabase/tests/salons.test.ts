@@ -115,6 +115,22 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
     expect((await run(REP_A_WRONG_DEVICE, "select id from app.my_salons()")).rows).toEqual([]);
   });
 
+  it("my_salon (migration 0016) gives the rep one own salon with address and chairs, and nobody else anything", async () => {
+    await one(REP_A, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] 1 Fake Street')", [S1, A1]);
+    expect(await one(REP_A, "select id, phone_masked, address, chairs, lat, lng from app.my_salon($1)", [S1])).toEqual({
+      id: S1,
+      phone_masked: "+920*******34",
+      address: "[Test] 1 Fake Street",
+      chairs: 3,
+      lat: "24.900000",
+      lng: "67.100000",
+    });
+    for (const who of [REP_B, REP_A_WRONG_DEVICE, SUSPENDED, MANAGER, OWNER, MANAGER_AAL1]) {
+      expect((await run(who, "select id from app.my_salon($1)", [S1])).rows, String(who)).toEqual([]);
+    }
+    expect(await sqlstate("anon", "select * from app.my_salon($1)", [S1])).toBe("42501");
+  });
+
   it("a page holds at most 50 salons, whatever the caller asks for", async () => {
     await run(
       REP_A,

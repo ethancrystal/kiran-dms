@@ -1,0 +1,172 @@
+"use client";
+import { use, useEffect, useState } from "react";
+import { rpc } from "@/lib/rpc";
+import { findSalon, label, SALON_TYPES, type SalonDetail } from "@/lib/salons";
+
+type AreaRow = { territory_id: string; territory_name: string; area_id: string; area_name: string };
+
+// Edit a salon (SAL-01; execution map slice 3). The form starts from the database's values
+// (app.my_salon) and saves through app.update_salon, which checks the territory of both the salon
+// and the new area. A field the form sends as null is kept (migration 0014), so a field cannot be
+// emptied here. The pin is not offered: whether a rep may move a pin is open (B-31 a), so the
+// form never sends lat or lng and the office moves pins.
+export default function EditSalon({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [salon, setSalon] = useState<SalonDetail | null>(null);
+  const [areas, setAreas] = useState<AreaRow[]>([]);
+  const [form, setForm] = useState({ name: "", type: "", area: "", address: "", chairs: "" });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // The row app.update_salon returned: the confirmation shows what the database stored.
+  const [saved, setSaved] = useState<{ name: string | null; address: string | null; chairs: number | null } | null>(null);
+
+  useEffect(() => {
+    Promise.all([findSalon(id), rpc<AreaRow[]>("my_areas")])
+      .then(([s, a]) => {
+        setSalon(s);
+        setAreas(a ?? []);
+        if (s)
+          setForm({
+            name: s.name ?? "",
+            type: s.type,
+            area: s.area_id,
+            address: s.address ?? "",
+            chairs: s.chairs === null ? "" : String(s.chairs),
+          });
+      })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  if (loading)
+    return (
+      <main>
+        <p className="muted" aria-busy="true">
+          Loading…
+        </p>
+      </main>
+    );
+  if (!salon)
+    return (
+      <main>
+        <p className="error" role="alert">
+          {error ?? "This salon is not in your territory."}
+        </p>
+        <a href="/app/salons">← Salons</a>
+      </main>
+    );
+
+  // Emptying a field would silently keep the old value (null means keep), so it is refused here.
+  const cleared = (
+    [
+      ["name", salon.name],
+      ["address", salon.address],
+      ["chairs", salon.chairs],
+    ] as const
+  )
+    .filter(([k, was]) => was !== null && form[k].trim() === "")
+    .map(([k]) => k);
+  // Chairs: a whole number 0 to 200 (the column's check), so a decimal never reaches the integer parameter.
+  const badChairs = form.chairs.trim() !== "" && !(/^\d+$/.test(form.chairs.trim()) && Number(form.chairs) <= 200);
+  const blocked = cleared.length > 0 || badChairs;
+
+  return (
+    <main>
+      <p>
+        <a href={`/app/salons/${id}`}>← {salon.name ?? "Unnamed salon"}</a>
+      </p>
+      <h1>
+        Edit salon · <span lang="ur">سیلون میں تبدیلی</span>
+      </h1>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (blocked) return;
+          setBusy(true);
+          setError(null);
+          try {
+            const row = await rpc<{ name: string | null; address: string | null; chairs: number | null }>("update_salon", {
+              p_id: id,
+              p_name: form.name.trim() || null,
+              p_type: form.type,
+              p_area_id: form.area,
+              p_address: form.address.trim() || null,
+              p_lat: null,
+              p_lng: null,
+              p_chairs: form.chairs.trim() === "" ? null : Number(form.chairs),
+            });
+            setSaved(row);
+            setSalon((s) => (s ? { ...s, ...row } : s));
+          } catch (err) {
+            setError((err as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label htmlFor="name">Salon name</label>
+        <input id="name" value={form.name} onChange={set("name")} maxLength={120} />
+        <label htmlFor="type">Type</label>
+        <select id="type" value={form.type} onChange={set("type")}>
+          {SALON_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {label(t)}
+            </option>
+          ))}
+        </select>
+        <label htmlFor="area">Area</label>
+        <select id="area" value={form.area} onChange={set("area")} required>
+          {areas.map((a) => (
+            <option key={a.area_id} value={a.area_id}>
+              {a.territory_name} · {a.area_name}
+            </option>
+          ))}
+        </select>
+        <label htmlFor="address">Address</label>
+        <input id="address" value={form.address} onChange={set("address")} maxLength={300} />
+        <label htmlFor="chairs">Chairs</label>
+        <input
+          id="chairs"
+          value={form.chairs}
+          onChange={set("chairs")}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={200}
+          step={1}
+        />
+        <p className="muted">
+          Pin: {salon.lat !== null && salon.lng !== null ? `${salon.lat}, ${salon.lng}` : "not set"}. To move the pin, ask the
+          office.
+        </p>
+        {badChairs && (
+          <p className="error" role="alert">
+            Chairs must be a whole number from 0 to 200.
+          </p>
+        )}
+        {cleared.length > 0 && (
+          <p className="error" role="alert">
+            {cleared.map(label).join(", ")} cannot be emptied once recorded. Correct it instead.
+          </p>
+        )}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={busy || blocked}>
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+      </form>
+      {saved && (
+        <output className="ok">
+          Salon updated: {saved.name ?? "Unnamed salon"} · {saved.address ?? "no address"}
+          {saved.chairs !== null && ` · ${saved.chairs} chairs`}. <a href={`/app/salons/${id}`}>Back to the salon</a>
+        </output>
+      )}
+    </main>
+  );
+}

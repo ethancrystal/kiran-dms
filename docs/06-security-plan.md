@@ -55,6 +55,25 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 
 Permissions are enforced in three places that must agree: RLS policies (data), `SECURITY DEFINER` functions (actions), and UI (convenience only — never the control).
 
+### 2.1 Salon customer identity and authorization boundary
+
+A Salon Customer is an external customer membership, not a fourth internal staff role. Do not add salon to user_profile.role or infer a portal identity from salon_contact.phone. Use a separately auditable membership linking an authenticated auth user to an explicitly authorized salon. Invitation/activation/revocation is owner-governed under D-08. Default one membership to one salon; multiple-salon membership requires an explicit decision and additional RLS tests.
+
+| Capability | Salon customer | Enforcement boundary |
+|---|---|---|
+| View catalogue | Shared active products/SKUs | Allow-listed customer read function |
+| View prices | Only own salon's effective approved prices | Server derives salon membership; never accepts salon_id as authority |
+| View stock | Safe aggregate on-hand/available quantity only | Sanitized stock projection; no raw stock tables or locations |
+| Submit order | Own salon only | Dedicated customer RPC; common canonical order engine; idempotency |
+| View orders/documents | Own salon's records only | Membership-scoped reads and private signed document access |
+| View reps/visits | No rep GPS or internal visit notes | No access to field-workforce functions |
+| Manage salon or users | No; correction request only | Office workflow; no direct master-data writes |
+| View supplier/cost/margin | Never | No schema/table/function exposure |
+
+Customer RLS/RPC tests must prove that Salon A cannot read, update, create an order for or download documents for Salon B by changing IDs, URLs, query filters, RPC arguments or object-storage paths. Revoked/suspended memberships must fail immediately. Salon functions must not call rep functions under the salon user's identity and must not grant access to internal CRM notes, rep location, cash/bag custody, price governance, credit decision internals or other salons.
+
+The existing staff roles and office permission matrix below remain unchanged.
+
 ## 3. Authentication and sessions
 
 | Control | Owner / Manager | Rep |
@@ -94,7 +113,7 @@ using (
 ```
 
 - **Write paths are functions.** Application roles get `INSERT`/`UPDATE` on almost nothing; they call `app.record_payment(...)`, `app.create_order(...)`, `app.log_visit(...)`, etc. Each function: pins `search_path`, checks role and device, validates the business rule, writes the rows, and lets triggers write `audit_event`. Append-only tables have no `UPDATE`/`DELETE` policies at all.
-- **Read functions for reps** (built as functions, not views; DEVIATION in ACTIVITY, P1-02 part a). Reps read salon data only through `app.*` functions that check the rep's current territories, limit columns, mask phone numbers and cap a page at 50 rows **in the database**, not only in the API layer (`app.my_areas`, `app.my_bag` and `app.warehouse_availability` return the whole, small list; `app.my_route` and `app.order_remaining` are bounded by the 50-stop and 50-line limits): `app.my_salons`, `app.my_areas`, `app.salon_notes`, `app.salon_stages` (migration 0009), `app.salon_visits`, `app.my_day` (migration 0010), `app.due_list`, `app.my_route` (migration 0011), `app.salon_credit_status`, `app.my_orders` (migration 0012), `app.order_remaining` (migration 0013), `app.my_bag`, `app.warehouse_availability` (migration 0008); cash and installment reads follow the same pattern when they are built. Reps also read a few tables directly, own rows only: their `rep_day`, `route`, `sales_order` and its lines, deliveries, delivery lines and invoices (migrations 0010 to 0013), and the active catalogue, their own bag's stock rows and daily closes, and their own demand signals (migration 0008). Salon data is reachable only through the functions above. Every security-relevant view would otherwise need `security_invoker` and its own matrix rows; a function also lets the page cap be enforced where no client can raise it.
+- **Read functions for reps** (built as functions, not views; DEVIATION in ACTIVITY, P1-02 part a). Reps read salon data only through `app.*` functions that check the rep's current territories, limit columns, mask phone numbers and cap a page at 50 rows **in the database**, not only in the API layer (`app.my_areas`, `app.my_bag` and `app.warehouse_availability` return the whole, small list; `app.my_route` and `app.order_remaining` are bounded by the 50-stop and 50-line limits): `app.my_salons`, `app.my_areas`, `app.salon_notes`, `app.salon_stages` (migration 0009), `app.salon_visits`, `app.my_day` (migration 0010), `app.due_list`, `app.my_route` (migration 0011), `app.salon_credit_status`, `app.my_orders` (migration 0012), `app.order_remaining` (migration 0013), `app.invoice_document` (migration 0014: one invoice of the rep's own orders, from `public` only, doc 07 §3), `app.my_bag`, `app.warehouse_availability` (migration 0008); cash and installment reads follow the same pattern when they are built. Reps also read a few tables directly, own rows only: their `rep_day`, `route`, `sales_order` and its lines, deliveries, delivery lines and invoices (migrations 0010 to 0013), and the active catalogue, their own bag's stock rows and daily closes, and their own demand signals (migration 0008). Salon data is reachable only through the functions above. Every security-relevant view would otherwise need `security_invoker` and its own matrix rows; a function also lets the page cap be enforced where no client can raise it.
 - **Salon tables are office-only at the table.** `salon`, `salon_contact`, `salon_note` and `stage_event` have RLS policies that show rows only to AAL2 office users, so a rep's direct query returns nothing. `app.reveal_phone(salon_id)` returns one salon's phone to a rep in that territory and logs the reveal in `control.phone_reveal` (owner-readable).
 - **Governance tables** (`price_list`, `plan_template`, `company_bank_account`, `user_profile` writes, `commission_plan`) require `owner` **and** AAL2.
 - **Storage policies** mirror table policies: a rep can read a receipt PDF only for an invoice they can see; `vault-docs` is readable only by vault grantees via 5-minute signed URLs generated server-side.

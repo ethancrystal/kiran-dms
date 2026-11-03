@@ -242,9 +242,9 @@ describe("internal functions are not callable by app roles", () => {
         and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
     expect(rows.map((r) => r.proname)).toEqual([
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon",
-      "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "is_aal2", "is_office", "is_owner",
+      "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invoice_document", "is_aal2", "is_office", "is_owner",
       "is_rep", "log_visit", "low_stock", "my_areas", "my_bag", "my_bag_id", "my_day", "my_orders", "my_route",
-      "my_salons", "my_session", "my_territory_ids", "office_assign_territory", "office_cancel_stock_issue",
+      "my_salon", "my_salons", "my_session", "my_territory_ids", "office_assign_territory", "office_cancel_stock_issue",
       "office_create_location", "office_deliver", "office_end_territory", "office_force_close_rep_day",
       "office_override_stage", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit",
       "office_release_credit_hold", "office_set_blocked", "office_set_last_purchase",
@@ -264,6 +264,8 @@ describe("internal functions are not callable by app roles", () => {
       // Due-list and route RPCs: migration 0011 (P1-16); MJ standing approval L-0144.
       // Credit and order RPCs: migration 0012 (P1-06 part a); MJ standing approval L-0144.
       // Delivery RPCs: migration 0013 (P1-06 part b); MJ standing approval L-0144.
+      // Invoice document read: migration 0014 (P1-06 part c); MJ standing approval L-0144.
+      // One salon for the rep edit form: migration 0016 (slice 3, C-014); MJ standing approval L-0144.
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
