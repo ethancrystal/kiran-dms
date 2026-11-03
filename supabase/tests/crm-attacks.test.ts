@@ -12,7 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, REP_A, run, type Who } from "./helpers/db";
-import { legacyOrderSql } from "./helpers/legacy-order";
+import { type LegacyStatus, legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -103,7 +103,6 @@ const DATA_EXCEPTION_CLASS = "22";
 const REP_PATH_CLOSED = "reps no longer place orders: record an order card (D-30)";
 const NOT_CONFIRMED = "only a confirmed order is delivered (ORD-03)";
 const OWN_ORDERS_ONLY = "reps deliver only their own orders";
-const UNKNOWN_ORDER = "unknown order";
 const SKU1_PRICE = 120000; // Rs 1,200, as set in beforeAll
 const ONE_PAISA = 1;
 const HALF_PRICE = 60000;
@@ -131,14 +130,41 @@ const officeRaw = (cid: string, rawLines: string, salon = SALON_A): Step => [
   `select app.office_create_order('${cid}', '${salon}', 'CASH', ${rawLines}, '${fx.repA.id}');`,
 ];
 /** A legacy rep_visit order of rep A (what the closed rep path left): confirmed, SKU1 at list price. */
-const legacyOrder = (cid: string, qty = 1): Step => [
+const legacyOrder = (cid: string, qty = 1, status: LegacyStatus = "confirmed"): Step => [
   "postgres",
-  legacyOrderSql({ clientId: cid, salonId: SALON_A, skuId: SKU1, qty, unitPaisa: SKU1_PRICE, repId: fx.repA.id, plan: "CASH" }),
+  legacyOrderSql({
+    clientId: cid,
+    salonId: SALON_A,
+    skuId: SKU1,
+    qty,
+    unitPaisa: SKU1_PRICE,
+    repId: fx.repA.id,
+    plan: "CASH",
+    status,
+  }),
 ];
+/**
+ * Real order ids for a step of a rep who cannot see the order. Looking the id up inside that rep's step
+ * returns NULL under RLS, and the function then refuses on its NULL branch rather than the ownership rule.
+ * A legacy order's id is its client_id (legacyOrderSql); an office order's id is pinned first as postgres.
+ */
+const literalId = (cid: string) => `'${cid}'::uuid`;
+const PINNED_ORDER = "current_setting('kiran_test.order')::uuid";
+const pinOrder = (cid: string): Step => [
+  "postgres",
+  `select set_config('kiran_test.order', (select id::text from public.sales_order where client_id = '${cid}'), true);`,
+];
+const OWN_DRAFT_ONLY = "a rep cancels only its own draft; the office cancels before delivery (ORD-03)";
+const OFFICE_ONLY = "owner or manager only";
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
 const deliver = (dcid: string, ocid: string, l: Array<[string, number]> | null = null, who: P = "repA", extra = ""): Step => [
   who,
   `select (app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1, ${l ? lines(l) : "null"}${extra})).*;`,
+];
+/** rep_deliver of the whole order by its id expression (a literal or PINNED_ORDER), as `who`. */
+const deliverAt = (dcid: string, orderId: string, who: P): Step => [
+  who,
+  `select (app.rep_deliver('${dcid}', ${orderId}, 'Ayesha at the counter', 24.9, 67.1, null)).id;`,
 ];
 
 beforeAll(async () => {
@@ -684,8 +710,9 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
     // An INST4 order for a salon with no credit profile must not become an invoice.
     expect(await attack([inst4], [deliver(id(), o)])).toEqual({ code: BAD_INPUT, message: NOT_CONFIRMED });
     // A rep cannot lift the hold themselves.
-    expect(await attack([inst4], [["repA", `select app.office_release_credit_hold(${oid(o)}, 'self release');`]])).toMatchObject({
+    expect(await attack([inst4], [["repA", `select app.office_release_credit_hold(${oid(o)}, 'self release');`]])).toEqual({
       code: DENIED,
+      message: OFFICE_ONLY,
     });
   });
 
@@ -743,12 +770,18 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
     expect(n[0].y).toBeGreaterThanOrEqual(SERVER_YEAR_FLOOR);
   });
 
-  it("rep B cannot cancel rep A's legacy order, nor an office order assigned to rep A", async () => {
+  it("rep B cannot cancel rep A's legacy draft, nor an office order assigned to rep A, given their real ids", async () => {
     const o = id();
-    const cancel: Step = ["repB", `select app.cancel_order(${oid(o)}, 'intruder');`];
-    // Rep B cannot even see either order, so its id resolves to nothing.
-    expect(await attack([legacyOrder(o)], [cancel])).toEqual({ code: BAD_INPUT, message: UNKNOWN_ORDER });
-    expect(await attack([officeOrder(o, [[SKU1, 1]])], [cancel])).toEqual({ code: BAD_INPUT, message: UNKNOWN_ORDER });
+    const cancelAs = (who: P, orderId: string): Step => [who, `select (app.cancel_order(${orderId}, 'intruder')).status::text;`];
+    const refused = { code: DENIED, message: OWN_DRAFT_ONLY };
+    // Legacy draft: the same call with the same literal id cancels it for its own rep, and is refused for rep B.
+    const draft = legacyOrder(o, 1, "draft");
+    expect(await tx([draft, cancelAs("repA", literalId(o))])).toEqual([{ status: "cancelled" }]);
+    expect(await attack([draft], [cancelAs("repB", literalId(o))])).toEqual(refused);
+    // Office order (no rep_id, so no rep owns it): the pinned id cancels it for the office, and is refused for rep B.
+    const office = [officeOrder(o, [[SKU1, 1]]), pinOrder(o)];
+    expect(await tx([...office, cancelAs("manager", PINNED_ORDER)])).toEqual([{ status: "cancelled" }]);
+    expect(await attack(office, [cancelAs("repB", PINNED_ORDER)])).toEqual(refused);
   });
 });
 
@@ -757,14 +790,17 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
   it("rep B cannot deliver rep A's legacy order, nor an office order assigned to rep A; a rep cannot call office_deliver", async () => {
     const o = id();
     const refused = { code: DENIED, message: OWN_ORDERS_ONLY };
-    expect(await attack([legacyOrder(o)], [deliver(id(), o, null, "repB")])).toEqual(refused);
-    expect(await attack([officeOrder(o, [[SKU1, 1]])], [deliver(id(), o, null, "repB")])).toEqual(refused);
-    expect(
-      await attack(
-        [officeOrder(o, [[SKU1, 1]])],
-        [["repA", `select app.office_deliver('${id()}', ${oid(o)}, '${WH}', 'Name');`]],
-      ),
-    ).toMatchObject({ code: DENIED });
+    // The same call with the same id delivers for rep A (its own legacy order, or the office order assigned to it).
+    const legacy = legacyOrder(o);
+    expect(await tx([legacy, deliverAt(id(), literalId(o), "repA")])).toHaveLength(1);
+    expect(await attack([legacy], [deliverAt(id(), literalId(o), "repB")])).toEqual(refused);
+    const office = [officeOrder(o, [[SKU1, 1]]), pinOrder(o)];
+    expect(await tx([...office, deliverAt(id(), PINNED_ORDER, "repA")])).toHaveLength(1);
+    expect(await attack(office, [deliverAt(id(), PINNED_ORDER, "repB")])).toEqual(refused);
+    expect(await attack(office, [["repA", `select app.office_deliver('${id()}', ${PINNED_ORDER}, '${WH}', 'Name');`]])).toEqual({
+      code: DENIED,
+      message: OFFICE_ONLY,
+    });
   });
 
   it("delivering more than ordered, a SKU not on the order, or zero is refused", async () => {
@@ -892,9 +928,10 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       await attack(delivered, [
         ["postgres", `update public.invoice set total_paisa = total_paisa - 1 where order_id = ${oid(o1)};`],
       ]),
-    ).toMatchObject({ code: DENIED });
-    expect(await attack(delivered, [["postgres", `delete from public.invoice where order_id = ${oid(o1)};`]])).toMatchObject({
+    ).toEqual({ code: DENIED, message: "UPDATE on public.invoice is not allowed: table is append-only (doc 04 invariant 1)" });
+    expect(await attack(delivered, [["postgres", `delete from public.invoice where order_id = ${oid(o1)};`]])).toEqual({
       code: DENIED,
+      message: "DELETE on public.invoice is not allowed: table is append-only (doc 04 invariant 1)",
     });
   });
 

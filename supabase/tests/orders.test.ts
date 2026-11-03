@@ -164,6 +164,14 @@ const legacy = (cid: string, salon: string, plan: string, qty: number, status: L
   legacyOrderSql({ clientId: cid, salonId: salon, skuId: SKU1, qty, unitPaisa: SKU1_PRICE, repId: fx.repA.id, plan, status }),
 ];
 const byCid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
+/**
+ * The real id of a legacy order (legacyOrderSql writes id = client_id), as a literal. A rep-B step must not
+ * look the id up itself: RLS hides rep A's order from rep B, the lookup returns NULL, and the function
+ * then refuses on its NULL branch instead of the ownership rule under test.
+ */
+const literalId = (cid: string) => `'${cid}'::uuid`;
+const OWN_DRAFT_ONLY = "a rep cancels only its own draft; the office cancels before delivery (ORD-03)";
+const OWN_RECHECK_ONLY = "only the order's rep or the office rechecks an order";
 const showOrder = (cid: string): Step => [
   "postgres",
   `select status::text, plan::text, subtotal_paisa::int sub, discount_paisa::int disc, total_paisa::int total, hold_credit,
@@ -335,14 +343,14 @@ describe("the rep order path is closed (D-30)", () => {
     expect(await failureOf(who, sql)).toEqual({ code: DENIED, message: REP_PATH_CLOSED });
   });
 
-  it("anon is refused 42501 before the function body runs (no EXECUTE grant, so not the D-30 message)", async () => {
-    const f = await failureOf("anon", repPath());
-    expect(f?.code).toBe(DENIED);
-    expect(f?.message).toContain("permission denied");
+  it("anon is refused 42501 before the function body runs (no USAGE on schema app, so not the D-30 message)", async () => {
+    // anon holds neither USAGE on schema app nor EXECUTE on the function; Postgres stops at the schema.
+    expect(await failureOf("anon", repPath())).toEqual({ code: DENIED, message: "permission denied for schema app" });
   });
 
-  // The call is caught inside a block (a savepoint), so this proves the discounted call is refused, not
-  // that a partial write would be undone: afterwards neither an order nor a discount request exists.
+  // The call is caught inside a block (a savepoint) that swallows only the D-30 refusal and re-raises
+  // anything else, so this proves the discounted call is refused with the D-30 text, not that a partial
+  // write would be undone: afterwards neither an order nor a discount request exists.
   it("a discounted rep-path call is refused too: no order and no discount request exist afterwards", async () => {
     const cid = id();
     const discounted = lines([{ sku: SKU1, qty: QTY.single, price: PRICE_SKU1_DISCOUNTED }]);
@@ -350,7 +358,9 @@ describe("the rep order path is closed (D-30)", () => {
       [
         "repA",
         `do $closed$ begin perform app.create_order('${cid}', '${S_NEW}', 'CASH', 'bag_now', ${discounted});
-         exception when insufficient_privilege then null; end $closed$;`,
+         exception when insufficient_privilege then
+           if sqlerrm <> '${REP_PATH_CLOSED}' then raise; end if;
+         end $closed$;`,
       ],
       [
         "postgres",
@@ -369,10 +379,10 @@ describe("the rep order path is closed (D-30)", () => {
       skuId: SKU1,
       qty: QTY.single,
       unitPaisa: SKU1_PRICE,
-      repId: fx.suspendedRep.id,
+      repId: id(), // no such rep, so certainly no open rep day today
       plan: "CASH",
     });
-    expect(await errorOf("postgres", sql)).toContain("has no rep day today");
+    expect(await errorOf("postgres", sql)).toContain("has no open rep day today");
   });
 });
 
@@ -401,7 +411,7 @@ describe("taking an order (ORD-01, ORD-10), on the office path", () => {
     expect(await txError([order(cid, S_NEW, "CASH", l), order(cid, S_NEW, "INST2", l)])).toContain("different content");
   });
 
-  it("every bad line is refused 22023 with the order engine's message (the valid line is accepted)", async () => {
+  it("a valid line is accepted on the office path (the control for the bad-line cases below)", async () => {
     expect(await txCode([order(id(), S_NEW, "CASH", lines([{ sku: SKU1, qty: QTY.single }]))])).toBeNull();
   });
 
@@ -499,10 +509,11 @@ describe("the credit check (ORD-02, doc 09 §2, MJ L-0163)", () => {
       await tx([
         held,
         ["owner", `select app.office_raise_limit('${S_CRED}', ${RAISE_ONE}, 'owner agrees');`],
-        ["repA", `select (app.recheck_order(${byCid(cid)})).status::text;`],
+        ["repA", `select (app.recheck_order(${literalId(cid)})).status::text;`],
       ]),
     ).toEqual([{ status: "confirmed" }]);
-    expect(await txError([held, ["repB", `select app.recheck_order(${byCid(cid)});`]])).toContain("only the order's rep");
+    expect(await txError([held, ["repB", `select app.recheck_order(${literalId(cid)});`]])).toBe(OWN_RECHECK_ONLY);
+    expect(await txCode([held, ["repB", `select app.recheck_order(${literalId(cid)});`]])).toBe(DENIED);
   });
 
   it("the office releases a credit hold with a reason; a manager only within 50% and never above eligibility", async () => {
@@ -639,38 +650,38 @@ describe("cancelling (ORD-03)", () => {
     expect(r).toEqual([{ o: "cancelled", a: "cancelled" }]);
   });
 
-  it("the rep cancels its own legacy draft with a reason; rep B cannot even see it", async () => {
+  it("the rep cancels its own legacy draft with a reason; rep B, given its real id, is refused", async () => {
     const cid = id();
     const held = legacy(cid, S_CRED, "INST2", QTY.overLimit, "draft");
     expect(
       await tx([
         held,
-        ["repA", `select app.cancel_order(${byCid(cid)}, 'salon changed its mind');`],
+        ["repA", `select app.cancel_order(${literalId(cid)}, 'salon changed its mind');`],
         [
           "postgres",
           `select status::text, cancelled_by = '${fx.repA.id}' by_rep from public.sales_order where client_id = '${cid}';`,
         ],
       ]),
     ).toEqual([{ status: "cancelled", by_rep: true }]);
-    expect(await txError([held, ["repB", `select app.cancel_order(${byCid(cid)}, 'other rep tries');`]])).toContain(
-      "unknown order",
-    );
+    const repB: Step = ["repB", `select app.cancel_order(${literalId(cid)}, 'other rep tries');`];
+    expect(await txError([held, repB])).toBe(OWN_DRAFT_ONLY);
+    expect(await txCode([held, repB])).toBe(DENIED);
   });
 
   it("only the office cancels a confirmed order; a cancelled order is final", async () => {
     const cid = id();
     const steps: Step[] = [legacy(cid, S_NEW, "CASH", QTY.single)];
-    expect(await txError([...steps, ["repA", `select app.cancel_order(${byCid(cid)}, 'rep tries');`]])).toContain(
-      "cancels only its own draft",
-    );
-    expect(await txError([...steps, ["repB", `select app.cancel_order(${byCid(cid)}, 'other rep tries');`]])).toContain(
-      "unknown order", // rep B cannot even see rep A's order
+    // Every call uses the order's real id. The owning rep and rep B get the same rule (a rep cancels only
+    // its own draft); the manager's call with the same id succeeds below, so the id is a real order.
+    expect(await txError([...steps, ["repA", `select app.cancel_order(${literalId(cid)}, 'rep tries');`]])).toBe(OWN_DRAFT_ONLY);
+    expect(await txError([...steps, ["repB", `select app.cancel_order(${literalId(cid)}, 'other rep tries');`]])).toBe(
+      OWN_DRAFT_ONLY,
     );
     expect(await txError([...steps, ["manager", `select app.cancel_order(${byCid(cid)}, '');`]])).toContain("reason");
     expect(
       await tx([
         ...steps,
-        ["manager", `select app.cancel_order(${byCid(cid)}, 'stock not available');`],
+        ["manager", `select app.cancel_order(${literalId(cid)}, 'stock not available');`],
         [
           "postgres",
           `select status::text, cancelled_by = '${fx.manager.id}' by_manager from public.sales_order where client_id = '${cid}';`,

@@ -13,7 +13,7 @@
  * total = subtotal. By default it is confirmed (the credit check passed); with status "draft" it is
  * held by the credit check (hold_credit, no confirmed_at), as the rep path left an order over a limit.
  * It meets sales_order_total, sales_order_confirmed, sales_order_confirmed_clear and
- * sales_order_channel_shape. Run the returned SQL as postgres; the rep needs a rep_day row for today
+ * sales_order_channel_shape. Run the returned SQL as postgres; the rep needs an open rep_day (status open) today
  * (the caller's prelude opens it). Without one the SQL raises at once instead of inserting nothing.
  */
 const TODAY_KARACHI = "(now() at time zone 'Asia/Karachi')::date";
@@ -54,12 +54,12 @@ export const legacyOrderSql = (a: LegacyOrderArgs): string => {
   const channelVals = named ? `'rep_visit', '${a.repId}', ` : "";
   return `
   do $legacy$ begin
-    if not exists (select 1 from public.rep_day d where d.rep_id = '${a.repId}' and d.day = ${TODAY_KARACHI}) then
-      raise exception 'legacyOrderSql: rep ${a.repId} has no rep day today; open it before building a legacy order';
+    if not exists (select 1 from public.rep_day d where d.rep_id = '${a.repId}' and d.day = ${TODAY_KARACHI} and d.status = 'open') then
+      raise exception 'legacyOrderSql: rep ${a.repId} has no open rep day today; open it before building a legacy order';
     end if;
   end $legacy$;
   with day as (
-    select d.id from public.rep_day d where d.rep_id = '${a.repId}' and d.day = ${TODAY_KARACHI}
+    select d.id from public.rep_day d where d.rep_id = '${a.repId}' and d.day = ${TODAY_KARACHI} and d.status = 'open'
   ), made as (
     insert into public.sales_order (id, client_id, salon_id, ${channelCols}rep_id, rep_day_id, plan, delivery_mode,
                                      status, subtotal_paisa, discount_paisa, total_paisa, hold_credit, confirmed_at)
