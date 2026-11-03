@@ -20,6 +20,7 @@ const one = async (who: Who, sql: string, params: unknown[] = []) => (await run(
 
 const UNIT = 100000; // one unit lists at Rs 1,000
 const DISCOUNTED = 90000; // Rs 900: below the list price, so a discount
+const DEEP_DISCOUNT = 50000; // Rs 500: 50% off, above the owner threshold (approval.discount.owner_above, 10%)
 const INST4_QTY = 4;
 const CREDIT_LIMIT = 100000000;
 const LOW_LIMIT = UNIT; // Rs 1,000: four units on INST4 go over it
@@ -281,8 +282,31 @@ describe("the office creates orders (D-30)", () => {
     expect(await txCode([create("manager", id(), { salon: id() })])).toBe(BAD_INPUT);
   });
 
-  it("converting an order card is not available yet", async () => {
-    expect(await txError([create("manager", id(), { card: id() })])).toContain("converting an order card is not available yet");
+  it("an unknown order card is refused 22023 (conversion itself: order-cards.test.ts)", async () => {
+    expect(await txCode([create("manager", id(), { card: id() })])).toBe(BAD_INPUT);
+    expect(await txError([create("manager", id(), { card: id() })])).toContain("unknown order card");
+  });
+
+  it("the owner's discount above the owner threshold still needs no approval; the audit insert row records it", async () => {
+    const cid = id();
+    const [o, audit] = await tx([
+      create("owner", cid, { unitPrice: DEEP_DISCOUNT }),
+      [
+        "postgres",
+        `select o.status::text as status, o.discount_by_owner, o.discount_paisa,
+                (select count(*)::int from control.approval_request r where r.subject_type = 'sales_order' and r.subject_id = o.id) as approvals,
+                null::jsonb as after
+         from public.sales_order o where o.client_id = '${cid}'
+         union all
+         select null, null, null, null, e.after
+         from control.audit_event e
+         where e.table_name = 'public.sales_order' and e.action = 'INSERT' and e.row_id = ${ORDER_OF(cid)}::text;`,
+      ],
+    ]);
+    expect(o).toMatchObject({ status: "confirmed", discount_by_owner: true, approvals: 0 });
+    expect(Number(o.discount_paisa)).toBe(UNIT - DEEP_DISCOUNT);
+    expect(audit.after).toMatchObject({ discount_by_owner: true, created_by: fx.owner.id, source_channel: "office" });
+    expect(Number((audit.after as { discount_paisa: number }).discount_paisa)).toBe(UNIT - DEEP_DISCOUNT);
   });
 
   it("app.build_order is not callable by any app role", async () => {

@@ -6,7 +6,7 @@
 --       ACTIVITY D-30 (MJ: reps no longer create orders; the office does, directly or from a rep's
 --       card; the salon portal is reserved), L-0363, L-0385 (a rep-less order is delivered by the office).
 --
--- What is built (the schema, office order creation; cards' RPCs come in later tasks of PR A):
+-- What is built (the schema, office order creation, order cards and their conversion):
 --   * public.order_channel and sales_order.source_channel (rep_visit, office, salon_portal). Every
 --     existing order is a rep_visit order. The column keeps a default of rep_visit only so that the
 --     rep path app.create_order, which is refused for reps in a later task, still inserts today.
@@ -26,6 +26,10 @@
 --     app.evaluate_order matches the discount approval's maker against created_by instead of rep_id.
 --   * sales_order.discount_by_owner (MJ 2026-11-04, "Yes, no approval"): the owner's own discount on an
 --     office order needs no approval request and holds nothing; the audit insert row records it.
+--   * Order cards (ORD-14): app.rep_create_card (a rep, approved phone, open day, salon in its territory),
+--     app.my_cards (the rep's last 50 cards and how they ended), app.office_open_cards (open cards, up to
+--     200, oldest first), app.office_dismiss_card (a reason of 5+ characters), and
+--     app.office_create_order(p_intake_card_id) converting a card. A card closes once (55000 after that).
 -- =============================================================================
 
 -- ------------------------------------------------------------------ channel ----
@@ -343,7 +347,10 @@ end $$;
 -- D-30: the owner or a manager makes an order for any salon. No rep and no rep day; an assigned rep
 -- (who delivers it from the bag) must be an active rep currently covering the salon's territory,
 -- otherwise the office delivers it from the warehouse. Idempotent on client_id (ORD-10): the same
--- creator, salon, plan and card get the same order back. Converting an order card comes in a later task.
+-- creator, salon, plan and card get the same order back, checked before the card's open test.
+-- ORD-14: with p_intake_card_id the order converts a rep's card. The card row is locked, must exist
+-- and be for this salon (22023) and still be open (55000); the 'converted' close row is written in the
+-- same transaction as the order. The assigned rep may differ from the card's rep (the page pre-selects it).
 create function app.office_create_order(
   p_client_id uuid, p_salon_id uuid, p_plan public.plan_code, p_lines jsonb,
   p_assigned_rep_id uuid default null, p_intake_card_id uuid default null)
@@ -353,10 +360,8 @@ declare
   v_role public.app_role := app.assert_office();
   o      public.sales_order;
   v_area uuid;
+  k      public.order_intake_card;
 begin
-  if p_intake_card_id is not null then
-    raise exception using errcode = '22023', message = 'converting an order card is not available yet';
-  end if;
   select * into o from public.sales_order where client_id = p_client_id;
   if o.id is not null then
     if o.created_by = auth.uid() and o.salon_id = p_salon_id and o.plan = p_plan
@@ -364,6 +369,16 @@ begin
       return o;                                                                -- replay
     end if;
     raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if p_intake_card_id is not null then
+    select * into k from public.order_intake_card c where c.id = p_intake_card_id for update;   -- one close per card
+    if k.id is null then raise exception using errcode = '22023', message = 'unknown order card'; end if;
+    if k.salon_id is distinct from p_salon_id then
+      raise exception using errcode = '22023', message = 'the order card is for another salon';
+    end if;
+    if exists (select 1 from public.order_intake_card_close x where x.card_id = k.id) then
+      raise exception using errcode = '55000', message = 'this order card is already closed';
+    end if;
   end if;
   select s.area_id into v_area from public.salon s where s.id = p_salon_id;
   if not found then raise exception using errcode = '22023', message = 'unknown salon'; end if;
@@ -375,9 +390,15 @@ begin
     raise exception using errcode = '22023',
       message = 'the assigned rep must be an active rep who covers this salon''s territory';
   end if;
-  return app.build_order(p_client_id, p_salon_id, p_plan,
-                         case when p_assigned_rep_id is null then 'warehouse' else 'bag_now' end::public.delivery_mode,
-                         p_lines, 'office', null, null, null, p_assigned_rep_id, p_intake_card_id, null);
+  o := app.build_order(p_client_id, p_salon_id, p_plan,
+                       case when p_assigned_rep_id is null then 'warehouse' else 'bag_now' end::public.delivery_mode,
+                       p_lines, 'office', null, null, null, p_assigned_rep_id, p_intake_card_id, null);
+  if p_intake_card_id is not null then
+    perform app.set_purpose('order card converted');
+    insert into public.order_intake_card_close (card_id, outcome, order_id, closed_by)
+    values (p_intake_card_id, 'converted', o.id, auth.uid());
+  end if;
+  return o;
 end $$;
 
 -- ------------------------------------------------------------ order checks ----
@@ -440,3 +461,116 @@ revoke execute on function
   app.office_create_order(uuid, uuid, public.plan_code, jsonb, uuid, uuid)
   from public, anon, authenticated, service_role;
 grant execute on function app.office_create_order(uuid, uuid, public.plan_code, jsonb, uuid, uuid) to authenticated;
+
+-- -------------------------------------------------------------- order cards ----
+-- ORD-14, D-30: at a visit a rep saves what the salon needs as a card (not an order). Same day, device
+-- and territory checks as app.log_visit. Idempotent on client_id (H-08): the same rep, salon, body and
+-- visit get the same card back.
+create function app.rep_create_card(p_client_id uuid, p_salon_id uuid, p_body text, p_visit_id uuid default null)
+returns public.order_intake_card
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_actor_ready();
+  k      public.order_intake_card;
+  v_day  uuid;
+  v_body text := btrim(p_body);
+begin
+  if v_role <> 'rep' then perform app.raise_denied('only reps save order cards'); end if;
+  select * into k from public.order_intake_card where client_id = p_client_id;
+  if k.id is not null then
+    if k.rep_id = auth.uid() and k.salon_id = p_salon_id and k.body = v_body
+       and k.visit_id is not distinct from p_visit_id then
+      return k;                                                                -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  v_day := app.my_open_day_id();
+  if v_day is null then perform app.raise_denied('check in before saving order cards (PIP-09)'); end if;
+  if not app.rep_can_reach_salon(p_salon_id) then
+    perform app.raise_denied('reps save order cards only for salons in their own territories');
+  end if;
+  if v_body is null or length(v_body) not between 1 and 2000 then
+    raise exception using errcode = '22023', message = 'an order card needs a note of 1 to 2000 characters';
+  end if;
+  if p_visit_id is not null and not exists (
+       select 1 from public.visit v where v.id = p_visit_id and v.rep_id = auth.uid() and v.salon_id = p_salon_id
+         and v.rep_day_id = v_day) then
+    raise exception using errcode = '22023', message = 'the visit must be the rep''s visit to this salon today';
+  end if;
+  perform app.set_purpose('order card saved');
+  insert into public.order_intake_card (client_id, salon_id, rep_id, rep_day_id, visit_id, body)
+  values (p_client_id, p_salon_id, auth.uid(), v_day, p_visit_id, v_body)
+  returning * into k;
+  return k;
+end $$;
+
+-- The rep's own cards (newest 50) and how each ended: open, converted (with the order) or dismissed
+-- (with the reason). The salon's name is shown only while the rep still covers it, as in app.my_orders.
+create function app.my_cards()
+returns table (card_id uuid, salon_id uuid, salon_name text, body text, created_at timestamptz, status text,
+               order_id uuid, reason text)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.assert_actor_ready() <> 'rep' then perform app.raise_denied('order cards are listed for reps only'); end if;
+  return query
+  select c.id, c.salon_id, case when app.rep_can_reach_salon(c.salon_id) then s.name end, c.body, c.created_at,
+         coalesce(x.outcome, 'open'), x.order_id, x.reason
+  from public.order_intake_card c
+  join public.salon s on s.id = c.salon_id
+  left join public.order_intake_card_close x on x.card_id = c.id
+  where c.rep_id = auth.uid()
+  order by c.created_at desc, c.id
+  limit 50;
+end $$;
+
+-- The office's queue: every card not yet converted or dismissed, oldest first, up to 200.
+create function app.office_open_cards()
+returns table (card_id uuid, salon_id uuid, salon_name text, rep_id uuid, rep_name text, body text,
+               created_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.assert_office();
+  return query
+  select c.id, c.salon_id, s.name, c.rep_id, u.full_name, c.body, c.created_at
+  from public.order_intake_card c
+  join public.salon s on s.id = c.salon_id
+  join public.user_profile u on u.id = c.rep_id
+  where not exists (select 1 from public.order_intake_card_close x where x.card_id = c.id)
+  order by c.created_at, c.id
+  limit 200;
+end $$;
+
+-- The office closes a card without an order, with a reason of at least 5 characters. The card row is
+-- locked first, so a dismissal and a conversion cannot both close it (55000 for the second).
+create function app.office_dismiss_card(p_card_id uuid, p_reason text)
+returns public.order_intake_card_close
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role   public.app_role := app.assert_office();
+  k        public.order_intake_card;
+  x        public.order_intake_card_close;
+  v_reason text := btrim(p_reason);
+begin
+  if v_reason is null or length(v_reason) < 5 then
+    raise exception using errcode = '22023', message = 'a dismissal needs a reason of at least 5 characters';
+  end if;
+  select * into k from public.order_intake_card c where c.id = p_card_id for update;
+  if k.id is null then raise exception using errcode = '22023', message = 'unknown order card'; end if;
+  if exists (select 1 from public.order_intake_card_close c where c.card_id = k.id) then
+    raise exception using errcode = '55000', message = 'this order card is already closed';
+  end if;
+  perform app.set_purpose('order card dismissed');
+  insert into public.order_intake_card_close (card_id, outcome, reason, closed_by)
+  values (k.id, 'dismissed', v_reason, auth.uid())
+  returning * into x;
+  return x;
+end $$;
+
+revoke all on function
+  app.rep_create_card(uuid, uuid, text, uuid), app.my_cards(), app.office_open_cards(),
+  app.office_dismiss_card(uuid, text)
+  from public, anon, authenticated, service_role;
+grant execute on function
+  app.rep_create_card(uuid, uuid, text, uuid), app.my_cards(), app.office_open_cards(),
+  app.office_dismiss_card(uuid, text)
+  to authenticated;
