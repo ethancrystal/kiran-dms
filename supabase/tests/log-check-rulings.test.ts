@@ -135,6 +135,25 @@ describe("log check: board moves to VERIFIED (council audit finding 2)", { timeo
     expect(check({}, verdict(BUILDER, "CORRECTION"), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(1);
     expect(check({}, ENTRY, setStatus("P0-02", "VERIFIED (L-9999)"))).toBe(1);
   });
+
+  // MJ, L-0401: a builder may verify its own work, but the entry must say so. The unmarked
+  // verdict by the maker above still fails; the same verdict with the line passes, and an
+  // empty line does not count.
+  const selfVerdict = (sig: string, type: string, line: string) => {
+    const v = verdict(sig, type);
+    const afterEvidence = v.findIndex((l) => l.startsWith("**Evidence:**")) + 1;
+    v.splice(afterEvidence, 0, line);
+    return v;
+  };
+  it("a verdict by the maker passes only with a non-empty Self-verification line (MJ, L-0401)", () => {
+    const declared = "**Self-verification:** the builder verifies its own work (MJ, L-0401).";
+    expect(check({}, selfVerdict(BUILDER, "CORRECTION", declared), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(0);
+    expect(check({}, selfVerdict(BUILDER, "VERIFIED", declared), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(0);
+    expect(check({}, selfVerdict(BUILDER, "VERIFIED", declared))).toBe(0);
+    expect(check({}, verdict(BUILDER, "VERIFIED"))).toBe(1);
+    expect(check({}, selfVerdict(BUILDER, "VERIFIED", "**Self-verification:**"), setStatus("P0-02", "VERIFIED (L-NEXT)"))).toBe(1);
+    expect(check({}, selfVerdict(BUILDER, "VERIFIED", "Self-verification: unbolded"))).toBe(1);
+  });
 });
 
 describe("log check: history pass (council audit finding 3)", { timeout: 300_000 }, () => {

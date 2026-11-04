@@ -378,10 +378,10 @@ After approval and when the roadmap permits, build one verifiable slice at a tim
 
 This list does not override the existing numbered roadmap. If the actual task dependencies differ, document and obtain approval for the deviation.
 
-### Stage E — Independent verification and handoff
+### Stage E — Verification and handoff
 
-- Builder may report DONE (self-reported), never VERIFIED.
-- Independent verifier or MJ attempts the negative access and reconciliation tests.
+- Builder may report DONE (self-reported) and may also verify its own work (VERIFIED) with real evidence, saying so on a `**Self-verification:**` line (ACTIVITY §7, MJ L-0401).
+- The verifier (the builder, another agent or MJ) attempts the negative access and reconciliation tests.
 - Re-run from a clean checkout where practical.
 - Record branch, commit, PR, commands, pass/fail counts, unverified items, blockers, assumptions and handoff in docs/ACTIVITY.md.
 - Do not claim the entire CRM or all domains are complete unless every required journey is proven end to end.

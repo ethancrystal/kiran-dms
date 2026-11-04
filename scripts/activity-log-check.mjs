@@ -4,7 +4,8 @@
  * L-0035, L-0042).
  *
  * This is a tripwire, not a proof: it catches mistakes and cheap evasions in a text file.
- * Branch protection and a human reviewer who is not the author remain the real control.
+ * Branch protection and MJ's approval in chat for each merge remain the real control
+ * (docs/ACTIVITY.md section 10; no second reviewer is required, MJ L-0401).
  * Rather than recognising every Markdown trick, ACTIVITY.md is held to a narrow structure:
  * no raw HTML, entities, comments or setext headings anywhere; the only lines that look
  * like entries are canonical entry headers; and new log text may contain no other headings.
@@ -24,12 +25,15 @@
  *     a small allowlist;
  *  4. DONE/VERIFIED lacks the security checklist; a VERIFIED entry names no task, names a
  *     task with no DONE entry, or shares a signature (equal, contained, or same
- *     "session <id>") with any DONE entry for a task it names (§7, MJ ruling L-0029);
+ *     "session <id>") with any DONE entry for a task it names and has no non-empty
+ *     "**Self-verification:**" line (§7: a builder may verify its own work but must say so,
+ *     MJ L-0401, replacing the maker-differs rule of L-0029);
  *     4b. a §12 board row (read as GitHub renders the table) changes its Status to anything
  *     mentioning VERIFIED other than exactly "VERIFIED (L-nnnn)" (a reopen note "was VERIFIED
  *     L-nnnn" excepted), a changed Status cell has non-ASCII outside the allowlist or Markdown
- *     marks, a task has two board rows, or the cited entry is not an independent VERIFIED or
- *     CORRECTION entry naming the task, with the checklist, newer than its latest DONE (L-0116);
+ *     marks, a task has two board rows, or the cited entry is not a VERIFIED or CORRECTION
+ *     entry naming the task, with the checklist, newer than its latest DONE (L-0116), and with
+ *     a "**Self-verification:**" line if it is signed by the same agent as a DONE for the task;
  *  5. an added line contains a secret-looking value, supplier/cost wording outside vault
  *     migrations, tests and docs, or an owner-listed sensitive term; or a file whose name
  *     starts with `.env` (other than `.env.example`) is added or changed. Secret patterns,
@@ -426,6 +430,9 @@ const sameAgent = (a, b) => {
   const sx = sessionOf(a);
   return x === y || x.includes(y) || y.includes(x) || (sx !== null && sx === sessionOf(b));
 };
+// A builder may verify its own work (MJ, L-0401) but must say so: a VERIFIED or CORRECTION entry
+// signed by the same agent as a DONE for the task needs a non-empty **Self-verification:** line.
+const declaresSelfVerification = (body) => /\*\*Self-verification:\*\*[ \t]*\S/.test(body);
 const taskLine = (body) => (body.match(/\*\*Task:\*\*([^\n]*)/) || [])[1] ?? "";
 // Dashes are normalised so "P0–04" (en dash) is read as P0-04 and checked (L-0055 L2).
 const taskText = (body) => taskLine(body).replace(/\*\*Claim:\*\*.*$/, "").replace(/[‐-―−]/g, "-");
@@ -452,7 +459,7 @@ for (const e of newEntries) {
       const dones = H.entries.filter((d) => d.type === "DONE" && taskIds(d.body.join("\n")).includes(task));
       if (dones.length === 0) fail(`${e.id}: ${task} has no DONE entry to verify.`);
       for (const done of dones) {
-        if (sameAgent(done.sig, e.sig)) fail(`${e.id}: VERIFIED by the same agent as DONE ${done.id} for ${task} ("${done.sig}"); maker must differ from checker.`);
+        if (sameAgent(done.sig, e.sig) && !declaresSelfVerification(body)) fail(`${e.id}: VERIFIED by the same agent as DONE ${done.id} for ${task} ("${done.sig}") without a **Self-verification:** line; a builder verifying its own work must say so (MJ, L-0401).`);
       }
     }
   }
@@ -569,7 +576,7 @@ if (baseText) {
     const dones = H.entries.filter((d) => d.type === "DONE" && taskIds(d.body.join("\n")).includes(task));
     if (dones.length === 0) fail(`§12 board: ${task} moved to VERIFIED but has no DONE entry.`);
     for (const done of dones) {
-      if (sameAgent(done.sig, v.sig)) fail(`§12 board: ${task} is verified by ${v.id}, signed by the same agent as DONE ${done.id} ("${done.sig}"); maker must differ from checker.`);
+      if (sameAgent(done.sig, v.sig) && !declaresSelfVerification(vBody)) fail(`§12 board: ${task} is verified by ${v.id}, signed by the same agent as DONE ${done.id} ("${done.sig}"), without a **Self-verification:** line; a builder verifying its own work must say so (MJ, L-0401).`);
     }
     // D4: the verdict must be newer than the task's latest DONE entry (a reopened task needs a
     // fresh verification; MJ L-0110).

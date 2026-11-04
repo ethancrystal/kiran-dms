@@ -506,11 +506,11 @@ This sequence does not automatically override the existing phase board or Phase 
 | S8 | Office dashboards and exception reporting | Canonical events from S2-S7 | Every metric is source-backed and channel-aware |
 | S9 | Growth and optimization | Stable pilot evidence | Route optimization, automated reorder, discovery and demand forecasts measured against real usage |
 
-**Implementation rule:** Deliver each slice as the smallest complete vertical slice: migrations/constraints, server function, RLS, UI, negative-path handling, tests, activity evidence and independent review. Do not create disconnected screens, mock success states, client-only enforcement or speculative tables without inspecting existing code.
+**Implementation rule:** Deliver each slice as the smallest complete vertical slice: migrations/constraints, server function, RLS, UI, negative-path handling, tests, activity evidence and verification (by the builder or another agent, ACTIVITY §7, MJ L-0401). Do not create disconnected screens, mock success states, client-only enforcement or speculative tables without inspecting existing code.
 
 ## 10. Verification and acceptance matrix
 
-The independent reviewer verifies evidence from the exact commit, not an implementation agent's self-report.
+The verifier (the builder itself is allowed, ACTIVITY §7, MJ L-0401) verifies evidence from the exact commit by running it, not by restating a summary.
 
 | Test area | Minimum proof |
 |---|---|
@@ -537,7 +537,7 @@ Required test layers:
 - Browser tests for representative, salon and office journeys using distinct test identities.
 - Negative/attack tests for IDOR, cross-tenant reads, forged attribution, mass assignment, replay, stale price and stock race conditions.
 - Device tests on supported Android/browser configurations for geolocation permissions, background suspension, battery and reconnect behaviour.
-- Independent verification and current branch-protection checks before any merge.
+- Verification (by the builder or another agent, ACTIVITY §7) and current branch-protection checks before any merge; merging needs MJ's OK in chat for that pull request, no second reviewer (ACTIVITY section 10, MJ L-0401).
 - No production data or production deployment as part of planning or ordinary implementation work.
 
 ## 11. Decisions that must remain open
@@ -577,7 +577,7 @@ A module is not complete until all applicable items are true:
 6. UI supports the full successful and failure path for the intended actor.
 7. Audit, idempotency, concurrency and reconciliation are addressed where relevant.
 8. End-to-end browser/device tests prove the full journey.
-9. An independent reviewer verifies exact-commit evidence.
+9. A verifier (the builder or another agent, ACTIVITY §7, MJ L-0401) verifies exact-commit evidence.
 10. ACTIVITY, status board and relevant plans are updated without claiming owner acceptance or phase completion.
 
 **Product outcome:** One Karachi salon-distribution operation with two legitimate order channels, trusted field activity/location evidence, one shared catalogue and stock model, salon-specific prices, and one auditable order-to-cash process.
