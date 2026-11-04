@@ -52,7 +52,7 @@ These are proposals to be confirmed and quantified by the owner once the Excel d
 
 ### System goals
 
-1. A new rep can be onboarded, given a territory and a phone, and be taking orders **within one working day**.
+1. A new rep can be onboarded, given a territory and a phone, and be recording visits, order cards and collections **within one working day** (reps do not place orders, D-30).
 2. The owner can answer *"how much are we owed, by whom, and who is collecting it?"* in **under 10 seconds**, from a phone.
 3. The supplier's identity and Kiran's cost prices **never appear** on any screen, export, document, or API response available to a rep — enforced by the database.
 4. The system works on a **low-end Android phone with patchy data** in a salon basement in Saddar.

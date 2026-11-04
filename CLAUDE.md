@@ -30,7 +30,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 | `supabase/migrations/` | Forward-only SQL migrations: schemas, tables, RLS, SECURITY DEFINER functions, triggers. |
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
 | `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |
-| `apps/web/` | Next.js app: `/app` (rep PWA), `/salon` (salon customer portal) and `/office` (owner/manager). |
+| `apps/web/` | Next.js app: `/app` (rep PWA) and `/office` (owner/manager). Planned, not built: `/salon` (salon customer portal, Phase 2 in doc 11). |
 | `packages/shared/` | **Planned, not built yet** (first needed by the offline PWA, P1-09; P1-02 parts a and b shipped without it): types generated from the DB, validation schemas, i18n strings (en, ur). Today the import normalisers live in `packages/import/src/core/`. |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes nothing to any database. |
 | `SPEC.md` | Entry-point index: objective, journeys, feature map, code style, boundaries. The docs win on any disagreement. |

@@ -13,14 +13,14 @@ A rep for this business walks or bikes a territory, talks to salon owners and he
 
 Pay structure (proposal, to be set by the owner): modest fixed salary + commission on **collected and banked** cash (not on invoiced sales) (superseded by D-31: delivered and invoiced value; rates set by owner or manager) + a bonus per new salon that places a **second paid** order. This alignment is itself an anti-fraud control: fake orders, uncollected sales and churned "new" salons earn nothing.
 
-## 2. Onboarding — from offer to first order in one working day
+## 2. Onboarding — from offer to first order card in one working day
 
 | Step | What happens | System support |
 |---|---|---|
 | 1. Profile | Owner creates the user (owner-only): name, phone, CNIC (encrypted), photo, emergency contact, guarantor, commission rate (set by the owner or manager, D-31), start date | FLD-01 |
 | 2. Device | Rep installs the PWA on their (approved) phone; first login via an email one-time code (ACTIVITY L-0101) registers the device; manager approves it | SEC-03 |
 | 3. Territory | Manager assigns one territory and the route days | PIP-01, PIP-04 |
-| 4. Training (half day) | The in-app checklist walks the rep through: check-in, map and pins, nearby discovery, visit outcomes, building an order, payment plans and credit limits, recording cash vs. transfer, receipts to WhatsApp, bag stock, evening handover and stock close, and the **rules** in §4 | FLD-04 |
+| 4. Training (half day) | The in-app checklist walks the rep through: check-in, map and pins, nearby discovery, visit outcomes, recording a New Order Details card (reps do not place orders, D-30), payment plans and credit limits, recording cash vs. transfer, receipts to WhatsApp, bag stock, evening handover and stock close, and the **rules** in §4 | FLD-04 |
 | 5. Stock | Manager issues starter bag stock within the bag value limit; rep confirms count in-app | INV-03, CTL-05 |
 | 6. First day shadowed | Manager rides along for the first route; the route is seeded with 5–8 existing active salons and 5+ prospects | PIP-03 |
 | 7. Probation | 30 days: lower bag limit, no credit-plan orders above a small cap without approval, daily manager review of the scorecard | FLD-02 |
