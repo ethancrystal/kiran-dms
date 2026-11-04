@@ -11,10 +11,10 @@ flowchart TB
 
     subgraph SURFACES["Kiran DMS access surfaces"]
       OFFICE["Office / Admin Console\nOwner governance + manager operations"]
-      REPAPP["Rep PWA\nTerritories, routes, bag, visits, orders, collections"]
+      REPAPP["Rep PWA\nTerritories, routes, bag, visits, order requests, collections"]
       AGENTAPP["Agent Workspace\nOwn catalogue, availability, paid purchases"]
       INVESTORAPP["Proposed Investor Workspace\nOwn contributions, batch allocations, statements"]
-      SALON_PORTAL["Salon Customer Portal\nCatalogue, salon price, safe stock, own orders"]
+      SALON_PORTAL["Salon Customer Portal\nCatalogue, salon price, own requests and orders"]
       SALON_TOUCH["Customer notifications and documents\nInvoices, receipts, statements, reminders"]
       VAULTUI["Restricted Procurement / Vault UI\nAuthorised internal Kiran users only"]
     end
@@ -26,7 +26,7 @@ flowchart TB
       CATALOG["Product, SKU and selling-price catalogue"]
       PROCUREMENT["Supplier records, purchase orders, goods receipts"]
       INVENTORY["Warehouse stock, batches and stock movements"]
-      SALON_SALES["One salon order engine\nrep_visit + salon_portal, fulfilment, invoices, receivables"]
+      SALON_SALES["One salon order engine\noffice + salon_portal, rep_visit legacy, fulfilment, invoices, receivables"]
       PUBLIC_STOCK["Customer-safe aggregate stock projection"]
       AGENT_SALES["Agent cash-and-carry sales"]
       CAPITAL["Investor capital ledger\nContributions and batch allocations"]

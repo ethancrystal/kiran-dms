@@ -20,19 +20,23 @@ Principles: ship the ledger and the controls first, because they are what make h
 
 **Goal:** one rep can run a full day in one territory, and every rupee and unit is accounted for by evening. The owner sees everything from a phone.
 
+**Scope extended by MJ on 2026-11-05 (D-41):** the salon portal, invitations, commission payments, the basic investor ledger, product pictures and per-salon prices are now Phase 1. This states what is approved, not what is built. Slices: `docs/superpowers/specs/2026-11-05-reps-salons-catalogue-investors-design.md` section 6; status: the ACTIVITY board, P1-18 to P1-24.
+
 | Area | Scope (requirement IDs) |
 |---|---|
-| Salons & map | SAL-01…05, 09, 10 · MAP-01, 02, 03, 12 · stage machine with manual override (PIP-02 visits, PIP-07 quick-add, PIP-09 check-in gating) |
+| Salons & map | SAL-01…05, 09 (read-only rep), 10, 13, 14 · MAP-01, 02, 03, 12 · stage machine with manual override (PIP-02 visits, PIP-07 quick-add, PIP-09 check-in gating) |
 | Routes | PIP-03 manual route building by manager; rep can reorder; PIP-05/06 thin due-list (D-19) |
-| Orders & invoices | ORD-01…05, 14 (office-created orders and rep order-intake cards; no rep-created orders). Rep intake cards work offline under NFR-01; canonical salon-portal ordering is Phase 2 (ORD-11…13). |
+| Orders & invoices | ORD-01…05, 07 (SKU and per-salon prices), 11…15 (office-created orders from rep and salon order requests, or directly; no rep-created orders, D-34). Rep requests work offline under NFR-01; salon requests are online only. |
+| Salon portal | SAL-11, 12 · ORD-12, 13 · SEC-13…15: invitation, own account, shared catalogue with pictures, own prices, requests, orders, payments and balance (D-41) |
 | Payments | PAY-01, 02, 03 (generate), 04, 05, 07, 10, 11; manual overdue flags (PAY-08 manual) |
-| Stock | INV-01…06 (manual reorder points); INV-11 route-linked bag load (D-19) |
+| Stock | INV-01…06 (manual reorder points); INV-11 route-linked bag load (D-19); INV-13 product pictures and descriptions |
 | Lost demand | DEM-01, DEM-02, DEM-03 (report) (D-18) |
 | Agents | AGT-01, 02, 03, 04, 06 (D-15 to D-17) |
 | Vault | VLT-01…06 |
-| Security | SEC-01…08, 10, 11, 12 |
-| Controls | CTL-13 commission on delivered and invoiced value of assigned orders (D-31, brought into Phase 1 by ACTIVITY L-0385), CTL-01 (receipt via WhatsApp — template-dependent; SMS fallback first if templates lag), 02, 03, 04, 05, 06, 07, 08, 09, 11 (manual list), 15, 16, 17, 18 — the full doc 13 prevention layer; detectors (CTL-14) follow in Phase 2 |
-| Field | FLD-01 |
+| Security | SEC-01…08, 10, 11, 12, 13…17 (invitations and manager powers, D-39) |
+| Controls | CTL-13 commission on delivered and invoiced value of assigned orders (D-31 as amended by D-38, brought into Phase 1 by ACTIVITY L-0385), CTL-01 (receipt via WhatsApp — template-dependent; SMS fallback first if templates lag), 02, 03, 04, 05, 06, 07, 08, 09, 11 (manual list), 15, 16, 17, 18 — the full doc 13 prevention layer; detectors (CTL-14) follow in Phase 2 |
+| Field | FLD-01, FLD-03 (rates and the rep's own view), FLD-06 (commission payment records, D-38) |
+| Investors | CAP-01…03: basic office ledger, no calculation or distribution engine, no investor login (D-40) |
 | Reports | RPT-01, 02 |
 | Messaging | MSG-03 in-app notifications; receipts out via SMS/WhatsApp as soon as templates are approved |
 | Admin | ADM-01 (templates, credit rules, groups, outcome codes, territories), ADM-02, ADM-03 |
@@ -57,13 +61,13 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Map & discovery | MAP-04…09, 11, 13 (nearby discovery, convert, pins-to-route, timelines, manager live map) |
 | Pipeline | PIP-04, 05, 06, 08, 10, 11 (route days, cycle engine, due tasks, sweep mode, geofence flags) |
 | Collections | PAY-06 (bank reconciliation), PAY-08 timers, PAY-09 credit rules automation |
-| Orders | ORD-06 returns, ORD-07 price lists & special pricing, ORD-09 suggestions |
-| Salon portal and dual-channel ordering | SAL-11/12, ORD-11/13, SEC-13/15: secure salon membership, own-salon catalogue/price/stock/order/document reads, portal order submission through the common order engine (manager approval first, D-30) |
-| Shared order channel model and safe stock visibility | ORD-11/12, SEC-14/15, INV-12: one canonical order aggregate with explicit office/salon_portal channel, authenticated creator, optional intake-card link and delivering rep; salon membership isolation and allow-listed customer data; safe aggregate on-hand and available-to-order values |
+| Orders | ORD-06 returns, ORD-07 dated price lists (per-salon prices moved to Phase 1, D-37), ORD-09 suggestions |
+| Salon portal and dual-channel ordering | Moved to Phase 1 by D-41; no longer Phase 2 scope. Only stock shown to salons stays here (INV-12) |
+| Safe stock visibility | INV-12: safe aggregate on-hand and available-to-order values for authorized users, including salons (the order channel model and membership isolation moved to Phase 1 by D-41) |
 | Stock | INV-07 restock suggestions, INV-08 batches/expiry, INV-09 counts, INV-10 valuation (vault) |
 | Vault | VLT-07 column encryption (if not already in Phase 1) |
 | Controls | CTL-10 monthly statements + dispute, CTL-11 automated confirmations, CTL-12 quarantine returns, CTL-13 commission (moved to Phase 1 by D-31), CTL-14 anomaly jobs |
-| Field | FLD-02 scorecard, FLD-03 commission statement and payouts only if approved (the earned-commission view is Phase 1, D-31), FLD-04 onboarding checklist, FLD-05 live map |
+| Field | FLD-02 scorecard, FLD-03 monthly commission statement and new-salon bonus only if approved (rates, the rep's view and payment records are Phase 1, D-38), FLD-04 onboarding checklist, FLD-05 live map |
 | Active location | PIP-12/13: open-rep-day location samples, office current/stale map and approved history; exact tracking policy follows OQ-32 |
 | Messaging | MSG-01, 02, 04 |
 | Reports | RPT-03 funnel, RPT-04 margin (vault), RPT-05 accountant pack |
@@ -90,7 +94,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 | W9–W12 | Pilot with the existing sales appointee, one territory |
 | End W12 | Go/no-go for hiring rep 2 |
 | End W16 | Nearby discovery, routes from pins, cycle engine live |
-| End W20 | 3 reps, 3 territories, commissions (earned on delivered and invoiced value from Phase 1, D-31), bank reconciliation |
+| End W20 | 3 reps, 3 territories, commissions (earned on delivered and invoiced value and payment records from Phase 1, D-31, D-38), bank reconciliation |
 | Month 9 | Phase 3 complete; external security test |
 
 ## Effort estimate (developer weeks)
@@ -113,5 +117,5 @@ Part-time (≈ 50%) roughly doubles the calendar time of each phase.
 | Rep resists the app ("too slow") | Poor adoption, dirty data | Low-end phone testing; ≤ 60 s flows; ride-alongs; commission only through the system |
 | Manager sees controls as distrust | Friction | Frame controls as protection for the manager too (two-party handover protects them from a rep's accusation) |
 | Supplier identity leaks physically | Loss of the business's key secret | Receiving procedure in doc 07 §3; codename rule |
-| Scope creep before the pilot | MVP slips | Phase 1 scope frozen at end of W2; new ideas go to doc 12 |
+| Scope creep before the pilot | MVP slips | Phase 1 scope frozen at end of W2, extended only by MJ's decision (D-41); new ideas go to doc 12 |
 | Single developer | Bus factor | Docs in repo; CI-driven deploys; owner holds all credentials and recovery codes |

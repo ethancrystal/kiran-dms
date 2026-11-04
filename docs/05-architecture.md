@@ -27,7 +27,8 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 ┌──────────────────────── Rep phone (PWA) ───────────────────────┐
 │ Next.js client · IndexedDB cache + outbox · service worker     │
 │ Reads: capped app.* functions (own territories, masked phones) │
-│ Writes: RPC calls (log_visit, create_order, rep_record_payment)│
+│ Writes: RPC calls (log_visit, rep_create_card,                 │
+│         rep_record_payment)                                    │
 └───────────────┬────────────────────────────────────────────────┘
                 │ HTTPS (anon key + user JWT; AAL/device checked)
 ┌───────────────▼─────────────── Supabase ───────────────────────┐
@@ -49,7 +50,7 @@ Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo
 
 The Next.js application has three permission-separated workspace families: /app for the representative PWA, /salon for authenticated salon customers, and /office for Owner/Manager. These are presentation boundaries only; each backend action independently enforces the caller's role, device, territory or salon membership. Keep salon membership separate from the internal staff user_profile role.
 
-The salon portal uses dedicated read/write procedures. Resolve salon ID from active server-side membership, not request parameters. Expose allow-listed catalogue, assigned-price, aggregate-stock, own-order and customer-document data. Never let salon users query internal salon CRM notes, raw stock movements/locations, rep location data or supplier/cost tables. Salon order submission calls the same canonical order domain function as the representative path, passing a verified actor context and source channel rather than duplicating order logic.
+The salon portal uses dedicated read/write procedures. Resolve salon ID from active server-side membership, not request parameters. Expose allow-listed catalogue, assigned-price, own-request, own-order and customer-document data (aggregate stock stays Phase 2, INV-12). Salons and reps join by invitation, with no service-role key in the app (D-39, SEC-16). Never let salon users query internal salon CRM notes, raw stock movements/locations, rep location data or supplier/cost tables. Salon order submission calls the same canonical order domain function as the representative path, passing a verified actor context and source channel rather than duplicating order logic.
 
 ### Active representative location architecture
 
@@ -71,8 +72,8 @@ Treat rep_day as the tracking boundary. Accept append-only location samples only
 |---|---|
 | What is cached | Today's route, the rep's salons (own territories), SKU list and prices, own bag stock, own cash position, open installments for own salons. Refreshed on each sync; stale after 24 h → read-only banner |
 | Capturing offline | Visits, orders, payments, prospects go into an **outbox** with `client_id`, `captured_at_client`, GPS fix, device id |
-| Syncing | On connectivity: outbox replays in order; each RPC returns `accepted` / `rejected(reason)`; rejected items stay visible to the rep with the reason (e.g., credit check failed on reconnect) and create a manager task |
-| Conflicts | Server rules win. Example: an offline order that breaches credit limit once synced becomes `draft` + approval request; the rep is told before delivering |
+| Syncing | On connectivity: outbox replays in order; each RPC returns `accepted` / `rejected(reason)`; rejected items stay visible to the rep with the reason (e.g., the salon is no longer in the rep's reach on reconnect) and create a manager task |
+| Conflicts | Server rules win. Example: an offline order request for a salon the rep can no longer reach is refused once synced and the rep is told. Reps create no orders offline or online (D-30, D-34); credit is checked when the office creates the order |
 | Receipts offline | Receipt number is allocated **on sync**, not on device; the rep shows a "pending receipt — will be sent to salon's WhatsApp within minutes of signal" screen. Paper receipts are never issued. (Doc 13 explains why this is a control, not a limitation) |
 | Stock offline | Deliveries from bag are allowed offline against cached bag stock; the server re-validates; negative stock on sync is a hard anomaly |
 | Security offline | Cached data encrypted at rest with a key held in memory for the session; cache wiped on logout, device revocation (next contact), or 7 days without sync |

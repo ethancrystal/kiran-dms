@@ -4,13 +4,15 @@ One row per step of MJ's master execution prompt (2026-11-01), mapped to what it
 
 The order journey (D-30 and its follow-up decisions): Phase 1 includes office-created orders and rep order-intake cards (ORD-01, ORD-14); Phase 2 includes the salon portal order channel and shared customer-safe reads (SAL-11/12, ORD-11/13, SEC-13/15, INV-12). Reps continue delivery and collections under L-0374; they do not create official orders. A portal order is editable or cancellable only until manager approval (L-0378); one invited login per salon, no sub-accounts for now (L-0382). The delivering rep of an office order is picked by the manager from the salon's territory reps, or none for a manager-direct or salon order (A-16, L-0385). The order rework is three pull requests in order (design spec `docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md` section 2): PR A, office orders and order cards; PR B, delivery submission and office approval (D-32); PR C, commission on delivered and invoiced value of assigned orders (D-31, Phase 1 by L-0385).
 
+**Amended 2026-11-05 (doc 16, D-33 to D-41):** the salon portal, invitations, commission payments, the investor ledger and per-salon prices moved to Phase 1 (D-41), and a salon's submission is now an order request (D-34). The remaining work is the project completion slices, P1-18 to P1-24 on the board, in the order of `docs/superpowers/specs/2026-11-05-reps-salons-catalogue-investors-design.md` section 6; PR C is replaced by the commission slice. Where this map and that spec differ, the spec wins; the Phase 2 wording above and below is kept as history of the plan at that time.
+
 This is many sessions of work. Each slice below is one branch and one pull request (prompt §12). Slices run in this order because each needs the one before.
 
 ## Hard gates (nothing below can be proven end to end until these are done)
 
 | Gate | Who | Blocks |
 |---|---|---|
-| G1. Owner account with TOTP on staging (gate-0 checklist) | MJ, human-only (ACTIVITY §10) | Every signed-in call on staging; manager and rep accounts are created by the owner (`app.owner_create_user`) |
+| G1. Owner account with TOTP on staging (gate-0 checklist) | MJ, human-only (ACTIVITY §10) | Every signed-in call on staging; manager and rep accounts are created by the owner (`app.owner_create_user`), and reps by invitation from the owner or manager once P1-18 ships (D-39) |
 | G2. A real local Supabase stack for browser tests (Auth + PostgREST + Postgres) | CI job | Prompt §13 "real local Supabase Auth and Postgres" |
 | G3. Pushing branches and opening pull requests | MJ approves each push | CI evidence (§16 "CI passes") |
 | G4. Owner decisions and blockers | MJ | Only the work item named by each current row in ACTIVITY §14/§15 |
@@ -29,15 +31,16 @@ This is many sessions of work. Each slice below is one branch and one pull reque
 
 | Module | Slice | Human or decision |
 |---|---|---|
-| A. Auth and users | 1 (office: devices, users) | G1; offboarding function missing (SEC-08) |
-| B. Salon CRM | 3 | B-31 a, b; Excel import waits on B-02 |
+| A. Auth and users | 1 (office: devices, users); P1-18 (invitations) | G1; offboarding function missing (SEC-08) |
+| B. Salon CRM | 3; P1-18 (approval, reachability), P1-24 (rep read-only, proposals, D-35) | B-28; B-31 a, b; Excel import waits on B-02 |
 | C. Territory and map | 1 (territories), 3 (map) | map provider needs MJ approval (H-21) |
 | D. Rep app | 2, 3, 4, 5, 6, 9 | B-31 c; D-30 (L-0363), rep delivery/collection retained (L-0374) |
 | E. Routes and due list | 2 (rep), 5 (office) | none |
-| F. Inventory | 5 | B-10 (real catalogue); B-31 f |
-| G. Orders | 4 | Office creates official orders; rep cards are converted by office (ORD-14); salon portal ordering is Phase 2 (ORD-11–13); delivering rep per A-16 (confirmed, L-0385); A-18 open (L-0386); PR B (delivery approval, D-32) and then PR C (commission, D-31) |
+| F. Inventory | 5; P1-19 (pictures, descriptions, manager and per-salon prices) | B-10 (real catalogue); B-31 f; OQ-33 |
+| G. Orders | 4; P1-23 | Office creates official orders; rep and salon requests are converted by office (ORD-14, ORD-15, D-34); salon portal is Phase 1 since D-41 (ORD-11–13); delivering rep per A-16 (confirmed, L-0385); A-18 open (L-0386); PR B (delivery approval, D-32, P1-21) and then commission (D-31, D-38, P1-22) |
 | H. Payments | 6 | See the P1-07 board row |
-| M. Salon portal | Phase 2 | Invitation-only, one login per salon (L-0376, L-0382); manager approval and pre-approval edit/cancel cutoff (L-0378) |
+| M. Salon portal | P1-18, P1-23 (Phase 1, D-41) | Invitation-only, one login per salon (L-0376, L-0382); manager approval and pre-approval edit/cancel cutoff (L-0378); stock shown to salons stays Phase 2 (INV-12) |
+| N. Commission and investors | P1-22, P1-20 | OQ-34; OQ-23, OQ-26, OQ-27, OQ-28 stay with MJ and advisers |
 | I. Vault | 7 | B-04; real supplier data is human-only |
 | J. Approvals and governance | 1 (devices), 5 (approvals queue), 7 (digest, offboarding) | B-01 (D-08) |
 | K. Owner dashboard | 7 | depends on H |
@@ -87,7 +90,7 @@ P1-09. The Phase 1 offline order artifact is the rep's ORD-14 intake card, not a
 1. Office shell: layout and navigation, devices, users, territories and assignments; CI job with a real local Supabase stack and Playwright (G2).
 2. Rep shell: check-in and check-out, territory, route and due list.
 3. Salons: list, detail (notes, visits, stages, phone reveal), create with pin, edit.
-4. **D-30 order rework (Phase 1):** office Orders area creates official orders; rep records a New Order Details card during an authorized visit; office converts and links the card. Preserve the common server-side SKU, price, stock, credit, idempotency and state rules. Reps remain read-only on official orders and retain delivery/payment actions as decided in L-0374. Do not implement salon portal ordering in this slice; it remains Phase 2 under docs 03 and 11. The delivering rep follows A-16 as confirmed by MJ (L-0385): picked from the salon's territory reps, the card's rep pre-selected, or none for a manager-direct or salon order. Three pull requests in order (design spec section 2): PR A, office orders, order cards and the Orders area (PR 48, L-0400); PR B, delivery submission and office approval with pending-delivery stock (D-32); PR C, commission rates and the commission area (D-31), after PR B. Verify B-31 (d) and (e) against the current decision table before changing invoice or delivery behavior.
+4. **D-30 order rework (Phase 1):** office Orders area creates official orders; rep records a New Order Details card during an authorized visit; office converts and links the card. Preserve the common server-side SKU, price, stock, credit, idempotency and state rules. Reps remain read-only on official orders and retain delivery/payment actions as decided in L-0374. This slice did not implement salon portal ordering; since D-41 that is P1-23. The delivering rep follows A-16 as confirmed by MJ (L-0385): picked from the salon's territory reps, the card's rep pre-selected, or none for a manager-direct or salon order. Three pull requests in order (design spec section 2): PR A, office orders, order cards and the Orders area (PR 48, L-0400); PR B, delivery submission and office approval with pending-delivery stock (D-32); PR C, commission rates and the commission area (D-31), after PR B, now P1-22 with D-38. Verify B-31 (d) and (e) against the current decision table before changing invoice or delivery behavior.
 5. Stock: bag, issue and confirm, daily close, office stock, low stock, adjustments and the approvals queue.
 6. Payments, receipts, cash ledger, handover and remaining P1-07 controls.
 7. Control layer and digest (P1-08), vault (P1-05), dashboards (P1-10), agents (P1-15), offboarding.

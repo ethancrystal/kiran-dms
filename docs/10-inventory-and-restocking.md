@@ -20,9 +20,11 @@ Consumables        [Dummy] Foils, caps, gloves      per pack
 
 Each SKU will carry: Kiran label, variant name, **size (ml/L or g/kg)**, **net weight**, pack type, units per carton, barcode if present, and shelf life — fields exist for all of these; the values come from MJ.
 
+Approved, not built (D-37, D-39, D-41): the owner or manager adds products with a picture and a description (INV-13) and sets SKU and per-salon prices with a reason (ORD-07). All salons see the same active catalogue, each with its own price; stock is not shown to salons in the current work (INV-12, Phase 2). Cost is never on these screens.
+
 - `product_group.default_cycle_days` seeds the repeat-cycle engine (doc 02) — e.g., Color 21, Developer 21, Shampoo 30, Treatment 30, Styling 45.
 - `product.brand_label` is Kiran's public name; the supplier never appears (doc 07).
-- SKUs carry a barcode if the pack has one; the rep app can scan to add lines and to count stock.
+- SKUs carry a barcode if the pack has one; the rep app can scan to add lines to an order request and to count stock.
 
 ## 2. Stock locations
 
@@ -41,7 +43,7 @@ Stock on hand anywhere = Σ `stock_movement` for that location and SKU. Nothing 
 |---|---|---|---|
 | `receipt` | (vault) → warehouse | Vault grantee posting a goods receipt | Vault record; "labels removed" confirmation |
 | `issue_to_rep` | warehouse → rep_bag | Manager/owner | Rep confirms count in-app |
-| `sale` | rep_bag or warehouse → (salon) | Delivery by the rep from its bag, or by the office from a warehouse | Salon acknowledgment (OTP/signature; Phase 1: the receiver's name with GPS and server time (MJ, ACTIVITY L-0163); the OTP comes with the SMS adapter), invoice |
+| `sale` | rep_bag or warehouse → (salon) | Delivery by the rep from its bag, or by the office from a warehouse. Approved, not built (D-32): a rep submits the delivery and only the office's approval writes this movement | Salon acknowledgment (OTP/signature; Phase 1: the receiver's name with GPS and server time (MJ, ACTIVITY L-0163); the OTP comes with the SMS adapter), invoice |
 | `return_in` | (salon) → quarantine | Rep requests with photo | Manager accepts at warehouse (CTL-12) |
 | `return_to_warehouse` | rep_bag → warehouse | Manager/owner | Rep confirms |
 | `transfer` | warehouse ↔ warehouse (later, multi-site) | Manager/owner | Receiving side confirms |

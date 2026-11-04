@@ -4,12 +4,14 @@
 
 Status: **Planning v2 — 2026-11-03.** This revision incorporates salon customer portal ordering, representative-placed orders, manual salon location capture, salon-specific prices, customer-safe stock quantities and active-day representative location tracking. This is a planning update only; it does not mark implementation or any phase gate complete. The live implementation status remains the board in [ACTIVITY.md](ACTIVITY.md) §12. These documents are the planning source of truth; [SPEC.md](../SPEC.md) is the short index.
 
+**Amended 2026-11-05:** [doc 16](16-project-completion-goal.md) is the authoritative business specification (D-33). Representatives no longer place orders (D-30): reps and salons submit order requests and only the office creates official orders (D-34). Where anything here disagrees with doc 16, doc 16 wins.
+
 > ## Building this system? Read [ACTIVITY.md](ACTIVITY.md) first — it is mandatory.
 > It is the build protocol (hard rules, definition of done, phase gates) and the live record (status board, claims, blockers, append-only log) that every agent, AI or human, must follow and update. Work without a log entry there is treated as not done.
 
 ## What we are building, in one paragraph
 
-A coordinated web application with three workspaces over one PostgreSQL database with row-level security: a mobile-first representative PWA, an authenticated salon customer portal, and an office workspace for Owner/Manager. Representatives visit salons, capture GPS-stamped visits, take orders on behalf of salons, deliver stock and collect payments. Salon users can independently place and track their own orders through the portal. Both channels use the same catalogue, salon-specific price resolver, stock availability, order state machine, fulfilment, invoice and payment records. Office users manage salons, assignments, representatives, stock, pricing, orders and exceptions under the existing D-08 permission split. Supplier identity and cost data remain restricted.
+A coordinated web application with three workspaces over one PostgreSQL database with row-level security: a mobile-first representative PWA, an authenticated salon customer portal, and an office workspace for Owner/Manager. Representatives visit salons, capture GPS-stamped visits, submit order requests, deliver stock and collect payments. Salon users, invited by the office, submit order requests and track their own orders through the portal. The office reviews both in one queue and creates the official orders, which use the same catalogue, salon-specific price resolver, stock availability, order state machine, fulfilment, invoice and payment records. Office users manage salons, assignments, representatives, stock, pricing, orders and exceptions under the D-08 permission split as amended by D-39; a basic investor ledger stays separate from Rep commissions (D-40). Supplier identity and cost data remain restricted.
 
 ## Reading order
 
@@ -30,12 +32,13 @@ A coordinated web application with three workspaces over one PostgreSQL database
 | 13 | [Anti-fraud and control framework](13-anti-fraud-controls.md) | Every way a rep, manager, salon or outsider could cheat — and the control that stops or catches it |
 | 14 | [Unified business domains and agent execution brief](14-unified-business-domain-prompt.md) | How supplier, salon portal, rep, agent, investor and office domains connect; boundaries, security and execution rules |
 | 15 | [Field sales and distribution engineering plan](15-field-sales-distribution-engineering-plan.md) | Target modules, three workspaces, dual-channel orders, data ownership, location tracking, inventory, security, delivery sequence and acceptance criteria |
+| 16 | [**Project completion goal (authoritative business specification)**](16-project-completion-goal.md) | MJ's goal and master task, verbatim; wins over any older document or decision (D-33) |
 | — | [**ACTIVITY (mandatory for builders)**](ACTIVITY.md) | Build protocol, hard rules, definition of done, phase gates, status board, blockers; the append-only log is in `log/` |
 
 ## Fixed decisions (do not re-open without updating doc 12)
 
 1. **Niche:** hair styling and hair care products for salons/parlors. Not general cosmetics.
-2. **Internal staff roles:** Owner, Manager and Sales Rep. The Manager has the documented operational access; governance powers remain Owner-only under D-08 (doc 06). The **Agent** role is a separate independent resale channel under D-15. **Salon customer portal membership is a separate external-customer identity**, linked to a specific salon; it is not a staff role and does not inherit staff, agent or investor permissions. The salon user can view its own customer data and submit its own orders through the shared order system.
+2. **Internal staff roles:** Owner, Manager and Sales Rep. The Manager has the documented operational access; governance powers remain Owner-only under D-08 (doc 06). The **Agent** role is a separate independent resale channel under D-15. **Salon customer portal membership is a separate external-customer identity**, linked to a specific salon; it is not a staff role and does not inherit staff, agent or investor permissions. The salon user can view its own customer data and submit its own order requests, which the office turns into official orders in the shared order system (D-34).
 3. **Supplier is classified:** supplier identity, pricing and terms are visible to Owner and Manager only. Enforced in the database, not just the UI.
 4. **Payments:** cash, local bank transfer, and installment plans of 2 or 4 instalments.
 5. **Stack:** Next.js + Supabase (Postgres with RLS, Auth, Storage, Edge Functions), PWA for reps, hosted on Vercel + Supabase. See doc 05 for why.
@@ -47,7 +50,8 @@ A coordinated web application with three workspaces over one PostgreSQL database
 
 - **Salon** — any customer: any business anywhere in Karachi that offers hair care, hair treatment or hair beauty to end users — ladies' beauty parlors, men's salons, unisex salons, bridal studios, barber shops, hair studios, spas with hair services, home-based parlors, beauty academies. One word in the system.
 - **Pin** — a salon's location on the rep's map. Reps prospect by dropping pins with a note, or by one-tap online discovery of every listed salon within a few kilometres of where they stand.
-- **Rep** — a field salesperson (the "sales appointee"). Visits salons, takes orders, delivers, collects.
+- **Rep** — a field salesperson (the "sales appointee"). Visits salons, submits order requests, delivers, collects.
+- **Order request** — what a rep or salon submits (`order_intake_card`, the "New Order Details" card). It is not an official order; only the office creates those (D-34).
 - **Route / beat** — the ordered list of salons a rep visits on a given day.
 - **Khata** — the running ledger of what a salon owes. The system is a digital khata plus everything around it.
 - **Van stock / bag stock** — stock issued to a rep and physically carried by them; still Kiran's stock until sold.
