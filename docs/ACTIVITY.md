@@ -37,7 +37,7 @@ Rules for gaps and conflicts:
 
 - If a doc is silent on a security-relevant point, take the **more restrictive** option, record an assumption (§15), and tell MJ via a BLOCKER if other work depends on it.
 - If two docs conflict, stop that task, log the conflict, and wait. Do not pick the convenient reading.
-- **D-08 (manager vs. owner governance split) was confirmed by MJ on 2026-11-02 (L-0231).** Build the split as documented in `06-security-plan.md` §2: manager = full operational access; governance powers (users, bank details, write-offs, price lists, commission plans, vault grants, configuration, audit log) are owner-only.
+- **D-08 (manager vs. owner governance split) was confirmed by MJ on 2026-11-02 (L-0231).** Build the split as documented in `06-security-plan.md` §2: manager = full operational access; governance powers (users, bank details, write-offs, price lists, commission plans (commission rates per rep: owner or manager, D-31, MJ L-0385 and L-0396), vault grants, configuration, audit log) are owner-only.
 
 ---
 
@@ -113,7 +113,7 @@ These come straight from the planning docs. An agent that breaks one has failed 
 |---|---|
 | H-13 | **RLS is enabled and forced on every table in the same migration that creates it.** Deny by default. A new table ships with its policies **and** its row in the RLS test matrix (role × table × operation) in the same PR. A table without both is not done. |
 | H-14 | Reps read through **views** with masked phones and page caps (≤ 50 rows); they have no base-table access, no list export, no bulk download. Territory scoping is enforced by RLS, not by the UI. |
-| H-15 | **Governance powers are owner-only and AAL2**: users, bank details, write-offs, price lists, commission plans, vault grants, configuration, audit log. Never grant these to the manager "for convenience" or for a demo. |
+| H-15 | **Governance powers are owner-only and AAL2**: users, bank details, write-offs, price lists, commission plans (commission rates per rep: owner or manager, D-31, MJ L-0385 and L-0396), vault grants, configuration, audit log. Never grant these to the manager "for convenience" or for a demo. |
 | H-16 | **Never weaken, bypass, disable or "temporarily skip" a control** — RLS, MFA, device binding, approvals, audit triggers, rate limits — to make a feature work or a test pass. If a control blocks the task, the design needs a decision: log a BLOCKER. |
 | H-17 | Every table in `public` and `vault` has the audit trigger. `control.audit_event` is writable by triggers only; the hash chain (`prev_hash`) must verify. |
 
@@ -340,7 +340,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
-| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0395 |
+| C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0396 |
 | C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
 
 
@@ -4550,6 +4550,13 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Evidence:** Files changed: AGENTS.md, CLAUDE.md, SPEC.md, docs/01-business-context.md, docs/06-security-plan.md, docs/08-field-sales-and-rep-controls.md, docs/12-decisions-and-open-questions.md, docs/ACTIVITY.md. `cmp AGENTS.md CLAUDE.md`: identical. With this entry in place: `node scripts/activity-log-check.mjs origin/main` gave activity-log-check OK (13 new log entries, 43 changed files; owner terms checked 0, KIRAN_SENSITIVE_TERMS empty here), exit 0; `pnpm lint` exit 0; `pnpm agent:preflight` PREFLIGHT OK. No database or browser tests run: no code changed.
 **Rules touched:** H-25, H-26 (nothing changed under it)
 **Next / needs:** MJ: (a) claim C-032 (ChatGPT, PLAN-05) still lists SPEC.md, AGENTS.md, CLAUDE.md and docs 00 to 15, with its last activity at L-0321 and L-0323 on 2026-11-03, older than 24 hours, so stale under section 3; releasing it is not part of this round; (b) still stale and not fixed here: the doc 08 section 2 probation row speaks of credit-plan orders by the rep, and doc 13 section 9 names the rep as maker of a discount (L-0392); (c) the open asks of L-0394. C-039 stays active.
+
+### L-0396 · 2026-11-04 22:07 PKT · Claude · Opus 5.5 · session orders-impl-20261103 · branch claude/orders-delivery-commission · DECISION
+**Task:** P1-06 rework under D-30 (CTL-13; hard-rule wording for commission rates, PR A)    **Claim:** C-039
+**What / why:** MJ explicitly accepted in chat on 2026-11-04 (relayed by this session's controller) the hard-rule text change that L-0389 made and L-0394 reverted pending acceptance. MJ's words: "manager can change it too" (the manager may change commission rates, as in D-31). L-0394's reversion is superseded by this entry; L-0389 and L-0394 are not edited (section 4). New rule text, in H-15 and in the section 1 D-08 note, narrower than L-0389's: "commission plans (commission rates per rep: owner or manager, D-31, MJ L-0385 and L-0396)". H-15 now reads: Governance powers are owner-only and AAL2: users, bank details, write-offs, price lists, commission plans (commission rates per rep: owner or manager, D-31, MJ L-0385 and L-0396), vault grants, configuration, audit log. The D-08 note list reads the same. Only setting and changing a rep's commission percentage is shared with the manager; commission plans otherwise, payout approval (doc 06 section 2 matrix), user creation and every other governance power stay owner-only and AAL2. Follow-on text that said the acceptance was pending is brought up to date: SPEC.md section 11 drops its H-15 row; the plan docs/superpowers/plans/2026-11-03-office-orders-and-cards.md (status block and task 1) and the design spec docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md (section 2 commission line and section 9 H-15 note) now cite L-0396. Docs 06 and 12 had no pending wording and are unchanged; H-15 is not in AGENTS.md or CLAUDE.md, which are unchanged. C-039 stays active; its last-activity cell now reads L-0396.
+**Evidence:** Docs only; no SQL, TypeScript or test changed. Files changed: SPEC.md, docs/ACTIVITY.md, the plan and the design spec named above. With this entry in place: `node scripts/activity-log-check.mjs origin/main` gave activity-log-check OK (14 new log entries, 43 changed files; owner terms checked 0, KIRAN_SENSITIVE_TERMS empty here), exit 0; `pnpm lint` exit 0 (108 files, 33 warnings and 42 infos, the same counts as L-0394); `pnpm agent:preflight` PREFLIGHT OK. No database or browser tests run: no code changed.
+**Rules touched:** H-15, H-26
+**Next / needs:** MJ: the remaining open asks of L-0394 and L-0395 (A-18; push and pull request for PR A). C-039 stays active.
 
 ---
 
