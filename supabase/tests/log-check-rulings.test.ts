@@ -470,9 +470,9 @@ describe("log check: verification in docs/log", { timeout: LOG_CHECK_TIMEOUT_MS 
     v.splice(v.findIndex((l) => l.startsWith("**Evidence:**")) + 1, 0, ...line);
     return v;
   };
-  it("a docs/log entry with a Self-verification line is accepted, as VERIFIED or as the task's own entry", () => {
+  it("a VERIFIED docs/log entry with a Self-verification line is accepted; the task's own entry is not a verdict", () => {
     expect(check({}, selfTask(BUILDER, [declared]).map((l, i) => (i === 0 ? l.replace(TASK_KIND, "VERIFIED") : l)), setStatus("P0-02", `VERIFIED (${STEM})`))).toBe(0);
-    expect(check({}, selfTask(BUILDER, [declared]), setStatus("P0-02", `VERIFIED (${STEM})`))).toBe(0);
+    expect(check({}, selfTask(BUILDER, [declared]), setStatus("P0-02", `VERIFIED (${STEM})`))).toBe(1);
   });
   it("a TASK entry without that line cannot verify, nor can a DECISION or a missing stem", () => {
     expect(check({}, selfTask(BUILDER, []), setStatus("P0-02", `VERIFIED (${STEM})`))).toBe(1);

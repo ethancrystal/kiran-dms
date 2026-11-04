@@ -33,9 +33,9 @@
  *     mentioning VERIFIED other than exactly "VERIFIED (<stem or L-nnnn>)" (a reopen note "was
  *     VERIFIED <id>" excepted), a changed Status cell has non-ASCII outside the allowlist or
  *     Markdown marks, a task has two board rows, or the cited entry is not a VERIFIED or CORRECTION
- *     entry (or a TASK entry with a Self-verification line) naming the task, with the checklist, not
- *     older than its latest work entry (L-0116), and with a "**Self-verification:**" line if it is
- *     signed by the same agent as a work entry for the task;
+ *     entry naming the task, with the checklist, not older than its latest work entry (L-0116), and
+ *     with a "**Self-verification:**" line if it is signed by the same agent as a work entry for the
+ *     task;
  *  5. an added line contains a secret-looking value, supplier/cost wording outside vault
  *     migrations, tests and docs (docs/log entries are not exempt), or an owner-listed sensitive
  *     term; or a file whose name starts with `.env` (other than `.env.example`) is added or changed.
@@ -653,9 +653,7 @@ if (baseActivity && headActivity) {
     const v = allEntries.find((e) => e.id === ref[1]);
     if (!v) { fail(`Section 12 board: ${task} cites ${ref[1]} as its verification, but no such entry exists.`); continue; }
     const vBody = v.body.join("\n");
-    // One entry per task: the builder's own TASK entry may hold the verdict if it declares it.
-    const isVerdict = ["VERIFIED", "CORRECTION"].includes(v.type) || (v.type === "TASK" && declaresSelfVerification(vBody));
-    if (!isVerdict) fail(`Section 12 board: ${task} cites ${v.id}, a ${v.type} entry; a verification is a VERIFIED or CORRECTION entry, or a TASK entry with a **Self-verification:** line.`);
+    if (!["VERIFIED", "CORRECTION"].includes(v.type)) fail(`Section 12 board: ${task} cites ${v.id}, a ${v.type} entry; a verification is a VERIFIED or CORRECTION entry.`);
     if (!taskIds(vBody).includes(task)) fail(`Section 12 board: ${task} cites ${v.id}, whose Task line does not name ${task}.`);
     if (!/Security checklist/.test(vBody)) fail(`Section 12 board: ${task} cites ${v.id}, which lacks the security checklist block.`);
     const dones = workEntries(task);
@@ -666,7 +664,7 @@ if (baseActivity && headActivity) {
     // D4: the verdict may not be older than the task's latest work entry (a reopened task needs a
     // fresh verification; MJ L-0110).
     const latest = dones.reduce((a, d) => (d.ord > a.ord ? d : a), dones[0] ?? { ord: -1 });
-    if (dones.length && v !== latest && v.ord < latest.ord) fail(`Section 12 board: ${task} cites ${v.id}, which is older than its latest work entry ${latest.id}; a verification must come after the work it verifies (L-0116 D4).`);
+    if (dones.length && v.ord < latest.ord) fail(`Section 12 board: ${task} cites ${v.id}, which is older than its latest work entry ${latest.id}; a verification must come after the work it verifies (L-0116 D4).`);
   }
 }
 

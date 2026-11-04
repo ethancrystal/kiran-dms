@@ -330,10 +330,10 @@ describe("activity-log-check P0-09 (re-verifier-11)", { timeout: LOG_CHECK_TIMEO
 
   // P0-09 D1 (workflow id A7; §7: rework is reopened via CORRECTION to IN PROGRESS; MJ L-0110 "then a
   // fresh verification"; §4 the log wins). Rule 4b runs only when a Status cell's text changes (the
-  // 'continue' in the board loop), so a new DONE for a task whose row already reads VERIFIED (L-nnnn)
-  // leaves the row citing a verdict older than the task's latest DONE. Appendix C rule 4 as written
+  // 'continue' in the board loop), so a new TASK entry (formerly DONE) for a task whose row already reads
+  // VERIFIED (L-nnnn) leaves the row citing a verdict older than the task's latest work entry. Appendix C rule 4 as written
   // scopes the ordering to a changed cell, so the gap is in spec and code.
-  it("REPRODUCTION (P0-09 D1): the checker runs on a new DONE entry for P1-01 and for P0-08", () => {
+  it("REPRODUCTION (P0-09 D1): the checker runs on a new work (TASK) entry for P1-01 and for P0-08", () => {
     log.staleVerdict = { p101: check({ lines: entry("TASK", "P1-01") }), p008: check({ lines: entry("TASK", "P0-08") }) };
     console.log(
       "rv11 P0-09 D1:",
@@ -344,7 +344,7 @@ describe("activity-log-check P0-09 (re-verifier-11)", { timeout: LOG_CHECK_TIMEO
     );
     expect(ran(log.staleVerdict.p101) && ran(log.staleVerdict.p008)).toBe(true);
   });
-  it.fails("DEFECT CHECK (P0-09 D1, rule 4b): a new DONE entry under an untouched VERIFIED row is refused", () => {
+  it.fails("DEFECT CHECK (P0-09 D1, rule 4b): a new work (TASK) entry under an untouched VERIFIED row is refused", () => {
     expect({ p101: log.staleVerdict?.p101.status, p008: log.staleVerdict?.p008.status }).toEqual({ p101: 1, p008: 1 });
   });
 
