@@ -63,7 +63,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| ORD-01 | Create an order for a salon (the office, or the salon in its portal; reps do not create orders, D-30): lines (SKU, qty, unit price from active price list; in Phase 1 the SKU's current list price, copied onto the line, and price lists with dates are ORD-07), discounts below list only with approval (CTL-07), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch) | M | 1 |
+| ORD-01 | Create an order for a salon (the office, or the salon in its portal; reps do not create orders, D-30): lines (SKU, qty, unit price from active price list; in Phase 1 the SKU's current list price, copied onto the line, and price lists with dates are ORD-07), discounts below list only with approval (CTL-07), payment plan (cash / 2 / 4), delivery mode (from bag now / warehouse dispatch), and an optional assigned rep, the rep who delivers it: the manager (or owner) picks the delivering rep from the reps currently assigned to the salon's territory (the card's rep pre-selected when converting a rep's card), and may choose none for a manager-direct or salon order (A-16, MJ L-0385) | M | 1 |
 | ORD-02 | Credit check at order time for installment plans: plan allowed for salon, exposure + order ≤ credit limit, salon not Blocked. A cash-on-delivery order needs no credit, so a Blocked salon may still buy cash (doc 09 §2; MJ, ACTIVITY L-0163). Hard stop for salon portal orders; Mg/O can override with reason | M | 1 |
 | ORD-03 | Order states: draft → confirmed → delivered (full/partial) → closed; cancelled only before delivery, by Mg/O with a reason (a salon may edit or cancel its own portal order until the manager approves it, not after (ACTIVITY L-0378)) | M | 1 |
 | ORD-04 | Delivery creates stock movement from the source location (rep bag or warehouse) and an invoice with sequential number | M | 1 |
@@ -128,7 +128,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| SEC-01 | Roles: owner, manager, rep. Manager = full operational access; owner = operational + governance (users, bank details, write-offs/credit notes, price lists, commission plans, vault grants, audit log, configuration). Permission matrix in doc 06 enforced by RLS and server-side checks | M | 1 |
+| SEC-01 | Roles: owner, manager, rep. Manager = full operational access; owner = operational + governance (users, bank details, write-offs/credit notes, price lists, commission plans, vault grants, audit log, configuration; commission rates: owner or manager, D-31, MJ L-0385). Permission matrix in doc 06 enforced by RLS and server-side checks | M | 1 |
 | SEC-02 | O/Mg login: email + password + TOTP MFA mandatory | M | 1 |
 | SEC-03 | Rep login: email one-time code (MJ decision, ACTIVITY L-0101; was phone OTP); device binding — first device auto-registered, new device requires Mg approval | M | 1 |
 | SEC-04 | Sessions: rep 14 days with re-auth on sensitive actions; O/Mg 12 hours; immediate revoke by O/Mg | M | 1 |
@@ -154,13 +154,13 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | CTL-04 | Cash in office is a tracked balance; every bank deposit is recorded with slip photo and matched to a bank statement line; cash in office older than 2 working days triggers an owner alert | M | 1 |
 | CTL-05 | Stock issued to a rep is capped by a per-rep bag value limit; bag stock is counted daily (close) and spot-checked randomly by the manager at least weekly, with the count recorded in-app | M | 1 |
 | CTL-06 | Stock adjustments and write-offs require a reason and photo; any adjustment, write-off, credit note or receivable write-off above a configurable threshold requires owner approval; all are in the daily digest | M | 1 |
-| CTL-07 | Rep discount authority defaults to 0%; any price below list requires in-app manager approval before the invoice is issued; price-list changes are owner-only | M | 1 |
+| CTL-07 | Rep discount authority defaults to 0%; any price below list requires in-app manager approval before the invoice is issued, except the owner's own discount on an office order the owner creates, which needs no approval and is recorded on the order and in its audit row (MJ, ACTIVITY L-0390); price-list changes are owner-only | M | 1 |
 | CTL-08 | Credit limit overrides and salon unblocking by the manager are logged with reason, capped per salon per month, and listed in the daily digest | M | 1 |
 | CTL-09 | New salon verification: a salon is "verified" only after an OTP sent to the salon's phone is confirmed and a manager has spoken to the salon; unverified salons are cash-only and earn no new-salon bonus. Interim (MJ, ACTIVITY L-0163): until verification is built, the owner sets plan eligibility and limit by hand | M | 1 |
 | CTL-10 | Monthly statement to every salon with a balance, from the system, with a one-tap "this is wrong" reply that creates an owner-visible dispute | S | 2 |
 | CTL-11 | Weekly random balance-confirmation sample: the system picks N salons per rep; owner or manager calls and records the salon's stated balance; mismatches open a case | M | 1 (manual list) / S | 2 (automated WhatsApp confirm) |
 | CTL-12 | Returns go to a quarantine location, require photo and manager acceptance at the warehouse, and only then re-enter sellable stock | S | 2 |
-| CTL-13 | Commission is calculated on **collected and banked** cash, never on invoiced value; clawback on write-offs; new-salon bonus only after the salon's second paid order | S | 2 |
+| CTL-13 | Commission is calculated on delivered and invoiced value of orders assigned to the rep (D-31; brought into Phase 1 by ACTIVITY L-0385); clawback on write-offs; new-salon bonus only after the salon's second paid order | M | 1 |
 | CTL-14 | Anomaly detection jobs (doc 13 §7) run nightly and feed the owner digest: location/time anomalies, burst-recording, round-number patterns, repeated variances, rep-change churn, duplicate devices, mock-location signals | S | 2 |
 | CTL-15 | Daily owner exception digest (in-app and WhatsApp): every override, adjustment, variance, discount, credit note, unblock, new device, failed sync, vault read, anomaly flag and agent purchase (with a flag on unusually large ones, D-22, OQ-22) from the last 24 h | M | 1 |
 | CTL-16 | Company bank account details used on invoices are owner-only to change, require MFA re-authentication, and trigger a notification to all owner contacts | M | 1 |
@@ -171,9 +171,9 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| FLD-01 | Rep profile: name, phone, CNIC number (encrypted), photo, emergency contact, start date, territories, commission plan | M | 1 |
+| FLD-01 | Rep profile: name, phone, CNIC number (encrypted), photo, emergency contact, start date, territories, commission rate (D-31) | M | 1 |
 | FLD-02 | Rep scorecard (doc 02 KPIs) daily/weekly/monthly | S | 2 |
-| FLD-03 | Commission plans: % of collected cash (not invoiced), with optional bonus for new salons; monthly commission statement | S | 2 |
+| FLD-03 | Commission plans: a percentage per rep, set and changed by the owner or manager, earned on delivered and invoiced value of assigned orders (superseded by D-31: delivered and invoiced value; rates set by owner or manager); the earned-commission view for a date range is Phase 1 (D-31); optional bonus for new salons, monthly commission statement and payouts stay Phase 2 | M/S | 1–2 |
 | FLD-04 | Rep onboarding checklist in-app (doc 08) | S | 2 |
 | FLD-05 | Live map of today's visits per rep (O/Mg) | S | 2 |
 
@@ -200,7 +200,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans | M/S | 1–2 |
+| ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans (commission rates: owner or manager, D-31) | M/S | 1–2 |
 | ADM-02 | Company profile for documents (name, logo, address, phone) | M | 1 |
 | ADM-03 | Numbering sequences for invoices and receipts (gapless, per financial year starting 1 July) | M | 1 |
 

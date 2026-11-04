@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, REP_A, run, type Who } from "./helpers/db";
+import { type LegacyStatus, legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -72,28 +73,98 @@ const code = async (steps: Step[], withPrelude = true): Promise<string | null> =
     return (e as { code?: string }).code ?? "unknown";
   }
 };
-const msg = async (steps: Step[]): Promise<string | null> => {
+type Failure = { code: string; message: string };
+/** The SQLSTATE and message of the failure, or null when the script succeeded. */
+const failure = async (steps: Step[], withPrelude = true): Promise<Failure | null> => {
   try {
-    await run("postgres", script(steps));
+    await run("postgres", script(steps, withPrelude));
     return null;
   } catch (e) {
-    return (e as Error).message;
+    const err = e as { code?: string; message: string };
+    return { code: err.code ?? "unknown", message: err.message };
   }
+};
+/**
+ * Runs the set-up alone first, which must succeed, and then the set-up and the attack: a broken set-up
+ * fails the test instead of passing it as "refused". Returns the attack's failure.
+ */
+const attack = async (setup: Step[], steps: Step[]) => {
+  expect(await failure(setup)).toBeNull();
+  return failure([...setup, ...steps]);
 };
 
 const lines = (l: Array<[string, number]>) => `'${JSON.stringify(l.map(([sku_id, qty]) => ({ sku_id, qty })))}'::jsonb`;
-const order = (cid: string, l: Array<[string, number]>, salon = SALON_A, who: P = "repA", plan = "CASH"): Step => [
+// D-30: the rep path app.create_order refuses every caller first; the order engine runs behind app.office_create_order.
+const DENIED = "42501";
+const BAD_INPUT = "22023";
+const DUPLICATE = "23505";
+const CHECK_VIOLATION = "23514";
+const DATA_EXCEPTION_CLASS = "22";
+const REP_PATH_CLOSED = "reps no longer place orders: record an order card (D-30)";
+const NOT_CONFIRMED = "only a confirmed order is delivered (ORD-03)";
+const OWN_ORDERS_ONLY = "reps deliver only their own orders";
+const SKU1_PRICE = 120000; // Rs 1,200, as set in beforeAll
+const ONE_PAISA = 1;
+const HALF_PRICE = 60000;
+const BACKDATED = "2001-01-01T00:00:00Z";
+const SERVER_TIME_TOLERANCE_S = 120;
+const BACKDATED_YEAR = 2001;
+const SERVER_YEAR_FLOOR = 2026;
+const QTY_PAIR = 2;
+const QTY_MORE_THAN_PAIR = 3;
+const QTY_CHANGED_LINES = 9;
+const BAG_STOCK = 20; // the prelude issues 20 of each SKU to rep A's bag
+/** A call of the closed rep path (D-30) by `who`; it must be refused whoever calls it. */
+const repPath = (cid: string, salon = SALON_A, who: P = "repA", extra = ""): Step => [
   who,
-  `select app.create_order('${cid}', '${salon}', '${plan}', 'bag_now', ${lines(l)});`,
+  `select app.create_order('${cid}', '${salon}', 'CASH', 'bag_now', ${lines([[SKU1, 1]])}${extra});`,
 ];
-const rawOrder = (cid: string, rawLines: string, salon = SALON_A): Step => [
-  "repA",
-  `select app.create_order('${cid}', '${salon}', 'CASH', 'bag_now', ${rawLines});`,
+// Set-up: the manager makes the order and names rep A to deliver it (D-30), so it is a bag_now order for rep A's bag.
+const officeOrder = (cid: string, l: Array<[string, number]>, salon = SALON_A, plan = "CASH"): Step => [
+  "manager",
+  `select app.office_create_order('${cid}', '${salon}', '${plan}', ${lines(l)}, '${fx.repA.id}');`,
 ];
+/** The office path with raw jsonb lines (malformed lines, tampered prices). */
+const officeRaw = (cid: string, rawLines: string, salon = SALON_A): Step => [
+  "manager",
+  `select app.office_create_order('${cid}', '${salon}', 'CASH', ${rawLines}, '${fx.repA.id}');`,
+];
+/** A legacy rep_visit order of rep A (what the closed rep path left): confirmed, SKU1 at list price. */
+const legacyOrder = (cid: string, qty = 1, status: LegacyStatus = "confirmed"): Step => [
+  "postgres",
+  legacyOrderSql({
+    clientId: cid,
+    salonId: SALON_A,
+    skuId: SKU1,
+    qty,
+    unitPaisa: SKU1_PRICE,
+    repId: fx.repA.id,
+    plan: "CASH",
+    status,
+  }),
+];
+/**
+ * Real order ids for a step of a rep who cannot see the order. Looking the id up inside that rep's step
+ * returns NULL under RLS, and the function then refuses on its NULL branch rather than the ownership rule.
+ * A legacy order's id is its client_id (legacyOrderSql); an office order's id is pinned first as postgres.
+ */
+const literalId = (cid: string) => `'${cid}'::uuid`;
+const PINNED_ORDER = "current_setting('kiran_test.order')::uuid";
+const pinOrder = (cid: string): Step => [
+  "postgres",
+  `select set_config('kiran_test.order', (select id::text from public.sales_order where client_id = '${cid}'), true);`,
+];
+const OWN_DRAFT_ONLY = "a rep cancels only its own draft; the office cancels before delivery (ORD-03)";
+const OFFICE_ONLY = "owner or manager only";
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
 const deliver = (dcid: string, ocid: string, l: Array<[string, number]> | null = null, who: P = "repA", extra = ""): Step => [
   who,
   `select (app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1, ${l ? lines(l) : "null"}${extra})).*;`,
+];
+/** rep_deliver of the whole order by its id expression (a literal or PINNED_ORDER), as `who`. */
+const deliverAt = (dcid: string, orderId: string, who: P): Step => [
+  who,
+  `select (app.rep_deliver('${dcid}', ${orderId}, 'Ayesha at the counter', 24.9, 67.1, null)).id;`,
 ];
 
 beforeAll(async () => {
@@ -319,7 +390,7 @@ describe("direct writes are refused to every application role (H-06, H-08)", () 
       ["stage_event", [], "update public.stage_event set reason = 'x'", "delete from public.stage_event"],
       [
         "sales_order_line",
-        [order(id(), [[SKU1, 1]])],
+        [officeOrder(id(), [[SKU1, 1]])],
         "update public.sales_order_line set qty = qty + 1",
         "delete from public.sales_order_line",
       ],
@@ -438,12 +509,14 @@ describe("territory scoping, list-dump and masking (H-14, SAL-02, MAP-12)", () =
       ["repA", `select count(*)::int n from app.my_salons(null, null, 50) where id = '${SALON_A}';`],
     ]);
     expect(own[0].n).toBe(0);
-    expect(
-      await code([
-        ["manager", `select app.office_end_territory('${fx.repA.id}', '${T_A}', 'attack');`],
-        order(id(), [[SKU1, 1]]),
-      ]),
-    ).toBe("42501");
+    // D-30: a rep orders for no salon at all now; the refusal comes first, revoked territory or not.
+    const revoke: Step = ["manager", `select app.office_end_territory('${fx.repA.id}', '${T_A}', 'attack');`];
+    expect(await attack([revoke], [repPath(id())])).toEqual({ code: DENIED, message: REP_PATH_CLOSED });
+    // On the office path the revoked rep can no longer be named to deliver an order for the salon.
+    expect(await attack([revoke], [officeOrder(id(), [[SKU1, 1]])])).toEqual({
+      code: BAD_INPUT,
+      message: "the assigned rep must be an active rep who covers this salon's territory",
+    });
   });
 });
 
@@ -515,6 +588,7 @@ describe("who may call what (H-15, SEC-01, SEC-03, doc 06 §2)", () => {
   it("suspended rep, unapproved device and anon are refused the rep functions too", async () => {
     const WRITE_CALLS = [
       `select app.add_salon_note('${id()}', '${SALON_A}', 'x')`,
+      // Closed for everyone since D-30 (42501 first); its message is checked in orders.test.ts.
       `select app.create_order('${id()}', '${SALON_A}', 'CASH', 'bag_now', ${lines([[SKU1, 1]])})`,
       `select app.rep_check_in('[]'::jsonb)`,
       `select app.reveal_phone('${SALON_A}')`,
@@ -545,7 +619,10 @@ describe("who may call what (H-15, SEC-01, SEC-03, doc 06 §2)", () => {
 
 // ---------------------------------------------------------------------------------------------
 describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01, ORD-02, CTL-07, SAL-04, H-08)", () => {
-  it("bad quantities, SKUs and prices create no order", async () => {
+  // D-30: the order engine runs behind app.office_create_order, so these attacks are made by the manager
+  // there; the attacks whose subject was the rep as an order's maker become refusals of the closed rep path.
+  it("bad quantities, SKUs and prices create no order (office path; a valid line is accepted)", async () => {
+    expect(await failure([officeRaw(id(), lines([[SKU1, 1]]))])).toBeNull();
     const ghost = id();
     const cases: Array<[string, string]> = [
       ["zero qty", `'[{"sku_id":"${SKU1}","qty":0}]'::jsonb`],
@@ -569,33 +646,29 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
       ["price float", `'[{"sku_id":"${SKU1}","qty":1,"unit_price_paisa":99.5}]'::jsonb`],
       ["51 lines", `(select jsonb_agg(jsonb_build_object('sku_id','${SKU1}','qty',1)) from generate_series(1,51))`],
     ];
-    const accepted: string[] = [];
-    for (const [label, raw] of cases) {
-      const r = await code([rawOrder(id(), raw)]);
-      if (r === null) accepted.push(label);
-    }
-    expect(accepted).toEqual([]);
+    const results = await cases.reduce<Promise<Array<[string, string | null]>>>(
+      async (acc, [label, raw]) => [...(await acc), [label, await code([officeRaw(id(), raw)])]],
+      Promise.resolve([]),
+    );
+    // Every case is refused as bad data (SQLSTATE class 22), never accepted and never refused for another reason.
+    expect(results.filter(([, c]) => !c?.startsWith(DATA_EXCEPTION_CLASS))).toEqual([]);
   });
 
-  it("an order is refused without an open rep day, for another territory's salon, and for an unknown salon", async () => {
-    const noDay = await code([
-      ["postgres", `delete from public.rep_day where rep_id = '${fx.repA.id}' and day = ${TODAY};`],
-      order(id(), [[SKU1, 1]]),
-    ]);
-    expect(noDay).toBe("42501");
-    expect(await code([order(id(), [[SKU1, 1]], SALON_B)])).toBe("42501");
-    expect(await code([order(id(), [[SKU1, 1]], id())])).not.toBeNull();
-    expect(await code([order(id(), [[SKU1, 1]], SALON_A, "repB")])).toBe("42501");
+  it("the closed rep path refuses with no open rep day, for another territory's salon and for rep B; the office refuses an unknown salon", async () => {
+    const closed = { code: DENIED, message: REP_PATH_CLOSED };
+    // Without the prelude no rep day is opened in the transaction. (The old set-up deleted rep A's day, which
+    // is itself refused 42501, "rep days are never deleted", so the old no-day assertion passed on that.)
+    expect(await failure([repPath(id())], false)).toEqual(closed);
+    expect(await failure([repPath(id(), SALON_B)])).toEqual(closed);
+    expect(await failure([repPath(id(), SALON_A, "repB")])).toEqual(closed);
+    expect(await failure([officeOrder(id(), [[SKU1, 1]], id())])).toEqual({ code: BAD_INPUT, message: "unknown salon" });
   });
 
-  it("the rep cannot choose a price above list or below list without the discount approval (CTL-07)", async () => {
+  it("a price below list gets a pending discount approval, not a confirmed or deliverable order (CTL-07)", async () => {
     const o = id();
-    const discounted = (): Step => [
-      "repA",
-      `select app.create_order('${o}', '${SALON_A}', 'CASH', 'bag_now', '[{"sku_id":"${SKU1}","qty":2,"unit_price_paisa":1}]'::jsonb);`,
-    ];
+    const discounted = officeRaw(o, `'[{"sku_id":"${SKU1}","qty":2,"unit_price_paisa":${ONE_PAISA}}]'::jsonb`);
     const r = await tx([
-      discounted(),
+      discounted,
       [
         "postgres",
         `select o.status::text status, o.hold_discount, o.total_paisa::int total, o.discount_paisa::int disc, o.discount_approval_id is not null has_approval,
@@ -603,127 +676,152 @@ describe("orders: malformed lines, price tampering, credit gate, replay (ORD-01,
         from public.sales_order o where o.client_id = '${o}';`,
       ],
     ]);
-    expect(r[0].has_approval).toBe(true);
-    expect(r[0].approval).toBe("pending");
-    expect(r[0].status).not.toBe("confirmed");
+    expect(r[0]).toMatchObject({ has_approval: true, approval: "pending", status: "draft", hold_discount: "pending" });
     // The discounted order must not be deliverable while the approval is pending...
-    expect(await code([discounted(), deliver(id(), o)])).not.toBeNull();
+    expect(await attack([discounted], [deliver(id(), o)])).toEqual({ code: BAD_INPUT, message: NOT_CONFIRMED });
     // ...and an invoice at the tampered price must never exist.
-    const inv = await tx([discounted(), ["postgres", `select count(*)::int n from public.invoice;`]]);
+    const inv = await tx([discounted, ["postgres", `select count(*)::int n from public.invoice;`]]);
     expect(inv[0].n).toBe(0);
   });
 
-  it("the rep cannot approve their own discount or any approval (maker is not checker, H-12)", async () => {
+  it("the maker cannot approve their own discount, and a rep cannot approve any (maker is not checker, H-12)", async () => {
     const o = id();
-    const e = await msg([
-      [
-        "repA",
-        `select app.create_order('${o}', '${SALON_A}', 'CASH', 'bag_now', '[{"sku_id":"${SKU1}","qty":2,"unit_price_paisa":60000}]'::jsonb);`,
-      ],
-      [
-        "repA",
-        `select app.decide_approval((select discount_approval_id from public.sales_order where client_id = '${o}'), true, 'self approve');`,
-      ],
-    ]);
-    expect(e).not.toBeNull();
+    const discounted = officeRaw(o, `'[{"sku_id":"${SKU1}","qty":2,"unit_price_paisa":${HALF_PRICE}}]'::jsonb`);
+    const decide = (who: P): Step => [
+      who,
+      `select app.decide_approval((select discount_approval_id from public.sales_order where client_id = '${o}'), true, 'self approve');`,
+    ];
+    expect(await attack([discounted], [decide("manager")])).toEqual({
+      code: DENIED,
+      message: "maker cannot approve their own request (SEC-11)",
+    });
+    expect(await attack([discounted], [decide("repA")])).toEqual({ code: DENIED, message: "owner or manager only" });
   });
 
   it("a plan above the salon's eligibility (a brand-new salon on INST4) is held and cannot be delivered (SAL-04)", async () => {
     const o = id();
+    const inst4 = officeOrder(o, [[SKU1, 1]], SALON_A, "INST4");
     const r = await tx([
-      order(o, [[SKU1, 1]], SALON_A, "repA", "INST4"),
+      inst4,
       ["postgres", `select status::text status, hold_credit, hold_discount from public.sales_order where client_id = '${o}';`],
     ]);
     // Created and held (plan_not_allowed), not confirmed.
-    expect(r[0].hold_credit).not.toBeNull();
-    expect(r[0].status).not.toBe("confirmed");
+    expect(r[0]).toEqual({ status: "draft", hold_credit: "plan_not_allowed", hold_discount: null });
     // An INST4 order for a salon with no credit profile must not become an invoice.
-    expect(await code([order(o, [[SKU1, 1]], SALON_A, "repA", "INST4"), deliver(id(), o)])).not.toBeNull();
+    expect(await attack([inst4], [deliver(id(), o)])).toEqual({ code: BAD_INPUT, message: NOT_CONFIRMED });
     // A rep cannot lift the hold themselves.
-    expect(
-      await code([
-        order(o, [[SKU1, 1]], SALON_A, "repA", "INST4"),
-        ["repA", `select app.office_release_credit_hold(${oid(o)}, 'self release');`],
-      ]),
-    ).toBe("42501");
+    expect(await attack([inst4], [["repA", `select app.office_release_credit_hold(${oid(o)}, 'self release');`]])).toEqual({
+      code: DENIED,
+      message: OFFICE_ONLY,
+    });
   });
 
-  it("replaying a create_order client id is one order; different salon or plan under the same id is refused (H-08)", async () => {
+  it("replaying an order client id is one order; different plan under the same id is refused (H-08)", async () => {
     const o = id();
     const r = await tx([
-      order(o, [[SKU1, 2]]),
-      order(o, [[SKU1, 2]]),
-      order(o, [[SKU1, 2]]),
+      officeOrder(o, [[SKU1, QTY_PAIR]]),
+      officeOrder(o, [[SKU1, QTY_PAIR]]),
+      officeOrder(o, [[SKU1, QTY_PAIR]]),
       ["postgres", `select count(*)::int n, max(total_paisa)::int total from public.sales_order where client_id = '${o}';`],
     ]);
-    expect(r[0]).toEqual({ n: 1, total: 240000 });
-    const mismatch = await code([order(o, [[SKU1, 2]]), order(o, [[SKU1, 2]], SALON_A, "repA", "INST2")]);
-    expect(mismatch).toBe("23505");
+    expect(r[0]).toEqual({ n: 1, total: QTY_PAIR * SKU1_PRICE });
+    expect(await attack([officeOrder(o, [[SKU1, QTY_PAIR]])], [officeOrder(o, [[SKU1, QTY_PAIR]], SALON_A, "INST2")])).toEqual({
+      code: DUPLICATE,
+      message: "client_id already used with different content",
+    });
   });
 
   it("the same client id with different LINES is not silently treated as the same order", async () => {
     const o = id();
     const r = await tx([
-      order(o, [[SKU1, 1]]),
-      order(o, [[SKU1, 9]]),
+      officeOrder(o, [[SKU1, 1]]),
+      officeOrder(o, [[SKU1, QTY_CHANGED_LINES]]),
       ["postgres", `select count(*)::int n, max(total_paisa)::int total from public.sales_order where client_id = '${o}';`],
     ]);
     // Only one order can exist. Whether the second call is refused or returns the first is recorded by this
-    // assertion: if it returns the first quietly, the rep believes nine were ordered while one was.
+    // assertion: if it returns the first quietly, the office believes nine were ordered while one was.
     expect(r[0].n).toBe(1);
   });
 
   it("a backdated or future client timestamp never moves the server timestamps (H-09)", async () => {
+    // The order half cannot apply on the office path: app.office_create_order takes no client time, so it
+    // stores none (created_at_client is null). The rep path that took one is closed (D-30) and refuses first.
+    expect(await failure([repPath(id(), SALON_A, "repA", `, null, '${BACKDATED}'`)])).toEqual({
+      code: DENIED,
+      message: REP_PATH_CLOSED,
+    });
     const o = id();
     const r = await tx([
-      [
-        "repA",
-        `select app.create_order('${o}', '${SALON_A}', 'CASH', 'bag_now', ${lines([[SKU1, 1]])}, null, '2001-01-01T00:00:00Z');`,
-      ],
+      officeOrder(o, [[SKU1, 1]]),
       [
         "postgres",
-        `select abs(extract(epoch from (now() - created_at)))::int age_s, created_at_client is not null has_client from public.sales_order where client_id = '${o}';`,
+        `select abs(extract(epoch from (now() - created_at)))::int age_s, created_at_client is null no_client from public.sales_order where client_id = '${o}';`,
       ],
     ]);
-    expect(r[0].age_s).toBeLessThan(120);
+    expect(r[0].age_s).toBeLessThan(SERVER_TIME_TOLERANCE_S);
+    expect(r[0].no_client).toBe(true);
     const n = await tx([
-      ["repA", `select app.add_salon_note('${id()}', '${SALON_A}', 'backdated', '2001-01-01T00:00:00Z');`],
+      ["repA", `select app.add_salon_note('${id()}', '${SALON_A}', 'backdated', '${BACKDATED}');`],
       [
         "postgres",
         `select extract(year from created_at)::int y from public.salon_note where body = 'backdated' order by created_at desc limit 1;`,
       ],
     ]);
-    expect(n[0].y).toBeGreaterThanOrEqual(2026);
+    expect(n[0].y).toBeGreaterThanOrEqual(SERVER_YEAR_FLOOR);
   });
 
-  it("an order the rep cancels or another rep cancels: rep B cannot cancel rep A's order", async () => {
+  it("rep B cannot cancel rep A's legacy draft, nor an office order assigned to rep A, given their real ids", async () => {
     const o = id();
-    const e = await code([order(o, [[SKU1, 1]]), ["repB", `select app.cancel_order(${oid(o)}, 'intruder');`]]);
-    expect(e).not.toBeNull();
+    const cancelAs = (who: P, orderId: string): Step => [who, `select (app.cancel_order(${orderId}, 'intruder')).status::text;`];
+    const refused = { code: DENIED, message: OWN_DRAFT_ONLY };
+    // Legacy draft: the same call with the same literal id cancels it for its own rep, and is refused for rep B.
+    const draft = legacyOrder(o, 1, "draft");
+    expect(await tx([draft, cancelAs("repA", literalId(o))])).toEqual([{ status: "cancelled" }]);
+    expect(await attack([draft], [cancelAs("repB", literalId(o))])).toEqual(refused);
+    // Office order (no rep_id, so no rep owns it): the pinned id cancels it for the office, and is refused for rep B.
+    const office = [officeOrder(o, [[SKU1, 1]]), pinOrder(o)];
+    expect(await tx([...office, cancelAs("manager", PINNED_ORDER)])).toEqual([{ status: "cancelled" }]);
+    expect(await attack(office, [cancelAs("repB", PINNED_ORDER)])).toEqual(refused);
   });
 });
 
 // ---------------------------------------------------------------------------------------------
 describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
-  it("rep B cannot deliver rep A's order, and a rep cannot call office_deliver", async () => {
+  it("rep B cannot deliver rep A's legacy order, nor an office order assigned to rep A; a rep cannot call office_deliver", async () => {
     const o = id();
-    expect(await code([order(o, [[SKU1, 1]]), deliver(id(), o, null, "repB")])).not.toBeNull();
-    expect(
-      await code([order(o, [[SKU1, 1]]), ["repA", `select app.office_deliver('${id()}', ${oid(o)}, '${WH}', 'Name');`]]),
-    ).toBe("42501");
+    const refused = { code: DENIED, message: OWN_ORDERS_ONLY };
+    // The same call with the same id delivers for rep A (its own legacy order, or the office order assigned to it).
+    const legacy = legacyOrder(o);
+    expect(await tx([legacy, deliverAt(id(), literalId(o), "repA")])).toHaveLength(1);
+    expect(await attack([legacy], [deliverAt(id(), literalId(o), "repB")])).toEqual(refused);
+    const office = [officeOrder(o, [[SKU1, 1]]), pinOrder(o)];
+    expect(await tx([...office, deliverAt(id(), PINNED_ORDER, "repA")])).toHaveLength(1);
+    expect(await attack(office, [deliverAt(id(), PINNED_ORDER, "repB")])).toEqual(refused);
+    expect(await attack(office, [["repA", `select app.office_deliver('${id()}', ${PINNED_ORDER}, '${WH}', 'Name');`]])).toEqual({
+      code: DENIED,
+      message: OFFICE_ONLY,
+    });
   });
 
   it("delivering more than ordered, a SKU not on the order, or zero is refused", async () => {
     const o = id();
-    for (const l of [[[SKU1, 3]], [[SKU2, 1]], [[SKU1, 0]], [[SKU1, -1]]] as Array<Array<[string, number]>>) {
-      expect(await code([order(o, [[SKU1, 2]]), deliver(id(), o, l)])).not.toBeNull();
-    }
+    const tries = [[[SKU1, QTY_MORE_THAN_PAIR]], [[SKU2, 1]], [[SKU1, 0]], [[SKU1, -1]]] as Array<Array<[string, number]>>;
+    const results = await tries.reduce<Promise<Array<Failure | null>>>(
+      async (acc, l) => [...(await acc), await attack([officeOrder(o, [[SKU1, QTY_PAIR]])], [deliver(id(), o, l)])],
+      Promise.resolve([]),
+    );
+    const notOnOrder = { code: BAD_INPUT, message: "every line must be a SKU of this order, at most what is left to deliver" };
+    const notWhole = { code: BAD_INPUT, message: "each line needs a sku_id and a whole quantity" };
+    expect(results).toEqual([notOnOrder, notOnOrder, notWhole, notWhole]);
   });
 
   it("a full delivery cannot be followed by a second delivery under a new client id", async () => {
     const o = id();
-    const r = await code([order(o, [[SKU1, 2]]), deliver(id(), o), deliver(id(), o)]);
-    expect(r).not.toBeNull();
+    // A fully delivered order is no longer confirmed, so the status check refuses before the lines check.
+    expect(await attack([officeOrder(o, [[SKU1, QTY_PAIR]]), deliver(id(), o)], [deliver(id(), o)])).toEqual({
+      code: BAD_INPUT,
+      message: NOT_CONFIRMED,
+    });
   });
 
   it("a delivery replay is one invoice and one set of stock movements; a reused id for another order is refused", async () => {
@@ -731,8 +829,8 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       o2 = id(),
       d = id();
     const r = await tx([
-      order(o1, [
-        [SKU1, 2],
+      officeOrder(o1, [
+        [SKU1, QTY_PAIR],
         [SKU2, 1],
       ]),
       deliver(d, o1),
@@ -745,14 +843,18 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
           app.on_hand(${BAG_A}, '${SKU1}')::int sku1_in_bag;`,
       ],
     ]);
-    expect(r[0]).toEqual({ invoices: 1, moves: 2, sku1_in_bag: 18 });
-    expect(await code([order(o1, [[SKU1, 2]]), deliver(d, o1), order(o2, [[SKU1, 1]]), deliver(d, o2)])).toBe("23505");
+    expect(r[0]).toEqual({ invoices: 1, moves: QTY_PAIR, sku1_in_bag: BAG_STOCK - QTY_PAIR });
+    expect(await code([officeOrder(o1, [[SKU1, QTY_PAIR]]), deliver(d, o1), officeOrder(o2, [[SKU1, 1]]), deliver(d, o2)])).toBe(
+      DUPLICATE,
+    );
   });
 
   it("the bag cannot go negative: delivering more than the bag holds is refused and no invoice exists", async () => {
     const o = id();
-    const r = await code([order(o, [[SKU1, 21]]), deliver(id(), o)]);
-    expect(r).not.toBeNull();
+    expect(await attack([officeOrder(o, [[SKU1, BAG_STOCK + 1]])], [deliver(id(), o)])).toEqual({
+      code: CHECK_VIOLATION,
+      message: "insufficient stock at the delivery location (part delivery is allowed)",
+    });
     const inv = await tx([
       [
         "postgres",
@@ -765,26 +867,35 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
   it("a cancelled order cannot be delivered", async () => {
     const o = id();
     expect(
-      await code([order(o, [[SKU1, 1]]), ["repA", `select app.cancel_order(${oid(o)}, 'attack');`], deliver(id(), o)]),
-    ).not.toBeNull();
+      await attack(
+        [officeOrder(o, [[SKU1, 1]]), ["manager", `select app.cancel_order(${oid(o)}, 'attack');`]],
+        [deliver(id(), o)],
+      ),
+    ).toEqual({ code: BAD_INPUT, message: NOT_CONFIRMED });
   });
 
   it("a delivery needs a receiver name and sane GPS; a backdated client time does not move the invoice time (H-09)", async () => {
     const o = id();
-    for (const bad of [
+    const bad = [
       `select app.rep_deliver('${id()}', ${oid(o)}, '', 24.9, 67.1, null);`,
       `select app.rep_deliver('${id()}', ${oid(o)}, 'A', 24.9, 67.1, null);`,
       `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 999, 67.1, null);`,
       `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', null, null, null);`,
       `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, null, null);`,
-    ]) {
-      expect(await code([order(o, [[SKU1, 1]]), ["repA", bad]])).not.toBeNull();
-    }
+    ];
+    const results = await bad.reduce<Promise<Array<Failure | null>>>(
+      async (acc, sql) => [...(await acc), await attack([officeOrder(o, [[SKU1, 1]])], [["repA", sql]])],
+      Promise.resolve([]),
+    );
+    const noName = { code: BAD_INPUT, message: "the name of the person who received the goods is required (MJ L-0163)" };
+    const noGps = { code: BAD_INPUT, message: "GPS is required for a delivery (MJ L-0163)" };
+    const badLat = { code: CHECK_VIOLATION, message: expect.stringContaining("delivery_lat_check") };
+    expect(results).toEqual([noName, noName, badLat, noGps, noGps]);
     const r = await tx([
-      order(o, [[SKU1, 1]]),
+      officeOrder(o, [[SKU1, 1]]),
       [
         "repA",
-        `select (app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, 67.1, null, false, '2001-01-01T00:00:00Z')).*;`,
+        `select (app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, 67.1, null, false, '${BACKDATED}')).*;`,
       ],
       [
         "postgres",
@@ -792,16 +903,16 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
           from public.delivery d join public.sales_order s on s.id = d.order_id where s.client_id = '${o}';`,
       ],
     ]);
-    expect(r[0].age_s).toBeLessThan(120);
-    expect(r[0].client_year).toBe(2001);
+    expect(r[0].age_s).toBeLessThan(SERVER_TIME_TOLERANCE_S);
+    expect(r[0].client_year).toBe(BACKDATED_YEAR);
   });
 
   it("two invoices in a row carry consecutive numbers, and an invoice cannot be changed even by its owner (H-06, H-11)", async () => {
     const o1 = id(),
       o2 = id();
     const r = await tx([
-      order(o1, [[SKU1, 1]]),
-      order(o2, [[SKU2, 1]]),
+      officeOrder(o1, [[SKU1, 1]]),
+      officeOrder(o2, [[SKU2, 1]]),
       deliver(id(), o1),
       deliver(id(), o2),
       [
@@ -812,20 +923,16 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
     ]);
     const n = r[0].n as number[];
     expect(n[1] - n[0]).toBe(1);
+    const delivered = [officeOrder(o1, [[SKU1, 1]]), deliver(id(), o1)];
     expect(
-      await code([
-        order(o1, [[SKU1, 1]]),
-        deliver(id(), o1),
+      await attack(delivered, [
         ["postgres", `update public.invoice set total_paisa = total_paisa - 1 where order_id = ${oid(o1)};`],
       ]),
-    ).not.toBeNull();
-    expect(
-      await code([
-        order(o1, [[SKU1, 1]]),
-        deliver(id(), o1),
-        ["postgres", `delete from public.invoice where order_id = ${oid(o1)};`],
-      ]),
-    ).not.toBeNull();
+    ).toEqual({ code: DENIED, message: "UPDATE on public.invoice is not allowed: table is append-only (doc 04 invariant 1)" });
+    expect(await attack(delivered, [["postgres", `delete from public.invoice where order_id = ${oid(o1)};`]])).toEqual({
+      code: DENIED,
+      message: "DELETE on public.invoice is not allowed: table is append-only (doc 04 invariant 1)",
+    });
   });
 
   it("a failed delivery consumes no invoice number (gapless, H-11)", async () => {
@@ -833,8 +940,8 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       o2 = id();
     const before = await tx([["postgres", `select coalesce(max(substr(number, 8)::int), 0) m from public.invoice;`]]);
     const after = await tx([
-      order(o1, [[SKU1, 21]]),
-      order(o2, [[SKU1, 1]]),
+      officeOrder(o1, [[SKU1, BAG_STOCK + 1]]),
+      officeOrder(o2, [[SKU1, 1]]),
       [
         "repA",
         `do $$ begin perform app.rep_deliver('${id()}', ${oid(o1)}, 'Ayesha at the counter', 24.9, 67.1, null); exception when others then null; end $$;`,

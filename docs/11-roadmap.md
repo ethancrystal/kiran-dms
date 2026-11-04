@@ -31,7 +31,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Agents | AGT-01, 02, 03, 04, 06 (D-15 to D-17) |
 | Vault | VLT-01…06 |
 | Security | SEC-01…08, 10, 11, 12 |
-| Controls | CTL-01 (receipt via WhatsApp — template-dependent; SMS fallback first if templates lag), 02, 03, 04, 05, 06, 07, 08, 09, 11 (manual list), 15, 16, 17, 18 — the full doc 13 prevention layer; detectors (CTL-14) follow in Phase 2 |
+| Controls | CTL-13 commission on delivered and invoiced value of assigned orders (D-31, brought into Phase 1 by ACTIVITY L-0385), CTL-01 (receipt via WhatsApp — template-dependent; SMS fallback first if templates lag), 02, 03, 04, 05, 06, 07, 08, 09, 11 (manual list), 15, 16, 17, 18 — the full doc 13 prevention layer; detectors (CTL-14) follow in Phase 2 |
 | Field | FLD-01 |
 | Reports | RPT-01, 02 |
 | Messaging | MSG-03 in-app notifications; receipts out via SMS/WhatsApp as soon as templates are approved |
@@ -61,8 +61,8 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Salon portal and dual-channel ordering | SAL-11/12, ORD-11/13, SEC-13/15: secure salon membership, own-salon catalogue/price/stock/order/document reads, portal order submission through the common order engine (manager approval first, D-30) |
 | Stock | INV-07 restock suggestions, INV-08 batches/expiry, INV-09 counts, INV-10 valuation (vault) |
 | Vault | VLT-07 column encryption (if not already in Phase 1) |
-| Controls | CTL-10 monthly statements + dispute, CTL-11 automated confirmations, CTL-12 quarantine returns, CTL-13 commission on banked cash, CTL-14 anomaly jobs |
-| Field | FLD-02 scorecard, FLD-03 commission workflow only if approved, FLD-04 onboarding checklist, FLD-05 live map |
+| Controls | CTL-10 monthly statements + dispute, CTL-11 automated confirmations, CTL-12 quarantine returns, CTL-13 commission (moved to Phase 1 by D-31), CTL-14 anomaly jobs |
+| Field | FLD-02 scorecard, FLD-03 commission statement and payouts only if approved (the earned-commission view is Phase 1, D-31), FLD-04 onboarding checklist, FLD-05 live map |
 | Active location | PIP-12/13: open-rep-day location samples, office current/stale map and approved history; exact tracking policy follows OQ-32 |
 | Messaging | MSG-01, 02, 04 |
 | Reports | RPT-03 funnel, RPT-04 margin (vault), RPT-05 accountant pack |
@@ -89,7 +89,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 | W9–W12 | Pilot with the existing sales appointee, one territory |
 | End W12 | Go/no-go for hiring rep 2 |
 | End W16 | Nearby discovery, routes from pins, cycle engine live |
-| End W20 | 3 reps, 3 territories, commissions on banked cash, bank reconciliation |
+| End W20 | 3 reps, 3 territories, commissions (earned on delivered and invoiced value from Phase 1, D-31), bank reconciliation |
 | Month 9 | Phase 3 complete; external security test |
 
 ## Effort estimate (developer weeks)

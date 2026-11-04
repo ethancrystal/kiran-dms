@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { type Browser, expect, type Page, test } from "@playwright/test";
+import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { rupees } from "../lib/money";
 
 // Slice 1 journeys on a real local stack (execution map; J1 steps 1 to 3, J4 steps 1, 5, J5
 // steps 1, 10). Seed: scripts/e2e-stack-seed.mjs. Tests run in order and share the stack.
@@ -9,6 +10,7 @@ type P = { id: string; email: string; name: string };
 const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "utf8")) as {
   password: string;
   people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer", P>;
+  sku: { id: string; code: string; list_price_paisa: number };
 };
 const { owner, manager, rep, rep2, newcomer } = seed.people;
 const MAILPIT = process.env.KIRAN_STACK_MAILPIT_URL ?? "http://127.0.0.1:54324";
@@ -66,6 +68,17 @@ async function newPage(browser: Browser) {
 
 const HTTP_OK = 200;
 const HTTP_UNPROCESSABLE = 422;
+// The rep journey does many steps on one real stack; it gets more than the 60 s default.
+const JOURNEY_TIMEOUT_MS = 120_000;
+
+// D-30 (ORD-14): the rep journey saves an order card for its new salon; a later test has the manager
+// make the order from it. The journey keeps the salon's name and the rep's signed-in, approved phone
+// (cookies and the stored device id) so that test can read the rep's Orders page without a second
+// e-mail code (the local stack sends at most 2 an hour).
+const CARD_TEXT = "[Test] 2 bottles of shade 5";
+const CARD_QTY = 2;
+let journeySalon = "";
+let repPhone: Awaited<ReturnType<BrowserContext["storageState"]>> | null = null;
 
 test.describe.configure({ mode: "serial" });
 
@@ -198,6 +211,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   browser,
   page,
 }) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
   await page.goto("/app/login");
   await page.getByLabel(/Email/).fill(rep.email);
   const asked = Date.now();
@@ -260,6 +274,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
 
   await page.goto("/app/salons/new");
   const salonName = `[Test] Salon ${Date.now()}`;
+  journeySalon = salonName;
   await page.getByLabel("Salon name").fill(salonName);
   await page.getByRole("button", { name: "Add salon" }).click();
   await page.waitForURL(/\/app\/salons\/[0-9a-f-]{36}$/);
@@ -276,6 +291,23 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("button", { name: "Add note" }).click();
   await expect(page.getByText("Note added.")).toBeVisible();
   await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();
+  // D-30 (ORD-14): the rep does not place orders; it saves what the salon wants as an order card
+  // (app.rep_create_card, open day), listed under My cards as Open until the office acts on it.
+  await page.getByLabel("What the salon needs").fill(CARD_TEXT);
+  await page.getByRole("button", { name: "Save order details" }).click();
+  await expect(page.getByText("Order details saved.")).toBeVisible();
+  await page.goto("/app/cards");
+  await expect(page.getByRole("heading", { name: "My cards" })).toBeVisible();
+  const myCard = page.getByRole("listitem").filter({ hasText: CARD_TEXT });
+  await expect(myCard.getByText("Open", { exact: true })).toBeVisible();
+  await expect(myCard).toContainText(salonName);
+  // The rep's Orders page (app.my_territory_orders) is read-only: a note, nothing that makes an order.
+  await page.goto("/app/orders");
+  await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
+  await expect(page.getByText("Orders are made by the office")).toBeVisible();
+  await expect(page.getByText("No orders in your territories yet.")).toBeVisible();
+  await expect(page.getByRole("button")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "order" })).toHaveCount(0);
   // The salon is in the rep's list after a reload (data survives, from the database).
   await page.goto("/app/salons");
   await expect(page.getByRole("link", { name: salonName })).toBeVisible();
@@ -346,6 +378,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
+  repPhone = await page.context().storageState();
 });
 
 test("a manager opens Receivables and reads the real ageing for each grouping (PAY-07)", async ({ page }) => {
@@ -382,4 +415,62 @@ test("a manager opens Cash handover; counting a rep who holds nothing is refused
   await page.getByRole("button", { name: "Record count" }).click();
   await expect(page.getByText("nothing to hand over: the rep holds no cash and none was counted")).toBeVisible();
   await expect(page.getByText("No handovers yet.")).toBeVisible();
+});
+
+test("a manager makes an order from the rep's card; the card leaves the queue and the rep reads the order (D-30, ORD-14)", async ({
+  browser,
+  page,
+}) => {
+  // A second manager sign-in waits for the next TOTP step (up to 30 s) before the test's own work.
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  expect(repPhone, "the rep journey kept the rep's signed-in phone").not.toBeNull();
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Orders", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
+  const queued = page.getByRole("listitem").filter({ hasText: CARD_TEXT });
+  await expect(queued).toContainText(rep.name);
+  await expect(queued).toContainText(journeySalon);
+  await queued.getByRole("button", { name: "Create order from this card" }).click();
+
+  // The form shows the card, keeps its salon and pre-selects the card's rep, who covers the territory.
+  const form = page.getByRole("form", { name: "New order" });
+  await expect(form.getByTestId("card-body")).toHaveText(CARD_TEXT);
+  await expect(form.getByLabel("Delivering rep")).toHaveValue(rep.id);
+  await form.getByLabel("Product 1").selectOption(seed.sku.id);
+  await form.getByLabel("Quantity 1").fill(String(CARD_QTY));
+  // A CASH order needs no credit (app.evaluate_order), so the database confirms it at once.
+  await form.getByLabel("Plan").selectOption("CASH");
+  await form.getByRole("button", { name: "Create order" }).click();
+  const total = rupees(seed.sku.list_price_paisa * CARD_QTY);
+  await expect(page.getByText(`Order created for ${journeySalon}: confirmed · ${total}.`)).toBeVisible();
+
+  // The card is closed as converted, so it leaves the queue; the order is listed from app.office_orders.
+  // The queue reloads after the order is made; ListState marks loading with aria-busy and hides the list
+  // meanwhile, so the card's absence is read only once the reload is done.
+  const queue = page.locator("section", { has: page.getByRole("heading", { name: "Order cards waiting" }) });
+  await expect(queue.locator("[aria-busy]")).toHaveCount(0);
+  await expect(queued).toHaveCount(0);
+  const row = page.getByRole("row").filter({ hasText: journeySalon });
+  await expect(row).toContainText("confirmed");
+  await expect(row).toContainText(total);
+  await expect(row).toContainText(rep.name);
+  await expect(row).toContainText("office");
+  // Data survives a reload: the database answers the same.
+  await page.reload();
+  await expect(page.getByRole("row").filter({ hasText: journeySalon })).toContainText("confirmed");
+  await expect(queue.locator("[aria-busy]")).toHaveCount(0);
+  await expect(page.getByRole("listitem").filter({ hasText: CARD_TEXT })).toHaveCount(0);
+
+  // The rep's phone: the order is in its territory list, assigned to it, and still nothing makes an order.
+  const phoneContext = await browser.newContext({ storageState: repPhone ?? undefined });
+  const phone = await phoneContext.newPage();
+  await phone.goto("/app/orders");
+  const mine = phone.getByRole("listitem").filter({ hasText: journeySalon });
+  await expect(mine).toContainText("confirmed");
+  await expect(mine).toContainText(total);
+  await expect(mine).toContainText("Assigned to you");
+  await expect(phone.getByRole("button")).toHaveCount(0);
+  await phone.goto("/app/cards");
+  await expect(phone.getByRole("listitem").filter({ hasText: CARD_TEXT }).getByText("Converted", { exact: true })).toBeVisible();
+  await phoneContext.close();
 });

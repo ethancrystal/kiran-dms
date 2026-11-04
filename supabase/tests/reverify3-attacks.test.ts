@@ -195,6 +195,7 @@ describe("§7.6 backdated client timestamps", () => {
     // may not be in the future (MJ approval L-0157).
     // Migration 0012 (P1-06 part a; standing approval L-0144): create_order(p_created_at_client) stores the
     // phone's time as evidence only. Migration 0013 (P1-06 part b; L-0144): rep_deliver(p_delivered_at_client) too.
+    // Migration 20261104090000 (D-30) keeps create_order's signature, so it stays listed, but it refuses every caller.
     // Migration 0021 (P1-07 part a; standing approval L-0144): rep_record_payment(p_recorded_at_client) stores the
     // phone's time as evidence only, in recorded_at_client, next to the server's recorded_at (H-09); a test in
     // payments.test.ts proves recorded_at is database time whatever the phone sends.

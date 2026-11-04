@@ -54,9 +54,10 @@ const tx = async (steps: Step[]) => ((await run("postgres", script(steps))) as u
 const txError = (steps: Step[]) => errorOf("postgres", script(steps));
 
 const lines = (l: Array<[string, number]>) => `'${JSON.stringify(l.map(([sku_id, qty]) => ({ sku_id, qty })))}'::jsonb`;
+// The office makes the order and names rep A to deliver it (D-30): delivery mode bag_now, delivered from rep A's bag.
 const order = (cid: string, l: Array<[string, number]>, salon = SALON): Step => [
-  "repA",
-  `select app.create_order('${cid}', '${salon}', 'CASH', 'bag_now', ${lines(l)});`,
+  "manager",
+  `select app.office_create_order('${cid}', '${salon}', 'CASH', ${lines(l)}, '${fx.repA.id}');`,
 ];
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
 const deliver = (dcid: string, ocid: string, l: Array<[string, number]> | null = null, who: P = "repA"): Step => [
@@ -215,8 +216,8 @@ describe("delivering from the bag (ORD-04, MJ L-0163)", () => {
     expect(
       await txError([
         [
-          "repA",
-          `select app.create_order('${held}', '${SALON}', 'CASH', 'bag_now', '[{"sku_id": "${SKU1}", "qty": 1, "unit_price_paisa": 100000}]'::jsonb);`,
+          "manager",
+          `select app.office_create_order('${held}', '${SALON}', 'CASH', '[{"sku_id": "${SKU1}", "qty": 1, "unit_price_paisa": 100000}]'::jsonb, '${fx.repA.id}');`,
         ],
         deliver(id(), held),
       ]),

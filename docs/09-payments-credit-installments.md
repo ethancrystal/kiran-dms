@@ -85,7 +85,7 @@ Payments cannot be edited or deleted. The intended correction is a **reversal** 
 
 - Salons transfer only to **Kiran's company accounts** shown on the invoice (owner-only to change; CTL-16). Personal accounts and wallets are prohibited and salons are told so on every document.
 - Each transfer payment must be **matched** to a bank statement line (CSV import, PAY-06) by amount + date window + reference. Matching is manager/owner work, assisted by auto-suggestions.
-- Unmatched after 3 working days → exception in the digest; commission is not paid on unmatched transfers (CTL-13).
+- Unmatched after 3 working days → exception in the digest; commission is not paid on unmatched transfers (CTL-13; the commission base is now delivered and invoiced value, D-31, so this control needs its own review).
 - Statement lines with no recorded payment → "unknown receipt" task: find the salon, record the payment properly.
 - Supplier payments are made from a separate account that is never imported (doc 07).
 

@@ -57,11 +57,12 @@ const lines = (l: Array<[string, number]>) => `'${JSON.stringify(l.map(([sku_id,
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
 const invoiceOf = (cid: string) =>
   `(select i.id from public.invoice i join public.sales_order o on o.id = i.order_id where o.client_id = '${cid}')`;
-/** Rep A orders and delivers everything; then each reader's document is stashed in a setting. */
+/** The manager orders for rep A, rep A delivers everything; then each reader's document is stashed in a setting. */
 const deliveredScript = (o: string, plan: string, l: Array<[string, number]>, readers: Array<[string, string]>) => `
   ${prelude}
+  ${asUser("manager")}
+  select app.office_create_order('${o}', '${SALON}', '${plan}', ${lines(l)}, '${fx.repA.id}');
   ${asUser("repA")}
-  select app.create_order('${o}', '${SALON}', '${plan}', 'bag_now', ${lines(l)});
   select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, 67.1);
   reset role;
   select set_config('kiran_test.invoice_id', ${invoiceOf(o)}::text, true);
