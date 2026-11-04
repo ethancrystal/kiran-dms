@@ -40,7 +40,7 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 
 ## 2. Where we are (2026-11-04)
 
-The live record is the ACTIVITY status board (§12); this is a snapshot and the board wins. States use the status words of the [master execution prompt](docs/audit-2026-10-31/master-prompt-2026-11-01.md); "IMPLEMENTED — NOT VERIFIED" stands for the board's "DONE (self-reported)" or "awaiting an independent check", and the log entry that says so is cited.
+The live record is the ACTIVITY status board (§12); this is a snapshot and the board wins. States use the status words of the [master execution prompt](docs/audit-2026-10-31/master-prompt-2026-11-01.md); "IMPLEMENTED — NOT VERIFIED" stands for the board's "DONE (self-reported)" or "awaiting verification" (by the builder or another agent, ACTIVITY §7, MJ L-0401), and the log entry that says so is cited.
 
 | Phase | Item | State |
 |---|---|---|
@@ -234,7 +234,7 @@ The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc
 - **Verifier-authored tests** change only with MJ's approval. Three kinds of change for a new module are pre-approved (MJ, 2026-10-28, ACTIVITY L-0144): adding its functions to the allowlist, adding `*_client` or planned-date parameters to the client-time list, and turning a "does not exist yet" check into a "rep sees 0 rows" check. Each is logged.
 - **Each control gets a test that tries to break it**, not only one that uses it.
 - **The Definition of Done** is in ACTIVITY §6.
-- **A different agent or MJ marks work VERIFIED**, never its builder (§7).
+- **The builder, another agent or MJ marks work VERIFIED** after an attempt to break the control with real evidence (commands, results, commit SHA); a builder verifying its own work says so on a `**Self-verification:**` line (ACTIVITY §7, MJ L-0401).
 
 ## 10. Boundaries
 
@@ -259,7 +259,7 @@ The full list is the hard rules H-01 to H-27 (ACTIVITY §5), "stop and ask MJ" (
 - Edit or delete history; corrections are reversing rows (H-06, H-07).
 - Weaken, bypass or "temporarily skip" RLS, MFA, device binding, approvals or audit (H-16).
 - Put a service-role key in client code (H-18).
-- Mark your own work VERIFIED (§7).
+- Mark work VERIFIED without real evidence, or verify your own work without saying so (§7, MJ L-0401).
 - Pay agents for recruiting other agents (A-06; SECP, Companies Act 2017 s.301).
 
 ## 11. Decisions waiting on MJ

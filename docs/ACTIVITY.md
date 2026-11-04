@@ -17,7 +17,7 @@
 2. Claim your work in §13 **before** touching anything.
 3. Obey the hard rules in §5. They are not preferences.
 4. Log intent before, evidence after (§16). Evidence means commands run and real results.
-5. Finish only when the Definition of Done (§6) is met. You never mark your own work *Verified* (§7).
+5. Finish only when the Definition of Done (§6) is met. You may verify your own work, with real evidence and saying so in the entry (§7, MJ L-0401).
 6. If anything is unclear, conflicting, or needs a decision MJ hasn't made: **stop that task, log a BLOCKER, pick another task.** Never guess in a way that weakens security.
 7. End every session with a HANDOFF entry and a green repo (§11).
 
@@ -163,8 +163,8 @@ A task may be logged `DONE` only if **all** of these are true. Paste this checkl
 
 Status values on the board: `NOT STARTED` → `IN PROGRESS` → `DONE (self-reported)` → `VERIFIED` → `ACCEPTED`.
 
-- The agent that built a task may set it to `DONE (self-reported)` and **no further**.
-- `VERIFIED` is set only by **a different agent or by MJ**, and only after a `VERIFIED` log entry that records an *attempt to break the control*, not just a green test run. At minimum, the verifier, from a clean checkout:
+- The heading is kept because Appendix C rule 2 freezes top-level headings; since MJ's decision L-0401 the build no longer needs a different checker. The agent that built a task may set it to `DONE (self-reported)`, and may also verify its own work and set it to `VERIFIED` (MJ, L-0401); a different agent or MJ may verify it too. This is about the build only: maker ≠ checker on business approvals in the database (H-12) is unchanged.
+- `VERIFIED` is set only after a `VERIFIED` log entry that records an *attempt to break the control*, not just a green test run, with real evidence: the exact commands, the real results and the commit SHA (H-23, H-24). When the verifier is the builder, the entry says so on a `**Self-verification:**` line (Appendix C, rule 4). At minimum, the verifier, from a clean checkout:
   1. Runs the full suite and the RLS matrix.
   2. Tries to read vault data with a rep token and with an un-granted manager token.
   3. Tries `UPDATE`/`DELETE` on an append-only table as each application role.
@@ -220,7 +220,7 @@ If MJ is not available, keep working on unblocked tasks. **Silence is not approv
 
 An agent may *prepare* checklists, scripts and runbooks for these, but must not perform them or ask for the secrets to perform them.
 
-**Merging pull requests (MJ, L-0301):** an agent may merge a pull request only after MJ says so in chat for that pull request, with every required check green on the exact head commit, using a merge commit pinned to that head (`--match-head-commit`; never squash, rebase or force). MJ's approval of one pull request does not cover another. MJ's OK counts as the review by someone who is not the author (Appendix C). Merging never approves a phase gate or a production release, which stay MJ's (H-19), and agents never change a ruleset or branch protection.
+**Merging pull requests (MJ, L-0301, L-0401):** an agent may merge a pull request only after MJ says so in chat for that pull request, with every required check green on the exact head commit, using a merge commit pinned to that head (`--match-head-commit`; never squash, rebase or force). MJ's approval of one pull request does not cover another. MJ's OK in chat is the only approval needed to merge; no second reviewer is required (MJ, L-0401). Merging never approves a phase gate or a production release, which stay MJ's (H-19), and agents never change a ruleset or branch protection.
 
 ---
 
@@ -341,7 +341,6 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | Claim ID | Agent / session | Task ID | Requirement IDs | Areas touched (tables, functions, screens, files) | Started (PKT) | Planned finish | Last activity |
 |---|---|---|---|---|---|---|---|
 | C-039 | Claude / orders-design-20261103 | P1-06 rework under D-30; delivery approval; commission | ORD-01, ORD-11, ORD-14, PAY-05 area, CTL-13 | sales_order and order functions, order cards, delivery submissions, pending-delivery stock, invoice commission columns, rep_commission_rate, related screens and tests, docs 03/04/06/09/12, docs/superpowers/specs | 2026-11-03 22:46 | 2026-11-05 | L-0396 |
-| C-032 | ChatGPT / kiran-plan-publish-20261103 | PLAN-05 | SAL-11/12, PIP-12/13, ORD-11/13, INV-12, SEC-13/15 | SPEC.md, AGENTS.md, CLAUDE.md, docs/00-15, diagram | 2026-11-03 14:20 | 2026-11-03 15:00 | L-0321/L-0323 |
 
 
 
@@ -385,6 +384,8 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-033 | P1-07 (part a reconciliation) | 2026-11-03 17:46 | done (handed over to C-036) | L-0347 |
 | C-036 | P1-07 (part a, ageing, screens, handover, office cash) | 2026-11-03 21:06 | done | L-0367 |
 | C-037 | — (documentation and log bookkeeping after PR 46) | 2026-11-03 21:10 | done | L-0373 |
+| C-032 | PLAN-05 | 2026-11-04 22:19 | stale (its PR 45 merged as 2f781fd) | L-0398 |
+| C-040 | — (remove the non-author reviewer and independent-verification rules, MJ) | 2026-11-04 22:38 | done | L-0402 |
 
 ---
 
@@ -4558,6 +4559,50 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Rules touched:** H-15, H-26
 **Next / needs:** MJ: the remaining open asks of L-0394 and L-0395 (A-18; push and pull request for PR A). C-039 stays active.
 
+### L-0397 · 2026-11-04 22:19 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · SESSION-START
+**Task:** — (governance: remove the non-author reviewer and independent-verification rules, MJ 2026-11-04)    **Claim:** C-040 (L-0399)
+**What / why:** Rule-text change at MJ's instruction in chat (relayed by the controlling session). Branch claude/remove-nonauthor-reviewer-rule, first cut from origin/claude/orders-delivery-commission at 69be2f6 (PR 48); after PR 48 merged it was fast-forwarded, before any commit, onto origin/main a5216da (the PR 48 merge commit; same tree as 69be2f6 plus nothing else), so it carries no duplicate commits. Read: CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 0 to 11, the status board, claims, blockers, Appendices A to C and the last entries (L-0390 to L-0396, and L-0298 to L-0302 for the merge rule of L-0301). Worktree clean before any change. `pnpm agent:preflight` (DATABASE_URL unset): PREFLIGHT OK. Active claims: C-039 (orders, docs 03, 04, 06, 09, 12 and code; no overlap with this change) and C-032 (ChatGPT, PLAN-05: SPEC.md, AGENTS.md, CLAUDE.md, docs 00 to 15), stale, released in L-0398. Open pull requests at start: only PR 48 (merged since, L-0400). Baseline: the only code change is in scripts/activity-log-check.mjs and its builder test file, so the database suite is not run as a whole; lint, typecheck, preflight, the log check and the log-check test file are run at the end.
+**Rules touched:** section 2, section 3
+**Next / needs:** L-0398, L-0399.
+
+### L-0398 · 2026-11-04 22:19 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · CLAIM-RELEASED
+**Task:** PLAN-05    **Claim:** C-032 (released as stale)
+**What / why:** C-032 (ChatGPT, session kiran-plan-publish-20261103) lists SPEC.md, AGENTS.md, CLAUDE.md and docs 00 to 15; its last log activity is L-0323 on 2026-11-03 14:22, more than 24 hours ago, so it is stale under section 3 (L-0395 noted this and left the release open). Its last entries (L-0321 to L-0323) were read: the work was to publish the plan through a docs-only pull request; that branch, docs/field-sales-distribution-plan-v2, was merged into main as PR 45 (merge commit 2f781fd), so no half-applied work is left behind on it. Released as stale and moved to the released table, because this session must edit AGENTS.md and CLAUDE.md. No task status changed.
+**Rules touched:** section 3
+**Next / needs:** L-0399.
+
+### L-0399 · 2026-11-04 22:19 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · CLAIM
+**Task:** — (governance: remove the non-author reviewer and independent-verification rules)    **Claim:** C-040
+**What / why:** C-040 is unused on every local and remote ref (`git log --all -S "C-040"` empty). Areas: in this file, section 0 item 5, section 7, the section 10 merging paragraph, Appendix B and Appendix C (intro, rule 4, last sentence); compliance protocol sections 6, 7, 9, 10 and its closing rule; AGENTS.md and CLAUDE.md (status words and Change control lines); SPEC.md sections 4 and 9 and the Never list; docs 14 (stage E) and 15 (sections 9 and 10 and the merge line); item 4 of docs/gate-0-checklist.md; scripts/activity-log-check.mjs (rule 4 and its header) and supabase/tests/log-check-rulings.test.ts. Not touched: H-12 and H-16 (maker and checker on business approvals in the database), RLS, MFA, audit, any ruleset or branch protection, any older log entry, the verifier-authored re-verifier test files.
+**Rules touched:** section 3
+**Next / needs:** the edits and a DECISION entry.
+
+### L-0400 · 2026-11-04 22:28 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · PROGRESS
+**Task:** P1-06 (record of the PR 48 merge; no work on P1-06 here)    **Claim:** C-040 (recording only; C-039 holds P1-06 and is not changed)
+**What / why:** Records MJ's merge approval for PR 48 (PR A: office orders, rep order cards, Orders area, assigned rep, D-30), relayed by the controlling session: MJ wrote in chat on 2026-11-04 "approve please merge". All six required checks and the office browser tests passed on head 69be2f607dc4cad9faa7c8c2fe9282b3322b871b, merge state CLEAN. Merged by the controlling session with `gh pr merge 48 --merge --match-head-commit 69be2f6...` (pinned to that head; merge commit, no squash, rebase or force); merge commit a5216da524ea073592aacea4c4c1b70319152a4d at 2026-11-04 17:19 UTC (22:19 PKT). PR 48 was the first CI run of the office stack tests and of its migration on the CI database; both passed. The merge approves no phase gate and no production release (H-19); nothing was applied to staging or production. MJ also confirmed in chat that maker ≠ checker on business approvals in the database stays; it is not touched here.
+**Evidence:** relayed by the controlling session, which ran the merge; this session did not run `gh pr merge` and did not read the CI runs itself. Read here: `git fetch origin main` moved origin/main 486888b to a5216da, and `git log --oneline -3 origin/main` shows a5216da "Merge pull request #48 from ethancrystal/claude/orders-delivery-commission" over 69be2f6.
+**Rules touched:** section 10, H-19
+**Next / needs:** C-039 holder: update the P1-06 board row and C-039 for the merge (not done here, the claim is not mine).
+
+### L-0401 · 2026-11-04 22:28 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · DECISION
+**Task:** — (governance: remove the non-author reviewer and independent-verification rules)    **Claim:** C-040
+**What / why:** Two MJ decisions in chat on 2026-11-04, relayed by the controlling session (section 1, item 1). (1) Merge reviewer: MJ wrote "remove the rule of getting checked by another user". Asked which rule he meant, MJ first picked 'Independent verification' and then wrote "I'm looking at the merge requirement for a reviewer who isn't the author, yes remove this rule". (2) Section 7: asked to confirm separately, MJ confirmed "yes verify own work". Recorded: (1) a pull request needs no second reviewer; MJ's OK in chat for that pull request is the only approval to merge, with every required check green on the exact head and a merge commit pinned to that head; one approval covers one pull request; agents never change a ruleset or branch protection; merging never approves a phase gate or production release (H-19). This supersedes "MJ's OK counts as the review by someone who is not the author" of L-0301 (not edited). (2) A builder may mark its own work VERIFIED; no different agent or MJ is required. The evidence rule stays: a verification records an attempt to break the control with the exact commands, the real results and the commit SHA (H-23, H-24), and a builder verifying its own work says so on a `**Self-verification:**` line in the entry. This supersedes MJ ruling L-0029 for the build (not edited). Not changed: maker ≠ checker on business approvals in the database (H-12, `checker_id` differs from `maker_id`), H-16, RLS, MFA, audit, any ruleset; MJ alone signs phase gates (ACCEPTED). Rule texts changed: this file, section 0 item 5; section 7 (first two bullets; the heading "Maker ≠ checker applies to the build too" stays, because Appendix C rule 2 refuses a changed top-level heading, and the first bullet says so); section 10 merging paragraph; Appendix B row Mark VERIFIED and the verifier column header; Appendix C intro sentence, rule 4 (both the VERIFIED-entry clause and the board clause) and its last sentence. Compliance protocol section 6 (retitled "verification needs real evidence"), section 7 last bullet (merge approval), section 9 items 7 and the awaiting line, section 10 last bullet and the closing rule. AGENTS.md and CLAUDE.md, the status-words line and the Change control line (byte-identical). SPEC.md section 4 note, section 9 test rule and the Never list. Doc 14 stage E; doc 15 implementation rule, section 10 intro, the merge line and item 9. docs/gate-0-checklist.md item 4. Code: scripts/activity-log-check.mjs rule 4 no longer refuses a VERIFIED entry, or a board move citing an entry, signed by the same agent as a DONE for the task; such an entry now needs a non-empty `**Self-verification:**` line, and without it the check still fails (the same-agent detection, the checklist, the task, the DONE and the ordering checks are unchanged). The header comment's "reviewer who is not the author" is replaced. Tests: supabase/tests/log-check-rulings.test.ts keeps its existing case (a maker's unmarked verdict fails) and adds one: the maker's verdict with the line passes as VERIFIED or CORRECTION and as a board move, and an empty or unbolded line still fails. The verifier-authored files (reverify5 and others) are not edited; their builder-self-verify cases have no such line and still fail. Not rewritten: MJ's own master prompt (docs/audit-2026-10-31/master-prompt-2026-11-01.md, "independently verified"), historical entries and reports.
+**Rules touched:** section 0, section 7, section 10, Appendix B, Appendix C rule 4, H-26 (the authority for this DECISION; its text is unchanged)
+**Next / needs:** MJ: if the GitHub ruleset on main requires an approving review, only MJ can remove it; this session did not inspect it.
+
+### L-0402 · 2026-11-04 22:38 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · CLAIM-RELEASED
+**Task:** — (governance: remove the non-author reviewer and independent-verification rules)    **Claim:** C-040
+**What / why:** The rule texts, the log-check change and its test are done (L-0401); C-040 released and moved to the released table. No status board row changed.
+**Rules touched:** section 3
+**Next / needs:** L-0403.
+
+### L-0403 · 2026-11-04 22:38 PKT · Claude · Opus 5.5 · session rules-nonauthor-20261104 · branch claude/remove-nonauthor-reviewer-rule · HANDOFF
+**Task:** — (governance: remove the non-author reviewer and independent-verification rules)    **Claim:** C-040 (released, L-0402)
+**What / why:** State: one local commit on branch claude/remove-nonauthor-reviewer-rule over origin/main a5216da; not pushed, no pull request. Result: DONE (self-reported), not checked by anyone else. Files changed: AGENTS.md, CLAUDE.md, SPEC.md, docs/ACTIVITY.md, docs/AGENT-COMPLIANCE-PROTOCOL.md, docs/14-unified-business-domain-prompt.md, docs/15-field-sales-distribution-engineering-plan.md, docs/gate-0-checklist.md, scripts/activity-log-check.mjs, supabase/tests/log-check-rulings.test.ts. Next steps, in order: (1) MJ decides on pushing and opening the pull request; merging only on MJ's OK for that pull request with every required check green on its head (the new section 10); (2) CI runs the whole database suite, including the verifier-authored re-verifier files that drive the log check, which were not run here; (3) MJ checks whether the ruleset on main requires an approving review and removes it if he wants the GitHub setting to match (agents never change it). Gotchas: the section 7 heading still reads "Maker ≠ checker applies to the build too" because Appendix C rule 2 refuses a changed top-level heading; the first bullet explains it. A self-verifying VERIFIED entry needs a non-empty `**Self-verification:**` line or the log check fails. If this branch merges after another branch that appends to this file, renumber under section 4 and keep the L-0401 citations in the rule texts pointing at the DECISION (a CORRECTION lists any change).
+**Evidence:** With these entries in place, DATABASE_URL unset: `node scripts/activity-log-check.mjs origin/main` gave activity-log-check OK (new log entries and changed files counted in the commit message; owner terms checked 0, KIRAN_SENSITIVE_TERMS empty here), exit 0; `pnpm lint` exit 0 (108 files, 33 warnings, 42 infos, as in L-0396); `pnpm typecheck` exit 0; `pnpm agent:preflight` PREFLIGHT OK; `pnpm agent:preflight:test` 12 passed, 0 failed; `cmp AGENTS.md CLAUDE.md` identical; `NODE_ENV=test pnpm exec vitest run --config supabase/tests/vitest.config.ts log-check-rulings` (Windows embedded Postgres, DATABASE_URL and KIRAN_TEST_DATABASE_URL unset) 1 file, 19 passed, 816 s, including the new self-verification case and the unchanged case that a maker's unmarked verdict fails. Not run: the rest of the database suite, the re-verifier files reverify4 to reverify11 (git-clone suites, left to CI), browser tests, CI.
+**Rules touched:** section 3, section 11, H-23, H-24
+**Next / needs:** MJ: push and pull request decision; the ruleset check of L-0401.
+
 ---
 
 ## Appendix A — Text for `AGENTS.md` and `CLAUDE.md` at the repo root (task P0-09)
@@ -4584,11 +4629,11 @@ Claude Code project-level `SessionStart` automation is configured in `.claude/se
 
 ## Appendix B — Quick reference: who may do what in the build
 
-| Action | Builder agent | Verifier (different agent) | MJ |
+| Action | Builder agent | Verifier (another agent) | MJ |
 |---|---|---|---|
 | Claim and implement a task | Yes | — | Yes |
 | Mark `DONE (self-reported)` | Yes | — | Yes |
-| Mark `VERIFIED` | **No** | Yes | Yes |
+| Mark `VERIFIED` | Yes, with real evidence and a `**Self-verification:**` line (MJ, L-0401) | Yes | Yes |
 | Mark `ACCEPTED` / sign a gate | **No** | **No** | **Yes** |
 | Change a fixed decision / permission matrix / thresholds | **No** | **No** | **Yes** |
 | Touch production | **No** | **No** | Approves (H-19) |
@@ -4597,7 +4642,7 @@ Claude Code project-level `SessionStart` automation is configured in `.claude/se
 
 ## Appendix C — CI enforcement spec (task P0-09)
 
-The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085, L-0116; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095, L-0107, L-0122). The check is a tripwire, not a proof: branch protection and a reviewer who is not the author remain the real control.
+The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every pull request and **fails** if any of these is true. Rules 1 to 5 were tightened after independent verification (L-0025, L-0030, L-0035, L-0042, L-0055, L-0061, L-0066, L-0071, L-0075, L-0085, L-0116; council audit L-0094; DEVIATIONs L-0044, L-0057, L-0063, L-0069, L-0073, L-0077, L-0087, L-0092, L-0095, L-0107, L-0122). The check is a tripwire, not a proof: branch protection and MJ's approval in chat for each merge (section 10) remain the real control.
 
 0. The base commit cannot be resolved, or any git command fails (for example a diff too large to read). The check fails closed. An all-zero base (a branch's first push) falls back to the parent commit. An added file that cannot be read for scanning, or a changed path that is not valid UTF-8, also fails.
 1. Any file other than `docs/ACTIVITY.md` changed, or `docs/ACTIVITY.md` changed outside the §16 log (rules, board, claims, blockers, assumptions, appendices), and there is no new `### L-NNNN` entry. (Tables §12–§15 may still change, but only alongside a log entry.)
@@ -4613,7 +4658,7 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
    - new log text does not start with a new entry header, or contains any other heading, a blockquote at any nesting depth, or a heading inside a list item at any nesting depth; in new log text any indented heading, blockquote or setext underline is refused whatever the indentation (a block can nest in a list item by indentation alone); new log text may not contain `<`, `&` or a backslash outside fenced code, except in CommonMark autolinks (a URL or e-mail address in angle brackets), which the raw-HTML rule also allows;
    - a `---` separator anywhere but as the final line (code blocks excepted).
 3. A new entry has a duplicate or non-sequential `L-NNNN` number; is missing the signature, type or task line, or the evidence line (for `DONE`, `VERIFIED`, `HANDOFF`, `PROGRESS`); has a signature that is not plain ASCII apart from the `·` separators; or its task line contains non-ASCII characters outside a small allowlist (en/em dash, §, ≠, ·, ×, …).
-4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`, `P0-9`, `P0_09`, `P0.09`), or shares a signature with the `DONE` entry for any task it names. The §12 board is read the way GitHub renders tables: a table opens at a header row followed by a delimiter row with the same number of cells and ends at a blank line or a heading; a row may be indented and may omit its outer pipes; cells split on unescaped pipes; the Status column is found by its header. Each task has exactly one board row. A Status cell whose text changed from the base is plain text (ASCII plus the Task-line allowlist, no Markdown emphasis, code or escape characters). If a changed Status cell mentions VERIFIED in any form (any case, after NFKC and removing default-ignorable characters and emphasis), it must read exactly `VERIFIED (L-nnnn)`; the only other allowed mention is a reopen note of the form `was VERIFIED L-nnnn`. A new or changed board line that mentions VERIFIED but is not a task row in a table with a Status column is refused. The cited entry, whatever its type, must be a `VERIFIED` or `CORRECTION` entry that names the task, carries the security checklist, shares no signature with any `DONE` entry for the task (L-0097), and comes after the task's latest `DONE` entry (L-0121). Signatures count as shared when they are equal, one contains the other, or both carry the same `session {id}` (maker ≠ checker, §7; MJ ruling L-0029).
+4. A `DONE` or `VERIFIED` entry lacks the security checklist block. A `VERIFIED` entry names no task, names a task that has no `DONE` entry (dashes in task ids are normalised first), has text on its task line shaped like a task id that is not one (such as `PO-04`, `P0-O4`, `P0-0l`, `P0-9`, `P0_09`, `P0.09`), or shares a signature with the `DONE` entry for any task it names without a non-empty `**Self-verification:**` line saying that the builder verifies its own work (MJ, L-0401). The §12 board is read the way GitHub renders tables: a table opens at a header row followed by a delimiter row with the same number of cells and ends at a blank line or a heading; a row may be indented and may omit its outer pipes; cells split on unescaped pipes; the Status column is found by its header. Each task has exactly one board row. A Status cell whose text changed from the base is plain text (ASCII plus the Task-line allowlist, no Markdown emphasis, code or escape characters). If a changed Status cell mentions VERIFIED in any form (any case, after NFKC and removing default-ignorable characters and emphasis), it must read exactly `VERIFIED (L-nnnn)`; the only other allowed mention is a reopen note of the form `was VERIFIED L-nnnn`. A new or changed board line that mentions VERIFIED but is not a task row in a table with a Status column is refused. The cited entry, whatever its type, must be a `VERIFIED` or `CORRECTION` entry that names the task, carries the security checklist, carries a non-empty `**Self-verification:**` line if it shares a signature with any `DONE` entry for the task (L-0097; MJ, L-0401), and comes after the task's latest `DONE` entry (L-0121). Signatures count as shared when they are equal, one contains the other, or both carry the same `session {id}` (MJ ruling L-0029). Before L-0401 a shared signature was refused outright (maker ≠ checker for the build); since L-0401 a builder may verify its own work but must declare it.
 5. An added line contains a secret-looking value or supplier identifiers:
    - private keys, JWTs, `sb_secret_` keys or AWS keys;
    - connection strings with a password, including a password given as a URI query parameter or as a libpq `password` keyword, with or without spaces around `=` and quoted or not, on a line with another libpq keyword such as `host=` or `user=` (placeholders and `${…}` or `$VAR` references excepted);
@@ -4625,4 +4670,4 @@ The CI job `activity-log-check` (`scripts/activity-log-check.mjs`) runs on every
 
    A file whose name starts with `.env` (any case), other than `.env.example`, is added or changed.
 
-Branch protection requires this job and the RLS test suite to pass before merge. The typecheck job also builds the web app and runs `scripts/service-role-scan.mjs` (H-18): key names in `apps/` and `packages/` source, key values in the client bundle (L-0096). Merges to `main` require one reviewer who is not the author.
+Branch protection requires this job and the RLS test suite to pass before merge. The typecheck job also builds the web app and runs `scripts/service-role-scan.mjs` (H-18): key names in `apps/` and `packages/` source, key values in the client bundle (L-0096). Merging a pull request needs MJ's OK in chat for that pull request, every required check green on the exact head and a merge commit pinned to that head (section 10); no second reviewer is required (MJ, L-0401).
