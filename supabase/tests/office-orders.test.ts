@@ -288,6 +288,14 @@ describe("the office creates orders (D-30)", () => {
     expect(await txCode([create("manager", id(), { salon: id() })])).toBe(BAD_INPUT);
   });
 
+  it("a null client_id is refused 22023 before anything else (idempotency key, H-08)", async () => {
+    const noKey = (who: P): Step => [who, `select (app.office_create_order(null, '${SALON}', 'CASH', ${lines(1)})).id;`];
+    expect(await txCode([noKey("manager")])).toBe(BAD_INPUT);
+    expect(await txError([noKey("owner")])).toContain("an order needs a client_id (idempotency key, H-08)");
+    // The role check still comes first: a rep without a key is refused as a rep, not as bad input.
+    expect(await txCode([noKey("repA")])).toBe(DENIED);
+  });
+
   it("an unknown order card is refused 22023 (conversion itself: order-cards.test.ts)", async () => {
     expect(await txCode([create("manager", id(), { card: id() })])).toBe(BAD_INPUT);
     expect(await txError([create("manager", id(), { card: id() })])).toContain("unknown order card");

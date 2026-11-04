@@ -491,14 +491,16 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Orders, their lines, deliveries and delivery lines: the order's rep or its assigned rep (migration
+  // 20261104090000, D-30: an office order names the rep who delivers it in assigned_rep_id).
   {
     table: "public.sales_order",
     writeCol: "cancel_reason",
     select: {
       anon: "denied",
-      repA: `rep_id = ${me("repA")}`,
+      repA: `rep_id = ${me("repA")} or assigned_rep_id = ${me("repA")}`,
       repAWrongDevice: "false",
-      repB: `rep_id = ${me("repB")}`,
+      repB: `rep_id = ${me("repB")} or assigned_rep_id = ${me("repB")}`,
       manager: "true",
       managerAal1: "false",
       owner: "true",
@@ -512,9 +514,9 @@ const MATRIX: Row[] = [
     writeCol: "qty",
     select: {
       anon: "denied",
-      repA: `order_id in (select o.id from public.sales_order o where o.rep_id = ${me("repA")})`,
+      repA: `order_id in (select o.id from public.sales_order o where (o.rep_id = ${me("repA")} or o.assigned_rep_id = ${me("repA")}))`,
       repAWrongDevice: "false",
-      repB: `order_id in (select o.id from public.sales_order o where o.rep_id = ${me("repB")})`,
+      repB: `order_id in (select o.id from public.sales_order o where (o.rep_id = ${me("repB")} or o.assigned_rep_id = ${me("repB")}))`,
       manager: "true",
       managerAal1: "false",
       owner: "true",
@@ -529,9 +531,9 @@ const MATRIX: Row[] = [
     writeCol: "received_by_name",
     select: {
       anon: "denied",
-      repA: `order_id in (select o.id from public.sales_order o where o.rep_id = ${me("repA")})`,
+      repA: `order_id in (select o.id from public.sales_order o where (o.rep_id = ${me("repA")} or o.assigned_rep_id = ${me("repA")}))`,
       repAWrongDevice: "false",
-      repB: `order_id in (select o.id from public.sales_order o where o.rep_id = ${me("repB")})`,
+      repB: `order_id in (select o.id from public.sales_order o where (o.rep_id = ${me("repB")} or o.assigned_rep_id = ${me("repB")}))`,
       manager: "true",
       managerAal1: "false",
       owner: "true",
@@ -545,9 +547,9 @@ const MATRIX: Row[] = [
     writeCol: "qty",
     select: {
       anon: "denied",
-      repA: `delivery_id in (select d.id from public.delivery d where d.order_id in (select o.id from public.sales_order o where o.rep_id = ${me("repA")}))`,
+      repA: `delivery_id in (select d.id from public.delivery d where d.order_id in (select o.id from public.sales_order o where (o.rep_id = ${me("repA")} or o.assigned_rep_id = ${me("repA")})))`,
       repAWrongDevice: "false",
-      repB: `delivery_id in (select d.id from public.delivery d where d.order_id in (select o.id from public.sales_order o where o.rep_id = ${me("repB")}))`,
+      repB: `delivery_id in (select d.id from public.delivery d where d.order_id in (select o.id from public.sales_order o where (o.rep_id = ${me("repB")} or o.assigned_rep_id = ${me("repB")})))`,
       manager: "true",
       managerAal1: "false",
       owner: "true",

@@ -24,6 +24,8 @@ const STATUSES = ["draft", "confirmed", "partially_delivered", "delivered", "clo
 const CHANNELS = ["office", "rep_visit", "salon_portal"];
 // Ids per name lookup, so a page of 200 orders never builds one over-long request URL.
 const NAME_CHUNK = 50;
+// app.office_dismiss_card refuses a reason shorter than 5 characters (22023).
+const DISMISS_REASON_MIN_LENGTH = 5;
 
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
@@ -174,6 +176,7 @@ export default function Orders() {
                     label="Dismiss"
                     confirmLabel="Dismiss card"
                     reasonLabel="Why dismiss this card"
+                    reasonMinLength={DISMISS_REASON_MIN_LENGTH}
                     danger
                     onConfirm={async (reason) => {
                       await rpc("office_dismiss_card", { p_card_id: c.card_id, p_reason: reason });

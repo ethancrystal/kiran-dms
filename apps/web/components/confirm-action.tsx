@@ -1,6 +1,10 @@
 "use client";
 import { useState } from "react";
 
+// The shortest reason a required field accepts by default; a screen whose function asks for more
+// passes reasonMinLength.
+const DEFAULT_REASON_MIN_LENGTH = 3;
+
 /**
  * A button that opens an inline confirmation with a reason field, then runs `onConfirm`.
  * The database decides; a refusal is shown here, never swallowed.
@@ -10,6 +14,7 @@ export function ConfirmAction({
   confirmLabel,
   reasonLabel = "Reason",
   reasonRequired = true,
+  reasonMinLength = DEFAULT_REASON_MIN_LENGTH,
   danger = false,
   onConfirm,
 }: {
@@ -17,6 +22,8 @@ export function ConfirmAction({
   confirmLabel?: string;
   reasonLabel?: string;
   reasonRequired?: boolean;
+  /** Shortest reason accepted when a reason is required; match the database function's own minimum. */
+  reasonMinLength?: number;
   danger?: boolean;
   onConfirm: (reason: string) => Promise<void>;
 }) {
@@ -56,7 +63,7 @@ export function ConfirmAction({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           required={reasonRequired}
-          minLength={reasonRequired ? 3 : undefined}
+          minLength={reasonRequired ? reasonMinLength : undefined}
           maxLength={300}
           aria-label={reasonLabel}
         />

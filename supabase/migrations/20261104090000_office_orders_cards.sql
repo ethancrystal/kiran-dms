@@ -361,7 +361,8 @@ end $$;
 -- D-30: the owner or a manager makes an order for any salon. No rep and no rep day; an assigned rep
 -- (who delivers it from the bag) must be an active rep currently covering the salon's territory,
 -- otherwise the office delivers it from the warehouse. Idempotent on client_id (ORD-10): the same
--- creator, salon, plan and card get the same order back, checked before the card's open test.
+-- creator, salon, plan and card get the same order back, checked before the card's open test; a null
+-- client_id is refused (22023), as in app.rep_create_card.
 -- ORD-14: with p_intake_card_id the order converts a rep's card. The card row is locked, must exist
 -- and be for this salon (22023) and still be open (55000); the 'converted' close row is written in the
 -- same transaction as the order. The assigned rep may differ from the card's rep (the page pre-selects it).
@@ -376,6 +377,9 @@ declare
   v_area uuid;
   k      public.order_intake_card;
 begin
+  if p_client_id is null then
+    raise exception using errcode = '22023', message = 'an order needs a client_id (idempotency key, H-08)';
+  end if;
   select * into o from public.sales_order where client_id = p_client_id;
   if o.id is not null then
     if o.created_by = auth.uid() and o.salon_id = p_salon_id and o.plan = p_plan
