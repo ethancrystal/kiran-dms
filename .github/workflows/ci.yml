@@ -45,6 +45,9 @@ jobs:
           version: 2.113.0
       # Real Postgres + GoTrue (the auth schema, auth.uid(), auth.jwt()). `supabase start`
       # applies supabase/migrations exactly as `supabase db push` would on a hosted project.
+      # The runner's outbound connections can take a port in the stack's range (seen: 54324, address already in use). Keep the range out of the ephemeral pool.
+      - name: Reserve the Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - name: Start Supabase (db + auth only)
         run: supabase start -x realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - run: pnpm db:test
@@ -137,6 +140,9 @@ jobs:
           version: 2.113.0
       # Auth, PostgREST (through the API gateway) and the mail catcher stay up: the pages call the
       # real app.* functions with real sessions (execution map, gate G2). Migrations apply on start.
+      # The runner's outbound connections can take a port in the stack's range (seen: 54324, address already in use). Keep the range out of the ephemeral pool.
+      - name: Reserve the Supabase ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - name: Start Supabase (db, auth, rest, gateway, mail)
         run: supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       # Only the public URL and the publishable (anon) key leave the stack; no service-role key is read.
