@@ -31,7 +31,7 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | Change salon stage manually | — | With reason | With reason |
 | Log visits, deliveries, payments | Own | Own + on behalf (flagged) | Same as manager |
 | Create official sales orders (D-30) | — (records order-intake cards; reads its territories' orders) | Yes; converts a rep's card into an order | Same as manager |
-| Discount below list price | — (no orders, D-30) | Approve (not own requests) | Approve |
+| Discount below list price | — (no orders, D-30) | Approve (not own requests) | Approve; the owner's own discount on an office order the owner creates needs no approval and is recorded on the order (MJ, ACTIVITY L-0390) |
 | Credit limit override / unblock salon | — | Yes, logged, capped per salon/month | Yes |
 | Handover count | Acknowledge only | Enter count | Enter count |
 | Bank deposit recording | — | Yes | Yes |

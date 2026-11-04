@@ -128,7 +128,7 @@ Plus weekly: the random balance-confirmation list (call 3–5 salons per rep you
 
 | Action | Maker | Checker | Threshold for owner |
 |---|---|---|---|
-| Discount below list | Rep | Manager or Owner | > 10% or > Rs 5,000 per order |
+| Discount below list | Rep | Manager or Owner (none when the owner creates the office order and sets the discount: recorded on the order as `discount_by_owner`, MJ 2026-11-04, ACTIVITY L-0390) | > 10% or > Rs 5,000 per order |
 | Credit limit override / unblock | Manager | Logged, no checker below caps | > 50% increase, or 3rd override on a salon in a month |
 | Order cancellation after confirmation | Manager | Owner if delivered goods involved | — |
 | Payment reversal | Rep/Manager (request) | Manager (not maker) ≤ Rs 10,000; Owner above | > Rs 10,000 |
