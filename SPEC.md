@@ -187,7 +187,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 | `docs/` | Planning set 00–16 (doc 16 is authoritative for business rules), `ACTIVITY.md` (protocol, status board, blockers), `log/` (one file per log entry; `log/archive.md` is frozen), `diagrams/`, `runbooks/` |
 | `supabase/migrations/` | Forward-only SQL: schemas, tables, RLS, `app.*` functions, guards. One file per task, never edited after merge |
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
-| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. Planned: `app/salon/`, the salon customer portal (Phase 1 in doc 11 since D-41; not built yet) |
+| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. `app/salon/` is the salon's account page (slice 1); the salon customer portal comes in slice 6 (Phase 1 in doc 11 since D-41). `app/invite/` is the invitation page, the only one that creates a login (D-39) |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes to no database |
 | `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |
@@ -277,7 +277,7 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | OQ-33: is a per-salon price below list a discount needing approval (doc 04 invariant 5, CTL-07)? | P1-19 using a salon price on an order | The price gate stays as written |
 | OQ-34: does a commission payment or investor payout need a second person or an owner threshold? | P1-20, P1-22 | As designed: no checker; listed in the digest once P1-08 exists |
 | OQ-23, OQ-26, OQ-27, OQ-28: legal nature, distributable profit, losses, operator share (MJ and advisers) | Live investor agreements or settlements, not the basic ledger (D-40) | Office types each decision; no formula |
-| Going live for the completion work (spec section 8): staging migrations, the owner account, email sign-up on for invitations, the storage bucket, real products | Real use of P1-18 to P1-24 | Local and CI only; sign-up stays off (`supabase/config.toml`, gate-0 item 2) |
+| Going live for the completion work (spec section 8): staging migrations, the owner account, email sign-up on for invitations, the storage bucket, real products | Real use of P1-18 to P1-24 | Local and CI only; email sign-up is on in the local `supabase/config.toml` for the invitation page (slice 1) and stays off on staging until MJ turns it on (gate-0 item 2) |
 | B-31 (a) to (g), all still open: pin moves, phone-reveal cap, past midnight, invoice per delivery, delivery_mode, low_stock scope, agents ((d) and (e) were not settled by B-40 (a), L-0374) | The matching fixes; P1-15 | Code as built: one invoice per delivery; delivery_mode stored but not used (L-0374) |
 | B-39: approval use-time rules (who may use, use-time check, expiry, offboarded checker, credit override, write-off) | P1-08 | D-25 registry may be built; the open rules keep today's behaviour |
 | B-38: the service-role scan passes an empty `--bundle` directory, because source files are counted with the bundle files; approve requiring at least one scanned file per `--bundle` directory (H-18), with a test? | — | Leave as is |
