@@ -432,6 +432,29 @@ describe("a direct assignment limits the salon to that rep (R4)", () => {
     const own = orderSql(id, fx.repA.id);
     expect((await run(MANAGER, own.sql, own.params)).rows.length).toBe(1);
   });
+
+  it("a suspended assigned rep leaves the salon with no rep: it does not fall back to the territory", async () => {
+    // A fresh rep from an invitation, so suspending it touches no shared persona.
+    const login = await newLogin();
+    const inv = (
+      await run(MANAGER, "select app.office_invite($1, 'rep', '[Test] Assigned rep', $2) as r", [uuid(), login.email], C)
+    ).rows[0].r;
+    await asLoginRows(login, `select app.redeem_invitation('${inv.token}')`, { commit: true });
+    const id = await approvedSalon(); // area A: rep A covers it
+    const a = assign(id, login.id);
+    await run(MANAGER, a.sql, a.params, C);
+    await run(MANAGER, "select app.office_set_member_status('rep', $1, 'suspended', 'test reason')", [login.id], C);
+    expect(await mySalons(REP_A)).not.toContain(id);
+    expect(await notesCode(REP_A, id)).toBe(DENIED);
+    const territoryRep = orderSql(id, fx.repA.id);
+    expect(await errorOf(MANAGER, territoryRep.sql, territoryRep.params)).toContain(OTHER_REP);
+    const suspended = orderSql(id, login.id);
+    expect(await errorOf(MANAGER, suspended.sql, suspended.params)).toContain(TERRITORY_RULE);
+    // The office reassigns it, or clears it back to the territory.
+    const clear = assign(id, null);
+    await run(MANAGER, clear.sql, clear.params, C);
+    expect(await mySalons(REP_A)).toContain(id);
+  });
 });
 
 describe("assigning a rep later", () => {

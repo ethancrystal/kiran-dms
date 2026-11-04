@@ -264,6 +264,13 @@ describe("the office invites a rep or a salon", () => {
     expect((await run("postgres", "select count(*)::int n from public.salon where id = $1", [newSalon])).rows[0].n).toBe(1);
   });
 
+  it("a new-salon id already in use is refused, so a second live invitation cannot slip in for it", async () => {
+    const newSalon = uuid();
+    const a = { kind: "salon", newSalon, newName: "[Test] Taken id", newType: "unisex", newArea: AREA };
+    await invite(MANAGER, a);
+    expect(await codeOf(MANAGER, { ...a, email: `second.${tag()}@example.test` })).toBe(DUPLICATE);
+  });
+
   it("the same client id with different facts, or from another person, is refused", async () => {
     const client = uuid();
     const email = `replay.${tag()}@example.test`;

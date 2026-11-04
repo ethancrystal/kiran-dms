@@ -689,6 +689,11 @@ begin
       if p_new_salon_id is null or app.blank_to_null(p_new_salon_name) is null or p_new_salon_type is null or p_new_salon_area is null then
         raise exception using errcode = '22023', message = 'a new salon needs an id, a name, a type and an area';
       end if;
+      -- app.create_salon hands its creator an existing salon on a replay of the id; here that would
+      -- skip the one-live-invitation-per-salon check above, so an id already in use is refused.
+      if exists (select 1 from public.salon s where s.id = p_new_salon_id) then
+        raise exception using errcode = '23505', message = 'salon id already used';
+      end if;
       perform app.create_salon(p_new_salon_id, p_new_salon_name, p_new_salon_type, p_new_salon_area, 'manual');
     end if;
   end if;

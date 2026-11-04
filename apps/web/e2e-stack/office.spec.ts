@@ -512,22 +512,28 @@ const CODE_LENGTH = 6;
 /** The 6-digit code GoTrue e-mailed to this address after `since`, read from the local mail catcher. */
 async function mailedCode(email: string, since: number) {
   const tries = Array.from({ length: MAIL_TRIES });
+  // Which e-mail arrived, for the failure message: a first sign-in may use another template.
+  const seen: string[] = [];
   const found = await tries.reduce<Promise<string>>(async (prev) => {
     const got = await prev;
     if (got) return got;
     await new Promise((r) => setTimeout(r, MAIL_POLL_MS));
     const list = (await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json()) as {
-      messages?: Array<{ ID: string; Created: string }>;
+      messages?: Array<{ ID: string; Created: string; Subject?: string }>;
     };
     const latest = (list.messages ?? []).find((m) => Date.parse(m.Created) >= since - MAIL_CLOCK_SLACK_MS);
     if (!latest) return "";
+    seen.push(latest.Subject ?? "(no subject)");
     const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${latest.ID}`)).json()) as { Text?: string; HTML?: string };
     const text = `${msg.Text ?? ""} ${msg.HTML ?? ""}`;
     // Six digits standing alone: "code 123456." matches; "1234567" and "12345" do not.
     // https://regex101.com/?regex=%5Cb%28%5Cd%7B6%7D%29%5Cb&flavor=javascript
     return text.match(/\b(\d{6})\b/)?.[1] ?? "";
   }, Promise.resolve(""));
-  expect(found, "the one-time code e-mail reached the local mail catcher").toHaveLength(CODE_LENGTH);
+  expect(
+    found,
+    `the one-time code e-mail reached the local mail catcher (subjects seen: ${seen.join(", ") || "none"})`,
+  ).toHaveLength(CODE_LENGTH);
   return found;
 }
 
@@ -615,8 +621,16 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
   const asked = Date.now();
   await guest.getByRole("button", { name: "Send code" }).click();
   await guest.getByLabel("Code").fill(await mailedCode(salonEmail, asked));
+  // The preview answers only a session that proved the mailbox (the amr claim GoTrue signs). If it
+  // does not answer, the message names the methods GoTrue wrote, so one CI run shows the cause.
+  const previewCall = guest.waitForRequest((r) => r.url().includes("/rpc/invitation_preview"));
   await guest.getByRole("button", { name: "Sign in" }).click();
-  await expect(guest.getByTestId("invite-details")).toHaveText(
+  const bearer = ((await previewCall).headers().authorization ?? "").split(" ")[1] ?? "";
+  const claims = JSON.parse(Buffer.from(bearer.split(".")[1] ?? "", "base64url").toString() || "{}") as {
+    amr?: Array<{ method?: string }>;
+  };
+  const methods = (claims.amr ?? []).map((m) => m.method).join(", ");
+  await expect(guest.getByTestId("invite-details"), `amr methods in the invitee's session: ${methods || "none"}`).toHaveText(
     `${manager.name} invited [Test] Salon Owner to the salon account of ${salonName}.`,
   );
   await guest.getByRole("button", { name: "Accept invitation" }).click();

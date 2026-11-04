@@ -3,12 +3,12 @@
 **What / why:** Slice 1 of the project completion plan (docs/superpowers/plans/2026-11-05-project-completion.md), stacked on branch claude/spec-reps-salons-orders (slice 0, open pull request).
 
 Database, migration 20261105100000_invitations_salon_approval.sql:
-- public.invitation: the owner or a manager invites a rep or a salon (app.office_invite, AAL2). The token is 32 bytes from pgcrypto gen_random_bytes (the migration creates the extension in schema extensions if missing), returned once as hex; only its sha256 is stored. Single use, 7 days, bound to the email. A replay of the client_id returns the invitation with a null token. One live invitation per email and per salon. Owners and managers cannot be invited this way (42501, for the owner too). A salon invitation names an approved salon or creates one, approved, through app.create_salon in the same call. The table has no grant to any API role; the office lists it with app.office_invitations (no token data) and revokes with app.office_revoke_invitation.
+- public.invitation: the owner or a manager invites a rep or a salon (app.office_invite, AAL2). The token is 32 bytes from pgcrypto gen_random_bytes (the migration creates the extension in schema extensions if missing), returned once as hex; only its sha256 is stored. Single use, 7 days, bound to the email. A replay of the client_id returns the invitation with a null token. One live invitation per email and per salon. Owners and managers cannot be invited this way (42501, for the owner too). A salon invitation names an approved salon or creates one, approved, through app.create_salon in the same call; a new-salon id already in use is refused (23505), because create_salon would hand an existing salon back to its creator and so skip the one-live-invitation-per-salon check. The table has no grant to any API role; the office lists it with app.office_invitations (no token data) and revokes with app.office_revoke_invitation.
 - app.redeem_invitation: compares the token hash and the session login's confirmed email in auth.users, and requires the signed amr claim to show an emailed code (otp or magiclink). An unknown token and another email get the same 22023 words. Used, revoked and expired are 55000; the same login's replay changes nothing. A rep invitation creates the user_profile (role rep, the invitation's name, no vault grant); a salon invitation creates the salon_membership, never a role. Redeeming clears any password on the login and ends its other sessions (see the DEVIATION entry 2026-11-05-claude-p1-18-signup).
 - app.invitation_preview: who invited whom for what, after the code only (no function runs for anon, schema-hygiene).
 - app.office_set_member_status: the owner or a manager sets a rep active or suspended (devices revoked at once) and a salon account active, suspended or revoked. Offboarding, role changes and anyone not a rep stay with the owner on the existing owner functions. Rows locked before the check.
 - salon.approval_status (pending, approved, rejected; existing rows approved by the column default), changed only with a salon_approval_decision row in the same transaction (control.salon_guard). app.office_decide_salon (once per salon; reject needs 5 to 500 characters; optional rep and rate in basis points, 0 to 10000), app.office_assign_salon_rep (append-only, latest row by seq wins, null clears), app.office_pending_salons.
-- R4: app.rep_holds_salon(rep, salon) is the single rule: the latest direct assignment's rep only, else territory coverage. app.rep_can_reach_salon keeps its device and role checks and uses it; app.my_salons, app.my_salon, app.due_list and app.my_route now use it instead of their inline territory test; app.office_set_route already did; app.office_create_order uses it for the delivering rep (A-16) and refuses another rep on a directly assigned salon.
+- R4: app.rep_holds_salon(rep, salon) is the single rule: the latest direct assignment's rep only, else territory coverage. app.rep_can_reach_salon keeps its device and role checks and uses it; app.my_salons, app.my_salon, app.due_list and app.my_route now use it instead of their inline territory test; app.office_set_route already did; app.office_create_order uses it for the delivering rep (A-16) and refuses another rep on a directly assigned salon. Still territory-based: app.office_receivables_ageing per rep (A-14, confirmed by MJ L-0361), which now disagrees with a direct assignment; changing it is MJ's call.
 - A pending or rejected salon gets no order (app.build_order, 55000) and no order card (app.rep_create_card, 55000).
 - app.salon_me: the caller's own active membership, allow-listed fields (name, address, approval_status, membership_status), null otherwise.
 
@@ -16,10 +16,10 @@ Web: /invite/[token] (the only shouldCreateUser true; email, code, then the prev
 
 Config: supabase/config.toml enable_signup = true with the reason; the Team page comment updated.
 
-Docs: doc 04 (built rows and columns), doc 06 (section 2 rows and 2.1 note), doc 12 status notes on D-35, D-36, D-39, SPEC.md, CLAUDE.md and AGENTS.md (identical), ACTIVITY section 1 and H-15 parentheticals (what slice 1 built) and the board row P1-18 set to DONE (self-reported), awaiting an independent check, because the browser stack test runs in CI only. In the master prompt's words this is IMPLEMENTED — NOT VERIFIED; the board cannot say so, because Appendix C rule 4 refuses any changed Status cell that mentions VERIFIED other than a VERIFIED citation, so the section 7 word is used.
+Docs: doc 04 (built rows and columns), doc 06 (section 2 rows and 2.1 note), doc 12 status notes on D-35, D-36, D-39, SPEC.md, CLAUDE.md and AGENTS.md (identical), ACTIVITY section 1 and H-15 parentheticals (what slice 1 built) and the board row P1-18 set to IN PROGRESS (implemented, awaiting CI including the e2e-stack browser test, and an independent check). In the master prompt's words this is IMPLEMENTED — NOT VERIFIED; the board cannot say so, because Appendix C rule 4 refuses a changed Status cell that mentions VERIFIED other than a VERIFIED citation, and section 6 allows DONE (self-reported) only after CI has passed.
 
 Rulings made here (safest reading, none invents a business rule): the preview shows only after the code; the amr proof, the password clearing and the session ending at redeem; a salon is decided once, so a rejected proposal is final; only an approved salon is assigned or invited; a suspended directly assigned rep leaves the salon unreachable until the office reassigns it (no fallback to the territory); a new salon from an invitation still needs an area and a type (salon.area_id is not null), so R4's no-area case cannot arise yet; reps keep creating approved salons until slice 7; the rep card refusal for pending salons follows spec section 3.
-**Evidence:** Branch claude/p1-18-invitations from claude/spec-reps-salons-orders 569da9e. Commits e6a28f3 (database and tests), 6af1a59 (web, config, seed, stack test), and the docs commit that adds this entry. DATABASE_URL unset; embedded Postgres 17, one test file at a time.
+**Evidence:** Branch claude/p1-18-invitations from claude/spec-reps-salons-orders 569da9e, which is already in main (merge-base with origin/main cd26f74 is 569da9e). Commits e6a28f3 (database and tests), 6af1a59 (web, config, seed, stack test), 0b05b38 (docs and this entry), and a follow-up commit (new-salon id pre-check and its test, the suspended-assigned-rep test, stack test diagnostics, this entry's corrections). DATABASE_URL unset; embedded Postgres 17, one test file at a time.
 
 Test first: pnpm db:test salon-approval before the migration: 42 failed, 4 passed (functions missing).
 
@@ -31,7 +31,10 @@ After the migration, each command once unless noted:
 - pnpm db:test orders.test (orders and office-orders): 65 passed; office-orders: 21 passed; order-cards: 27 passed.
 - pnpm db:test salons.test: 21 passed; visits.test: 14 passed; verify-slices-1-3.test (matched verify and reverify-slices-1-3): 40 passed.
 - pnpm db:test crm-attacks.test: 57 passed, 1 failed (anon held default privileges on the new identity sequence salon_rep_assignment_seq_seq); fixed in the migration by revoking the sequence; rerun on the final migration below.
-- Final reruns on e6a28f3 plus the sequence revoke (in e6a28f3): see the addition at the end of this entry.
+- rls-matrix, verifier-attacks, orders, office-orders, order-cards, salons, visits and verify-slices-1-3 ran on the working tree before the sequence revoke was added; that revoke is the only difference between what they ran on and e6a28f3.
+- On e6a28f3 itself: crm-attacks 58 passed; invitations 91 passed; salon-approval 46 passed; schema-hygiene 13 passed.
+- On the follow-up commit (the new-salon id pre-check in the migration, one new test in each file): see the addition at the end of this entry.
+- The filter verify-slices-1-3.test also matched reverify-slices-1-3.test.ts, so that reverify suite ran locally, against the instruction to leave reverify suites to CI; it passed (part of the 40).
 - pnpm typecheck: pass (supabase tests, apps/web, packages/import). pnpm lint: pass, 33 warnings and 42 infos, the same counts as slice 0.
 - pnpm -C apps/web build with the CI placeholder public settings: pass; routes include /invite/[token], /salon, /salon/login, /office/people, /office/salons/approvals.
 - node scripts/service-role-scan.mjs --bundle apps/web/.next/static: OK, 106 files. pnpm service-role:scan: OK, 67 files. node --check scripts/e2e-stack-seed.mjs: exit 0.
@@ -51,7 +54,7 @@ DoD (section 6):
 [x] No vault data involved
 [ ] Offline: not applicable to office and invite screens; rep offline unchanged
 [x] Money: rate in integer basis points
-[x] Lint, typecheck, touched DB suites pass locally; CI not yet run
+[ ] Lint, typecheck, touched DB suites pass locally; CI not yet run (so not DONE)
 [x] Docs and board updated
 [x] No secrets, real personal or supplier data in the diff (read)
 [x] This entry holds the evidence
@@ -68,5 +71,8 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 
-The header time is approximate: the session date is 2026-11-05 while the host clock read 2026-11-04 22:54 PKT.
+The header time was not read from a clock: the session date is 2026-11-05, while the host clock read 2026-11-04 22:54 PKT.
+
+CI and merging: a read-only trial merge with origin/main (git merge-tree) is clean; main gained only .github/workflows/ci.yml (reserved Supabase ports) and one log file since 569da9e, and neither is touched here. node scripts/activity-log-check.mjs origin/main fails only because that log file is absent from this branch (seen as deleted); against the merge-base 569da9e it passes. In CI the pull request's merge ref includes the file.
+Addition, on the follow-up commit: pnpm db:test invitations.test: 92 passed; pnpm db:test salon-approval.test: 47 passed (the one new test in each). pnpm typecheck: pass (it overlapped the last DB run). pnpm lint: pass, 33 warnings, 42 infos. node --check scripts/e2e-stack-seed.mjs: exit 0. The other suites were not rerun on the follow-up commit: its migration change adds one refusal inside app.office_invite, which no other suite calls.
 **Next / needs:** CI on the pull request, especially the e2e-stack job (the amr method name, the password self-signup re-pin, the invite journey). MJ: whether to turn enable_confirmations on at go-live (it would also need a confirmation email template carrying the code); MJ turns email signup on for the hosted projects (spec section 8). Then slice 2 (P1-19).
