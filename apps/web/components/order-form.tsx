@@ -53,11 +53,23 @@ const newLine = (): Line => ({ key: crypto.randomUUID(), skuId: "", qty: "1", pr
 const skuText = (s: Sku) => `${s.code} · ${s.product?.name ?? "Product"} ${s.variant} · ${rupees(Number(s.list_price_paisa))}`;
 
 /**
- * The reps who may deliver an order for this salon: active reps currently assigned (to_date null) to
- * the salon's area's territory. Office users read salon, rep_territory and user_profile under RLS; the
- * database checks the same rule again in app.office_create_order.
+ * The reps who may deliver an order for this salon (R4, A-16): its directly assigned rep when it has
+ * one (latest salon_rep_assignment row), otherwise the active reps currently assigned (to_date null)
+ * to the salon's area's territory. Office users read these tables under RLS; the database checks the
+ * same rule again in app.office_create_order.
  */
 async function territoryReps(salonId: string): Promise<Rep[]> {
+  const [direct] = await rows<{ rep: { id: string; full_name: string; role: string; status: string } | null }>(
+    db()
+      .from("salon_rep_assignment")
+      .select("rep:rep_id(id, full_name, role, status)")
+      .eq("salon_id", salonId)
+      .order("seq", { ascending: false })
+      .limit(1),
+  );
+  if (direct?.rep) {
+    return direct.rep.status === "active" ? [{ id: direct.rep.id, full_name: direct.rep.full_name }] : [];
+  }
   const [salon] = await rows<{ area: { territory_id: string } | null }>(
     db().from("salon").select("area:area_id(territory_id)").eq("id", salonId),
   );
@@ -133,6 +145,7 @@ export function OrderForm({
                 db()
                   .from("salon")
                   .select("id, name, area:area_id(name)")
+                  .eq("approval_status", "approved")
                   .order("name", { nullsFirst: false })
                   .order("id")
                   .limit(SALON_LIMIT),

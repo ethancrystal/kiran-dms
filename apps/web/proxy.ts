@@ -7,6 +7,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigured } from "@/lib/env";
  *   /office/*  requires a signed-in user AND an AAL2 (TOTP-verified) session (SEC-02).
  *   /app/*     requires a signed-in user (rep, phone OTP). Device approval is enforced
  *              by the database on every call (app.rep_device_ok), not here.
+ *   /salon/*   requires a signed-in user (a salon account, email code); the membership is
+ *              checked by the database (app.salon_me), not here.
+ *   /invite/*  only refreshes the session: the page itself signs the invitee in (D-39).
  * This is convenience only. The control is RLS and the app.* functions (doc 06 §2).
  */
 export async function proxy(req: NextRequest) {
@@ -39,9 +42,10 @@ export async function proxy(req: NextRequest) {
     if (data?.currentLevel !== "aal2" && path !== "/office/mfa") return redirect("/office/mfa");
   }
   if (path.startsWith("/app") && path !== "/app/login" && !user) return redirect("/app/login");
+  if (path.startsWith("/salon") && path !== "/salon/login" && !user) return redirect("/salon/login");
   return res;
 }
 
 export const config = {
-  matcher: ["/office/:path*", "/app/:path*"],
+  matcher: ["/office/:path*", "/app/:path*", "/salon/:path*", "/invite/:path*"],
 };

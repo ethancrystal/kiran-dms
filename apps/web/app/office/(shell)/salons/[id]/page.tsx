@@ -3,6 +3,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
+import { percent, percentInput, toBasisPoints } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, SALON_TYPES } from "@/lib/salons";
 
@@ -14,6 +15,7 @@ type Salon = {
   type: string;
   stage: string;
   verification_status: string;
+  approval_status: string;
   source: string;
   area_id: string;
   address: string | null;
@@ -26,6 +28,10 @@ type Contact = { name: string | null; phone: string };
 type Note = { id: string; body: string; created_at: string };
 type Visit = { id: string; outcome: string; arrived_at: string; distance_from_pin_m: number | null; notes: string | null };
 type Stage = { from_stage: string | null; to_stage: string; trigger: string; reason: string | null; created_at: string };
+type Assignment = { rep_id: string | null; rate_bp: number | null; created_at: string; rep: { full_name: string } | null };
+type Rep = { id: string; full_name: string };
+
+const REP_LIMIT = 500;
 
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
@@ -52,7 +58,7 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         rows<Salon>(
           db()
             .from("salon")
-            .select("id, name, type, stage, verification_status, source, area_id, address, lat, lng, chairs")
+            .select("id, name, type, stage, verification_status, approval_status, source, area_id, address, lat, lng, chairs")
             .eq("id", id),
         ),
         rows<Area>(db().from("area").select("id, name, active, territory:territory_id(name)").order("name").limit(2000)),
@@ -108,7 +114,7 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
       <h1>{salon.name ?? "Unnamed salon"}</h1>
       <p className="muted">
         {label(salon.type)} · <span className="badge">{label(salon.stage)}</span> · {label(salon.verification_status)} · source{" "}
-        {label(salon.source)}
+        {label(salon.source)} · <span className={`badge ${salon.approval_status}`}>{label(salon.approval_status)}</span>
       </p>
       {notice && <output className="ok">{notice}</output>}
       {error && (
@@ -121,6 +127,8 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         <h2 id="contact-h">Primary contact</h2>
         <p>{contact ? `${contact.name ?? "No name"} · ${contact.phone}` : "No phone recorded."}</p>
       </section>
+
+      <RepAssignment salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 
@@ -321,5 +329,136 @@ function StageOverride({ current, onConfirm }: { current: string; onConfirm: (to
       <p className="muted">Recorded in the stage history as a manual change with your reason.</p>
       <ConfirmAction label="Change stage" confirmLabel="Set stage" onConfirm={(reason) => onConfirm(to, reason)} />
     </>
+  );
+}
+
+// D-36, R4: the salon's rep. With a rep set, that rep alone reaches the salon; with none, the reps
+// covering its territory do. The rate is stored for commission (slice 5). Latest row wins
+// (app.office_assign_salon_rep); a pending or rejected salon is decided on Salon approvals first.
+function RepAssignment({
+  salonId,
+  approved,
+  onDone,
+}: {
+  salonId: string;
+  approved: boolean;
+  onDone: (m: string) => Promise<void>;
+}) {
+  const [current, setCurrent] = useState<Assignment | null>(null);
+  const [reps, setReps] = useState<Rep[]>([]);
+  const [repId, setRepId] = useState("");
+  const [rate, setRate] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // One key per attempt; a retry after a lost answer is the same change (H-08).
+  const [clientId, setClientId] = useState(() => crypto.randomUUID());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [a, r] = await Promise.all([
+        rows<Assignment>(
+          db()
+            .from("salon_rep_assignment")
+            .select("rep_id, rate_bp, created_at, rep:rep_id(full_name)")
+            .eq("salon_id", salonId)
+            .order("seq", { ascending: false })
+            .limit(1),
+        ),
+        rows<Rep>(
+          db()
+            .from("user_profile")
+            .select("id, full_name")
+            .eq("role", "rep")
+            .eq("status", "active")
+            .order("full_name")
+            .limit(REP_LIMIT),
+        ),
+      ]);
+      setCurrent(a[0] ?? null);
+      setReps(r);
+      setRepId(a[0]?.rep_id ?? "");
+      setRate(a[0]?.rate_bp == null ? "" : percentInput(a[0].rate_bp));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [salonId]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const rateBp = rate.trim() === "" ? null : toBasisPoints(rate);
+  const now = current?.rep
+    ? `${current.rep.full_name}${current.rate_bp === null ? "" : ` · ${percent(current.rate_bp)}`}`
+    : "No direct rep: the reps covering its territory.";
+
+  return (
+    <section className="card" aria-labelledby="rep-h">
+      <h2 id="rep-h">Rep and commission rate</h2>
+      {loading ? (
+        <p className="muted" aria-busy="true">
+          Loading…
+        </p>
+      ) : (
+        <p data-testid="salon-rep">{now}</p>
+      )}
+      {!approved && <p className="muted">Decide this salon on Salon approvals first.</p>}
+      {approved && !loading && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError(null);
+            if (repId && rate.trim() !== "" && rateBp === null)
+              return setError("Enter the rate as a percentage from 0 to 100, for example 2.5.");
+            setBusy(true);
+            try {
+              await rpc("office_assign_salon_rep", {
+                p_client_id: clientId,
+                p_salon_id: salonId,
+                p_rep_id: repId || null,
+                p_rate_bp: repId ? rateBp : null,
+              });
+              setClientId(crypto.randomUUID());
+              await load();
+              await onDone(repId ? "Rep assigned." : "Direct rep cleared: the territory's reps reach this salon.");
+            } catch (err) {
+              setError((err as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label htmlFor="assign-rep">Rep</label>
+          <select id="assign-rep" value={repId} onChange={(e) => setRepId(e.target.value)}>
+            <option value="">No direct rep: the reps covering its territory</option>
+            {reps.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.full_name}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="assign-rate">Commission rate, %</label>
+          <input
+            id="assign-rate"
+            inputMode="decimal"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            disabled={!repId}
+            placeholder="2.5"
+          />
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <button type="submit" disabled={busy}>
+            {busy ? "Saving…" : "Save rep"}
+          </button>
+        </form>
+      )}
+    </section>
   );
 }

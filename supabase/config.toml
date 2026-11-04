@@ -173,10 +173,15 @@ enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
-# Self-signup is OFF. Every account (office email + password, rep email for a one-time code;
-# MJ decision L-0101) is created by the owner (H-15,
-# docs/runbooks/owner-bootstrap.md).
-enable_signup = false
+# Signup is ON for invitations (D-39, slice 1): /invite/{token} is the only page that asks for a
+# new login (shouldCreateUser true); every sign-in page keeps it false. The email code is the only
+# method the app offers, and the invitation is redeemed only from a session whose signed amr claim
+# shows the code (app.redeem_invitation). GoTrue cannot turn password signup off on its own: a
+# password self-signup gets a login with no profile and no membership, which RLS shows nothing, and
+# redeeming clears any password on the login (migration 20261105100000). Owners and managers are
+# still created by the owner (H-15, docs/runbooks/owner-bootstrap.md). Pinned by the auth provider
+# guard in apps/web/e2e-stack/office.spec.ts. The hosted projects are MJ's to switch (spec section 8).
+enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -222,9 +227,9 @@ web3 = 30
 [auth.email]
 # Switches the email provider on (GoTrue EXTERNAL_EMAIL_ENABLED). It is NOT the self-signup
 # switch: with it off, every email sign-in (office password, rep one-time code) is refused with
-# 422 email_provider_disabled. Self-signup stays closed by [auth] enable_signup = false above
-# (GoTrue DISABLE_SIGNUP), which refuses any address the owner has not created. Both settings
-# are pinned by apps/web/e2e-stack/office.spec.ts (auth provider guard).
+# 422 email_provider_disabled. Whether a new address may sign up is [auth] enable_signup above
+# (GoTrue DISABLE_SIGNUP), on since D-39 for the invitation page. Both settings are pinned by
+# apps/web/e2e-stack/office.spec.ts (auth provider guard).
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.

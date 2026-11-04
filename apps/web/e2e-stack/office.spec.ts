@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
+import pg from "pg";
 import { rupees } from "../lib/money";
 
 // Slice 1 journeys on a real local stack (execution map; J1 steps 1 to 3, J4 steps 1, 5, J5
@@ -9,10 +10,11 @@ import { rupees } from "../lib/money";
 type P = { id: string; email: string; name: string };
 const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "utf8")) as {
   password: string;
-  people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer", P>;
+  people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer" | "invitee", P>;
   sku: { id: string; code: string; list_price_paisa: number };
+  pendingSalon: { id: string; name: string; area: string };
 };
-const { owner, manager, rep, rep2, newcomer } = seed.people;
+const { owner, manager, rep, rep2, newcomer, invitee } = seed.people;
 const MAILPIT = process.env.KIRAN_STACK_MAILPIT_URL ?? "http://127.0.0.1:54324";
 
 // RFC 6238 TOTP (SHA-1, 6 digits, 30 s), the authenticator app's arithmetic. One code per
@@ -67,7 +69,7 @@ async function newPage(browser: Browser) {
 }
 
 const HTTP_OK = 200;
-const HTTP_UNPROCESSABLE = 422;
+const TOKEN_LENGTH = 64; // an invitation token: 32 random bytes in hex
 // The rep journey does many steps on one real stack; it gets more than the 60 s default.
 const JOURNEY_TIMEOUT_MS = 120_000;
 
@@ -84,8 +86,10 @@ test.describe.configure({ mode: "serial" });
 
 // Auth provider guard. Two independent GoTrue switches, both pinned here against the real stack:
 // the email provider must be ON (else every sign-in is 422 email_provider_disabled, seen on
-// a05d771) and self-signup must stay OFF (an address the owner has not created is refused).
-test("auth provider guard: the owner's password grant works and self-signup is refused", async () => {
+// a05d771), and signup is ON since D-39 (slice 1) so an invitee can get a login. GoTrue has no
+// switch for "codes but not passwords", so the invariant pinned is the database's: a password
+// self-signup gets a session that sees no profile and no salon, and cannot redeem an invitation.
+test("auth provider guard: the owner's password grant works; a password self-signup gets nothing", async () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   expect(url, "NEXT_PUBLIC_SUPABASE_URL must point at the local stack").toBeTruthy();
@@ -106,9 +110,27 @@ test("auth provider guard: the owner's password grant works and self-signup is r
     headers,
     body: JSON.stringify({ email: `self-signup-${Date.now()}@example.test`, password: "Self-signup-attempt-1!" }),
   });
-  const refused = (await signup.json()) as { error_code?: string; code?: string };
-  expect(signup.status).toBe(HTTP_UNPROCESSABLE);
-  expect(refused.error_code ?? refused.code).toBe("signup_disabled");
+  const session = (await signup.json()) as { access_token?: string };
+  expect(signup.status).toBe(HTTP_OK);
+  expect(session.access_token, "enable_confirmations is off, so the signup is signed in").toBeTruthy();
+  const call = (fn: string, args: Record<string, unknown> = {}) =>
+    fetch(`${url}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: { ...headers, authorization: `Bearer ${session.access_token}`, "content-profile": "app" },
+      body: JSON.stringify(args),
+    });
+  expect(await (await call("my_session")).json()).toBeNull();
+  expect(await (await call("salon_me")).json()).toBeNull();
+  const redeem = await call("redeem_invitation", { p_token: "0".repeat(TOKEN_LENGTH) });
+  expect(redeem.ok).toBe(false);
+  expect(((await redeem.json()) as { message?: string }).message).toContain("emailed code");
+  const office = await call("office_invite", {
+    p_client_id: crypto.randomUUID(),
+    p_kind: "rep",
+    p_full_name: "[Test] X",
+    p_email: "x@example.test",
+  });
+  expect(office.ok).toBe(false);
 });
 
 test("owner signs in with password and TOTP and sees the office overview", async ({ page }) => {
@@ -473,4 +495,164 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   await phone.goto("/app/cards");
   await expect(phone.getByRole("listitem").filter({ hasText: CARD_TEXT }).getByText("Converted", { exact: true })).toBeVisible();
   await phoneContext.close();
+});
+
+// Slice 1 (P1-18; D-35, D-36, D-39): the manager invites a rep and a salon on People, approves a
+// proposed salon with a rep and a rate, and both invitees join. The local stack sends at most 2
+// e-mails an hour and the rep journey above spends one, so ONE invitee goes through the real page
+// and code (the salon, a brand-new address: shouldCreateUser, Mailpit, Accept). The rep invitee's
+// link is redeemed with a session made the way scripts/e2e-stack-seed.mjs acts for a person (claims
+// with an emailed-code amr, straight on the local database); its page is the same page.
+
+const MAIL_TRIES = 20;
+const MAIL_POLL_MS = 1_000;
+const MAIL_CLOCK_SLACK_MS = 5_000;
+const CODE_LENGTH = 6;
+
+/** The 6-digit code GoTrue e-mailed to this address after `since`, read from the local mail catcher. */
+async function mailedCode(email: string, since: number) {
+  const tries = Array.from({ length: MAIL_TRIES });
+  const found = await tries.reduce<Promise<string>>(async (prev) => {
+    const got = await prev;
+    if (got) return got;
+    await new Promise((r) => setTimeout(r, MAIL_POLL_MS));
+    const list = (await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json()) as {
+      messages?: Array<{ ID: string; Created: string }>;
+    };
+    const latest = (list.messages ?? []).find((m) => Date.parse(m.Created) >= since - MAIL_CLOCK_SLACK_MS);
+    if (!latest) return "";
+    const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${latest.ID}`)).json()) as { Text?: string; HTML?: string };
+    const text = `${msg.Text ?? ""} ${msg.HTML ?? ""}`;
+    // Six digits standing alone: "code 123456." matches; "1234567" and "12345" do not.
+    // https://regex101.com/?regex=%5Cb%28%5Cd%7B6%7D%29%5Cb&flavor=javascript
+    return text.match(/\b(\d{6})\b/)?.[1] ?? "";
+  }, Promise.resolve(""));
+  expect(found, "the one-time code e-mail reached the local mail catcher").toHaveLength(CODE_LENGTH);
+  return found;
+}
+
+/** Redeems a link as the person, on the local database, as the seed acts for people (no service key). */
+async function redeemAs(person: P, token: string) {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ sub: person.id, role: "authenticated", aal: "aal1", amr: [{ method: "otp", timestamp: 1 }] }),
+    ]);
+    await c.query("set local role authenticated");
+    const r = await c.query("select app.redeem_invitation($1) as r", [token]);
+    await c.query("commit");
+    return r.rows[0].r as { kind: string };
+  } finally {
+    await c.end();
+  }
+}
+
+async function invite(page: Page, kind: "rep" | "salon", name: string, email: string, salon?: { name: string; area: string }) {
+  await page.getByLabel("Invite a").selectOption(kind);
+  await page.getByLabel(kind === "rep" ? "Rep's full name" : "Salon contact's name").fill(name);
+  await page.getByLabel("Their email").fill(email);
+  if (salon) {
+    await page.getByLabel("A new salon").check();
+    await page.getByLabel("New salon's name").fill(salon.name);
+    await page.getByLabel("Area").selectOption({ label: salon.area });
+  }
+  await page.getByRole("button", { name: "Create invitation" }).click();
+  await expect(page.getByTestId("invite-created")).toContainText(`Invitation for ${name}.`);
+  await expect(page.getByTestId("invite-created")).toContainText("shown once");
+  const link = (await page.getByTestId("invite-link").innerText()).trim();
+  expect(new URL(link).pathname).toMatch(INVITE_PATH);
+  return new URL(link);
+}
+// An invitation link's path: "/invite/" and 64 hex digits; "/invite/abc" does not match.
+// https://regex101.com/?regex=%5E%5C%2Finvite%5C%2F%5B0-9a-f%5D%7B64%7D%24&flavor=javascript
+const INVITE_PATH = /^\/invite\/[0-9a-f]{64}$/;
+
+test("a manager invites a rep and a salon, approves a proposed salon, and both invitees join (P1-18)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "People", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "People", exact: true })).toBeVisible();
+
+  // The rep: invited on People, joined with a code session on the database (see the note above).
+  const repLink = await invite(page, "rep", invitee.name, invitee.email);
+  const repRow = page.getByRole("row").filter({ hasText: invitee.email });
+  await expect(repRow).toContainText("pending");
+  expect(await redeemAs(invitee, repLink.pathname.split("/").at(-1) ?? "")).toEqual({ kind: "rep" });
+  await page.reload();
+  await expect(page.getByRole("row").filter({ hasText: invitee.email })).toContainText("redeemed");
+  const repsSection = page.locator("section", { has: page.getByRole("heading", { name: "Reps" }) });
+  const newRep = repsSection.getByRole("row").filter({ hasText: invitee.name });
+  await expect(newRep).toContainText("active");
+  // The manager may suspend and reactivate a rep (D-39); offboarding is not offered here.
+  await newRep.getByRole("button", { name: "Suspend" }).click();
+  await newRep.getByLabel("Reason").fill("test: suspended for a day");
+  await newRep.getByRole("button", { name: "Suspend now" }).click();
+  await expect(page.getByText(`${invitee.name} is now suspended.`)).toBeVisible();
+  await newRep.getByRole("button", { name: "Reactivate" }).click();
+  await newRep.getByLabel("Reason").fill("test: back at work");
+  await newRep.getByRole("button", { name: "Reactivate" }).last().click();
+  await expect(page.getByText(`${invitee.name} is now active.`)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Offboard" })).toHaveCount(0);
+
+  // The salon: a new salon made in the same invitation, joined through the real page and code.
+  const salonName = `[Test] Invited salon ${Date.now()}`;
+  const salonEmail = `salon.${Date.now()}@example.test`;
+  const salonLink = await invite(page, "salon", "[Test] Salon Owner", salonEmail, {
+    name: salonName,
+    area: seed.pendingSalon.area,
+  });
+  const guest = await newPage(browser);
+  await guest.goto(salonLink.pathname);
+  await expect(guest.getByRole("heading", { name: "Your Kiran invitation" })).toBeVisible();
+  await guest.getByLabel("Email").fill(salonEmail);
+  const asked = Date.now();
+  await guest.getByRole("button", { name: "Send code" }).click();
+  await guest.getByLabel("Code").fill(await mailedCode(salonEmail, asked));
+  await guest.getByRole("button", { name: "Sign in" }).click();
+  await expect(guest.getByTestId("invite-details")).toHaveText(
+    `${manager.name} invited [Test] Salon Owner to the salon account of ${salonName}.`,
+  );
+  await guest.getByRole("button", { name: "Accept invitation" }).click();
+  await guest.waitForURL((u) => u.pathname === "/salon");
+  await expect(guest.getByRole("heading", { name: salonName })).toBeVisible();
+  await expect(guest.getByText("active")).toBeVisible();
+  // The link works once: opening it again says so.
+  await guest.goto(salonLink.pathname);
+  await expect(guest.getByRole("alert").filter({ hasText: "already been accepted" })).toBeVisible();
+  // The salon login reaches no office page and no rep data.
+  await guest.goto("/office");
+  await expect(guest.getByRole("navigation", { name: "Office" })).toHaveCount(0);
+
+  // The manager sees the new salon account and can suspend it; the salon page then shows nothing.
+  await page.reload();
+  const members = page.locator("section", { has: page.getByRole("heading", { name: "Salon accounts" }) });
+  const member = members.getByRole("row").filter({ hasText: salonEmail });
+  await expect(member).toContainText("active");
+  await member.getByRole("button", { name: "Suspend" }).click();
+  await member.getByLabel("Reason").fill("test: paused");
+  await member.getByRole("button", { name: "Suspend now" }).click();
+  await expect(page.getByText("[Test] Salon Owner is now suspended.")).toBeVisible();
+  await guest.goto("/salon");
+  await expect(guest.getByRole("alert").filter({ hasText: "no active salon account" })).toBeVisible();
+
+  // Salon approvals: the seeded proposal is approved with Rep One at 2.5%.
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Salon approvals", exact: true }).click();
+  const card = page.getByRole("region", { name: seed.pendingSalon.name });
+  await expect(card).toContainText(`proposed by ${rep.name}`);
+  await card.getByLabel("Rep (optional)").selectOption({ label: rep.name });
+  await card.getByLabel("Commission rate, % (optional, needs a rep)").fill("2.5");
+  await card.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText(`Approved ${seed.pendingSalon.name}, assigned to ${rep.name} at 2.5%.`)).toBeVisible();
+  await expect(page.getByRole("region", { name: seed.pendingSalon.name })).toHaveCount(0);
+  await page.goto(`/office/salons/${seed.pendingSalon.id}`);
+  await expect(page.getByTestId("salon-rep")).toHaveText(`${rep.name} · 2.5%`);
+  await page.reload();
+  await expect(page.getByTestId("salon-rep")).toHaveText(`${rep.name} · 2.5%`);
 });

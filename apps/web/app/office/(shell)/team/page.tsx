@@ -17,7 +17,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // People and their status. Doc 06 §2: users are governance, owner-only at AAL2 (H-15); a manager
 // sees the list but no controls, and the database refuses the calls anyway. A person first signs
 // in once (office: password; rep: email code), sees their sign-in code, and gives it to the owner,
-// who adds their profile here (app.owner_create_user). Self-signup is off (supabase/config.toml).
+// who adds their profile here (app.owner_create_user). Reps and salons are invited on People
+// (D-39); a login that redeems no invitation has no profile and sees nothing (RLS).
 export default function Team() {
   const [me, setMe] = useState<Session | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
