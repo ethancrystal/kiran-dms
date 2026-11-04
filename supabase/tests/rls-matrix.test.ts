@@ -781,6 +781,26 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Price history and per-salon prices (migration 20261105110000, slice 2, D-37, D-39): the office
+  // reads both; no rep reads them (salons get their own prices through slice 6's functions).
+  ...(["public.sku_price_change", "public.salon_sku_price"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: "reason",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",
