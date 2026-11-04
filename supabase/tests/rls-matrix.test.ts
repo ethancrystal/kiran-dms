@@ -724,6 +724,63 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Invitations (migration 20261105100000, slice 1, D-39): no grant and no policy, so nobody reads the
+  // table, not even the office (app.office_invitations lists it without the token hash). Memberships,
+  // salon decisions and rep assignments: the office reads all; a rep or a salon reads none of them
+  // (salons read through app.salon_me only, spec section 4).
+  {
+    table: "public.invitation",
+    writeCol: "full_name",
+    select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
+  },
+  {
+    table: "public.salon_membership",
+    writeCol: "status_reason",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.salon_approval_decision",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  {
+    table: "public.salon_rep_assignment",
+    writeCol: "rate_bp",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",

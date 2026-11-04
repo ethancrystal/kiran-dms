@@ -31,6 +31,14 @@ create table if not exists auth.users (
   phone text,
   created_at timestamptz not null default now()
 );
+-- The columns and table app.redeem_invitation reads and clears (migration 20261105100000). GoTrue
+-- has them all; "if not exists" keeps this a no-op on a real Supabase database.
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
+alter table auth.users add column if not exists encrypted_password text;
+create table if not exists auth.sessions (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade
+);
 
 do $$
 begin

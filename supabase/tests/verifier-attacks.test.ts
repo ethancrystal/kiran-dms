@@ -242,19 +242,19 @@ describe("internal functions are not callable by app roles", () => {
         and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
     expect(rows.map((r) => r.proname)).toEqual([
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon",
-      "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invoice_document", "is_aal2", "is_office", "is_owner",
+      "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invitation_preview", "invoice_document", "is_aal2", "is_office", "is_owner",
       "is_rep", "log_visit", "low_stock", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_day", "my_handovers", "my_orders", "my_route",
-      "my_salon", "my_salons", "my_session", "my_territory_ids", "my_territory_orders", "office_assign_territory", "office_cancel_stock_issue",
-      "office_cash_position", "office_count_handover", "office_create_location", "office_create_order", "office_deliver", "office_dismiss_card", "office_end_territory",
-      "office_force_close_rep_day", "office_handovers", "office_open_cards", "office_orders", "office_override_stage", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
-      "office_record_cash", "office_record_payment", "office_release_credit_hold", "office_rep_cash_position", "office_set_blocked", "office_set_last_purchase",
+      "my_salon", "my_salons", "my_session", "my_territory_ids", "my_territory_orders", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue",
+      "office_cash_position", "office_count_handover", "office_create_location", "office_create_order", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
+      "office_force_close_rep_day", "office_handovers", "office_invitations", "office_invite", "office_open_cards", "office_orders", "office_override_stage", "office_pending_salons", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
+      "office_record_cash", "office_record_payment", "office_release_credit_hold", "office_rep_cash_position", "office_revoke_invitation", "office_set_blocked", "office_set_last_purchase", "office_set_member_status",
       "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_upsert_area",
       "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
       "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit",
       "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "receipt_document", "recheck_order",
-      "record_count", "record_demand", "register_device", "rep_add_stop", "rep_check_in", "rep_check_out",
+      "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_check_in", "rep_check_out",
       "rep_confirm_stock_issue", "rep_create_card", "rep_deliver", "rep_device_ok", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
-      "rep_respond_handover", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_credit_status", "salon_installments",
+      "rep_respond_handover", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_credit_status", "salon_installments", "salon_me",
       "salon_notes", "salon_stages", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role",
       "warehouse_availability",
       // my_session, self_ok: added by migration 0004 (L-0026). Inventory RPCs and the my_bag_id RLS
@@ -270,6 +270,8 @@ describe("internal functions are not callable by app roles", () => {
       // Handover count, answer and reads: migration 0023 (P1-07, PAY-05, CTL-03); MJ standing approval L-0144.
       // Office cash collection: migration 0024 (P1-07, PAY-02; MJ resolved B-37, L-0362); standing approval L-0144.
       // One salon for the rep edit form: migration 0016 (slice 3, C-014); MJ standing approval L-0144.
+      // Invitations, member status, salon decisions and assignment, salon_me: migration 20261105100000
+      // (slice 1, P1-18; D-39, decision file 2026-11-05-mj-reps-salons-orders); MJ standing approval L-0144.
       // office_create_order: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // order cards: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // my_territory_orders, office_orders: migration 0025 (D-30 PR A); MJ standing approval L-0144.
