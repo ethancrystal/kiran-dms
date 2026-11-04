@@ -8,6 +8,8 @@
 
 > **Agent instruction:** Read this entire document before planning or changing any supplier/procurement, salon/customer, salaried-rep, independent-agent, investor/capital, office/admin, or cross-domain workflow. Follow AGENTS.md, CLAUDE.md and docs/ACTIVITY.md first. This brief describes the desired joined-up business model; it is not permission to implement features whose scope, phase, commercial terms or permissions remain unapproved.
 
+> **Amended 2026-11-05 (doc 16, D-33 to D-41).** `docs/16-project-completion-goal.md` is the authoritative business specification and wins over this brief. Reps and salons submit order requests; only the office creates official orders (D-34). Reps read salons read-only and may propose new ones (D-35). The manager invites and manages reps and salons, products and prices, and never creates or promotes an owner or manager (D-39). The salon portal is in the current phase (D-41). The approved investor work is a basic office ledger with no calculation engine and no investor login (D-40); the wider capital, batch and settlement model below stays proposed, and OQ-23, OQ-26, OQ-27 and OQ-28 stay open. All of this is approved, not built; status is only on the ACTIVITY board.
+
 ---
 
 ## 1. Mission
@@ -52,7 +54,7 @@ The existing planning set already defines the salon CRM, field sales, inventory,
 - Product names, variants, prices and costs remain dummy until MJ supplies the real catalogue (OQ-16).
 - The roadmap and phase gates in docs 11 and docs/ACTIVITY.md remain controlling. P1-05, P1-07, P1-10, P1-11 and P1-15 have distinct dependencies and must not be silently treated as complete.
 - Investor/capital management is an additional business domain to specify. It is not currently an approved change to the production permission matrix or a reason to bypass existing phases.
-- MJ confirmed on 2026-11-03 that salon customers may have authenticated portal accounts and can submit their own orders alongside representative-placed orders. Doc 15 defines the module-level target and access model.
+- MJ confirmed on 2026-11-03 that salon customers may have authenticated portal accounts and can submit their own orders alongside representative-placed orders (D-26, since amended by D-30 and D-34: both now submit order requests). Doc 15 defines the module-level target and access model.
 
 ## 3. Business-domain diagram
 
@@ -74,7 +76,7 @@ The Investor Workspace remains labelled proposed. An authenticated salon custome
 
 ### 4.1 Owner
 
-The Owner is the highest-authority business user. The owner dashboard should consolidate business performance and exceptions across domains. Governance powers remain owner-only as documented in docs 06 and 13, subject to MJ's resolution of D-08.
+The Owner is the highest-authority business user. The owner dashboard should consolidate business performance and exceptions across domains. Governance powers remain owner-only as documented in docs 06 and 13 (D-08 as amended by D-31 and D-39).
 
 The owner needs a consolidated view of:
 - salon sales, receivables, collections and pipeline;
@@ -88,7 +90,7 @@ A consolidated dashboard must not flatten separate ledgers into one ambiguous ba
 
 ### 4.2 Manager
 
-The Manager performs daily business operations within the permission matrix already defined in docs 06 and 13. The Manager is not automatically a second Owner. Do not grant owner-only governance powers for convenience.
+The Manager performs daily business operations within the permission matrix defined in docs 06 and 13, as amended by D-39. The Manager is not automatically a second Owner. Do not grant owner-only governance powers for convenience.
 
 Every office screen and RPC must enforce the existing authority split in the database, not only in navigation or client-side checks.
 
@@ -98,11 +100,11 @@ A salaried Rep is Kiran's internal field employee or appointee.
 
 The Rep:
 - works assigned territories and routes;
-- sees only authorised salon data for those territories;
+- sees only authorised salon data for reachable salons, read-only (D-35, D-36);
 - uses an approved, bound device;
 - checks in and confirms the bag count;
 - visits salons and records outcomes;
-- creates permitted orders and deliveries;
+- submits order requests and deliveries; does not create official orders (D-30, D-34);
 - collects cash or records bank transfers;
 - closes the day with a stock count and two-party cash handover.
 
@@ -148,7 +150,7 @@ The rights of an Investor depend on the signed arrangement. An Investor does not
 
 A Salon is a direct business customer in the CRM and order-to-cash workflow. It has pipeline stages, territory, contacts, visit history, credit profile, orders, deliveries, invoices, installments, payments, receipts and customer communication. It may have a separately authenticated customer portal membership linked to its own salon record; a salon contact is not automatically a login.
 
-The salon portal must let an authorized salon user view the shared active product catalogue, that salon's assigned prices, customer-safe aggregate stock quantities, its own orders/status/history and its own authorized invoices/receipts/statements, and independently submit orders for that salon. Portal users cannot see other salons, internal CRM notes, rep GPS, supplier identity, costs/margins or stock custody details. Representative-placed orders remain a separate channel captured during a genuine visit. Both channels use one canonical order engine. Independent Agents do not report the salons they serve, so do not infer or import those downstream customers into Kiran's salon CRM.
+The salon portal must let an authorized salon user view the shared active product catalogue, that salon's assigned prices, its own orders/status/history and its own authorized invoices/receipts/statements (customer-safe aggregate stock stays Phase 2, INV-12), and submit order requests for that salon, which the office reviews (D-34). Portal users cannot see other salons, internal CRM notes, rep GPS, supplier identity, costs/margins or stock custody details. A representative's order request, captured during a genuine visit, is the other way in (D-30, D-34). Once the office converts a request, both use one canonical order engine. Independent Agents do not report the salons they serve, so do not infer or import those downstream customers into Kiran's salon CRM.
 
 ### 4.7 Supplier
 
@@ -167,7 +169,7 @@ Authorised office user records supplier and purchase data in the restricted proc
 ### 5.2 Products and catalogue to every sales channel
 
 The product/SKU catalogue is shared, but channel pricing and access are not:
-- salon selling prices use the approved salon price list;
+- salon selling prices use the office-set salon price, otherwise list price (D-37);
 - agent prices use the separate owner-managed agent-price mechanism;
 - cost and supplier data are restricted;
 - Rep screens show only the selling and operational data they need;
@@ -177,7 +179,7 @@ A shared product identity must not mean every role can read every price column.
 
 ### 5.3 Salon CRM to sales and collections
 
-The salon is the source record for customer identity, territory and CRM history. The order system accepts two channels: an office order created by the owner or manager (often from a rep's order-intake card, D-30), or a salon_portal order created by an authenticated member of that salon. Both create the same canonical sales order and lines, with server-resolved prices and immutable order-time snapshots. The record distinguishes original acquisition rep, current assigned rep, actual order-taking rep, authenticated creator and channel. A portal order does not fabricate a visit or rep attribution. Delivery creates stock movements and invoices. Installments and payments update receivables and cash ledgers through documented write paths. Receipts are independently delivered to the salon. Re-order/retention tasks can use orders from either channel; physical-visit and rep productivity metrics use genuine rep visits only.
+The salon is the source record for customer identity, territory and CRM history. The order system has two channels, and only the office creates official orders: an office order created by the owner or manager, directly or from a rep's order request, or a salon_portal order the office creates from a salon's request (D-30, D-34). Both create the same canonical sales order and lines, with server-resolved prices and immutable order-time snapshots. The record distinguishes original acquisition rep, current assigned rep, the rep who made the request (the order-taking rep on legacy orders), authenticated creator and channel. A portal order does not fabricate a visit or rep attribution. An approved delivery creates stock movements and invoices (D-32). Installments and payments update receivables and cash ledgers through documented write paths. Receipts are independently delivered to the salon. Re-order/retention tasks can use orders from either channel; physical-visit and rep productivity metrics use genuine rep visits only.
 
 ### 5.4 Independent Agent to stock and money
 
@@ -231,11 +233,11 @@ The existing security plan remains binding. New domain access must be designed i
 | Persona | Default scope | Must not receive |
 |---|---|---|
 | Owner | Full authorised business view and owner-only governance | No bypass of audit, approvals or append-only history |
-| Manager | Existing operational access and explicit vault grant only | Owner-only governance unless D-08 is resolved otherwise |
+| Manager | Operational access, explicit vault grant, and the D-39 powers | Owner-only governance as D-08 and D-39 leave it |
 | Salaried Rep | Own approved device, assigned territories, route, permitted salons, own bag and work records | Supplier data, costs, Investor data, other Rep data, unrestricted exports |
 | Independent Agent | Own account, agent catalogue, permitted quantity availability, own purchases and receipts | Salons, other Agents, supplier identity, Kiran cost/margin, Investor data |
 | Investor | Own contributions, allocations, batch statement and contractual settlement records only, if portal is approved | Other Investors, supplier identity, raw supplier documents, other channels' personal data |
-| Salon / Customer | Its own profile, shared catalogue, own assigned prices, safe aggregate stock, own orders/status/history and authorized invoices/receipts/statements; may submit own orders | Other salons, internal CRM notes, Rep GPS/field data, supplier data, cost/margin, stock locations/custody and company administration |
+| Salon / Customer | Its own profile, shared catalogue, own assigned prices, own orders/status/history and authorized invoices/receipts/statements (safe aggregate stock stays Phase 2, INV-12); may submit own order requests | Other salons, internal CRM notes, Rep GPS/field data, supplier data, cost/margin, stock locations/custody and company administration |
 | Supplier | No Kiran DMS login by default | Internal CRM, other suppliers, investor information and company-wide data |
 
 Mandatory controls:

@@ -17,20 +17,20 @@ Pay structure (proposal, to be set by the owner): modest fixed salary + commissi
 
 | Step | What happens | System support |
 |---|---|---|
-| 1. Profile | Owner creates the user (owner-only): name, phone, CNIC (encrypted), photo, emergency contact, guarantor, commission rate (set by the owner or manager, D-31), start date | FLD-01 |
+| 1. Profile | The owner or manager invites the rep by email (D-39, SEC-16; approved, not built; until then the owner creates the user): name, phone, CNIC (encrypted), photo, emergency contact, guarantor, default commission rate (set by the owner or manager, D-31, D-38), start date | FLD-01 |
 | 2. Device | Rep installs the PWA on their (approved) phone; first login via an email one-time code (ACTIVITY L-0101) registers the device; manager approves it | SEC-03 |
 | 3. Territory | Manager assigns one territory and the route days | PIP-01, PIP-04 |
 | 4. Training (half day) | The in-app checklist walks the rep through: check-in, map and pins, nearby discovery, visit outcomes, recording a New Order Details card (reps do not place orders, D-30), payment plans and credit limits, recording cash vs. transfer, receipts to WhatsApp, bag stock, evening handover and stock close, and the **rules** in §4 | FLD-04 |
 | 5. Stock | Manager issues starter bag stock within the bag value limit; rep confirms count in-app | INV-03, CTL-05 |
 | 6. First day shadowed | Manager rides along for the first route; the route is seeded with 5–8 existing active salons and 5+ prospects | PIP-03 |
-| 7. Probation | 30 days: lower bag limit, no credit-plan orders above a small cap without approval, daily manager review of the scorecard | FLD-02 |
+| 7. Probation | 30 days: lower bag limit, the office looks harder at this rep's order requests and credit-plan decisions (the plan is the office's, the rep only requests, D-30, D-34), daily manager review of the scorecard | FLD-02 |
 
 ## 3. The rep's week
 
 - **Mon–Sat:** one route per day from the territory's route days; the app builds a draft route from due reorders, collections, at-risk salons, deliveries, and a prospect quota (e.g., 4 new prospects/day). The rep can add pins from the map or nearby discovery and re-order the route.
 - **Daily check-in** (bag count confirmed) → route → **daily handover + stock close** with the manager. No exceptions: an open handover blocks the next day.
 - **Weekly:** scorecard review with the manager (visits, productive visits, new prospects, conversions, reorder rate, collection rate, variances). Random **spot check** of bag stock at least once a week, recorded in-app (CTL-05). Random **balance confirmation calls** by owner/manager to 3–5 of the rep's salons (CTL-11).
-- **Monthly:** commission statement generated from banked collections (superseded by D-31: delivered and invoiced value; rates set by owner or manager); owner approves payout (payouts are not built, D-31); territory and credit-limit reviews.
+- **Monthly:** commission statement generated from banked collections (superseded by D-31: delivered and invoiced value; rates set by owner or manager); owner approves payout, recorded as a commission payment (D-38; approved, not built); territory and credit-limit reviews.
 
 ## 4. Rules every rep signs (and the app enforces)
 
@@ -81,7 +81,7 @@ The scorecard (FLD-02, KPIs in doc 02) drives a simple ladder:
 | Any cash variance | Investigation the same day; second variance in a month → probation; third → dismissal (policy) |
 | Any stock variance | Same as cash |
 | Anomaly flags (doc 13) | Case opened by owner; rep informed only after review |
-| Strong results for 3 months | Bag limit up; discount request authority up to a small %; territory expansion; bonus |
+| Strong results for 3 months | Bag limit up; territory expansion; bonus (no discount authority: reps do not price orders, D-30, D-34) |
 
 ## 8. Offboarding — the 10-minute runbook (SEC-08)
 
@@ -107,9 +107,9 @@ Kiran runs two field channels side by side:
 | Whose stock | Kiran's, until a salon buys it | The agent's, from the moment of purchase |
 | Pays Kiran | Hands over what salons paid, every evening | Pays in full, cash or matched transfer, **before** stock leaves the warehouse (A-07) |
 | Price | Salon list price | Agent price per SKU, set by the owner (AGT-02, OQ-17) |
-| Reports back | Visits, orders, collections, handover, bag counts | **Nothing required**: no visits, handover, counts or salon list. Optionally a pre-order request (D-23) |
-| Sees in the app | Own territory's salons (masked), own bag, routes | Own purchases, the agent catalogue with availability (quantities only). Never salons, other agents, cost or supplier |
-| Earns | Salary + commission on delivered and invoiced value (D-31, superseding D-10) | Their own resale margin only |
+| Reports back | Visits, order requests, collections, handover, bag counts | **Nothing required**: no visits, handover, counts or salon list. Optionally a pre-order request (D-23) |
+| Sees in the app | Reachable salons (masked, read-only, D-35, D-36), own bag, routes, own commission | Own purchases, the agent catalogue with availability (quantities only). Never salons, other agents, cost or supplier |
+| Earns | Salary + commission on delivered and invoiced value (D-31, D-38, superseding D-10) | Their own resale margin only |
 | Risk to Kiran | Custody (cash, stock) | Almost none: paid before release, so there is no receivable and nothing to reconcile |
 
 **Who can be an agent:** anyone who wants to (D-17), women included, for example someone running a home-based parlor or serving parlors in their own area. The owner creates every agent account (governance, H-15) with minimum identity data (OQ-20). Agents sign in like reps (email code, approved device).
@@ -124,8 +124,8 @@ Kiran runs two field channels side by side:
 
 ## 11. Salon orders and performance attribution
 
-Representatives no longer place orders (D-30): during a genuine visit the rep records the salon's requirements as a New Order Details card, and the manager turns it into the order. A salon may also independently place repeat orders through its authenticated customer portal. Both channels use the same server-side product, salon-price, stock, credit, order-state and fulfilment rules.
+Representatives do not place orders (D-30, D-34): during a genuine visit the rep records the salon's requirements as a New Order Details card, an order request, and the manager turns it into the order. A salon may also submit order requests through its authenticated customer portal, and they wait for the office in the same queue. Both channels use the same server-side product, salon-price, stock, credit, order-state and fulfilment rules once the office converts a request.
 
-Every order must retain its actual source channel and authenticated creator. Keep the salon's original acquisition rep, current assigned rep and the order-taking rep as separate facts. Reassignment must not rewrite historical attribution. A salon-portal order has the salon user as creator and no order-taking rep, rep-day or visit; it must not fabricate field activity.
+Every order must retain its actual source channel and authenticated creator. Keep the salon's original acquisition rep, current assigned rep and, on legacy orders, the order-taking rep as separate facts. Reassignment must not rewrite historical attribution. A salon's request has the salon user as its submitter and no rep, rep-day or visit; it must not fabricate field activity.
 
-Rep KPIs for physical visits, productive visits, visit-to-card conversion and rep cards turned into orders count genuine rep activity only. Salon portal orders may contribute to salon reorder/retention and business-wide order reporting, but must be shown as a separate channel. Report submitted, confirmed, delivered, invoiced, collected and banked amounts separately. OQ-09 remains open; this section does not approve a commission or payout formula.
+Rep KPIs for physical visits, productive visits, visit-to-card conversion and rep cards turned into orders count genuine rep activity only. Salon portal orders may contribute to salon reorder/retention and business-wide order reporting, but must be shown as a separate channel. Report submitted, confirmed, delivered, invoiced, collected and banked amounts separately. Commission follows D-31 and D-38; OQ-09 stays open for fixed pay, the new-salon bonus and deductions.

@@ -13,7 +13,7 @@ Territory mapped                               Active salon with known cycles
    ↓                                              ↓
 Prospect identified                            Cycle due → visit/WhatsApp task generated
    ↓                                              ↓
-Visited (intro + sample)                       Order taken → delivered → installment plan
+Visited (intro + sample)                       Order made  → delivered → installment plan
    ↓                                              ↓
 Quoted / trial pack offered                    Installments collected on schedule
    ↓                                              ↓
@@ -57,7 +57,7 @@ Before a rep starts a territory, it gets **mapped**: every business in the area 
 The map is the tool for this (requirements MAP-01…13):
 
 1. **Find near me (one tap).** Standing anywhere in the territory, the rep taps *Find salons near me*. The app queries online listings for every relevant business within ~3 km (configurable up to ~6 km / 4 miles) of the rep's live GPS position and drops them as grey "discovered" pins — name, address, phone if listed, distance. Most salons and parlors are online today, so this captures the bulk of a block in seconds.
-2. **Walk and pin.** What is not online — the basement parlor, the two-chair barber — the rep adds by long-pressing the map and dropping a pin with a photo and a short note ("chit"). Each pin keeps a dated note history.
+2. **Walk and pin.** What is not online — the basement parlor, the two-chair barber — the rep adds by long-pressing the map and dropping a pin with a photo and a short note ("chit"); it is a proposal, pending until the office approves it (D-35). Each pin keeps a dated note history.
 3. **Convert and route.** Discovered pins become prospects with one tap (duplicates are caught). The rep selects the pins to cover today and the app orders them into an efficient route from where they stand; that becomes today's route stops.
 4. **Timeline.** Every pin the rep creates, visits or converts shows up on their coverage timeline, and the owner/manager see a territory heat view of covered vs. uncovered blocks.
 
@@ -83,7 +83,7 @@ A rep who skips check-in cannot record visits, order cards or payments. A rep wi
 
 ### Two order channels
 
-A salon may receive orders through either an in-person representative visit or its authenticated customer portal. The rep opens the salon record and saves a New Order Details card that the manager turns into an order (D-30); the salon may also sign in and independently submit an order. Both create the same canonical order and pass through the same server-side price, stock, credit, fulfilment and payment rules. The order records its channel, actual creator and (only for a genuine field order) the order-taking representative and visit. A portal order is not a rep visit and must not inflate visit, productive-visit or rep-taken-order metrics. Reorder/retention metrics may count orders from either channel.
+A salon may receive orders through either an in-person representative visit or its authenticated customer portal. The rep opens the salon record and saves a New Order Details card that the manager turns into an order (D-30); the salon may also sign in and submit an order request. Both become the same canonical order only when the office converts them (D-34), and pass through the same server-side price, stock, credit, fulfilment and payment rules. The order records its channel, actual creator and (only on a legacy rep_visit order) the order-taking representative and visit. A portal order is not a rep visit and must not inflate visit, productive-visit or rep-request metrics. Reorder/retention metrics may count orders from either channel.
 
 ## The repeat-cycle engine (retention)
 
@@ -134,7 +134,7 @@ Full detail on plans, credit limits and reconciliation is in doc 09.
 - Receivables ageing: current / 1–7 / 8–15 / 16–30 / 30+ days
 - Days sales outstanding (DSO)
 - Stock-out lines, stock cover (days of sales on hand) per SKU
-- Orders and order value by source channel (rep visit / salon portal) and state (submitted / confirmed / delivered / invoiced / paid / outstanding)
+- Orders and order value by source channel (office direct / rep request / salon portal; legacy rep_visit kept) and state (submitted / confirmed / delivered / invoiced / paid / outstanding)
 - Salon portal repeat-order activity, reported separately from rep physical visits and rep order cards
 - Gross margin (owner/manager only — requires cost prices from the vault)
 

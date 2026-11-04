@@ -1,6 +1,8 @@
 # Kiran DMS — Spec (index)
 
-This file is the **entry point**, not a second source of truth. The planning set in [`docs/`](docs/00-README.md) (docs 00–15) decides *what* is built, and [`docs/ACTIVITY.md`](docs/ACTIVITY.md) decides *how* it is built. If this file and a doc disagree, the doc wins and this file is wrong. Fix it in the same pull request (H-25). This file never adds a requirement; new ideas go to [doc 12](docs/12-decisions-and-open-questions.md) first.
+**Authoritative business reference: [`docs/16-project-completion-goal.md`](docs/16-project-completion-goal.md)** (MJ's goal and master task, D-33). Where any document here or below disagrees with it, doc 16 wins.
+
+This file is the **entry point**, not a second source of truth. The planning set in [`docs/`](docs/00-README.md) (docs 00–16) decides *what* is built, and [`docs/ACTIVITY.md`](docs/ACTIVITY.md) decides *how* it is built. If this file and a doc disagree, the doc wins and this file is wrong. Fix it in the same pull request (H-25). This file never adds a requirement; new ideas go to [doc 12](docs/12-decisions-and-open-questions.md) first.
 
 Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load in Phase 1) are recorded in [ACTIVITY L-0128](docs/ACTIVITY.md). This spec includes them.
 
@@ -12,18 +14,18 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 
 | User | What the system does for them | Doc |
 |---|---|---|
-| **Salaried rep** (door to door, Kiran's stock and cash) | Shows which salons to visit, what is due, and what to carry. Records visits and New Order Details cards for the manager (D-30), collects payments and records field activity/location; approved rep workflows work offline | [02](docs/02-growth-pipeline.md), [08](docs/08-field-sales-and-rep-controls.md) |
-| **Salon customer** (direct business customer) | Uses a secure salon account to view its own catalogue, assigned prices, safe stock quantities, orders and documents, and can independently submit orders | [03](docs/03-requirements.md), [06](docs/06-security-plan.md), [15](docs/15-field-sales-distribution-engineering-plan.md) |
+| **Salaried rep** (door to door, Kiran's stock and cash) | Shows which salons to visit, what is due, and what to carry. Reads reachable salons read-only, records visits and notes, submits New Order Details cards (order requests) for the manager (D-30, D-34), proposes new salons, collects payments, records field activity/location and sees own commission; approved rep workflows work offline | [02](docs/02-growth-pipeline.md), [08](docs/08-field-sales-and-rep-controls.md) |
+| **Salon customer** (direct business customer) | Joins by invitation and uses a secure salon account to view the shared catalogue, its own prices, orders, documents, payments and balance, and submits order requests that the office reviews (D-34) | [03](docs/03-requirements.md), [06](docs/06-security-plan.md), [15](docs/15-field-sales-distribution-engineering-plan.md) |
 | **Independent agent** (buys stock outright, resells, reports nothing) | Buys cash-and-carry at an agent price and sees their own purchases and the agent catalogue | [08 §10](docs/08-field-sales-and-rep-controls.md), D-15 to D-17 |
 | **Owner** | Sees everything from a phone. Holds the governance powers and the supplier secret | [06 §2](docs/06-security-plan.md), [07](docs/07-supplier-confidentiality.md) |
-| **Manager** | Full day-to-day operations: stock, cash, territories, approvals below the owner's thresholds | [06 §2](docs/06-security-plan.md), [13 §9](docs/13-anti-fraud-controls.md) |
+| **Manager** | Full day-to-day operations: stock, cash, territories, approvals below the owner's thresholds; invites and manages reps and salons, products and prices (D-39); commission and the investor ledger; never creates or promotes an owner or manager | [06 §2](docs/06-security-plan.md), [13 §9](docs/13-anti-fraud-controls.md) |
 
 **The job.** Operate a controlled Karachi salon-distribution network through field representatives and a salon customer portal ([doc 15](docs/15-field-sales-distribution-engineering-plan.md)) by tracking four connected areas:
 
 - **Customers and coverage:** salon records, locations, territories, assignments and visits.
-- **Sales:** office-placed orders (often from a rep's order card) and salon-placed orders through one canonical order engine (D-30).
+- **Sales:** official orders created only by the office, directly or from rep and salon order requests, through one canonical order engine (D-30, D-34).
 - **Supply:** shared products, salon-specific selling prices, stock custody, availability and fulfilment.
-- **Money:** invoices, installments, collections, receivables and the daily handover.
+- **Money:** invoices, installments, collections, receivables, the daily handover and commission; a basic investor ledger stays separate (D-38, D-40).
 
 **Success in 12 months** ([doc 01](docs/01-business-context.md)):
 - 3× active salons;
@@ -34,13 +36,13 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 - every new rep productive within 2 weeks;
 - monthly sales through independent agents, in rupees (D-21; target to be set by the owner, OQ-21).
 
-**Scope and order.** Phase 0 is foundations, and Phase 1 is the existing MVP: the khata, the bag and the controls. The salon portal and dual-channel order requirements are specified in docs 03, 06 and 15 and sequenced in doc 11, subject to the existing phase gates. Implementation status is only on the ACTIVITY §12 board; requirement IDs are in doc 03.
+**Scope and order.** Phase 0 is foundations, and Phase 1 is the existing MVP: the khata, the bag and the controls. The salon portal, invitations, commission payments, the investor ledger, product pictures and per-salon prices moved into Phase 1 (D-41); they are specified in docs 03, 04, 06 and 15 and sequenced in doc 11, subject to the existing phase gates. Implementation status is only on the ACTIVITY §12 board; requirement IDs are in doc 03.
 
 **Non-goals for now:** accounting, payroll, consumer e-commerce and multi-city features ([doc 01](docs/01-business-context.md)).
 
 ## 2. Where we are
 
-Task status lives in one place, [the status board](docs/ACTIVITY.md) (ACTIVITY §12); this file does not repeat it. The order rework's plan is the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md).
+Task status lives in one place, [the status board](docs/ACTIVITY.md) (ACTIVITY §12); this file does not repeat it. The order rework's plan is the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md); the [completion design](docs/superpowers/specs/2026-11-05-reps-salons-catalogue-investors-design.md) wins where they disagree and sets the slices (P1-18 to P1-24).
 
 Phase 1 started before Gate 0 by MJ's decision (D-20).
 
@@ -51,15 +53,16 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 **J1 — A salaried rep's day** ([doc 02](docs/02-growth-pipeline.md), [doc 08 §3](docs/08-field-sales-and-rep-controls.md))
 1. Morning check-in confirms the bag count; no visit, order card or payment is possible without it (PIP-09, CTL-05).
 2. The route lists the day's stops with a reason each: re-order due, collection due, at risk, prospect, delivery (PIP-03, PIP-06 thin, D-19).
-3. At a salon the rep logs the visit, saves an order card or records a collection, or taps "asked for, could not sell" in **≤ 60 s each, with no signal** (PIP-02, ORD-10, DEM-01, NFR-01).
+3. At a salon the rep logs the visit, saves an order card or records a collection, or taps "asked for, could not sell" in **≤ 60 s each, with no signal** (PIP-02, ORD-14, DEM-01, NFR-01).
 4. Everything captured offline syncs **within 60 s of reconnecting**; a replay never doubles an effect; a server rejection is shown to the rep (NFR-01, H-08).
 5. The salon receives a numbered system receipt on its phone for every payment (CTL-01, D-09).
 6. Evening: bag close and a two-party cash handover with the manager (the rep acknowledges the counted figure in their own app); variance is **Rs 0 and 0 units**, or a case is opened the same day (INV-05, PAY-05, CTL-03, doc 11 exit criterion 2).
-7. The rep only ever sees their own territories' salons, phones masked, ≤ 50 per page, no export (SAL-09, SEC-06, H-14).
+7. The rep only ever sees reachable salons, read-only, phones masked, ≤ 50 per page, no export (SAL-09, SAL-14, SEC-06, H-14). Reps deliver and collect as approved: a delivery is a submission until the office approves it (D-32).
+8. The rep sees its own commission earned, paid and owed, and its payment history, read-only (FLD-03, FLD-06).
 
 **J2 — A rep adds a prospect** ([doc 02](docs/02-growth-pipeline.md))
 1. Drop a pin or quick-add with type, photo, optional phone and a note in **≤ 60 s, offline** (MAP-02, PIP-07).
-2. The salon starts as Prospect; every later stage change is a recorded event with a reason when manual (SAL-03).
+2. The salon starts as Prospect, pending: it is a proposal until the office approves it, with an optional rep and rate, or rejects it with a reason. A pending salon cannot have requests or orders (SAL-13). Every later stage change is a recorded event with a reason when manual (SAL-03).
 3. A phone already on another salon is flagged to the office (CTL-18).
 
 **J3 — An independent agent buys stock** ([doc 08 §10](docs/08-field-sales-and-rep-controls.md), D-15)
@@ -78,17 +81,28 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 
 **J5 — The owner's morning** ([doc 01](docs/01-business-context.md), [doc 13](docs/13-anti-fraud-controls.md))
 1. "How much are we owed, by whom, and who is collecting it?" is answered from the phone in **under 10 s** (doc 01 system goal 2, doc 11 exit criterion 4).
-2. The daily digest lists every override, adjustment, variance, write-off, phone change, vault read and agent purchase (doc 00 fixed decision 8e, CTL-15, doc 13 §8, D-22).
+2. The daily digest lists every override, adjustment, variance, write-off, phone change, vault read, agent purchase, invitation, manager price change, commission rate change and payment, and investor payout (doc 00 fixed decision 8e, CTL-15, doc 13 §8, D-22).
 3. Monthly sales through agents are reported in rupees (D-21).
 4. Lost demand by SKU and reason shows what the supplier shortage cost (DEM-03, D-18).
-5. A new rep can be onboarded and working the route (visits, order cards and collections; reps no longer take orders, D-30, ORD-14, ACTIVITY L-0374) within **one working day**; offboarding takes under 10 minutes from one screen (doc 01 system goal 1 as amended by D-30, SEC-08).
+5. A new rep can be invited by the owner or manager (SEC-16, SEC-17), onboarded and working the route (visits, order cards and collections; reps do not place orders, D-30, ORD-14, ACTIVITY L-0374) within **one working day**; offboarding takes under 10 minutes from one screen (doc 01 system goal 1 as amended by D-30, SEC-08).
 
-**J6 — A salon places a repeat order** ([doc 15](docs/15-field-sales-distribution-engineering-plan.md))
-1. The salon user signs in; the server resolves the salon from active membership, not a client-supplied ID (SAL-11, SEC-13/14).
-2. The portal shows the shared active catalogue, that salon's assigned prices and safe aggregate stock only (SAL-12, INV-12).
-3. The salon submits its basket; the common server-side order engine validates price, stock, credit and idempotency (ORD-11/12).
-4. The salon sees only its own order state and permitted documents (ORD-13).
-5. The order is not counted as a rep visit or rep-taken order. The office processes it through the shared order-to-cash workflow; it waits for the manager's approval (D-30).
+**J6 — A salon sends a repeat order request** ([doc 15](docs/15-field-sales-distribution-engineering-plan.md))
+1. The office invites the salon; the salon user signs in with the emailed code. The server resolves the salon from active membership, not a client-supplied ID (SAL-11, SEC-13/14, SEC-16).
+2. The portal shows the shared active catalogue with pictures and that salon's own prices, otherwise list price; no stock in this work (SAL-12, ORD-07, INV-13).
+3. The salon submits an order request, not an official order, with lines and no prices; idempotent, online only, never a false success (ORD-12, ORD-14).
+4. It may edit or cancel the request until the office decides it; each edit is a new version (ORD-14).
+5. The office converts or rejects it in the Requests queue; conversion runs the common server-side checks of price, stock and credit (ORD-11, ORD-15).
+6. The salon sees only its own requests, order states, permitted documents, payments and balance (ORD-13, SAL-12). Salon A cannot reach salon B by changing an ID (SEC-14).
+7. The order is not counted as a rep visit or a rep request (ORD-11).
+
+**J7 — A rep's order request becomes an order** ([doc 15](docs/15-field-sales-distribution-engineering-plan.md))
+1. At a reachable salon, during an open day, the rep saves a New Order Details card: a note, with optional product lines and never a price (ORD-14, SAL-14, PIP-09).
+2. The rep may edit (a new version) or cancel it while it waits (ORD-14).
+3. The card waits in the one Requests queue with salon requests (ORD-15).
+4. A card with no lines opens the order form with salon and rep filled in; a card with lines converts in one click; the office picks the delivering rep (ORD-15, ORD-01).
+5. Or the office rejects it with a reason, and the rep sees that reason (ORD-15).
+6. The official order is the canonical `sales_order`, linked to the card; the rep reads it and cannot create, approve or modify it (ORD-01, ORD-11).
+7. The rep submits the delivery; the office approves it; only then do the sale movement, invoice and installments exist and commission is earned (ORD-04, CTL-13).
 
 ## 4. Phase 1 feature map
 
@@ -108,8 +122,13 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 | Orders screens: the office Orders area (`/office/orders`: create an order, the open cards queue with convert and dismiss, the order list); the rep's My cards (`/app/cards`), Orders read-only (`/app/orders`) and the New Order Details card on the salon page | ORD-01, ORD-14 | `apps/web/e2e-stack/office.spec.ts` (card to order to the rep's read-only list; CI only) | P1-06 |
 | Invoice document | ORD-05 | `invoice-document.test.ts` | P1-06 part c |
 | Money: payments, allocations, receipts (gapless numbers and the receipt document's data), cash ledger, receivables ageing, two-party handover, office cash collection | PAY-01 to 05, 07, 10, 11; CTL-01 to 04, 17 | `payments.test.ts`, `receivables-ageing.test.ts`, `handovers.test.ts`, `office-cash.test.ts`, RLS matrix, office stack browser tests | P1-07 |
-| Delivery approval, planned (PR B, D-32): a rep's delivery becomes an immutable submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody; rejected goods stay there until the office settles them | D-32; ORD-04 (to be rewritten in PR B, L-0392) | planned in the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md) (§7): delivery approval DB tests, a real-stack browser journey | P1-06 (PR B) |
-| Commission, planned (PR C, D-31): a rate per rep, set and changed by the owner or manager from the change onward; earned on the delivered and invoiced value of orders with an assigned rep; earned only, no payouts; date-range commission areas for the rep and the office | CTL-13, FLD-01 (rate), FLD-03 (the earned view) | planned in the design spec (§7): commission DB tests | P1-06 (PR C) |
+| Delivery approval (D-32): a rep's delivery becomes an immutable submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody; rejected goods stay there until the office settles them | D-32; ORD-04 (to be rewritten in PR B, L-0392) | planned in the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md) (§7): delivery approval DB tests, a real-stack browser journey | P1-21 |
+| Commission (D-31, D-38): a rate per rep and salon with a rep default, set and changed by the owner or manager for future invoices only; earned on the delivered and invoiced value of orders with an assigned rep; payment records with reversals; owed is earned minus paid; date-range areas for the rep and the office | CTL-13, FLD-01 (default rate), FLD-03, FLD-06 | commission DB tests and browser journey (completion design §7) | P1-22 |
+| Invitations, salon membership, salon approval, rep assignment and reachability; People and approvals screens (D-35, D-36, D-39) | SEC-13, 16, 17; SAL-11, 13, 14 | database role tests and browser journey (completion design §7) | P1-18 |
+| Product pictures and descriptions, manager prices, per-salon prices (D-37, D-39) | INV-13, ORD-07 | database role tests and browser journey | P1-19 |
+| Basic investor ledger, office only, no engine (D-40) | CAP-01 to 03 | database role tests and browser journey | P1-20 |
+| Requests queue with lines; salon portal (D-34, D-41) | ORD-01, 11 to 15; SAL-12; SEC-14, 15 | salon isolation tests and browser journey | P1-23 |
+| Rep read-only, salon proposals, timelines; the end-to-end journey in CI (D-35, D-39) | SAL-05, 09, 13 | end-to-end browser test (completion design §7) | P1-24 |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | P1-08 |
 | Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
 | Dashboards, admin | RPT-01, 02; MSG-03; ADM-01, 02; FLD-01 | Playwright | P1-10, P1-11 |
@@ -165,15 +184,15 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 
 | Path | What |
 |---|---|
-| `docs/` | Planning set 00–15, `ACTIVITY.md` (protocol, status board, blockers), `log/` (one file per log entry; `log/archive.md` is frozen), `diagrams/`, `runbooks/` |
+| `docs/` | Planning set 00–16 (doc 16 is authoritative for business rules), `ACTIVITY.md` (protocol, status board, blockers), `log/` (one file per log entry; `log/archive.md` is frozen), `diagrams/`, `runbooks/` |
 | `supabase/migrations/` | Forward-only SQL: schemas, tables, RLS, `app.*` functions, guards. One file per task, never edited after merge |
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
-| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. Planned: `app/salon/`, the salon customer portal (Phase 2 in doc 11; not built yet) |
+| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. Planned: `app/salon/`, the salon customer portal (Phase 1 in doc 11 since D-41; not built yet) |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes to no database |
 | `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |
 
-The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md), and the module-level field-sales/distribution directive in [doc 15](docs/15-field-sales-distribution-engineering-plan.md).
+The business specification is [doc 16](docs/16-project-completion-goal.md). The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md), and the module-level field-sales/distribution directive in [doc 15](docs/15-field-sales-distribution-engineering-plan.md).
 
 ## 8. Code style
 
@@ -255,6 +274,10 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | Item | Blocks | Default meanwhile |
 |---|---|---|
 | Staging: apply migrations 0014 to 0024 (H-19; staging has 13 of main's 24); PR A's migration `20261104090000`, unmerged, would be the 25th | Every screen built since 2026-11-01 on staging; Gate 0 | Local and CI only |
+| OQ-33: is a per-salon price below list a discount needing approval (doc 04 invariant 5, CTL-07)? | P1-19 using a salon price on an order | The price gate stays as written |
+| OQ-34: does a commission payment or investor payout need a second person or an owner threshold? | P1-20, P1-22 | As designed: no checker; listed in the digest once P1-08 exists |
+| OQ-23, OQ-26, OQ-27, OQ-28: legal nature, distributable profit, losses, operator share (MJ and advisers) | Live investor agreements or settlements, not the basic ledger (D-40) | Office types each decision; no formula |
+| Going live for the completion work (spec section 8): staging migrations, the owner account, email sign-up on for invitations, the storage bucket, real products | Real use of P1-18 to P1-24 | Local and CI only; sign-up stays off (`supabase/config.toml`, gate-0 item 2) |
 | B-31 (a) to (g), all still open: pin moves, phone-reveal cap, past midnight, invoice per delivery, delivery_mode, low_stock scope, agents ((d) and (e) were not settled by B-40 (a), L-0374) | The matching fixes; P1-15 | Code as built: one invoice per delivery; delivery_mode stored but not used (L-0374) |
 | B-39: approval use-time rules (who may use, use-time check, expiry, offboarded checker, credit override, write-off) | P1-08 | D-25 registry may be built; the open rules keep today's behaviour |
 | B-38: the service-role scan passes an empty `--bundle` directory, because source files are counted with the bundle files; approve requiring at least one scanned file per `--bundle` directory (H-18), with a test? | — | Leave as is |
@@ -272,7 +295,7 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | OQ-21: monthly target for sales through agents (Rs) | Agent channel goal | No target; the figure is reported monthly |
 | OQ-22: what counts as an unusually large agent purchase | Digest flag | No flag; every agent purchase is listed anyway |
 | A-08: rep bag limits owner-only (may be relaxed to the manager) | — | Owner only |
-| B-28: may reps park a salon (doc 02) against the doc 06 matrix (rep: no manual stage change) | Matrix wording | Rep parking stays, as doc 02 says |
+| B-28: may reps park a salon (doc 02) against the doc 06 matrix (rep: no manual stage change) and D-35 (reps cannot edit an existing salon) | Matrix wording; P1-24 | Rep parking stays, as doc 02 says |
 | A-09, A-10: opening last purchase; exposure as confirmed installment orders | P1-07 | As stated in ACTIVITY §15 |
 | Pin required for a map-created salon? (ACTIVITY L-0182) | A database check | Not required (offline quick add may lack GPS) |
 | Phone-reveal cap; automatic day close; geofence threshold (ACTIVITY L-0146, L-0152) | New thresholds (H-26) | No cap; office force-close only; distance recorded, not enforced |
