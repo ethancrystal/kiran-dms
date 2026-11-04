@@ -388,6 +388,7 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-040 | — (remove the non-author reviewer and independent-verification rules, MJ) | 2026-11-04 22:38 | done | L-0402 |
 | C-041 | PLAN-05 (roadmap and execution-map reconciliation; C-038 on Codex branch, renumbered L-0411) | 2026-11-04 13:38 | done | L-0408 |
 | C-042 | PLAN-05 (re-apply of Codex 5f42803 after PR 48: roadmap, execution map, ACTIVITY bookkeeping) | 2026-11-04 23:11 | done | L-0413 |
+| C-043 | — (test stability: unhandled rejection in the payments lock-order test) | 2026-11-04 23:31 | done | L-0418 |
 
 ---
 
@@ -4669,6 +4670,45 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Evidence:** With every entry in place, DATABASE_URL unset: `node scripts/activity-log-check.mjs origin/main` (origin/main c8fb928) gave activity-log-check OK (11 new log entries, 3 changed files; owner terms checked 0, KIRAN_SENSITIVE_TERMS empty here), exit 0; `git diff HEAD --check` exit 0; `pnpm install --frozen-lockfile` (fresh worktree) exit 0; `pnpm lint` exit 0 (108 files, 33 warnings, 42 infos, as in L-0403); `pnpm agent:preflight` PREFLIGHT OK. The commit SHA is in the git history, not here (it does not exist until this entry is committed). Not run: typecheck, database, browser tests, CI (docs only).
 **Rules touched:** section 3, section 11, H-23, H-24
 **Next / needs:** MJ: push and pull request decision.
+
+### L-0415 · 2026-11-04 23:22 PKT · Claude · Opus 5.5 · session payments-test-flake-20261104 · branch claude/fix-payments-test-unhandled-rejection · SESSION-START
+**Task:** — (test stability: unhandled rejection in supabase/tests/payments.test.ts)    **Claim:** C-043 (L-0416)
+**What / why:** CI run 41884918196 (PR 50, docs only) passed all 37 files and 2511 tests of `pnpm db:test` but failed on "Unhandled Rejection: error: canceling statement due to user request (code 57014)" attributed to payments.test.ts, test "a delivery stopped just after its audited write does not deadlock with a payment for the same salon (lock order)". Read: CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 0 to 15, Appendices A to C and the last entries (L-0396 to L-0403). Branch claude/fix-payments-test-unhandled-rejection cut from origin/main c8fb928; worktree clean. `pnpm agent:preflight` (DATABASE_URL unset): PREFLIGHT OK. Active claims: C-039 (orders; no overlap with a test file of payments concurrency). Open pull requests: PR 50 (docs only; it appends L-0404 to L-0414 and claims C-041 and C-042 to this file, so this branch uses C-043; the L numbers collide and whichever merges later renumbers under section 4). Baseline: test code only changes, so only payments.test.ts is run (RAM-starved host), plus lint, typecheck, the log check and preflight.
+**Rules touched:** section 2, section 3, H-23
+**Next / needs:** L-0416.
+
+### L-0416 · 2026-11-04 23:22 PKT · Claude · Opus 5.5 · session payments-test-flake-20261104 · branch claude/fix-payments-test-unhandled-rejection · CLAIM
+**Task:** — (test stability: unhandled rejection in supabase/tests/payments.test.ts)    **Claim:** C-043
+**What / why:** C-043 is unused on main and in PR 50 (`git log --all -S "C-043"` empty). Area: supabase/tests/payments.test.ts only, test code. Cause, read in the source: in the lock-order test the `controller` session (gate advisory lock, then pg_sleep) is cancelled by `release()` (pg_cancel_backend) inside the finally, and its rejection can settle while `await release()` runs, before `controller.catch(...)` is attached on the next line, so Node reports an unhandled rejection; the same can happen to `delivery` and `payment` before `Promise.allSettled`, and to the other pg_sleep sessions in the file (`holder` three times, `deliverLater`, `first`) while the test awaits something else. Fix: attach a no-op rejection handler to each such promise the moment it is created, keeping the original promise and every assertion unchanged. No migration, SQL function or other test file changes.
+**Rules touched:** section 3, H-23
+**Next / needs:** the edit and the runs.
+
+### L-0417 · 2026-11-04 23:31 PKT · Claude · Opus 5.5 · session payments-test-flake-20261104 · branch claude/fix-payments-test-unhandled-rejection · PROGRESS
+**Task:** — (test stability: unhandled rejection in supabase/tests/payments.test.ts)    **Claim:** C-043
+**What / why:** Added a small helper `observed` in supabase/tests/payments.test.ts. It attaches a rejection handler the moment a session starts and returns the same promise, so a later await, Promise.all or Promise.allSettled still sees the rejection. Wrapped at creation: `holder` (three tests), `deliverLater` and `payment` (invoice order test), `controller`, `delivery` and `payment` (lock-order test), `first` (same client_id test). `grep pg_cancel_backend and pg_sleep` across supabase/tests found these patterns in payments.test.ts only. No assertion, test, migration or SQL function changed; `deliveryResult` and `paymentResult` are still asserted fulfilled.
+**Evidence:** DATABASE_URL and KIRAN_TEST_DATABASE_URL unset, NODE_ENV=test, Windows embedded Postgres, `pnpm exec vitest run --config supabase/tests/vitest.config.ts payments.test`. First attempt: exit 1, "No test files found" with "Unknown Error: undefined"; no test ran; the cause was not established (it ran beside lint and typecheck on this RAM-starved host, and `vitest list` found the file straight after). The next three runs in a row, on the final formatted file: exit 0, 1 file, 79 passed each (66.78 s, 56.35 s, 44.65 s), no "Unhandled" or 57014 in any of the three logs. A small node script showed the mechanism: a promise rejected during a wait with its handler attached afterwards gives one unhandledRejection; through `observed` it gives none and Promise.allSettled still reports it rejected. Limit: the failure depends on timing and was not reproduced in this test file before the fix, so these passes alone do not prove it gone; only the mechanism and later CI runs speak to that. Not run: the rest of the database suite, browser tests, CI.
+**Rules touched:** H-23, H-24
+**Next / needs:** L-0418, L-0419.
+
+### L-0418 · 2026-11-04 23:31 PKT · Claude · Opus 5.5 · session payments-test-flake-20261104 · branch claude/fix-payments-test-unhandled-rejection · CLAIM-RELEASED
+**Task:** — (test stability: unhandled rejection in supabase/tests/payments.test.ts)    **Claim:** C-043
+**What / why:** Done; C-043 released and moved to the released table. No status board row changed.
+**Rules touched:** section 3
+**Next / needs:** L-0419.
+
+### L-0419 · 2026-11-04 23:31 PKT · Claude · Opus 5.5 · session payments-test-flake-20261104 · branch claude/fix-payments-test-unhandled-rejection · HANDOFF
+**Task:** — (test stability: unhandled rejection in supabase/tests/payments.test.ts)    **Claim:** C-043 (released, L-0418)
+**What / why:** State: one local commit, "Attach rejection handlers at creation in the payments lock-order test", on branch claude/fix-payments-test-unhandled-rejection over origin/main c8fb928; not pushed, no pull request. Result: DONE (self-reported), not verified. Files changed: supabase/tests/payments.test.ts, docs/ACTIVITY.md. Next steps, in order: (1) MJ decides on pushing and opening the pull request; merging only on MJ's OK for that pull request with every required check green on its head; (2) CI runs the whole database suite. Gotchas: PR 50 also appends L-0404 onward to this file, so whichever merges later renumbers under section 4 (the claim ID C-043 does not collide). One unexplained local attempt found no test files (L-0417). Open blockers raised: none.
+**Evidence:** With these entries in place, DATABASE_URL unset: `node scripts/activity-log-check.mjs origin/main` OK; `pnpm lint` exit 0 (108 files, 33 warnings, 42 infos, as in L-0403); `pnpm typecheck` exit 0; `pnpm agent:preflight` PREFLIGHT OK. Test runs as in L-0417.
+**Rules touched:** section 3, section 11, H-23, H-24
+**Next / needs:** MJ: push and pull request decision.
+
+### L-0420 · 2026-11-04 23:33 PKT · Claude · Opus 5.5 · session payments-test-flake-20261104 · branch claude/fix-payments-test-unhandled-rejection · CORRECTION
+**Task:** — (test stability: unhandled rejection in supabase/tests/payments.test.ts)    **Claim:** C-043 (released, L-0418)
+**What / why:** PR 50 merged while this branch was unpushed, so main uses log ids up to L-0414. Renumbered under section 4: L-0404 to L-0415, L-0405 to L-0416, L-0406 to L-0417, L-0407 to L-0418, L-0408 to L-0419. Only ID references changed, with each entry's date and time kept; no sentence was reworded, so the mentions of PR 50's own L-0404 onward remain as written and describe PR 50 while it was open. The C-043 released row now cites L-0418; C-043 still collides with nothing on main. Nothing outside this file cites the old ids. Base change: at the coordinating session's instruction this unpushed, unshared branch was rebased, not merged, onto origin/main a1ab3aa (the PR 50 merge), so "over origin/main c8fb928" in L-0419 now reads over a1ab3aa, and the L-0415 note that the L numbers collide with PR 50 is settled by this entry.
+**Evidence:** `git fetch origin main` moved origin/main c8fb928 to a1ab3aa; `git rebase origin/main` conflicted only in docs/ACTIVITY.md, and supabase/tests/payments.test.ts applied unchanged, so the test runs of L-0417 were not repeated. With this entry in place: `node scripts/activity-log-check.mjs origin/main` OK; `pnpm lint` exit 0; `pnpm agent:preflight` PREFLIGHT OK.
+**Rules touched:** section 4, H-24
+**Next / needs:** MJ: push and pull request decision (L-0419).
 
 ---
 

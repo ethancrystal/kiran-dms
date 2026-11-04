@@ -29,6 +29,20 @@ const C = { commit: true };
 const id = () => randomUUID();
 const tag = () => randomUUID().slice(0, TAG_LENGTH);
 const one = async (who: Who, sql: string, params: unknown[] = []) => (await run(who, sql, params, C)).rows[0];
+// For a session that runs beside the test's other awaits (a lock holder, a cancelled sleep): it may reject before
+// the test reaches it, which Node reports as an unhandled rejection and fails the run. This attaches a handler the
+// moment the session starts. It returns the same promise, so awaiting or settling it later still sees the rejection.
+const observed = <T>(session: Promise<T>): Promise<T> => {
+  const drain = async () => {
+    try {
+      await session;
+    } catch {
+      // Seen by whoever awaits the returned promise.
+    }
+  };
+  void drain();
+  return session;
+};
 const TODAY = "(now() at time zone 'Asia/Karachi')::date";
 
 // Amounts in paisa. One unit of the test SKU lists at UNIT; an INST4 order of four units has four
@@ -1006,7 +1020,9 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
 
   it("a second session with the same client_id waits for the first one before it looks anything up", async () => {
     const cid = id();
-    const holder = run("postgres", script([...standard(), repPay(cid, UNIT), ["postgres", `select pg_sleep(${HOLD_SECONDS})`]]));
+    const holder = observed(
+      run("postgres", script([...standard(), repPay(cid, UNIT), ["postgres", `select pg_sleep(${HOLD_SECONDS})`]])),
+    );
     try {
       expect(await waitFor(() => advisoryHeld(`hashtextextended('payment-client:${cid}', 0)`))).toBe(true);
       const started = Date.now();
@@ -1022,7 +1038,7 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
   it("a payment for a salon waits for the per-salon allocation lock, whatever its client_id (H-10)", async () => {
     const key = `hashtextextended('payment:${SALON}', 0)`;
     // The holder takes the salon's lock and keeps its transaction open for a few seconds.
-    const holder = run("postgres", `select pg_advisory_xact_lock(${key}); select pg_sleep(${HOLD_SECONDS});`);
+    const holder = observed(run("postgres", `select pg_advisory_xact_lock(${key}); select pg_sleep(${HOLD_SECONDS});`));
     try {
       expect(await waitFor(() => advisoryHeld(key))).toBe(true);
       const started = Date.now();
@@ -1113,19 +1129,23 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
     // from deadlocking is proved by the test with the paused delivery, not by this one.
     // Session B's transaction starts first and delivers the second order after a pause: its transaction start
     // is earlier than the payment's, which is what a now()-based issue time would compare.
-    const deliverLater = run(
-      MANAGER,
-      `select pg_sleep(${DELIVERY_DELAY_S}); select (app.office_deliver('${id()}', '${second}', '${WH}', 'Ayesha at the counter')).number;`,
-      [],
-      C,
+    const deliverLater = observed(
+      run(
+        MANAGER,
+        `select pg_sleep(${DELIVERY_DELAY_S}); select (app.office_deliver('${id()}', '${second}', '${WH}', 'Ayesha at the counter')).number;`,
+        [],
+        C,
+      ),
     );
     await sleep(PAYMENT_START_MS);
     // Session A pays invoice 1 and keeps its transaction (and the salon lock) open for a while before it commits.
-    const payment = run(
-      MANAGER,
-      `select (app.office_record_payment('${id()}', '${salonD}', ${UNIT}, 'Dummy Bank', 'TRX-D1')).number as number; select pg_sleep(${PAYMENT_HOLD_S});`,
-      [],
-      C,
+    const payment = observed(
+      run(
+        MANAGER,
+        `select (app.office_record_payment('${id()}', '${salonD}', ${UNIT}, 'Dummy Bank', 'TRX-D1')).number as number; select pg_sleep(${PAYMENT_HOLD_S});`,
+        [],
+        C,
+      ),
     );
     const [invoice2, paid] = await Promise.all([deliverLater, payment]);
     const receiptNumber = String((paid as unknown as Array<{ rows: Array<{ number: string }> }>)[0]?.rows[0]?.number);
@@ -1207,23 +1227,27 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
       ).rows.map((r) => String(r.tgname));
       seen.triggerOrder = names.indexOf("audit") >= 0 && names.indexOf("audit") < names.indexOf("zz_test_pause_delivery");
       // 1. The test holds the gate.
-      controller = run("postgres", `select pg_advisory_xact_lock(${gateKey}); select pg_sleep(${GATE_MAX_S});`);
+      controller = observed(run("postgres", `select pg_advisory_xact_lock(${gateKey}); select pg_sleep(${GATE_MAX_S});`));
       seen.gateHeld = await waitFor(async () => (await lockState(gateKey)).held === 1);
       // 2. The delivery runs until the pause trigger waits on the gate: it has written its audited row.
-      delivery = run(
-        MANAGER,
-        `select set_config('kiran.test_pause_order', '${second}', true); select (app.office_deliver('${id()}', '${second}', '${WH}', 'Ayesha at the counter')).number;`,
-        [],
-        C,
+      delivery = observed(
+        run(
+          MANAGER,
+          `select set_config('kiran.test_pause_order', '${second}', true); select (app.office_deliver('${id()}', '${second}', '${WH}', 'Ayesha at the counter')).number;`,
+          [],
+          C,
+        ),
       );
       seen.deliveryPaused = await waitFor(async () => (await lockState(gateKey)).waiting === 1);
       // 3. A payment for the same salon starts. With the fixed lock order the delivery already holds the salon lock,
       //    so the payment waits for it before it writes anything audited.
-      payment = run(
-        MANAGER,
-        `select (app.office_record_payment('${id()}', '${salonE}', ${UNIT}, 'Dummy Bank', 'TRX-E1')).number;`,
-        [],
-        C,
+      payment = observed(
+        run(
+          MANAGER,
+          `select (app.office_record_payment('${id()}', '${salonE}', ${UNIT}, 'Dummy Bank', 'TRX-E1')).number;`,
+          [],
+          C,
+        ),
       );
       seen.paymentWaitsForSalon = await waitFor(async () => (await lockState(salonKey)).waiting === 1);
       seen.salonHeldByDelivery = (await lockState(salonKey)).held;
@@ -1268,7 +1292,7 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
     const salon = await newSalon();
     await deliverOffice(await seedOrder(salon));
     const key = `hashtextextended('payment:${salon}', 0)`;
-    const holder = run("postgres", `select pg_advisory_xact_lock(${key}); select pg_sleep(${HOLD_SECONDS});`);
+    const holder = observed(run("postgres", `select pg_advisory_xact_lock(${key}); select pg_sleep(${HOLD_SECONDS});`));
     let before: Date | undefined;
     let recorded: Date | undefined;
     try {
@@ -1299,7 +1323,7 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
     await deliverOffice(await seedOrder(salon));
     const cid = id();
     const call = `select (app.office_record_payment('${cid}', '${salon}', ${UNIT}, 'Dummy Bank', 'TRX-F1')).number as number;`;
-    const first = run(MANAGER, `${call} select pg_sleep(${HOLD_SECONDS});`, [], C);
+    const first = observed(run(MANAGER, `${call} select pg_sleep(${HOLD_SECONDS});`, [], C));
     let secondNumber = "";
     let waited = 0;
     try {
