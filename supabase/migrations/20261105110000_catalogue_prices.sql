@@ -450,17 +450,17 @@ begin
     raise notice 'storage schema absent: bucket product-images and its policies not created';
     return;
   end if;
-  execute $q$insert into storage.buckets (id, name) values ('product-images', 'product-images') on conflict (id) do nothing$q$;
-  if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'public') then
-    execute $q$update storage.buckets set public = false where id = 'product-images'$q$;
-  end if;
-  if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'file_size_limit') then
-    execute $q$update storage.buckets set file_size_limit = 5242880 where id = 'product-images'$q$;
-  end if;
-  if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'allowed_mime_types') then
-    execute $q$update storage.buckets set allowed_mime_types = array['image/png', 'image/jpeg', 'image/webp'] where id = 'product-images'$q$;
-  end if;
   begin
+    execute $q$insert into storage.buckets (id, name) values ('product-images', 'product-images') on conflict (id) do nothing$q$;
+    if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'public') then
+      execute $q$update storage.buckets set public = false where id = 'product-images'$q$;
+    end if;
+    if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'file_size_limit') then
+      execute $q$update storage.buckets set file_size_limit = 5242880 where id = 'product-images'$q$;
+    end if;
+    if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'allowed_mime_types') then
+      execute $q$update storage.buckets set allowed_mime_types = array['image/png', 'image/jpeg', 'image/webp'] where id = 'product-images'$q$;
+    end if;
     execute $q$create policy product_images_read on storage.objects for select to authenticated
       using (bucket_id = 'product-images' and (select app.may_read_product_images()))$q$;
     execute format($q$create policy product_images_insert on storage.objects for insert to authenticated
@@ -471,9 +471,10 @@ begin
     execute format($q$create policy product_images_delete on storage.objects for delete to authenticated
       using (bucket_id = 'product-images' and (select app.is_office()) and name ~ %L)$q$, v_name_shape);
   exception when insufficient_privilege then
-    -- Fail closed: with no policy nobody but the storage service reads or writes the bucket. The CI
-    -- storage test checks that the four policies exist wherever storage does.
-    raise warning 'product-images policies not created (insufficient privilege on storage.objects): %', sqlerrm;
+    -- Fail closed: the bucket and its policies are undone together, and with no policy nobody but the
+    -- storage service reads or writes. The CI storage test checks the bucket and the four policies
+    -- wherever storage exists, so this shows there rather than stopping the stack from starting.
+    raise warning 'product-images bucket and policies not created (insufficient privilege on storage): %', sqlerrm;
   end;
 end $storage$;
 

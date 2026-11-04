@@ -125,8 +125,6 @@ const historyCount = async (sku: string) =>
   (await run("postgres", "select count(*)::int n from public.sku_price_change where sku_id = $1", [sku])).rows[0].n as number;
 const salonPriceCount = async (salon: string) =>
   (await run("postgres", "select count(*)::int n from public.salon_sku_price where salon_id = $1", [salon])).rows[0].n as number;
-const pricesOf = async (who: Who, salon: string) =>
-  (await run(who, "select * from app.office_salon_prices($1)", [salon])).rows as Array<Record<string, unknown>>;
 
 // One transaction: steps as people, then a final read as postgres.
 const asUser = (who: "repA" | "manager" | "owner") => {
@@ -756,11 +754,23 @@ describe("pictures: who may read the product-images bucket, and the bucket where
   });
 
   it("where storage exists: a private bucket with the image types and 5 MB, and the four office-only write policies; elsewhere none", async () => {
-    const { rows } = await run<{ has: boolean }>("postgres", "select to_regclass('storage.objects') is not null as has");
+    // The migration's own guard: both storage tables must exist.
+    const { rows } = await run<{ has: boolean; buckets: boolean }>(
+      "postgres",
+      `select to_regclass('storage.buckets') is not null and to_regclass('storage.objects') is not null as has,
+              to_regclass('storage.buckets') is not null as buckets`,
+    );
     if (!rows[0].has) {
-      // The embedded test database has no storage schema: the migration made nothing there.
-      const { rows: s } = await run("postgres", "select count(*)::int n from pg_namespace where nspname = 'storage'");
-      expect(s[0].n).toBe(0);
+      // No storage here (the embedded test database): the migration made no bucket and no policy.
+      const { rows: pols } = await run(
+        "postgres",
+        "select count(*)::int n from pg_policies where schemaname = 'storage' and policyname like 'product_images_%'",
+      );
+      expect(pols[0].n).toBe(0);
+      if (rows[0].buckets) {
+        const { rows: b } = await run("postgres", "select count(*)::int n from storage.buckets where id = 'product-images'");
+        expect(b[0].n).toBe(0);
+      }
       return;
     }
     const bucket = (await run("postgres", "select to_jsonb(b) b from storage.buckets b where id = 'product-images'")).rows[0]?.b;
