@@ -107,7 +107,12 @@ const STALE_PRICE = /salon's price for T-CAT-.* is above its list price/;
 // A write policy body naming the office check before the folder: "app.is_office() ... products/" matches; "true" does not.
 // https://regex101.com/?regex=is_office%5C%28%5C%29.*products&flavor=javascript&flags=s
 const OFFICE_UNDER_PRODUCTS = /is_office\(\).*products/s;
-const upsertSql = (pid: string, description: string | null = null, image: string | null = null, name = "[Dummy] Catalogue colour") =>
+const upsertSql = (
+  pid: string,
+  description: string | null = null,
+  image: string | null = null,
+  name = "[Dummy] Catalogue colour",
+) =>
   `select to_jsonb(app.office_upsert_product(${q(pid)}, ${q(GROUP)}, '[Dummy] Kiran', ${q(name)}, true, ${q(description)}, ${q(image)})) as r`;
 const skuPriceSql = (cid: string, sku: string, price: number | null, reason = "dummy price change") =>
   `select app.office_set_sku_price(${q(cid)}, ${q(sku)}, ${q(price)}, ${q(reason)}) as r`;
@@ -180,7 +185,11 @@ beforeAll(async () => {
         C,
       ),
   );
-  await one(MANAGER, "select app.office_upsert_product_group($1, $2, $3)", [GROUP, `[Test] Catalogue group ${tag()}`, GROUP_CYCLE_DAYS]);
+  await one(MANAGER, "select app.office_upsert_product_group($1, $2, $3)", [
+    GROUP,
+    `[Test] Catalogue group ${tag()}`,
+    GROUP_CYCLE_DAYS,
+  ]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Catalogue colour')", [PRODUCT, GROUP]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Retired colour', false)", [
     INACTIVE_PRODUCT,
@@ -220,7 +229,11 @@ describe("product description and picture path (app.office_upsert_product)", () 
     // A caller that does not name the new fields (the older four-argument form) keeps them.
     await run(who, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Renamed colour')", [pid, GROUP], C);
     const kept = (await run("postgres", "select name, description, image_path from public.product where id = $1", [pid])).rows[0];
-    expect(kept).toEqual({ name: "[Dummy] Renamed colour", description: "[Dummy] Long-lasting shade for salons.", image_path: path });
+    expect(kept).toEqual({
+      name: "[Dummy] Renamed colour",
+      description: "[Dummy] Long-lasting shade for salons.",
+      image_path: path,
+    });
     await run(who, upsertSql(pid, "", ""), [], C);
     const cleared = (await run("postgres", "select description, image_path from public.product where id = $1", [pid])).rows[0];
     expect(cleared).toEqual({ description: null, image_path: null });
@@ -246,13 +259,17 @@ describe("product description and picture path (app.office_upsert_product)", () 
   ])("refuses %s as a picture path (22023), and the table refuses it too", async (_n, make) => {
     const bad = make(PRODUCT);
     expect(await sqlstate(MANAGER, upsertSql(PRODUCT, null, bad))).toBe(BAD_INPUT);
-    expect(await sqlstate("postgres", "update public.product set image_path = $1 where id = $2", [bad, PRODUCT])).toBe(CHECK_VIOLATION);
+    expect(await sqlstate("postgres", "update public.product set image_path = $1 where id = $2", [bad, PRODUCT])).toBe(
+      CHECK_VIOLATION,
+    );
   });
 
   it("refuses a description over 1000 characters; exactly 1000 is kept", async () => {
     expect(await sqlstate(MANAGER, upsertSql(PRODUCT, "x".repeat(DESCRIPTION_MAX + 1)))).toBe(BAD_INPUT);
     expect(await sqlstate(MANAGER, upsertSql(PRODUCT, "x".repeat(DESCRIPTION_MAX)))).toBeNull();
-    expect(await sqlstate("postgres", "update public.product set description = '   ' where id = $1", [PRODUCT])).toBe(CHECK_VIOLATION);
+    expect(await sqlstate("postgres", "update public.product set description = '   ' where id = $1", [PRODUCT])).toBe(
+      CHECK_VIOLATION,
+    );
   });
 
   it.each(REFUSED)("%s cannot add or edit a product", async (_n, who) => {
@@ -305,7 +322,14 @@ describe("list prices: app.office_set_sku_price (owner or manager) and app.owner
       `select app.office_set_sku_price('${cid}', '${SKU1}', 60000, 'dummy replay');`,
       `select app.office_set_sku_price('${cid}', '${SKU2}', 60000, 'another reason');`,
     ];
-    const codes = await Promise.all(others.map((other) => txCode([["owner", first], ["owner", other]])));
+    const codes = await Promise.all(
+      others.map((other) =>
+        txCode([
+          ["owner", first],
+          ["owner", other],
+        ]),
+      ),
+    );
     expect(codes).toEqual(others.map(() => DUPLICATE));
     // Another person replaying the owner's id is not a replay.
     expect(
@@ -354,7 +378,9 @@ describe("list prices: app.office_set_sku_price (owner or manager) and app.owner
          where h.sku_id = '${SKU1}' order by h.created_at desc, h.id limit 1;`,
       ],
     ]);
-    expect(res).toEqual([{ old_price_paisa: String(LIST), new_price_paisa: "99000", via: "owner_set_sku_price", changed_by: fx.owner.id }]);
+    expect(res).toEqual([
+      { old_price_paisa: String(LIST), new_price_paisa: "99000", via: "owner_set_sku_price", changed_by: fx.owner.id },
+    ]);
   });
 
   it("the setup's owner prices are in the history", async () => {
@@ -371,7 +397,10 @@ describe("list prices: app.office_set_sku_price (owner or manager) and app.owner
 describe("per-salon prices (D-37): app.office_set_salon_price and app.office_salon_prices", () => {
   it("the manager sets a salon price; the sheet shows it as that salon's reference price and not another salon's", async () => {
     const res = await tx([
-      ["manager", `select (app.office_set_salon_price('${id()}', '${SALON}', '${SKU1}', ${SALON_PRICE}, '[Test] loyal salon')).id;`],
+      [
+        "manager",
+        `select (app.office_set_salon_price('${id()}', '${SALON}', '${SKU1}', ${SALON_PRICE}, '[Test] loyal salon')).id;`,
+      ],
       [
         "manager",
         `select a.sku_id, a.list_price_paisa, a.salon_price_paisa, a.reference_price_paisa, a.above_list, a.reason, a.set_by_name,
@@ -405,7 +434,10 @@ describe("per-salon prices (D-37): app.office_set_salon_price and app.office_sal
     const cleared = await tx([
       setSalonPrice("manager", SALON, SKU1, SALON_PRICE),
       setSalonPrice("manager", SALON, SKU1, null),
-      ["manager", `select salon_price_paisa s, reference_price_paisa r from app.office_salon_prices('${SALON}') where sku_id = '${SKU1}';`],
+      [
+        "manager",
+        `select salon_price_paisa s, reference_price_paisa r from app.office_salon_prices('${SALON}') where sku_id = '${SKU1}';`,
+      ],
     ]);
     expect(cleared).toEqual([{ s: null, r: String(LIST) }]);
   });
@@ -413,16 +445,37 @@ describe("per-salon prices (D-37): app.office_set_salon_price and app.office_sal
   it("a replay is one row; the same id with other facts is refused (23505)", async () => {
     const cid = id();
     const first = `select app.office_set_salon_price('${cid}', '${SALON}', '${SKU1}', ${SALON_PRICE}, 'dummy replay');`;
-    expect(await tx([["manager", first], ["manager", first], ["postgres", `select count(*)::int n from public.salon_sku_price where client_id = '${cid}';`]])).toEqual([
-      { n: 1 },
-    ]);
-    expect(await txCode([["manager", first], ["manager", first.replace(String(SALON_PRICE), String(SALON_PRICE - 1))]])).toBe(DUPLICATE);
-    expect(await txCode([["manager", first], ["manager", first.replace(SALON, SALON2)]])).toBe(DUPLICATE);
-    expect(await txCode([["manager", first], ["owner", first]])).toBe(DUPLICATE);
+    expect(
+      await tx([
+        ["manager", first],
+        ["manager", first],
+        ["postgres", `select count(*)::int n from public.salon_sku_price where client_id = '${cid}';`],
+      ]),
+    ).toEqual([{ n: 1 }]);
+    expect(
+      await txCode([
+        ["manager", first],
+        ["manager", first.replace(String(SALON_PRICE), String(SALON_PRICE - 1))],
+      ]),
+    ).toBe(DUPLICATE);
+    expect(
+      await txCode([
+        ["manager", first],
+        ["manager", first.replace(SALON, SALON2)],
+      ]),
+    ).toBe(DUPLICATE);
+    expect(
+      await txCode([
+        ["manager", first],
+        ["owner", first],
+      ]),
+    ).toBe(DUPLICATE);
   });
 
   it("a pending or rejected salon gets no price (55000); nothing is written", async () => {
-    const states = await Promise.all([PENDING, REJECTED].map((s) => sqlstate(MANAGER, salonPriceSql(id(), s, SKU1, SALON_PRICE))));
+    const states = await Promise.all(
+      [PENDING, REJECTED].map((s) => sqlstate(MANAGER, salonPriceSql(id(), s, SKU1, SALON_PRICE))),
+    );
     expect(states).toEqual([WRONG_STATE, WRONG_STATE]);
     expect(await Promise.all([PENDING, REJECTED].map(salonPriceCount))).toEqual([0, 0]);
   });
@@ -435,7 +488,9 @@ describe("per-salon prices (D-37): app.office_set_salon_price and app.office_sal
     expect(await sqlstate(MANAGER, salonPriceSql(id(), SALON, SKU1, 0))).toBe(BAD_INPUT);
     expect(await sqlstate(MANAGER, salonPriceSql(id(), SALON, SKU1, NEGATIVE))).toBe(BAD_INPUT);
     expect(await sqlstate(MANAGER, salonPriceSql(id(), SALON, SKU1, SALON_PRICE, "ab"))).toBe(BAD_INPUT);
-    expect(await sqlstate(MANAGER, `select app.office_set_salon_price(null, '${SALON}', '${SKU1}', 1, 'dummy reason')`)).toBe(BAD_INPUT);
+    expect(await sqlstate(MANAGER, `select app.office_set_salon_price(null, '${SALON}', '${SKU1}', 1, 'dummy reason')`)).toBe(
+      BAD_INPUT,
+    );
     expect(await sqlstate(MANAGER, "select * from app.office_salon_prices($1)", [id()])).toBe(BAD_INPUT);
   });
 
@@ -492,17 +547,34 @@ describe("orders use the salon's price (app.build_order); the price gate is unch
 
   it("another salon's order is at list price, with no hold", async () => {
     const cid = id();
-    const [o] = await tx([setSalonPrice("manager", SALON, SKU1, SALON_PRICE), createOrder("manager", cid, SALON2, [{ sku: SKU1, qty: 1 }]), orderRead(cid)]);
+    const [o] = await tx([
+      setSalonPrice("manager", SALON, SKU1, SALON_PRICE),
+      createOrder("manager", cid, SALON2, [{ sku: SKU1, qty: 1 }]),
+      orderRead(cid),
+    ]);
     expect(o).toMatchObject({ status: "confirmed", hold_discount: null, total_paisa: String(LIST), discount_paisa: "0" });
   });
 
   it("a salon price equal to list is no discount; the owner's own office order at a salon price is not held (the existing owner rule)", async () => {
     const equal = id();
-    const [a] = await tx([setSalonPrice("manager", SALON, SKU1, LIST), createOrder("manager", equal, SALON, [{ sku: SKU1, qty: 1 }]), orderRead(equal)]);
+    const [a] = await tx([
+      setSalonPrice("manager", SALON, SKU1, LIST),
+      createOrder("manager", equal, SALON, [{ sku: SKU1, qty: 1 }]),
+      orderRead(equal),
+    ]);
     expect(a).toMatchObject({ status: "confirmed", hold_discount: null, discount_paisa: "0" });
     const byOwner = id();
-    const [b] = await tx([setSalonPrice("manager", SALON, SKU1, SALON_PRICE), createOrder("owner", byOwner, SALON, [{ sku: SKU1, qty: 1 }]), orderRead(byOwner)]);
-    expect(b).toMatchObject({ status: "confirmed", hold_discount: null, discount_by_owner: true, total_paisa: String(SALON_PRICE) });
+    const [b] = await tx([
+      setSalonPrice("manager", SALON, SKU1, SALON_PRICE),
+      createOrder("owner", byOwner, SALON, [{ sku: SKU1, qty: 1 }]),
+      orderRead(byOwner),
+    ]);
+    expect(b).toMatchObject({
+      status: "confirmed",
+      hold_discount: null,
+      discount_by_owner: true,
+      total_paisa: String(SALON_PRICE),
+    });
   });
 
   it("a price typed on the line wins over the salon price, and above the list price it is refused (the cap)", async () => {
@@ -514,7 +586,10 @@ describe("orders use the salon's price (app.build_order); the price gate is unch
     ]);
     expect(o).toMatchObject({ status: "confirmed", total_paisa: String(LIST), hold_discount: null });
     expect(
-      await txCode([setSalonPrice("manager", SALON, SKU1, SALON_PRICE), createOrder("manager", id(), SALON, [{ sku: SKU1, qty: 1, price: LIST + 1 }])]),
+      await txCode([
+        setSalonPrice("manager", SALON, SKU1, SALON_PRICE),
+        createOrder("manager", id(), SALON, [{ sku: SKU1, qty: 1, price: LIST + 1 }]),
+      ]),
     ).toBe(BAD_INPUT);
   });
 
@@ -532,7 +607,9 @@ describe("orders use the salon's price (app.build_order); the price gate is unch
       ["manager", `select above_list from app.office_salon_prices('${SALON}') where sku_id = '${SKU1}';`],
     ]);
     expect(sheet).toEqual([{ above_list: true }]);
-    expect((await run("postgres", "select count(*)::int n from public.sales_order where client_id = $1", [cid])).rows[0].n).toBe(0);
+    expect((await run("postgres", "select count(*)::int n from public.sales_order where client_id = $1", [cid])).rows[0].n).toBe(
+      0,
+    );
   });
 
   it("the order replay is one order and its lines do not move when the salon price changes later", async () => {
@@ -555,7 +632,10 @@ describe("orders use the salon's price (app.build_order); the price gate is unch
 // ---------------------------------------------------------------------------------------------
 describe("reads: the office catalogue; nothing from the vault, no cost or margin (doc 07, H-01, H-05)", () => {
   it("the office catalogue lists inactive products and SKUs with prices, picture and description", async () => {
-    const { rows } = await run(MANAGER, "select * from app.office_catalogue() where product_id in ($1, $2) order by name", [PRODUCT, INACTIVE_PRODUCT]);
+    const { rows } = await run(MANAGER, "select * from app.office_catalogue() where product_id in ($1, $2) order by name", [
+      PRODUCT,
+      INACTIVE_PRODUCT,
+    ]);
     expect(rows.map((r) => [r.product_id, r.active])).toEqual([
       [PRODUCT, true],
       [INACTIVE_PRODUCT, false],
@@ -596,9 +676,16 @@ describe("reads: the office catalogue; nothing from the vault, no cost or margin
          'office_set_sku_price', 'office_upsert_product', 'salon_price', 'build_order', 'may_read_product_images') order by 1`,
     );
     expect(rows).toEqual(
-      ["build_order", "may_read_product_images", "office_catalogue", "office_salon_prices", "office_set_salon_price", "office_set_sku_price", "office_upsert_product", "salon_price"].map(
-        (proname) => ({ proname, vault: false }),
-      ),
+      [
+        "build_order",
+        "may_read_product_images",
+        "office_catalogue",
+        "office_salon_prices",
+        "office_set_salon_price",
+        "office_set_sku_price",
+        "office_upsert_product",
+        "salon_price",
+      ].map((proname) => ({ proname, vault: false })),
     );
   });
 
@@ -615,7 +702,10 @@ describe("reads: the office catalogue; nothing from the vault, no cost or margin
 
 // ---------------------------------------------------------------------------------------------
 describe("append-only history (H-06)", () => {
-  it.each(["public.sku_price_change", "public.salon_sku_price"])("%s refuses UPDATE, DELETE and TRUNCATE even for its owner", async (t) => {
+  it.each([
+    "public.sku_price_change",
+    "public.salon_sku_price",
+  ])("%s refuses UPDATE, DELETE and TRUNCATE even for its owner", async (t) => {
     await run(OWNER, salonPriceSql(id(), SALON2, SKU2, LIST2 - 1), [], C);
     expect(await sqlstate("postgres", `update ${t} set reason = reason`)).toBe(DENIED);
     expect(await sqlstate("postgres", `delete from ${t}`)).toBe(DENIED);
@@ -677,7 +767,8 @@ describe("pictures: who may read the product-images bucket, and the bucket where
     expect(bucket).toBeTruthy();
     if ("public" in bucket) expect(bucket.public).toBe(false);
     if ("file_size_limit" in bucket) expect(Number(bucket.file_size_limit)).toBe(FIVE_MB);
-    if ("allowed_mime_types" in bucket) expect([...bucket.allowed_mime_types].sort()).toEqual(["image/jpeg", "image/png", "image/webp"]);
+    if ("allowed_mime_types" in bucket)
+      expect([...bucket.allowed_mime_types].sort()).toEqual(["image/jpeg", "image/png", "image/webp"]);
     const { rows: pol } = await run(
       "postgres",
       `select policyname, cmd, roles::text roles, coalesce(qual, '') || ' ' || coalesce(with_check, '') body from pg_policies
@@ -694,6 +785,8 @@ describe("pictures: who may read the product-images bucket, and the bucket where
     expect(pol.filter((p) => p.cmd !== "SELECT").every((p) => OFFICE_UNDER_PRODUCTS.test(String(p.body)))).toBe(true);
     // A rep writing into the bucket is refused by the policy.
     const name = img(PRODUCT);
-    expect(await sqlstate(REP_A, "insert into storage.objects (bucket_id, name) values ('product-images', $1)", [name])).toBe(DENIED);
+    expect(await sqlstate(REP_A, "insert into storage.objects (bucket_id, name) values ('product-images', $1)", [name])).toBe(
+      DENIED,
+    );
   });
 });

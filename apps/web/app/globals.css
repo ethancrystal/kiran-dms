@@ -91,3 +91,7 @@ ol.stops { list-style: decimal inside; padding: 0; margin: 0.5rem 0; }
 ol.stops li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
 ol.stops li.done { opacity: 0.7; }
 ol.stops button.link { font-size: 1.2rem; min-width: 2.5rem; }
+
+/* Product pictures (slice 2): a small square thumbnail; "No picture" keeps the same box. */
+.thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--muted, #666); vertical-align: middle; }
+.thumb.small { width: 32px; height: 32px; }

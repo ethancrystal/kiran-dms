@@ -3,7 +3,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
-import { percent, percentInput, toBasisPoints } from "@/lib/money";
+import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, SALON_TYPES } from "@/lib/salons";
 
@@ -129,6 +129,8 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
       </section>
 
       <RepAssignment salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
+
+      <SalonPrices salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 
@@ -456,6 +458,190 @@ function RepAssignment({
           )}
           <button type="submit" disabled={busy}>
             {busy ? "Saving…" : "Save rep"}
+          </button>
+        </form>
+      )}
+    </section>
+  );
+}
+
+type PriceRow = {
+  sku_id: string;
+  code: string;
+  variant: string;
+  product_name: string;
+  sku_active: boolean;
+  list_price_paisa: number | null;
+  salon_price_paisa: number | null;
+  reference_price_paisa: number | null;
+  above_list: boolean;
+  reason: string | null;
+  set_by_name: string | null;
+  set_at: string | null;
+};
+// app.office_set_salon_price takes a reason of 3 to 300 characters.
+const PRICE_REASON_MIN = 3;
+const PRICE_REASON_MAX = 300;
+const PRICE_MAX_CHARS = 12; // rupees as typed (lib/money.ts toPaisa)
+
+// D-37 (R6): this salon's own prices. The office sets a price per SKU with a reason, at most the list
+// price; an empty price clears it back to the list price. An order line given no price takes the
+// salon's price (app.build_order); a price below list is still a discount that waits for approval
+// unless the owner makes the order (OQ-33 default). Latest row wins; the history is kept.
+function SalonPrices({
+  salonId,
+  approved,
+  onDone,
+}: {
+  salonId: string;
+  approved: boolean;
+  onDone: (m: string) => Promise<void>;
+}) {
+  const [sheet, setSheet] = useState<PriceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [skuId, setSkuId] = useState("");
+  const [price, setPrice] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // One key per attempt: a retry after a lost answer is the same change (H-08).
+  const [clientId, setClientId] = useState(() => crypto.randomUUID());
+
+  const load = useCallback(async () => {
+    setLoadError(null);
+    try {
+      setSheet((await rpc<PriceRow[]>("office_salon_prices", { p_salon_id: salonId })) ?? []);
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [salonId]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const own = sheet.filter((r) => r.salon_price_paisa !== null);
+  const choice = sheet.find((r) => r.sku_id === skuId);
+
+  return (
+    <section className="card" aria-labelledby="prices-h">
+      <h2 id="prices-h">Salon prices</h2>
+      {loading && (
+        <p className="muted" aria-busy="true">
+          Loading…
+        </p>
+      )}
+      {loadError && (
+        <p className="error" role="alert">
+          {loadError}
+        </p>
+      )}
+      {!loading && !loadError && own.length === 0 && <p className="muted">No salon prices: this salon pays list prices.</p>}
+      {own.length > 0 && (
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>List</th>
+              <th>Salon price</th>
+              <th>Set by</th>
+            </tr>
+          </thead>
+          <tbody>
+            {own.map((r) => (
+              <tr key={r.sku_id} data-testid={`salon-price-${r.code}`}>
+                <td>
+                  {r.code} · {r.product_name} {r.variant}
+                  {!r.sku_active && <span className="muted"> (inactive)</span>}
+                </td>
+                <td>{r.list_price_paisa === null ? "—" : rupees(r.list_price_paisa)}</td>
+                <td>
+                  {rupees(Number(r.salon_price_paisa))}
+                  {r.above_list && (
+                    <span className="error"> above the list price: orders for it are refused until corrected</span>
+                  )}
+                </td>
+                <td className="muted">
+                  {r.set_by_name ?? "—"}
+                  {r.set_at ? ` · ${when(r.set_at)}` : ""}
+                  {r.reason ? ` · ${r.reason}` : ""}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {!approved && <p className="muted">Decide this salon on Salon approvals first.</p>}
+      {approved && !loading && !loadError && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError(null);
+            if (!skuId) return setError("Choose a SKU.");
+            const paisa = price.trim() === "" ? null : toPaisa(price);
+            if (price.trim() !== "" && (paisa === null || paisa < 1))
+              return setError("Enter the price in rupees, for example 1500 or 1500.50, or leave it empty to clear.");
+            setBusy(true);
+            try {
+              await rpc("office_set_salon_price", {
+                p_client_id: clientId,
+                p_salon_id: salonId,
+                p_sku_id: skuId,
+                p_price_paisa: paisa,
+                p_reason: reason.trim(),
+              });
+              setClientId(crypto.randomUUID());
+              setPrice("");
+              setReason("");
+              await load();
+              await onDone(
+                paisa === null
+                  ? `Salon price cleared for ${choice?.code ?? "the SKU"}.`
+                  : `Salon price set: ${choice?.code ?? "SKU"} at ${rupees(paisa)}.`,
+              );
+            } catch (err) {
+              setError((err as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label htmlFor="salon-price-sku">SKU for the salon price</label>
+          <select id="salon-price-sku" value={skuId} onChange={(e) => setSkuId(e.target.value)}>
+            <option value="">Choose a SKU</option>
+            {sheet.map((r) => (
+              <option key={r.sku_id} value={r.sku_id}>
+                {r.code} · {r.product_name} {r.variant} · list {r.list_price_paisa === null ? "—" : rupees(r.list_price_paisa)}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="salon-price">Salon price (Rs; empty clears it)</label>
+          <input
+            id="salon-price"
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            maxLength={PRICE_MAX_CHARS}
+            placeholder={choice?.list_price_paisa ? `List ${rupees(choice.list_price_paisa)}` : ""}
+          />
+          <label htmlFor="salon-price-reason">Reason for the salon price</label>
+          <input
+            id="salon-price-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            minLength={PRICE_REASON_MIN}
+            maxLength={PRICE_REASON_MAX}
+            required
+          />
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <button type="submit" disabled={busy}>
+            {busy ? "Saving…" : "Save salon price"}
           </button>
         </form>
       )}
