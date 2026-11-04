@@ -122,6 +122,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Leave the shared reps' reach as other files expect it: clear every direct assignment this file left
+  // on its own salons, so no later file finds rep A or rep B holding a salon it never covered.
+  const { rows: held } = await run(
+    "postgres",
+    `select s.id from public.salon s where s.area_id in ($1, $2) and app.salon_direct_rep(s.id) is not null`,
+    [AREA_A, AREA_B],
+  );
+  await held.reduce(async (prev, { id }) => {
+    await prev;
+    const clear = assign(id, null);
+    await run(MANAGER, clear.sql, clear.params, C);
+  }, Promise.resolve());
   await run(MANAGER, "select app.office_end_territory($1, $2, 'approval tests finished')", [fx.repA.id, T_A], C);
   await run(MANAGER, "select app.office_end_territory($1, $2, 'approval tests finished')", [fx.repB.id, T_B], C);
 });
@@ -340,15 +352,15 @@ describe("a salon that is not approved gets no order and no card", () => {
 
   it("a rep's card for a pending salon is refused with 55000", async () => {
     const id = await pendingSalon();
-    await run(
-      "postgres",
-      `insert into public.rep_day (rep_id, day) values ('${fx.repA.id}', ${TODAY}) on conflict (rep_id, day) do nothing`,
-      [],
-      C,
-    );
-    expect(await sqlstate(REP_A, "select app.rep_create_card(gen_random_uuid(), $1, '[Test] 2 bottles')", [id])).toBe(
-      WRONG_STATE,
-    );
+    // The open day lives only inside this rolled-back transaction: a committed rep_day would leave rep A
+    // checked in for every later test file (visits.test.ts expects no open day).
+    const asRepA = `reset role;
+      select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
+             set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
+      set local role authenticated;`;
+    const script = `insert into public.rep_day (rep_id, day) values ('${fx.repA.id}', ${TODAY}) on conflict (rep_id, day) do nothing;
+      ${asRepA} select app.rep_create_card(gen_random_uuid(), '${id}', '[Test] 2 bottles');`;
+    expect(await sqlstate("postgres", script)).toBe(WRONG_STATE);
   });
 });
 
