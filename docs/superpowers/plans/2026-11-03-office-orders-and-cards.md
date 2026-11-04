@@ -21,7 +21,7 @@
 
 ## Global Constraints
 
-- Read `AGENTS.md`, `CLAUDE.md`, `docs/AGENT-COMPLIANCE-PROTOCOL.md`, `docs/ACTIVITY.md` first; claim C-039 is this work's claim (L-0384); log PROGRESS with real evidence; HANDOFF at the end.
+- Read `AGENTS.md`, `CLAUDE.md`, `docs/ACTIVITY.md` first; claim C-039 is this work's claim (L-0384); log with real evidence.
 - One forward-only migration for PR A: `supabase/migrations/20261104090000_office_orders_cards.sql` (sorts after `20261103210000_office_cash.sql`).
 - Every new table: `enable` and `force row level security` in the same migration, `control.audit_row` audit trigger, `control.forbid_mutation` append-only and no-truncate triggers, no write grant to any role, a row in `supabase/tests/rls-matrix.test.ts`.
 - Every new function: `security definer`, `set search_path = ''`, `revoke execute ... from public, anon, authenticated, service_role`, explicit `grant execute ... to authenticated` only for callable RPCs; add callable names to the allowlist in `supabase/tests/verifier-attacks.test.ts` with the comment "migration 0025 (D-30 PR A); MJ standing approval L-0144".

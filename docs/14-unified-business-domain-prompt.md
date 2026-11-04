@@ -6,7 +6,7 @@
 **Business:** Kiran Company, Karachi.  
 **System:** Kiran DMS.
 
-> **Agent instruction:** Read this entire document before planning or changing any supplier/procurement, salon/customer, salaried-rep, independent-agent, investor/capital, office/admin, or cross-domain workflow. Follow AGENTS.md, CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md and docs/ACTIVITY.md first. This brief describes the desired joined-up business model; it is not permission to implement features whose scope, phase, commercial terms or permissions remain unapproved.
+> **Agent instruction:** Read this entire document before planning or changing any supplier/procurement, salon/customer, salaried-rep, independent-agent, investor/capital, office/admin, or cross-domain workflow. Follow AGENTS.md, CLAUDE.md and docs/ACTIVITY.md first. This brief describes the desired joined-up business model; it is not permission to implement features whose scope, phase, commercial terms or permissions remain unapproved.
 
 ---
 

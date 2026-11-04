@@ -1,57 +1,64 @@
 #!/usr/bin/env node
 /**
- * activity-log-check — implements docs/ACTIVITY.md Appendix C (tightened per L-0025, L-0030,
- * L-0035, L-0042).
+ * activity-log-check: implements docs/ACTIVITY.md Appendix C (tightened per L-0025, L-0030,
+ * L-0035, L-0042; restructured for docs/log/ by MJ's decision of 2026-11-04, "All five cuts").
  *
- * This is a tripwire, not a proof: it catches mistakes and cheap evasions in a text file.
+ * This is a tripwire, not a proof: it catches mistakes and cheap evasions in text files.
  * Branch protection and MJ's approval in chat for each merge remain the real control
  * (docs/ACTIVITY.md section 10; no second reviewer is required, MJ L-0401).
- * Rather than recognising every Markdown trick, ACTIVITY.md is held to a narrow structure:
- * no raw HTML, entities, comments or setext headings anywhere; the only lines that look
- * like entries are canonical entry headers; and new log text may contain no other headings.
+ * Rather than recognising every Markdown trick, ACTIVITY.md and each new log file are held to a
+ * narrow structure: no raw HTML, entities, comments or setext headings; a log file has exactly one
+ * canonical header, its first line, and no other heading.
  *
  * Fails (exit 1) when, between BASE and HEAD:
  *  0. BASE was given but cannot be resolved, or any git command fails (e.g. a diff too large
- *     to read) — the check fails closed. An all-zero sha falls back to HEAD~1;
- *  1. anything changed — any file other than ACTIVITY.md, or ACTIVITY.md outside §16 — but
- *     no new `### L-NNNN` entry was appended;
- *  2. structure or append-only broken: not exactly one §16 heading; HTML tags, entities,
- *     comments or setext underlines outside code; a line shaped like an entry ("… PKT · …")
- *     that is not a canonical header; the old log not an exact prefix of the new one; new
- *     text not starting with a header; any non-canonical heading in new text; a `---`
- *     separator other than as the final line (code blocks excepted);
- *  3. a new entry lacks signature, type, Task line or (DONE/VERIFIED/HANDOFF/PROGRESS)
- *     Evidence line; numbering not sequential; a Task line with non-ASCII characters outside
- *     a small allowlist;
- *  4. DONE/VERIFIED lacks the security checklist; a VERIFIED entry names no task, names a
- *     task with no DONE entry, or shares a signature (equal, contained, or same
- *     "session <id>") with any DONE entry for a task it names and has no non-empty
- *     "**Self-verification:**" line (§7: a builder may verify its own work but must say so,
+ *     to read): the check fails closed. An all-zero sha falls back to HEAD~1;
+ *  1. any file outside docs/log/ changed but no docs/log entry was added or updated; or code (any
+ *     file outside docs/ that is not Markdown) changed but no added or updated entry has a
+ *     non-empty Evidence section and the security checklist;
+ *  2. the log is not append-only or a structure rule is broken: docs/log/archive.md changed or
+ *     deleted (while BASE has no archive, BASE's section 16 entries must be its exact prefix); a
+ *     docs/log file present in BASE changed or deleted; a new file in docs/log/ not named
+ *     YYYY-MM-DD-slug.md; a log file breaking the narrow structure; ACTIVITY.md breaking the narrow
+ *     structure, changing its top-level headings, or holding anything shaped like a log entry;
+ *  3. a new or updated entry lacks its canonical header, a known kind, a signature, a Task line or
+ *     (TASK, VERIFIED) non-empty Evidence; its header date differs from its file name; a Task line
+ *     with non-ASCII characters outside a small allowlist;
+ *  4. a VERIFIED entry lacks the security checklist, names no task, names a task with no work entry
+ *     (a DONE entry in the archive or a TASK entry in docs/log), or shares a signature (equal,
+ *     contained, or same "session <id>") with a work entry for a task it names and has no non-empty
+ *     "**Self-verification:**" line (section 7: a builder may verify its own work but must say so,
  *     MJ L-0401, replacing the maker-differs rule of L-0029);
- *     4b. a §12 board row (read as GitHub renders the table) changes its Status to anything
- *     mentioning VERIFIED other than exactly "VERIFIED (L-nnnn)" (a reopen note "was VERIFIED
- *     L-nnnn" excepted), a changed Status cell has non-ASCII outside the allowlist or Markdown
- *     marks, a task has two board rows, or the cited entry is not a VERIFIED or CORRECTION
- *     entry naming the task, with the checklist, newer than its latest DONE (L-0116), and with
- *     a "**Self-verification:**" line if it is signed by the same agent as a DONE for the task;
+ *     4b. a section 12 board row (read as GitHub renders the table) changes its Status to anything
+ *     mentioning VERIFIED other than exactly "VERIFIED (<stem or L-nnnn>)" (a reopen note "was
+ *     VERIFIED <id>" excepted), a changed Status cell has non-ASCII outside the allowlist or
+ *     Markdown marks, a task has two board rows, or the cited entry is not a VERIFIED or CORRECTION
+ *     entry (or a TASK entry with a Self-verification line) naming the task, with the checklist, not
+ *     older than its latest work entry (L-0116), and with a "**Self-verification:**" line if it is
+ *     signed by the same agent as a work entry for the task;
  *  5. an added line contains a secret-looking value, supplier/cost wording outside vault
- *     migrations, tests and docs, or an owner-listed sensitive term; or a file whose name
- *     starts with `.env` (other than `.env.example`) is added or changed. Secret patterns,
- *     owner terms (lines and paths), the UTF-16/UTF-32 decodings and the `.env` rule also run
- *     on every commit in the range, merges included as combined diffs (L-0105, L-0116).
+ *     migrations, tests and docs (docs/log entries are not exempt), or an owner-listed sensitive
+ *     term; or a file whose name starts with `.env` (other than `.env.example`) is added or changed.
+ *     Secret patterns, owner terms (lines and paths), the UTF-16/UTF-32 decodings and the `.env` rule
+ *     also run on every commit in the range, merges included as combined diffs (L-0105, L-0116).
  *
  * Usage: node scripts/activity-log-check.mjs [BASE] [HEAD]
  *   BASE defaults to origin/main, then main, then the root commit. HEAD defaults to the worktree.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
-const LOG_PATH = "docs/ACTIVITY.md";
+const ACTIVITY_PATH = "docs/ACTIVITY.md";
+const LOG_DIR = "docs/log/";
+const ARCHIVE_PATH = "docs/log/archive.md";
+// One file per entry: docs/log/YYYY-MM-DD-<slug>.md, lower-case words and numbers joined by hyphens
+// (no underscores: a stem is cited in a board Status cell, which may hold no Markdown marks).
+const STEM = String.raw`\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*`;
+const LOG_FILE_RE = new RegExp(`^docs/log/(${STEM})\\.md$`);
+const HEADER_RE = /^# (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) PKT · (.+?) · ([A-Z-]+)$/;
+// The frozen archive's header form, kept so its entries can still be read and cited.
 const ENTRY_RE = /^### (L-(\d{4})) · (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) PKT · (.+?) · ([A-Z-]+)$/;
-const TYPES = new Set([
-  "SESSION-START", "CLAIM", "PROGRESS", "DECISION", "ASSUMPTION", "BLOCKER", "DEVIATION",
-  "DONE", "VERIFIED", "HANDOFF", "CLAIM-RELEASED", "CORRECTION", "SECURITY-INCIDENT",
-]);
+const KINDS = new Set(["TASK", "VERIFIED", "DECISION", "ASSUMPTION", "BLOCKER", "DEVIATION", "CORRECTION", "SECURITY-INCIDENT"]);
 const ZERO_WIDTH_G = /[​-‏⁠-⁤﻿­]/g;
 const clean = (t) => t.normalize("NFKC").replace(ZERO_WIDTH_G, "");
 // Non-ASCII characters a Task line may legitimately contain (en/em dash, section, not-equal, middle dot, times, ellipsis).
@@ -161,12 +168,13 @@ const DETECTORS = new Set(["scripts/activity-log-check.mjs", "supabase/tests/sch
 const isTestFile = (f) => /^supabase\/tests\//.test(f) || /(^|\/)(tests?|e2e|__tests__)\//.test(f) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(f);
 // The password-name heuristic also skips UI text (i18n/locale files) and Markdown prose, where
 // "password" is a label or a word. The hard patterns (keys, JWTs, connection strings) still apply.
-const skipsNameHeuristic = (f) => isTestFile(f) || /(^|\/)(i18n|locales?|translations)\//.test(f) || /\.mdx?$/i.test(f);
+const isLogEntry = (f) => f.startsWith(LOG_DIR) && f !== ARCHIVE_PATH;
+const skipsNameHeuristic = (f) => !isLogEntry(f) && (isTestFile(f) || /(^|\/)(i18n|locales?|translations)\//.test(f) || /\.mdx?$/i.test(f));
 // Supplier wording is also legitimate in the owner's vault UI (any path with a `vault/` directory
 // segment, doc 07 / P1-05) and in i18n labels (MJ approval, B-21 / L-0080). Real supplier names
 // are still caught everywhere by the owner-listed terms.
 const SUPPLIER_OK = (f) =>
-  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || f.startsWith("docs/")
+  /^supabase\/migrations\/\d{14}_vault[a-z0-9_]*\.sql$/.test(f) || /^supabase\/tests\//.test(f) || (f.startsWith("docs/") && !isLogEntry(f))
   || (/(^|\/)vault\//.test(f) && !/(^|\/)public\//.test(f))   // not under public/: served without sign-in (MJ, B-23 / L-0091)
   || /(^|\/)(i18n|locales?|translations)\//.test(f);
 const isEnvFile = (f) => { const b = (f.split("/").pop() ?? "").toLowerCase(); return b.startsWith(".env") && b !== ".env.example"; };
@@ -268,160 +276,230 @@ function scan(text) {
 }
 const stripInlineCode = (l) => l.replace(/(`+)[^`]*?\1/g, "");
 const plain = (l) => clean(stripInlineCode(l)).replace(/\\/g, "");
-const isSection16 = (l) => /^\s{0,3}#{1,6}\s*16\s*\.?\s*activity\s+log/i.test(plain(l));
 const isHeading = (l) => /^\s{0,3}#{1,6}(\s|$)/.test(l);
 
 // CommonMark autolinks (<https://…>, <name@host>) are links, not raw HTML (L-0075 FP4).
 const AUTOLINK_RE = /<(?:https?:\/\/[^\s<>]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})>/g;
 
-function parseLog(text, label) {
-  // Rules added in L-0085 bind the new version only, so a base written under the older rules still parses.
-  const isHead = label === "HEAD";
+// A file at HEAD (or in the worktree when no HEAD was given), as bytes; null when absent.
+const readHeadBuf = (f) => {
+  if (!head) { try { return readFileSync(f); } catch { return null; } }
+  return blobAt(head, f);
+};
+function blobAt(rev, f) {
+  try {
+    return execFileSync("git", ["show", `${rev}:${f}`], { stdio: ["ignore", "pipe", "ignore"], maxBuffer: 512 * 1024 * 1024 });
+  } catch { return null; }
+}
+
+// --- docs/ACTIVITY.md: rules and tables, no log. The narrow structure holds on every line outside
+// code: a tag or comment opener anywhere refuses the line, even inside a code span and without a
+// closing ">", so neither an escaped backtick nor a tag split over two lines hides HTML (L-0085 D2).
+// Write placeholders as {name} there.
+function checkActivity(text) {
   // CommonMark ends a line at a lone CR too; the script splits on LF. A lone CR could therefore
   // hide a heading or close a fence for the renderer only (L-0075 D1). Refuse it anywhere.
   const loneCr = text.search(/\r(?!\n)/);
-  if (loneCr !== -1) fail(`${label}: a carriage return not followed by a line feed is not allowed in ${LOG_PATH} (offset ${loneCr}).`);
+  if (loneCr !== -1) fail(`A carriage return not followed by a line feed is not allowed in ${ACTIVITY_PATH} (offset ${loneCr}).`);
   // Other control characters (vertical tab, form feed, ...) have no place in Markdown prose and
   // are read differently by JavaScript's \s and by CommonMark (L-0085 D1).
   const ctrl = text.search(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/);
-  if (isHead && ctrl !== -1) fail(`${label}: control characters other than tab and line breaks are not allowed in ${LOG_PATH} (offset ${ctrl}).`);
+  if (ctrl !== -1) fail(`Control characters other than tab and line breaks are not allowed in ${ACTIVITY_PATH} (offset ${ctrl}).`);
   const sc = scan(text);
-  const heads = sc.map((x, i) => (!x.code && isSection16(x.line) ? i : -1)).filter((i) => i >= 0);
-  const start = heads[0] ?? -1;
-  let end = start === -1 ? -1 : sc.findIndex((x, i) => i > start && !x.code && /^## Appendix\b/.test(x.line));
-  if (end === -1) end = sc.length;
-  const inOldLogRange = (i) => !isHead || (start !== -1 && i > start && i < end);
-  // whole-file structural rules (outside code)
   for (let i = 0; i < sc.length; i++) {
     const x = sc[i];
     if (x.code) continue;
     const p = plain(x.line);
-    if (/<!--|-->/.test(p) || (!inOldLogRange(i) && /<!--|-->/.test(x.line))) { fail(`${label}: HTML comments are not allowed in ${LOG_PATH}.`); break; }
-  }
-  for (let i = 0; i < sc.length; i++) {
-    const x = sc[i];
-    if (x.code) continue;
-    const p = plain(x.line);
-    if (/<\/?[A-Za-z!?][^>]*>/.test(p.replace(AUTOLINK_RE, ""))) fail(`${label}: raw HTML is not allowed in ${LOG_PATH} (line ${i + 1}).`);
-    if (/&#?[A-Za-z0-9]+;/.test(p)) fail(`${label}: HTML entities are not allowed in ${LOG_PATH} (line ${i + 1}).`);
-    // Outside the §16 log (rules, tables, appendices; editable alongside any entry) the test runs
-    // on the raw line, code spans and backslashes included, and needs no closing ">": a tag or
-    // comment opener anywhere refuses the line, so neither an escaped backtick nor a tag split
-    // over two lines hides HTML from it (L-0085 D2). Write placeholders as {name} there. New log
-    // text has the stricter character rule in check 2; old log text was checked when it was added.
-    if (!inOldLogRange(i) && /<[A-Za-z\/!?]|&#?[A-Za-z0-9]+;/.test(x.line.replace(AUTOLINK_RE, ""))) {
-      fail(`${label}: raw HTML or an entity is not allowed outside the log in ${LOG_PATH}, even in code spans (line ${i + 1}; write placeholders as {name}).`);
+    if (/<!--|-->/.test(p) || /<!--|-->/.test(x.line)) fail(`HTML comments are not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
+    if (/<\/?[A-Za-z!?][^>]*>/.test(p.replace(AUTOLINK_RE, ""))) fail(`Raw HTML is not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
+    if (/&#?[A-Za-z0-9]+;/.test(p)) fail(`HTML entities are not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
+    if (/<[A-Za-z\/!?]|&#?[A-Za-z0-9]+;/.test(x.line.replace(AUTOLINK_RE, ""))) {
+      fail(`Raw HTML or an entity is not allowed in ${ACTIVITY_PATH}, even in code spans (line ${i + 1}; write placeholders as {name}).`);
     }
     if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {
-      fail(`${label}: setext (underlined) headings are not allowed in ${LOG_PATH} (line ${i + 1}).`);
+      fail(`Setext (underlined) headings are not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
     }
-    if (/PKT\s*[·⋅•∙・]/.test(p) && !ENTRY_RE.test(x.line)) fail(`${label}: line ${i + 1} looks like a log entry header but is not canonical: "${x.line.slice(0, 80)}"`);
-  }
-  if (text && heads.length !== 1) fail(`${label}: expected exactly one "## 16. Activity log" heading, found ${heads.length}.`);
-  // Top-level section headings (# and ##, outside code), compared with the base below: a new
-  // "## Appendix" heading would otherwise end §16 early and exempt the text after it (L-0085 D2).
-  const sections = sc.filter((x) => !x.code && /^ {0,3}#{1,2}(\s|$)/.test(x.line)).map((x) => x.line.trim());
-  if (start === -1) return { logSc: [], entries: [], outside: text, sections };
-  for (let i = 0; i < sc.length; i++) {
-    if ((i < start || i >= end) && !sc[i].code && ENTRY_RE.test(sc[i].line)) {
-      fail(`${label}: entry header outside the §16 log (line ${i + 1}): "${sc[i].line.slice(0, 70)}"`); // L-0061 D2
+    // The log moved out (MJ, 2026-11-04): nothing shaped like an entry may come back here.
+    if (ENTRY_RE.test(x.line) || HEADER_RE.test(x.line) || /PKT\s*[·⋅•∙・]/.test(p)) {
+      fail(`${ACTIVITY_PATH} line ${i + 1} looks like a log entry; entries live in ${LOG_DIR}, one file each: "${x.line.slice(0, 70)}"`);
     }
   }
-  const logSc = sc.slice(start, end);
+}
+const sectionsOf = (text) => scan(text).filter((x) => !x.code && /^ {0,3}#{1,2}(\s|$)/.test(x.line)).map((x) => x.line.trim());
+
+// Where a pre-restructure ACTIVITY.md holds its log entries (bytes), or null.
+function oldLogRange(buf) {
+  const s = buf.indexOf("\n### L-0001 ");
+  const a = buf.indexOf("\n## Appendix A");
+  if (s === -1 || a === -1) return null;
+  const sep = buf.lastIndexOf("\n---", a);
+  return sep > s ? { start: s + 1, end: sep + 1 } : null;
+}
+
+// --- entries: the frozen archive (read for its DONE and VERIFIED entries) and one file per entry.
+// `ord` orders work against verdicts: every archive entry comes before every docs/log entry, and
+// docs/log entries order by the time in their header.
+const AFTER_ARCHIVE = 100_000;
+function parseArchive(text) {
   const entries = [];
   let cur = null;
-  for (const x of logSc) {
-    if (!x.code && ENTRY_RE.test(x.line)) {
-      const m = x.line.match(ENTRY_RE);
-      cur = { id: m[1], n: Number(m[2]), sig: m[4], type: m[5], body: [] };
-      entries.push(cur);
-      continue;
-    }
+  for (const x of scan(text)) {
+    const m = x.code ? null : x.line.match(ENTRY_RE);
+    if (m) { cur = { id: m[1], ord: Number(m[2]), archived: true, sig: m[4], type: m[5], body: [] }; entries.push(cur); continue; }
     if (cur) cur.body.push(x.line);
   }
-  const all = sc.map((x) => x.line);
-  return { logSc, entries, outside: [...all.slice(0, start), ...all.slice(end)].join("\n"), sections };
+  return entries;
+}
+function parseLogFile(f, text) {
+  const stem = f.match(LOG_FILE_RE)?.[1];
+  const lines = text.split(/\r?\n/);
+  const m = lines[0].match(HEADER_RE);
+  if (!stem || !m) return null;
+  return { id: stem, file: f, date: m[1], ord: AFTER_ARCHIVE + Date.parse(`${m[1]}T${m[2]}:00Z`) / 60000, archived: false, sig: m[3], type: m[4], body: lines.slice(1), text };
+}
+const logFilesAtHead = () => {
+  const out = head
+    ? git(["ls-tree", "-r", "--name-only", "-z", head, "--", LOG_DIR])
+    : git(["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", LOG_DIR]);
+  return split0(out).filter((f) => f !== ARCHIVE_PATH);
+};
+
+const headActivity = readHeadBuf(ACTIVITY_PATH);
+if (headActivity === null) fail(`${ACTIVITY_PATH} is missing.`);
+else checkActivity(headActivity.toString("utf8"));
+const headArchive = readHeadBuf(ARCHIVE_PATH);
+if (headArchive === null) fail(`${ARCHIVE_PATH} is missing; the frozen log may not be removed.`);
+const baseActivity = base ? blobAt(base, ACTIVITY_PATH) : null;
+const baseArchive = base ? blobAt(base, ARCHIVE_PATH) : null;
+const baseLogRange = baseActivity ? oldLogRange(baseActivity) : null;
+
+// 2a. The archive is frozen. While the base still holds the log in ACTIVITY.md (the restructure and
+// anything stacked on it), the move itself must be exact: the base's entries are a byte-for-byte
+// prefix of the archive, and only whole entries may follow them.
+if (base && headArchive) {
+  if (baseArchive) {
+    if (!baseArchive.equals(headArchive)) fail(`${ARCHIVE_PATH} is frozen: it may not be changed or deleted. A mistake in an old entry is corrected by a new CORRECTION file.`);
+  } else if (!baseLogRange) {
+    fail(`${ARCHIVE_PATH} is new but the base holds no log to compare it with; refusing to pass (fails closed).`);
+  } else {
+    const moved = baseActivity.subarray(baseLogRange.start, baseLogRange.end);
+    const tail = headArchive.subarray(moved.length);
+    if (!headArchive.subarray(0, moved.length).equals(moved)) fail(`${ARCHIVE_PATH} is not a byte-for-byte copy of the base's section 16 entries.`);
+    else if (tail.length && !tail.toString("utf8").startsWith("### L-")) fail(`${ARCHIVE_PATH}: text after the base's entries must start with an entry header.`);
+  }
 }
 
-const headText = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, "utf8") : "";
-let baseText = "";
-if (base) baseText = git(["show", `${base}:${LOG_PATH}`], { allowFail: true }) ?? "";
-const H = parseLog(headText, "HEAD");
-const B = baseText ? parseLog(baseText, "BASE") : { logSc: [], entries: [], outside: "", sections: [] };
-const newEntries = H.entries.filter((e) => !B.entries.some((b) => b.id === e.id));
-
-// 1. any change needs a log entry (incl. ACTIVITY.md outside §16)
-const outsideChanged = Boolean(baseText) && B.outside.trim() !== H.outside.trim();
-const otherFiles = changed.filter((f) => f !== LOG_PATH);
-if ((otherFiles.length || outsideChanged) && newEntries.length === 0) {
-  fail(`${otherFiles.length} file(s) changed${outsideChanged ? " and ACTIVITY.md changed outside §16" : ""} but ${LOG_PATH} has no new log entry.`);
+// 2b. The top-level headings of ACTIVITY.md are frozen (L-0085 D2). The base's log text is left out
+// while it is still there, so it cannot count as a heading of the rules.
+if (baseActivity && headActivity) {
+  const baseRules = baseLogRange
+    ? Buffer.concat([baseActivity.subarray(0, baseLogRange.start), baseActivity.subarray(baseLogRange.end)])
+    : baseActivity;
+  if (sectionsOf(baseRules.toString("utf8")).join("\n") !== sectionsOf(headActivity.toString("utf8")).join("\n")) {
+    fail(`The top-level section headings (# and ##) of ${ACTIVITY_PATH} may not be added, removed, renamed or reordered (L-0085 D2).`);
+  }
 }
 
-// 2. strictly append-only, and new text holds only canonical structure
-if (baseText && B.sections.join("\n") !== H.sections.join("\n")) {
-  fail(`The top-level section headings (# and ##) of ${LOG_PATH} may not be added, removed, renamed or reordered (L-0085 D2).`);
-}
-if (baseText) {
-  // Exact prefix, blank lines included (L-0061 D7). Only the closing separator and the
-  // trailing blank lines of the old log may move below the new entries.
-  const baseLog = [...B.logSc];
-  while (baseLog.length && !baseLog[baseLog.length - 1].code && /^(---)?\s*$/.test(baseLog[baseLog.length - 1].line)) baseLog.pop();
-  const headLog = H.logSc;
-  let ok = true;
-  for (let i = 0; i < baseLog.length; i++) {
-    if (headLog[i]?.line !== baseLog[i].line) {
-      fail(`Log section (§16) is not append-only at existing line ${i + 1} of the log: expected "${baseLog[i].line.slice(0, 70)}", found "${(headLog[i]?.line ?? "<end of log>").slice(0, 70)}".`);
-      ok = false;
+// 2c, 3. Log files: what is merged is immutable; what is new is named and shaped canonically.
+// New text holds only canonical structure, so no rendering can forge a second entry or hide text
+// from a reader (L-0055, L-0061, L-0066, L-0071, L-0075, L-0085).
+function checkEntryFile(f, text) {
+  const loneCr = text.search(/\r(?!\n)/);
+  if (loneCr !== -1) fail(`${f}: a carriage return not followed by a line feed is not allowed (offset ${loneCr}).`);
+  const ctrl = text.search(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/);
+  if (ctrl !== -1) fail(`${f}: control characters other than tab and line breaks are not allowed (offset ${ctrl}).`);
+  const sc = scan(text);
+  if (!HEADER_RE.test(sc[0]?.line ?? "") || sc[0].code) fail(`${f}: the first line must be the entry header "# YYYY-MM-DD HH:MM PKT · agent · model · session or branch · KIND"; found "${(sc[0]?.line ?? "").slice(0, 70)}".`);
+  for (let i = 1; i < sc.length; i++) {
+    const x = sc[i];
+    if (x.line.trim() === "") continue;
+    // Checked on code lines too: an indented fence can close a block early (L-0055 L1, L-0061 D1).
+    if (/^\s+(`{3,}|~{3,})/.test(x.line)) fail(`${f}: a log entry may not contain indented code fences: "${x.line.slice(0, 70)}"`);
+    if (x.code) continue;
+    if (isHeading(x.line)) fail(`${f}: a log entry has one heading, its first line: "${x.line.slice(0, 70)}"`);
+    if (/PKT\s*[·⋅•∙・]/.test(plain(x.line))) fail(`${f}: line ${i + 1} looks like another entry header: "${x.line.slice(0, 70)}"`);
+    if (/^ {0,3}(=+|-+)\s*$/.test(x.line)) fail(`${f}: setext underlines and separators are not allowed in a log entry (line ${i + 1}).`);
+    // Peel off every container marker (blockquote ">" and list "-", "*", "+", "1." / "1)"),
+    // however deeply nested, before testing (L-0061 D3, L-0066 A1).
+    let inner = x.line;
+    let quoted = false;
+    let listed = false;
+    for (;;) {
+      const q = inner.match(/^\s{0,3}>\s?/);
+      if (q) { quoted = true; inner = inner.slice(q[0].length); continue; }
+      const li = inner.match(/^\s*([-*+]|\d+[.)])\s+/);
+      if (li) { listed = true; inner = inner.slice(li[0].length); continue; }
       break;
     }
-  }
-  if (ok) {
-    const rest = headLog.slice(baseLog.length).filter((x) => x.line.trim() !== "");
-    while (rest.length && !rest[rest.length - 1].code && rest[rest.length - 1].line.trim() === "---") rest.pop();
-    if (rest.length && !ENTRY_RE.test(rest[0].line)) fail(`New log text must start with a new entry header; found "${rest[0].line.slice(0, 70)}" appended to the last existing entry.`);
-    for (const x of rest) {
-      // Checked on code lines too: an indented fence can close a block early (L-0055 L1, L-0061 D1).
-      if (/^\s+(`{3,}|~{3,})/.test(x.line)) fail(`New log text may not contain indented code fences: "${x.line.slice(0, 70)}"`);
-      if (x.code) continue;
-      if (x.line.trim() === "---") fail("A `---` separator may appear only as the last line of the log.");
-      if (isHeading(x.line) && !ENTRY_RE.test(x.line)) fail(`New log text may not contain headings other than entry headers: "${x.line.slice(0, 70)}"`);
-      // Peel off every container marker (blockquote ">" and list "-", "*", "+", "1." / "1)"),
-      // however deeply nested, before testing (L-0061 D3, L-0066 A1).
-      let inner = x.line;
-      let quoted = false;
-      let listed = false;
-      for (;;) {
-        const q = inner.match(/^\s{0,3}>\s?/);
-        if (q) { quoted = true; inner = inner.slice(q[0].length); continue; }
-        const li = inner.match(/^\s*([-*+]|\d+[.)])\s+/);
-        if (li) { listed = true; inner = inner.slice(li[0].length); continue; }
-        break;
-      }
-      if (quoted) fail(`New log text may not contain blockquotes: "${x.line.slice(0, 70)}"`);
-      if (listed && isHeading(inner)) fail(`New log text may not contain headings inside list items: "${x.line.slice(0, 70)}"`);
-      // A block can also sit inside a list item by indentation alone (4+ spaces, no marker on its
-      // line). New log text is held to the strict reading: whatever the indentation, no heading,
-      // blockquote or setext underline, and no non-canonical line pairing an L-nnnn id with PKT
-      // (L-0071 E). Use fenced code blocks for examples.
-      const bare = x.line.replace(/^\s+/, "");
-      if (bare !== x.line) {
-        if (/^#{1,6}(\s|$)/.test(bare)) fail(`New log text may not contain indented headings (they nest inside list items): "${x.line.slice(0, 70)}"`);
-        if (/^>/.test(bare)) fail(`New log text may not contain indented blockquotes: "${x.line.slice(0, 70)}"`);
-      }
-      if (/^\s+(=+|-+)\s*$/.test(x.line)) fail(`New log text may not contain indented setext underlines: "${x.line.slice(0, 70)}"`);
-      // No raw-HTML, entity or escape characters at all in new prose (L-0075 D2, D3): "<", "&" and
-      // "\" are refused outside fenced code, whatever surrounds them, so no code-span or open-tag
-      // trick can reach the renderer. CommonMark autolinks (<https://…>, <name@host>) are allowed.
-      const noAutolinks = x.line.replace(AUTOLINK_RE, "");
-      if (/[<&\\]/.test(noAutolinks)) fail(`New log text may not contain "<", "&" or "\\" outside fenced code (write URLs bare or as <https://…>, placeholders as {name}): "${x.line.slice(0, 70)}"`);
+    if (quoted) fail(`${f}: a log entry may not contain blockquotes: "${x.line.slice(0, 70)}"`);
+    if (listed && isHeading(inner)) fail(`${f}: a log entry may not contain headings inside list items: "${x.line.slice(0, 70)}"`);
+    // A block can also sit inside a list item by indentation alone (4+ spaces, no marker on its
+    // line). Whatever the indentation: no heading, blockquote or setext underline (L-0071 E).
+    const bare = x.line.replace(/^\s+/, "");
+    if (bare !== x.line) {
+      if (/^#{1,6}(\s|$)/.test(bare)) fail(`${f}: a log entry may not contain indented headings (they nest inside list items): "${x.line.slice(0, 70)}"`);
+      if (/^>/.test(bare)) fail(`${f}: a log entry may not contain indented blockquotes: "${x.line.slice(0, 70)}"`);
     }
+    if (/^\s+(=+|-+)\s*$/.test(x.line)) fail(`${f}: a log entry may not contain indented setext underlines: "${x.line.slice(0, 70)}"`);
+    // No raw-HTML, entity or escape characters at all in new prose (L-0075 D2, D3): "<", "&" and
+    // "\" are refused outside fenced code, whatever surrounds them, so no code-span or open-tag
+    // trick can reach the renderer. CommonMark autolinks (<https://…>, <name@host>) are allowed.
+    if (/[<&\\]/.test(x.line.replace(AUTOLINK_RE, ""))) fail(`${f}: a log entry may not contain "<", "&" or "\\" outside fenced code (write URLs bare or as <https://…>, placeholders as {name}): "${x.line.slice(0, 70)}"`);
   }
 }
 
-// 3 + 4. numbering, required lines, maker ≠ checker
-for (let i = 1; i < H.entries.length; i++) {
-  if (H.entries[i].n !== H.entries[i - 1].n + 1) fail(`Log numbering not sequential at ${H.entries[i].id} (previous ${H.entries[i - 1].id}).`);
+const allLogFiles = logFilesAtHead();
+const logEntries = [];
+for (const f of allLogFiles) {
+  const buf = readHeadBuf(f);
+  if (buf === null) continue; // listed but gone from the worktree: reported below if it was merged
+  const e = parseLogFile(f, buf.toString("utf8"));
+  if (e) logEntries.push(e);
 }
+const logChanged = changed.filter((f) => f.startsWith(LOG_DIR) && f !== ARCHIVE_PATH);
+const changedEntries = [];
+for (const f of logChanged) {
+  if (base && blobAt(base, f) !== null) {
+    fail(`${f}: a log file already merged may not be changed or deleted; add a new CORRECTION file that cites it.`);
+    continue;
+  }
+  const buf = readHeadBuf(f);
+  if (buf === null) continue;
+  if (!LOG_FILE_RE.test(f)) { fail(`${f}: files in ${LOG_DIR} are named YYYY-MM-DD-slug.md, lower-case words and numbers joined by hyphens.`); continue; }
+  const text = buf.toString("utf8");
+  checkEntryFile(f, text);
+  const e = logEntries.find((x) => x.file === f) ?? parseLogFile(f, text);
+  if (e) changedEntries.push(e);
+}
+const allEntries = [...(headArchive ? parseArchive(headArchive.toString("utf8")) : []), ...logEntries];
+
+// The text of a **Name:** field: the rest of its line and the lines up to the next field or the
+// security checklist, fenced output included. Empty when it holds no letter or digit.
+function fieldText(body, name) {
+  const sc = scan(body.join("\n"));
+  const i = sc.findIndex((x) => !x.code && x.line.startsWith(`**${name}:**`));
+  if (i === -1) return "";
+  const out = [sc[i].line.slice(name.length + 5)];
+  for (let j = i + 1; j < sc.length; j++) {
+    if (!sc[j].code && /^(\*\*[^*]+:\*\*|Security checklist)/.test(sc[j].line)) break;
+    out.push(sc[j].line);
+  }
+  return out.join("\n");
+}
+const hasEvidence = (e) => /[\p{L}\p{N}]/u.test(fieldText(e.body, "Evidence"));
+const hasChecklist = (e) => /Security checklist/.test(e.body.join("\n"));
+
+// 1. Any change needs a log entry (ACTIVITY.md included), and a code change needs evidence for it.
+const otherFiles = changed.filter((f) => !f.startsWith(LOG_DIR));
+const codeFiles = otherFiles.filter((f) => !f.startsWith("docs/") && !/\.mdx?$/i.test(f));
+if (otherFiles.length && changedEntries.length === 0) {
+  fail(`${otherFiles.length} file(s) changed but no entry was added or updated in ${LOG_DIR}.`);
+} else if (codeFiles.length && changedEntries.length) {
+  if (!changedEntries.some(hasEvidence)) fail(`${codeFiles.length} code file(s) changed but no added or updated entry in ${LOG_DIR} has a non-empty **Evidence:** section.`);
+  else if (!changedEntries.some((e) => hasEvidence(e) && hasChecklist(e))) fail(`${codeFiles.length} code file(s) changed but the entry with the evidence lacks the security checklist (ACTIVITY section 4).`);
+}
+
+// 3 + 4. Required lines, and verification.
 const normSig = (s) => clean(s).replace(/\s+/g, " ").trim().toLowerCase();
 const sessionOf = (s) => (normSig(s).match(/\bsession\s+([0-9a-f]{6,})\b/) || [])[1] ?? null;
 const sameAgent = (a, b) => {
@@ -440,26 +518,29 @@ const taskIds = (body) => [...taskText(body).matchAll(/\b(P\d-\d{2}|PLAN-\d{2})\
 // Something shaped like a task id that is not one, e.g. "PO-04" (letter O) or "P0 04".
 const lookalikeTaskIds = (body) => [...taskText(body).replace(/\b(P\d-\d{2}|PLAN-\d{2})\b/g, " ")
   .matchAll(/\bP[A-Za-z0-9]\s?[-_.]\s?[A-Za-z0-9]{1,3}\b|\bP[0-9O]\s[0-9Ol]{1,3}\b/g)].map((m) => m[0]); // P0-O4, P0-0l, PO-04, P0 04, P0-9, P0_09, P0.09; not "PR 12" (L-0061 D4, L-0085 D5)
-for (const e of newEntries) {
+// The work a verdict checks: DONE entries in the archive, TASK entries in docs/log.
+const workEntries = (task) => allEntries.filter((d) => (d.archived ? d.type === "DONE" : d.type === "TASK") && taskIds(d.body.join("\n")).includes(task));
+for (const e of changedEntries) {
   const body = e.body.join("\n");
-  if (!TYPES.has(e.type)) fail(`${e.id}: unknown entry type "${e.type}".`);
-  if (e.sig.split(" · ").length < 3) fail(`${e.id}: signature must be "<agent> · <model> · <session/branch>".`);
-  if ([...e.sig].some((ch) => ch.charCodeAt(0) > 0x7e && ch !== "·")) fail(`${e.id}: signature must be plain ASCII (apart from the · separators), so look-alike letters cannot impersonate another signer.`);
-  if (!/\*\*Task:\*\*/.test(body)) fail(`${e.id}: missing **Task:** line.`);
+  if (!e.file.includes(`/${e.date}-`)) fail(`${e.file}: the date in the header (${e.date}) differs from the date in the file name.`);
+  if (!KINDS.has(e.type)) fail(`${e.file}: unknown entry kind "${e.type}"; use one of ${[...KINDS].join(", ")} (one TASK entry per task, ACTIVITY section 4).`);
+  if (e.sig.split(" · ").length < 3) fail(`${e.file}: signature must be "<agent> · <model> · <session/branch>".`);
+  if ([...e.sig].some((ch) => ch.charCodeAt(0) > 0x7e && ch !== "·")) fail(`${e.file}: signature must be plain ASCII (apart from the · separators), so look-alike letters cannot impersonate another signer.`);
+  if (!/\*\*Task:\*\*/.test(body)) fail(`${e.file}: missing **Task:** line.`);
   const odd = [...taskLine(body)].filter((ch) => ch.charCodeAt(0) > 0x7e && !TASK_LINE_ALLOWED.has(ch));
-  if (odd.length) fail(`${e.id}: Task line contains disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}).`);
-  if (["DONE", "VERIFIED", "HANDOFF", "PROGRESS"].includes(e.type) && !/\*\*Evidence:\*\*\s*\S/.test(body)) fail(`${e.id}: ${e.type} entry needs a non-empty **Evidence:** line.`);
-  if (["DONE", "VERIFIED"].includes(e.type) && !/Security checklist/.test(body)) fail(`${e.id}: ${e.type} entry lacks the security checklist block.`);
+  if (odd.length) fail(`${e.file}: Task line contains disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}).`);
+  if (["TASK", "VERIFIED"].includes(e.type) && !hasEvidence(e)) fail(`${e.file}: a ${e.type} entry needs a non-empty **Evidence:** section.`);
   if (e.type === "VERIFIED") {
+    if (!hasChecklist(e)) fail(`${e.file}: a VERIFIED entry lacks the security checklist block.`);
     const tasks = taskIds(body);
-    if (tasks.length === 0) fail(`${e.id}: a VERIFIED entry must name at least one task id (P<phase>-<nn>) on its Task line.`);
+    if (tasks.length === 0) fail(`${e.file}: a VERIFIED entry must name at least one task id (P<phase>-<nn>) on its Task line.`);
     const fakes = lookalikeTaskIds(body);
-    if (fakes.length) fail(`${e.id}: Task line has text shaped like a task id that is not one (${fakes.join(", ")}); write task ids as P<phase>-<nn>.`);
+    if (fakes.length) fail(`${e.file}: Task line has text shaped like a task id that is not one (${fakes.join(", ")}); write task ids as P<phase>-<nn>.`);
     for (const task of tasks) {
-      const dones = H.entries.filter((d) => d.type === "DONE" && taskIds(d.body.join("\n")).includes(task));
-      if (dones.length === 0) fail(`${e.id}: ${task} has no DONE entry to verify.`);
+      const dones = workEntries(task);
+      if (dones.length === 0) fail(`${e.file}: ${task} has no work entry to verify (a DONE entry in the archive or a TASK entry in ${LOG_DIR}).`);
       for (const done of dones) {
-        if (sameAgent(done.sig, e.sig) && !declaresSelfVerification(body)) fail(`${e.id}: VERIFIED by the same agent as DONE ${done.id} for ${task} ("${done.sig}") without a **Self-verification:** line; a builder verifying its own work must say so (MJ, L-0401).`);
+        if (sameAgent(done.sig, e.sig) && !declaresSelfVerification(body)) fail(`${e.file}: VERIFIED by the same agent as ${done.id} for ${task} ("${done.sig}") without a **Self-verification:** line; a builder verifying its own work must say so (MJ, L-0401).`);
       }
     }
   }
@@ -532,22 +613,24 @@ const boardOf = (text) => {
   }
   return { rows, lines };
 };
-if (baseText) {
-  const B12 = boardOf(baseText);
-  const H12 = boardOf(headText);
+const VERIFIED_CELL = new RegExp(`^VERIFIED \\((L-\\d{4}|${STEM})\\)$`);
+const REOPEN_NOTE = new RegExp(`\\bwas verified (?:l-\\d{4}|${STEM})\\b`, "g");
+if (baseActivity && headActivity) {
+  const B12 = boardOf(baseActivity.toString("utf8"));
+  const H12 = boardOf(headActivity.toString("utf8"));
   const before = new Map();
   for (const r of B12.rows) if (!before.has(r.task)) before.set(r.task, r.status);
   const baseLines = new Set(B12.lines.map((x) => x.line.trim()));
   // D3: one row per task, so an earlier row cannot hide behind a later one.
   const seen = new Map();
   for (const r of H12.rows) seen.set(r.task, (seen.get(r.task) ?? 0) + 1);
-  for (const [task, n] of seen) if (n > 1) fail(`§12 board: ${task} has ${n} rows; each task has exactly one board row (L-0116 D3).`);
+  for (const [task, n] of seen) if (n > 1) fail(`Section 12 board: ${task} has ${n} rows; each task has exactly one board row (L-0116 D3).`);
   // A new or changed board line that mentions VERIFIED but is not a task row of a table with a
   // Status column (a look-alike id, a table without a Status header, a row outside any table).
   for (const x of H12.lines) {
     if (baseLines.has(x.line.trim()) || !(x.inTable || hasPipe(x.line))) continue;
     if (x.rec && x.rec.status !== null) continue;
-    if (/verified/.test(normCell(x.line))) fail(`§12 board: a new or changed line mentions VERIFIED but is not a task row in a table with a Status column: "${x.line.trim().slice(0, 70)}"`);
+    if (/verified/.test(normCell(x.line))) fail(`Section 12 board: a new or changed line mentions VERIFIED but is not a task row in a table with a Status column: "${x.line.trim().slice(0, 70)}"`);
   }
   for (const r of H12.rows) {
     const { task, status } = r;
@@ -556,32 +639,34 @@ if (baseText) {
     // D1: a changed Status cell is plain text: ASCII plus the Task-line allowlist, no Markdown
     // emphasis, code or escapes, so no rendering of VERIFIED can differ from the text tested here.
     const odd = [...status].filter((ch) => ch.charCodeAt(0) > 0x7e && !TASK_LINE_ALLOWED.has(ch));
-    if (odd.length) { fail(`§12 board: ${task} has a changed Status cell with disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}); write statuses in plain ASCII (L-0116 D1).`); continue; }
-    if (MD_MARKS_RE.test(status)) { fail(`§12 board: ${task} has a changed Status cell with Markdown emphasis, code or escape characters; write statuses as plain text (L-0116 D1).`); continue; }
-    const ref = status.match(/^VERIFIED \((L-\d{4})\)$/);
+    if (odd.length) { fail(`Section 12 board: ${task} has a changed Status cell with disallowed characters (${[...new Set(odd)].map((c) => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(", ")}); write statuses in plain ASCII (L-0116 D1).`); continue; }
+    if (MD_MARKS_RE.test(status)) { fail(`Section 12 board: ${task} has a changed Status cell with Markdown emphasis, code or escape characters; write statuses as plain text (L-0116 D1).`); continue; }
+    const ref = status.match(VERIFIED_CELL);
     if (!ref) {
       // Normalised (NFKC, default-ignorables, emphasis, case): any VERIFIED other than the
-      // canonical form is refused; the one exception is a reopen note "was VERIFIED L-nnnn".
-      if (/verified/.test(normCell(status).replace(/\bwas verified l-\d{4}\b/g, ""))) {
-        fail(`§12 board: ${task} has a changed Status cell that mentions VERIFIED; a move to VERIFIED must read exactly "VERIFIED (L-nnnn)" (a reopened task may say "was VERIFIED L-nnnn").`);
+      // canonical form is refused; the one exception is a reopen note "was VERIFIED {id}".
+      if (/verified/.test(normCell(status).replace(REOPEN_NOTE, ""))) {
+        fail(`Section 12 board: ${task} has a changed Status cell that mentions VERIFIED; a move to VERIFIED must read exactly "VERIFIED (entry)", citing a docs/log file stem (a reopened task may say "was VERIFIED entry").`);
       }
       continue;
     }
-    const v = H.entries.find((e) => e.id === ref[1]);
-    if (!v) { fail(`§12 board: ${task} cites ${ref[1]} as its verification, but no such entry exists.`); continue; }
+    const v = allEntries.find((e) => e.id === ref[1]);
+    if (!v) { fail(`Section 12 board: ${task} cites ${ref[1]} as its verification, but no such entry exists.`); continue; }
     const vBody = v.body.join("\n");
-    if (!["VERIFIED", "CORRECTION"].includes(v.type)) fail(`§12 board: ${task} cites ${v.id}, a ${v.type} entry; a verification is a VERIFIED or CORRECTION entry.`);
-    if (!taskIds(vBody).includes(task)) fail(`§12 board: ${task} cites ${v.id}, whose Task line does not name ${task}.`);
-    if (!/Security checklist/.test(vBody)) fail(`§12 board: ${task} cites ${v.id}, which lacks the security checklist block.`);
-    const dones = H.entries.filter((d) => d.type === "DONE" && taskIds(d.body.join("\n")).includes(task));
-    if (dones.length === 0) fail(`§12 board: ${task} moved to VERIFIED but has no DONE entry.`);
+    // One entry per task: the builder's own TASK entry may hold the verdict if it declares it.
+    const isVerdict = ["VERIFIED", "CORRECTION"].includes(v.type) || (v.type === "TASK" && declaresSelfVerification(vBody));
+    if (!isVerdict) fail(`Section 12 board: ${task} cites ${v.id}, a ${v.type} entry; a verification is a VERIFIED or CORRECTION entry, or a TASK entry with a **Self-verification:** line.`);
+    if (!taskIds(vBody).includes(task)) fail(`Section 12 board: ${task} cites ${v.id}, whose Task line does not name ${task}.`);
+    if (!/Security checklist/.test(vBody)) fail(`Section 12 board: ${task} cites ${v.id}, which lacks the security checklist block.`);
+    const dones = workEntries(task);
+    if (dones.length === 0) fail(`Section 12 board: ${task} moved to VERIFIED but has no work entry.`);
     for (const done of dones) {
-      if (sameAgent(done.sig, v.sig) && !declaresSelfVerification(vBody)) fail(`§12 board: ${task} is verified by ${v.id}, signed by the same agent as DONE ${done.id} ("${done.sig}"), without a **Self-verification:** line; a builder verifying its own work must say so (MJ, L-0401).`);
+      if (sameAgent(done.sig, v.sig) && !declaresSelfVerification(vBody)) fail(`Section 12 board: ${task} is verified by ${v.id}, signed by the same agent as ${done.id} ("${done.sig}"), without a **Self-verification:** line; a builder verifying its own work must say so (MJ, L-0401).`);
     }
-    // D4: the verdict must be newer than the task's latest DONE entry (a reopened task needs a
+    // D4: the verdict may not be older than the task's latest work entry (a reopened task needs a
     // fresh verification; MJ L-0110).
-    const latest = dones.reduce((a, d) => (d.n > a.n ? d : a), dones[0] ?? { n: -1 });
-    if (dones.length && v.n <= latest.n) fail(`§12 board: ${task} cites ${v.id}, which is older than its latest DONE entry ${latest.id}; a verification must come after the work it verifies (L-0116 D4).`);
+    const latest = dones.reduce((a, d) => (d.ord > a.ord ? d : a), dones[0] ?? { ord: -1 });
+    if (dones.length && v !== latest && v.ord < latest.ord) fail(`Section 12 board: ${task} cites ${v.id}, which is older than its latest work entry ${latest.id}; a verification must come after the work it verifies (L-0116 D4).`);
   }
 }
 
@@ -652,12 +737,7 @@ for (const l of diff.split("\n")) {
 
 // 5b. owner-listed terms in file paths, and UTF-16 text files (git shows them as binary
 // noise, so their content is decoded and scanned in full) (L-0055 L3).
-const readAdded = (f) => {
-  if (!head) { try { return readFileSync(f); } catch { return null; } }
-  try {
-    return execFileSync("git", ["show", `${head}:${f}`], { stdio: ["ignore", "pipe", "ignore"], maxBuffer: 512 * 1024 * 1024 });
-  } catch { return null; }
-};
+const readAdded = readHeadBuf;
 const MAX_SCAN = 64 * 1024 * 1024;
 // Every file is also decoded as UTF-16 in both byte orders and scanned in full, BOM or not
 // (L-0061 D6). Ordinary UTF-8 text decodes to noise that these patterns do not match, so the
@@ -784,8 +864,9 @@ if (errors.length) {
   console.error("activity-log-check FAILED:\n - " + [...new Set(errors)].join("\n - "));
   process.exit(1);
 }
-const plural = newEntries.length === 1 ? "entry" : "entries";
-console.log(`activity-log-check OK (${newEntries.length} new log ${plural}, ${changed.length} changed files).`);
+const plural = changedEntries.length === 1 ? "entry" : "entries";
+console.log(`activity-log-check OK (${changedEntries.length} new log ${plural}, ${changed.length} changed files).`);
 // Say how many owner terms were checked, so an empty KIRAN_SENSITIVE_TERMS is visible rather than
 // silently passing (council audit finding 7; failing closed waits on B-15a, see B-26).
 console.log(`owner terms checked: ${SENSITIVE_TERMS.length}${SENSITIVE_TERMS.length ? "" : " (KIRAN_SENSITIVE_TERMS is empty: supplier names are not being blocked)"}`);
+

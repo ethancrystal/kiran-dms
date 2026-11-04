@@ -30,7 +30,7 @@ A coordinated web application with three workspaces over one PostgreSQL database
 | 13 | [Anti-fraud and control framework](13-anti-fraud-controls.md) | Every way a rep, manager, salon or outsider could cheat — and the control that stops or catches it |
 | 14 | [Unified business domains and agent execution brief](14-unified-business-domain-prompt.md) | How supplier, salon portal, rep, agent, investor and office domains connect; boundaries, security and execution rules |
 | 15 | [Field sales and distribution engineering plan](15-field-sales-distribution-engineering-plan.md) | Target modules, three workspaces, dual-channel orders, data ownership, location tracking, inventory, security, delivery sequence and acceptance criteria |
-| — | [**ACTIVITY (mandatory for builders)**](ACTIVITY.md) | Build protocol, hard rules, definition of done, phase gates, status board, claims, blockers, append-only activity log |
+| — | [**ACTIVITY (mandatory for builders)**](ACTIVITY.md) | Build protocol, hard rules, definition of done, phase gates, status board, blockers; the append-only log is in `log/` |
 
 ## Fixed decisions (do not re-open without updating doc 12)
 

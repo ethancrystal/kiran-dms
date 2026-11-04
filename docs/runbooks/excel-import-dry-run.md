@@ -61,4 +61,4 @@ How values are read:
 
 ## After a clean run
 
-Paste the summary lines (result, row counts, areas and opening-balance total) into a `PROGRESS` entry in `docs/ACTIVITY.md`, never the file itself. The area list it prints is the input for the territory draft (P0-03).
+Paste the summary lines (result, row counts, areas and opening-balance total) into the task's entry in `docs/log/`, never the file itself. The area list it prints is the input for the territory draft (P0-03).
