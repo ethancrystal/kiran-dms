@@ -386,6 +386,8 @@ Each step is only started when the previous one is at least `DONE (self-reported
 | C-037 | — (documentation and log bookkeeping after PR 46) | 2026-11-03 21:10 | done | L-0373 |
 | C-032 | PLAN-05 | 2026-11-04 22:19 | stale (its PR 45 merged as 2f781fd) | L-0398 |
 | C-040 | — (remove the non-author reviewer and independent-verification rules, MJ) | 2026-11-04 22:38 | done | L-0402 |
+| C-041 | PLAN-05 (roadmap and execution-map reconciliation; C-038 on Codex branch, renumbered L-0411) | 2026-11-04 13:38 | done | L-0408 |
+| C-042 | PLAN-05 (re-apply of Codex 5f42803 after PR 48: roadmap, execution map, ACTIVITY bookkeeping) | 2026-11-04 23:11 | done | L-0413 |
 
 ---
 
@@ -4602,6 +4604,71 @@ Address note (Code Reviewer, PR 44): p_address is now trimmed and whitespace-onl
 **Evidence:** With these entries in place, DATABASE_URL unset: `node scripts/activity-log-check.mjs origin/main` gave activity-log-check OK (new log entries and changed files counted in the commit message; owner terms checked 0, KIRAN_SENSITIVE_TERMS empty here), exit 0; `pnpm lint` exit 0 (108 files, 33 warnings, 42 infos, as in L-0396); `pnpm typecheck` exit 0; `pnpm agent:preflight` PREFLIGHT OK; `pnpm agent:preflight:test` 12 passed, 0 failed; `cmp AGENTS.md CLAUDE.md` identical; `NODE_ENV=test pnpm exec vitest run --config supabase/tests/vitest.config.ts log-check-rulings` (Windows embedded Postgres, DATABASE_URL and KIRAN_TEST_DATABASE_URL unset) 1 file, 19 passed, 816 s, including the new self-verification case and the unchanged case that a maker's unmarked verdict fails. Not run: the rest of the database suite, the re-verifier files reverify4 to reverify11 (git-clone suites, left to CI), browser tests, CI.
 **Rules touched:** section 3, section 11, H-23, H-24
 **Next / needs:** MJ: push and pull request decision; the ruleset check of L-0401.
+
+### L-0404 · 2026-11-04 13:34 PKT · ChatGPT · GPT-6 · session codex-plan-align-20261104 · branch codex/align-plans-with-expanded-scope · SESSION-START
+**Task:** PLAN-05 (reconcile roadmap and execution map with accepted scope)    **Claim:** C-041
+**What / why:** Read AGENTS.md, the compliance protocol and ACTIVITY.md in full, plus docs 00, 03, 11, 12, 14, 15, SPEC.md and the execution map. `pnpm agent:preflight` passed on `codex/align-plans-with-expanded-scope`; it reported one pre-existing untracked `.codex/` item, preserved. Inspected all 13 Claude worktrees; left them unchanged. The former C-032 plan worktree is 29 commits behind origin/main and has pre-existing edits across planning files including docs/11 and docs/ACTIVITY.md; it remains untouched. No production, staging or business data accessed.
+**Next / needs:** Reconcile the stale C-032 claim record and align only the roadmap and execution map to requirements and decisions already recorded by MJ.
+
+### L-0405 · 2026-11-04 13:34 PKT · ChatGPT · GPT-6 · session codex-plan-align-20261104 · branch codex/align-plans-with-expanded-scope · CLAIM-RELEASED
+**Task:** PLAN-05    **Claim:** C-032
+**What / why:** C-032 has had no log activity since L-0323 on 2026-11-03 14:22 PKT, more than 24 hours ago. L-0315 records its prior release, but the active-claims table still listed it. The old worktree and its uncommitted plan changes were inspected and preserved; this stale claim is now released for bookkeeping only.
+**Next / needs:** C-041 is limited to `docs/11-roadmap.md`, `docs/audit-2026-10-31/execution-map.md` and necessary ACTIVITY bookkeeping.
+
+### L-0406 · 2026-11-04 13:34 PKT · ChatGPT · GPT-6 · session codex-plan-align-20261104 · branch codex/align-plans-with-expanded-scope · CLAIM
+**Task:** PLAN-05 (reconcile roadmap and execution map with accepted scope)    **Claim:** C-041
+**What / why:** Scope: refresh Phase 1/Phase 2 order-channel scope and execution sequencing, map accepted D-30 requirements to their existing phases, refresh stale hard gates and pending decisions in the execution map, and correct related roadmap requirement references. Do not change requirements, phase assignments, fixed decisions, permissions or implementation status.
+**Evidence:** Current requirements assign office order creation and order-intake cards to Phase 1; salon portal membership and portal ordering to Phase 2. D-30, L-0378 and L-0382 confirm office and salon order behavior, approval cutoff and one login per salon. L-0382 supersedes the earlier sub-account assumption. Preflight passed; lint, typecheck and test baselines were not run because this documentation-only task does not request tests.
+**Next / needs:** Edit the two claimed plan files, run documentation checks, inspect the complete diff, release C-041 and append HANDOFF.
+
+### L-0407 · 2026-11-04 13:38 PKT · ChatGPT · GPT-6 · session codex-plan-align-20261104 · branch codex/align-plans-with-expanded-scope · HANDOFF
+**Task:** PLAN-05 (reconcile roadmap and execution map with accepted scope)    **Claim:** C-041
+**What / why:** Completed the documentation alignment. `docs/11-roadmap.md` now assigns Phase 1 to office-created orders and offline rep order-intake cards, and Phase 2 to salon portal membership and canonical portal ordering. `docs/audit-2026-10-31/execution-map.md` now maps D-30 through the representative journey, orders slice and offline boundary; it records the approval cutoff, single-login decision, the open A-16 delivery assignment decision, current P1-07 evidence status and the current gate language. C-032's stale active-claim row was reconciled without touching its preserved old worktree.
+**Evidence:** `pnpm agent:preflight` PASS before edits. Read-only inspection found the former plan worktree 29 commits behind origin/main with uncommitted changes; no files were changed there. `git diff --check` PASS. The diff changes only docs/11-roadmap.md, docs/audit-2026-10-31/execution-map.md and docs/ACTIVITY.md. `pnpm activity:check` could not run because `pnpm` is not available in this session shell; no lint, typecheck, database, build or browser test was run because this is documentation-only work.
+**Security checklist:** No production or staging access. No secrets, supplier, cost, salon or personal data added. No application code, database migration, RLS, MFA, approval, audit, permission or financial control changed. Existing worktree changes and the pre-existing `.codex/` item were preserved.
+**Next / needs:** The next implementation slice is the D-30 Phase 1 order rework: office orders plus rep order-intake cards, with the server-side rules and negative tests required by docs 03, 06 and 15. A-16 remains a decision boundary for any delivering-rep assignment behavior.
+
+### L-0408 · 2026-11-04 13:38 PKT · ChatGPT · GPT-6 · session codex-plan-align-20261104 · branch codex/align-plans-with-expanded-scope · CLAIM-RELEASED
+**Task:** PLAN-05 (reconcile roadmap and execution map with accepted scope)    **Claim:** C-041
+**What / why:** Released after the scoped documentation changes and handoff. The next D-30 implementation claim must be separate and must inspect the current code and active claims before editing.
+**Next / needs:** Begin the Phase 1 D-30 order rework on a new claim after the present diff is reviewed or committed.
+
+### L-0409 · 2026-11-04 23:06 PKT · Claude · Opus 5.5 · session codex-reapply-20261104 · branch claude/reapply-codex-plan-align · SESSION-START
+**Task:** PLAN-05 (re-apply of the Codex roadmap and execution-map alignment after PR 48)    **Claim:** C-042
+**What / why:** MJ asked in chat on 2026-11-04 (relayed by the controlling session) to re-apply the local, never-pushed Codex commit 5f42803 ("docs: align MVP order scope and execution map", branch codex/align-plans-with-expanded-scope, based on old main 486888b) now that PR 48 has merged. Branch claude/reapply-codex-plan-align cut from origin/main c8fb928 (the PR 49 merge); worktree clean. Read CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md in full, this file's sections 0 to 15 and the last entries (L-0378 to L-0403), docs 03 (the SAL, ORD, INV-12, SEC-13 to 15 and CTL-13 rows), 11, 12 (D-30 to D-32) and the design spec docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md. The Codex worktree was read only through git (format-patch and the shared object store); nothing there was changed. `pnpm agent:preflight` (DATABASE_URL unset): PREFLIGHT OK. Active claims: C-039 (orders code and docs 03, 04, 06, 09, 12; no overlap with docs 11 and the execution map). Open pull requests: none known to this session. Baseline: docs only, so no database, typecheck or browser run; lint, the log check, preflight and `git diff --check` are run at the end.
+**Next / needs:** L-0410.
+
+### L-0410 · 2026-11-04 23:06 PKT · Claude · Opus 5.5 · session codex-reapply-20261104 · branch claude/reapply-codex-plan-align · CLAIM
+**Task:** PLAN-05 (re-apply of the Codex roadmap and execution-map alignment after PR 48)    **Claim:** C-042
+**What / why:** C-042 is unused on every local ref (`git log --all -S "C-042"` empty). Areas: docs/11-roadmap.md, docs/audit-2026-10-31/execution-map.md, and bookkeeping in this file (the Codex entries renumbered, the claims tables, this session's entries). No requirement, phase assignment, decision, permission or status board row is changed.
+**Rules touched:** section 3, section 4
+**Next / needs:** L-0411.
+
+### L-0411 · 2026-11-04 23:07 PKT · Claude · Opus 5.5 · session codex-reapply-20261104 · branch claude/reapply-codex-plan-align · CORRECTION
+**Task:** PLAN-05 (renumbering of the Codex entries on re-apply)    **Claim:** C-042
+**What / why:** Codex commit 5f42803 appended five entries numbered L-0383 to L-0387 to old main 486888b; main has since used L-0383 to L-0403. Renumbered under section 4 on re-apply, text, signatures (ChatGPT, GPT-6, session codex-plan-align-20261104) and original times (2026-11-04 13:34 and 13:38) kept: L-0383 to L-0404, L-0384 to L-0405, L-0385 to L-0406, L-0386 to L-0407, L-0387 to L-0408. Their claim C-038 becomes C-041: C-038 is free on main, but the unmerged verifier branch claude/gifted-mestorf-be2a40 holds its own C-038 (main's L-0383 and L-0392 say so), and section 3 asks for an ID no unmerged handoff uses; `git log --all -S "C-041"` was empty. Only ID references changed in those entries; no sentence was reworded. Other references to the old IDs: the execution-map header note "ACTIVITY L-0385+" now reads L-0406 to L-0408 (main's L-0385 is MJ's A-16 and commission decision, a different entry, cited by the execution map's G4 row and slice 4 for A-16); the Codex released-table row for C-038 (log entry L-0387) is now C-041 with L-0408. Not re-added: Codex's removal of the C-032 active row and its released-table row C-032 (stale, citing the old Codex L-0384, now L-0405; main's L-0384 is the C-039 claim): main had already released C-032 as stale in L-0398, so the released table keeps that one row and L-0405 stays only as the record. Also corrected, as facts on main at re-apply: L-0407 says A-16 is open; MJ confirmed it in L-0385 (manager picks the delivering rep from the salon's territory reps, or none for manager-direct and salon orders), and the execution map now says so; L-0407's next step (the D-30 order rework) is PR A, merged as PR 48 (L-0400).
+**Rules touched:** section 3, section 4
+**Next / needs:** L-0412.
+
+### L-0412 · 2026-11-04 23:07 PKT · Claude · Opus 5.5 · session codex-reapply-20261104 · branch claude/reapply-codex-plan-align · PROGRESS
+**Task:** PLAN-05 (re-apply of the Codex roadmap and execution-map alignment after PR 48)    **Claim:** C-042
+**What / why:** Applied 5f42803 with `git cherry-pick --no-commit`: docs/11-roadmap.md and the execution map applied cleanly; this file conflicted and was resolved by keeping main's text and re-adding the Codex entries after L-0403 (L-0411). The roadmap changes are kept as Codex wrote them: Phase 1 Orders row ORD-01 to 05 and ORD-14 (ORD-10 is superseded, doc 03), portal ordering Phase 2; a Phase 2 row for the shared channel model and safe stock (ORD-11/12, SEC-14/15, INV-12, all Phase 2 in doc 03). Stale statements fixed in the execution map with facts on main: the header note (PR A merged as PR 48, awaiting an independent check; then PR B, delivery approval, D-32; then PR C, commission, D-31, per the design spec section 2); G4 (A-16 confirmed, L-0385; A-18 open, L-0386); module G (the built functions `app.build_order`, `app.office_create_order`, `app.rep_create_card`, `app.my_cards`, `app.office_open_cards`, `app.office_dismiss_card`, `app.my_territory_orders`, `app.office_orders`; `app.create_order` refuses every caller; pages `/office/orders`, `/app/cards`, `/app/orders`); J1 rows 9 to 11 and 13 (built names instead of "inspect current RPC name" and "must be verified"; `app.rep_deliver` stays for the assigned rep until PR B, rep-less orders through `app.office_deliver`, A-18); slice 4 (the A-16 blocker sentence replaced by MJ's answer and the PR A, B, C sequence). No requirement, phase assignment or decision changed: the salon portal stays Phase 2 as in doc 03 (SAL-11/12, ORD-11 to 13, SEC-13 to 15) and SPEC.md.
+**Evidence:** see L-0414 (checks run with every entry in place).
+**Rules touched:** H-22, H-25, H-26 (nothing changed under it)
+**Next / needs:** L-0413.
+
+### L-0413 · 2026-11-04 23:11 PKT · Claude · Opus 5.5 · session codex-reapply-20261104 · branch claude/reapply-codex-plan-align · CLAIM-RELEASED
+**Task:** PLAN-05 (re-apply of the Codex roadmap and execution-map alignment after PR 48)    **Claim:** C-042
+**What / why:** Done; C-042 and the renumbered Codex claim C-041 are in the released table. No status board row changed (PLAN-05 stays as it was).
+**Rules touched:** section 3
+**Next / needs:** L-0414.
+
+### L-0414 · 2026-11-04 23:11 PKT · Claude · Opus 5.5 · session codex-reapply-20261104 · branch claude/reapply-codex-plan-align · HANDOFF
+**Task:** PLAN-05 (re-apply of the Codex roadmap and execution-map alignment after PR 48)    **Claim:** C-042 (released, L-0413)
+**What / why:** State: one local commit on branch claude/reapply-codex-plan-align over origin/main c8fb928; not pushed, no pull request. DONE (self-reported), docs only, not verified. Files changed: docs/11-roadmap.md, docs/audit-2026-10-31/execution-map.md, docs/ACTIVITY.md. Next steps: (1) MJ decides on pushing and the pull request; merging only on MJ's OK for that pull request with every required check green on its head (section 10); (2) if the verifier branch claude/gifted-mestorf-be2a40 merges, it keeps its C-038 (C-041 was chosen to avoid it). Gotchas: the Codex roadmap row for the shared order channel model (Phase 2) overlaps the existing salon portal row, and part of its channel columns were already built by PR A as a Phase 1 dependency; left as written. Not in this claim and not changed: the P1-06 board row and C-039 still describe PR A as unmerged (L-0400 left that to the C-039 holder), and the board's "awaiting an independent check" wording predates L-0401.
+**Evidence:** With every entry in place, DATABASE_URL unset: `node scripts/activity-log-check.mjs origin/main` (origin/main c8fb928) gave activity-log-check OK (11 new log entries, 3 changed files; owner terms checked 0, KIRAN_SENSITIVE_TERMS empty here), exit 0; `git diff HEAD --check` exit 0; `pnpm install --frozen-lockfile` (fresh worktree) exit 0; `pnpm lint` exit 0 (108 files, 33 warnings, 42 infos, as in L-0403); `pnpm agent:preflight` PREFLIGHT OK. The commit SHA is in the git history, not here (it does not exist until this entry is committed). Not run: typecheck, database, browser tests, CI (docs only).
+**Rules touched:** section 3, section 11, H-23, H-24
+**Next / needs:** MJ: push and pull request decision.
 
 ---
 
