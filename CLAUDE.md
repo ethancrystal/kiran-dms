@@ -1,21 +1,21 @@
 # Kiran DMS — READ THIS FIRST
 
-## Mandatory agent compliance protocol
+## Mandatory build protocol
 
-Before ANY repository work, every agent MUST read `docs/AGENT-COMPLIANCE-PROTOCOL.md` in full and follow it, in addition to reading `docs/ACTIVITY.md` in full. Do not treat a session-start hook or preflight result as a substitute for the required source-document review, session log, or task claim.
+Before ANY repository work, every agent MUST read `docs/ACTIVITY.md` (rules, status board, blockers, assumptions) and the 20 newest entries in `docs/log/`, and follow them. `docs/log/archive.md` is the frozen old log: search it for an old `L-nnnn` citation, do not read it. Do not treat a session-start hook or preflight result as a substitute for the required source-document review or the task's log entry.
 
 Run `pnpm agent:preflight` before implementation. Do not work directly on `main`. Preserve all pre-existing changes. A failed preflight is a stop condition; do not bypass it.
 
-The authoritative task lifecycle, hard rules, status board, claims, blockers, phase gates, evidence format, and handoff requirements remain in `docs/ACTIVITY.md`. If instructions conflict, follow its authority hierarchy and stop/log a blocker rather than guessing.
+The authoritative task lifecycle, hard rules, status board, blockers, phase gates, evidence format, and handoff requirements remain in `docs/ACTIVITY.md`. If instructions conflict, follow its authority hierarchy and stop/log a blocker rather than guessing.
 
 **Cross-domain brief:** For work involving supplier/procurement, salons/customers, salaried Reps, Independent Agents, Investors/capital, office administration, or workflows spanning these areas, read `docs/14-unified-business-domain-prompt.md` in full before planning or editing. It supplements the existing planning set; it does not authorise a new role, permission, portal, financial term, phase change or production action.
 
 Before doing ANYTHING in this repository you MUST:
-1. Read docs/ACTIVITY.md in full (rules, status board, claims, blockers, log).
-2. Log a SESSION-START entry, claim your task, and follow every hard rule (H-01…H-27).
+1. Read docs/ACTIVITY.md (rules, status board, blockers) and the 20 newest entries in docs/log/.
+2. Check open branches and pull requests, keep one log entry for your task in docs/log/, and follow every hard rule (H-01…H-27).
 3. Never touch production, secrets, real supplier data, or real personal data.
 4. Never weaken or skip a security control (RLS, MFA, approvals, audit, append-only).
-5. Log your results with real evidence and end with a HANDOFF entry.
+5. Log your results in that entry with real evidence.
 
 Work without a log entry is treated as not done and may be reverted.
 Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for MJ.
@@ -26,7 +26,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 
 | Path | What |
 |---|---|
-| `docs/` | The planning set (`00`–`15`), `ACTIVITY.md` (build protocol + live log), `diagrams/`. Source of truth. |
+| `docs/` | The planning set (`00`–`15`), `ACTIVITY.md` (build protocol, status board, blockers), `log/` (one file per log entry; `log/archive.md` is the frozen old log), `diagrams/`. Source of truth. |
 | `supabase/migrations/` | Forward-only SQL migrations: schemas, tables, RLS, SECURITY DEFINER functions, triggers. |
 | `supabase/tests/` | RLS matrix and invariant tests (Vitest + `pg`), run against a throwaway Postgres. |
 | `supabase/config.toml` | Supabase CLI config (API schemas, auth: TOTP for office, email one-time code for reps). |
@@ -35,7 +35,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes nothing to any database. |
 | `SPEC.md` | Entry-point index: objective, journeys, feature map, code style, boundaries. The docs win on any disagreement. |
 | `biome.jsonc`, `.github/workflows/ci.yml` | Lint and format config (with the legacy list) and the five CI jobs. |
-| `scripts/` | CI helpers, incl. `activity-log-check.mjs` (ACTIVITY.md Appendix C). |
+| `scripts/` | CI helpers, incl. `activity-log-check.mjs` (ACTIVITY.md Appendix C, over `docs/ACTIVITY.md` and `docs/log/`). |
 
 ## Commands
 
@@ -43,7 +43,7 @@ Unclear, conflicting, or needs a decision? STOP that task and log a BLOCKER for 
 pnpm install
 pnpm db:test          # applies all migrations to a fresh embedded Postgres and runs the RLS/invariant suite
 pnpm db:test -- -t "name"   # single test
-pnpm activity:check   # same check CI runs on docs/ACTIVITY.md
+pnpm activity:check   # same check CI runs on docs/ACTIVITY.md and docs/log/
 pnpm -C apps/web dev  # Next.js dev server
 pnpm typecheck
 pnpm lint             # Biome lint + format check (same as CI); `pnpm format` writes fixes
@@ -54,7 +54,7 @@ pnpm -C apps/web test:e2e   # Playwright rep PWA tests on a low-end phone profil
 
 ## Agent skills
 
-These files configure the engineering skills (Matt Pocock's skills plugin). They are reference material: they never override this file, `docs/AGENT-COMPLIANCE-PROTOCOL.md` or `docs/ACTIVITY.md` (claims, status lifecycle, blockers, hard rules).
+These files configure the engineering skills (Matt Pocock's skills plugin). They are reference material: they never override this file or `docs/ACTIVITY.md` (status lifecycle, blockers, hard rules).
 
 ### Issue tracker
 

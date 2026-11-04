@@ -20,24 +20,23 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { overlayWorktree, writeLogEntries } from "./log-check-harness";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const OTHER = "Tester · Model X · rv6-case-agent · branch t";
 const MID = "·";
 
 const entry = (type: string, task: string, sig = OTHER) => [
-  `### L-NEXT · 2026-10-26 04:00 PKT · ${sig} · ${type}`,
-  `**Task:** ${task}    **Claim:** —`,
+  `# 2026-10-26 04:00 PKT · ${sig} · ${type}`,
+  `**Task:** ${task}`,
   "**What / why:** rv6 case.",
   "**Evidence:** rv6 case evidence.",
   "**Rules touched:** —",
   "**Next / needs:** —",
-  ...(["DONE", "VERIFIED"].includes(type)
-    ? ["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"]
-    : []),
+  ...["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"],
   "",
 ];
-const P = entry("PROGRESS", "P0-04");
+const P = entry("TASK", "P0-04");
 
 type Case = { lines?: string[]; files?: Record<string, string | Buffer>; appendEnd?: string[]; edit?: [string, string]; terms?: string };
 function check(c: Case): { status: number | null; out: string } {
@@ -50,28 +49,21 @@ function check(c: Case): { status: number | null; out: string } {
     };
     const cl = spawnSync("git", ["clone", "-q", "--no-hardlinks", ROOT, dir], { encoding: "utf8" });
     if (cl.status !== 0) throw new Error(cl.stderr);
-    for (const rel of ["scripts/activity-log-check.mjs", "docs/ACTIVITY.md"]) writeFileSync(join(dir, rel), readFileSync(join(ROOT, rel)));
+    overlayWorktree(ROOT, dir);
     g("add", "-A");
     g("commit", "-q", "--allow-empty", "-m", "rv6 base: worktree script and log");
     const base = g("rev-parse", "HEAD").trim();
+    writeLogEntries(dir, c.lines ?? P);
     const logPath = join(dir, "docs", "ACTIVITY.md");
     let text = readFileSync(logPath, "utf8");
-    const all = text.split("\n");
-    const last = Math.max(...all.map((l, i) => (/^### L-\d{4} · /.test(l) ? i : -1)));
-    const n = Number(all[last].slice(6, 10));
-    const next = `L-${String(n + 1).padStart(4, "0")}`;
-    const after = `L-${String(n + 2).padStart(4, "0")}`;
-    let sep = all.findIndex((l) => l.startsWith("## Appendix A")) - 1;
-    while (all[sep].trim() !== "---") sep--;
-    const lines = (c.lines ?? P).map((l) => l.replace("L-NEXT", next).replace("L-AFTER", after));
-    all.splice(sep, 0, ...lines);
-    text = all.join("\n");
-    if (c.appendEnd) text = text.replace(/\n*$/, "\n") + c.appendEnd.map((l) => l.replace("L-AFTER", after)).join("\n") + "\n";
-    if (c.edit) {
-      if (!text.includes(c.edit[0])) throw new Error(`edit anchor missing: ${c.edit[0]}`);
-      text = text.replace(c.edit[0], c.edit[1]);
-    }
+    if (c.appendEnd) text = text.replace(/\n*$/, "\n") + c.appendEnd.join("\n") + "\n";
     writeFileSync(logPath, text);
+    if (c.edit) {
+      const archivePath = join(dir, "docs", "log", "archive.md");
+      const old = readFileSync(archivePath, "utf8");
+      if (!old.includes(c.edit[0])) throw new Error(`edit anchor missing: ${c.edit[0]}`);
+      writeFileSync(archivePath, old.replace(c.edit[0], c.edit[1]));
+    }
     for (const [rel, content] of Object.entries(c.files ?? {})) {
       const p = join(dir, rel);
       mkdirSync(dirname(p), { recursive: true });

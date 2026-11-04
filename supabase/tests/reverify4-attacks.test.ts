@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { overlayWorktree, writeLogEntries } from "./log-check-harness";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const WEB = join(ROOT, "apps", "web");
@@ -289,13 +290,13 @@ describe("rep app client after L-0045 (re-verifier-4)", () => {
 describe("activity-log-check after L-0046 (re-verifier-4)", { timeout: 120_000 }, () => {
   const OTHER = "Tester · Model X · rv4-case-agent · branch t";
   const entry = (type: string, task: string) => [
-    `### L-NEXT · 2026-10-25 23:35 PKT · ${OTHER} · ${type}`,
-    `**Task:** ${task}    **Claim:** —`,
+    `# 2026-10-25 23:35 PKT · ${OTHER} · ${type}`,
+    `**Task:** ${task}`,
     "**What / why:** rv4 case.",
     "**Evidence:** rv4 case evidence.",
     "**Rules touched:** —",
     "**Next / needs:** —",
-    ...(["DONE", "VERIFIED"].includes(type) ? ["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"] : []),
+    ...["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"],
     "",
   ];
   // Fake, unsigned, assembled at run time so this file itself does not trip the secret patterns.
@@ -313,18 +314,11 @@ describe("activity-log-check after L-0046 (re-verifier-4)", { timeout: 120_000 }
       const c = spawnSync("git", ["clone", "-q", "--no-hardlinks", ROOT, dir], { encoding: "utf8" });
       if (c.status !== 0) throw new Error(c.stderr);
       // Test the WORKTREE script and log (not just the last commit), so a fix is seen before it is committed.
-      for (const rel of ["scripts/activity-log-check.mjs", "docs/ACTIVITY.md"]) writeFileSync(join(dir, rel), readFileSync(join(ROOT, rel)));
+      overlayWorktree(ROOT, dir);
       g("add", "-A");
       g("commit", "-q", "--allow-empty", "-m", "rv4 base: worktree script and log");
       const base = g("rev-parse", "HEAD").trim();
-      const logPath = join(dir, "docs", "ACTIVITY.md");
-      const all = readFileSync(logPath, "utf8").split("\n");
-      const last = Math.max(...all.map((l, i) => (/^### L-\d{4} · /.test(l) ? i : -1)));
-      const next = `L-${String(Number(all[last].slice(6, 10)) + 1).padStart(4, "0")}`;
-      let sep = all.findIndex((l) => l.startsWith("## Appendix A")) - 1;
-      while (all[sep].trim() !== "---") sep--;
-      all.splice(sep, 0, ...lines.map((l) => l.replace("L-NEXT", next)));
-      writeFileSync(logPath, all.join("\n"));
+      writeLogEntries(dir, lines);
       for (const [rel, content] of Object.entries(files)) {
         const p = join(dir, rel);
         mkdirSync(join(p, ".."), { recursive: true });
@@ -340,7 +334,7 @@ describe("activity-log-check after L-0046 (re-verifier-4)", { timeout: 120_000 }
       rmSync(dir, { recursive: true, force: true });
     }
   }
-  const P = entry("PROGRESS", "P0-04");
+  const P = entry("TASK", "P0-04");
 
   it("control: a legitimate code change with a valid entry passes; a code change without one fails", () => {
     expect(check(P, { "apps/web/lib/rv4.ts": "export const a = 1;\n" }).status).toBe(0);

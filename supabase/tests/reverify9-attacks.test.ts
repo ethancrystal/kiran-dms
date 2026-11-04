@@ -26,23 +26,22 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { overlayWorktree, writeLogEntries } from "./log-check-harness";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const OTHER = "Tester · Model X · rv9-case-agent · branch t";
 
 const entry = (type: string, task: string, sig = OTHER) => [
-  `### L-NEXT · 2026-10-26 04:00 PKT · ${sig} · ${type}`,
-  `**Task:** ${task}    **Claim:** —`,
+  `# 2026-10-26 04:00 PKT · ${sig} · ${type}`,
+  `**Task:** ${task}`,
   "**What / why:** rv9 case.",
   "**Evidence:** rv9 case evidence.",
   "**Rules touched:** —",
   "**Next / needs:** —",
-  ...(["DONE", "VERIFIED"].includes(type)
-    ? ["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"]
-    : []),
+  ...["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"],
   "",
 ];
-const P = entry("PROGRESS", "P0-04");
+const P = entry("TASK", "P0-04");
 // Fake values, assembled at run time.
 const FAKE_PW = "Zq8vR2" + "mT9xLw4Kp";
 const FAKE_JWT = ["eyJ" + "hbGciOiJIUzI1NiJ9", "eyJ" + "zdWIiOiJ4eHh4eHh4eCJ9", "c2lnbmF0dXJlc2lnbmF0dXJl"].join(".");
@@ -61,7 +60,7 @@ type Case = {
   lines?: string[];
   files?: Record<string, string | Buffer>;
   terms?: string;
-  // Edit the whole log text after the case lines are inserted (e.g. text outside §16).
+  // Edit ACTIVITY.md after the case's log file is written.
   mutate?: (text: string) => string;
 };
 function check(c: Case): { status: number | null; out: string } {
@@ -74,18 +73,13 @@ function check(c: Case): { status: number | null; out: string } {
     };
     const cl = spawnSync("git", ["clone", "-q", "--no-hardlinks", ROOT, dir], { encoding: "utf8" });
     if (cl.status !== 0) throw new Error(cl.stderr);
-    for (const rel of ["scripts/activity-log-check.mjs", "docs/ACTIVITY.md"]) writeFileSync(join(dir, rel), readFileSync(join(ROOT, rel)));
+    overlayWorktree(ROOT, dir);
     g("add", "-A");
     g("commit", "-q", "--allow-empty", "-m", "rv9 base: worktree script and log");
     const base = g("rev-parse", "HEAD").trim();
+    writeLogEntries(dir, c.lines ?? P);
     const logPath = join(dir, "docs", "ACTIVITY.md");
-    const all = readFileSync(logPath, "utf8").split("\n");
-    const last = Math.max(...all.map((l, i) => (/^### L-\d{4} · /.test(l) ? i : -1)));
-    const next = `L-${String(Number(all[last].slice(6, 10)) + 1).padStart(4, "0")}`;
-    let sep = all.findIndex((l) => l.startsWith("## Appendix A")) - 1;
-    while (all[sep].trim() !== "---") sep--;
-    all.splice(sep, 0, ...(c.lines ?? P).map((l) => l.replaceAll("L-NEXT", next)));
-    let text = all.join("\n");
+    let text = readFileSync(logPath, "utf8");
     if (c.mutate) text = c.mutate(text);
     writeFileSync(logPath, text);
     for (const [rel, content] of Object.entries(c.files ?? {})) {

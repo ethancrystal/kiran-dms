@@ -26,6 +26,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { overlayWorktree, writeLogEntries } from "./log-check-harness";
 import { fx, run, sqlstate } from "./helpers/db";
 
 const ROOT = resolve(import.meta.dirname, "../..");
@@ -167,18 +168,16 @@ describe("P0-06 guards and P1-01 device guard (re-verifier-10)", () => {
 // ---------------------------------------------------------------------------------------------
 const OTHER = "Tester · Model X · rv10-case-agent · branch t";
 const entry = (type: string, task: string, sig = OTHER) => [
-  `### L-NEXT · 2026-10-28 04:00 PKT · ${sig} · ${type}`,
-  `**Task:** ${task}    **Claim:** —`,
+  `# 2026-10-28 04:00 PKT · ${sig} · ${type}`,
+  `**Task:** ${task}`,
   "**What / why:** rv10 case.",
   "**Evidence:** rv10 case evidence.",
   "**Rules touched:** —",
   "**Next / needs:** —",
-  ...(["DONE", "VERIFIED", "CORRECTION"].includes(type)
-    ? ["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"]
-    : []),
+  ...["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"],
   "",
 ];
-const P = entry("PROGRESS", "P0-09");
+const P = entry("TASK", "P0-09");
 // Fake values, assembled at run time.
 const FAKE_JWT = ["eyJ" + "hbGciOiJIUzI1NiJ9", "eyJ" + "zdWIiOiJ4eHh4eHh4eCJ9", "c2lnbmF0dXJlc2lnbmF0dXJl"].join(".");
 const TERM = "Quorvexa"; // invented owner term
@@ -206,20 +205,15 @@ function check(c: Case): { status: number | null; out: string } {
     };
     const cl = spawnSync("git", ["clone", "-q", "--no-hardlinks", ROOT, dir], { encoding: "utf8" });
     if (cl.status !== 0) throw new Error(cl.stderr);
-    for (const rel of ["scripts/activity-log-check.mjs", "docs/ACTIVITY.md"]) writeFileSync(join(dir, rel), readFileSync(join(ROOT, rel)));
+    overlayWorktree(ROOT, dir);
     g("add", "-A");
     g("commit", "-q", "--allow-empty", "-m", "rv10 base: worktree script and log");
     const base = g("rev-parse", "HEAD").trim();
+    writeLogEntries(dir, c.lines ?? P);
     const logPath = join(dir, "docs", "ACTIVITY.md");
-    const all = readFileSync(logPath, "utf8").split("\n");
-    const last = Math.max(...all.map((l, i) => (/^### L-\d{4} · /.test(l) ? i : -1)));
-    const next = `L-${String(Number(all[last].slice(6, 10)) + 1).padStart(4, "0")}`;
-    let sep = all.findIndex((l) => l.startsWith("## Appendix A")) - 1;
-    while (all[sep].trim() !== "---") sep--;
-    all.splice(sep, 0, ...(c.lines ?? P));
-    let text = all.join("\n");
+    let text = readFileSync(logPath, "utf8");
     if (c.mutate) text = c.mutate(text);
-    writeFileSync(logPath, text.replaceAll("L-NEXT", next));
+    writeFileSync(logPath, text);
     for (const [rel, content] of Object.entries(c.files ?? {})) write(rel, content);
     g("add", "-A");
     g("commit", "-q", "-m", "rv10 case");
@@ -252,14 +246,14 @@ const utf32le = (s: string) => {
   return b;
 };
 const verifierId = (() => {
-  const m = [...readFileSync(join(ROOT, "docs", "ACTIVITY.md"), "utf8").matchAll(/^### (L-\d{4}) · [^\n]*re-verifier-10 workflow[^\n]*$/gm)];
+  const m = [...readFileSync(join(ROOT, "docs", "log", "archive.md"), "utf8").matchAll(/^### (L-\d{4}) · [^\n]*re-verifier-10 workflow[^\n]*$/gm)];
   return m.length ? m[m.length - 1][1] : null;
 })();
 
 describe("activity-log-check P0-09 board rule 4b (re-verifier-10)", { timeout: 900_000 }, () => {
   it("CONTROL: an uncited move is refused; this verifier's entry satisfies rule 4b for P1-01", () => {
     expect(check({ mutate: setStatus("P0-09", "VERIFIED") }).status).toBe(1);
-    expect(verifierId, "the re-verifier-10 entry must be in docs/ACTIVITY.md").not.toBeNull();
+    expect(verifierId, "the re-verifier-10 entry must be in docs/log/archive.md").not.toBeNull();
     const cite = check({ mutate: setStatus("P1-01", `VERIFIED (${verifierId})`) });
     console.log("rv10 control (P1-01 citing the re-verifier-10 entry):", cite.status, cite.out.split("\n")[0]);
     expect(cite.status).toBe(0);

@@ -27,11 +27,11 @@ const goodHook = () => ({
   },
 });
 
-const minimalPolicy =
-  "# Protocol\n\n## 2. Required startup sequence\n\nRule.\n\n## 11. Untrusted content and prompt-injection defence\n\nRule.\n";
+const goodActivity =
+  "# Activity\n\n### 1.1 Untrusted content and prompt-injection defence\n\nRule.\n\n## 2. Session-start checklist (all steps required)\n\nRule.\n\n## 16. Activity log\n\n## Appendix A — Text\n\nRead the newest entries in docs/log/.\n\n## Appendix B — Other\n";
 
 /** A minimal, fully installed policy set in a temp directory. */
-function fixture({ policy = minimalPolicy, realScript = false } = {}) {
+function fixture({ activity = goodActivity, realScript = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "kiran-agent-policy-"));
   const write = (path, content) => {
     const target = join(root, path);
@@ -40,17 +40,14 @@ function fixture({ policy = minimalPolicy, realScript = false } = {}) {
   };
   const instructions = [
     "# Kiran DMS — READ THIS FIRST",
-    "Read docs/AGENT-COMPLIANCE-PROTOCOL.md and docs/ACTIVITY.md.",
+    "Read docs/ACTIVITY.md and the newest entries in docs/log/.",
     "Run pnpm agent:preflight before changes.",
     "",
   ].join("\n");
   write("AGENTS.md", instructions);
   write("CLAUDE.md", instructions);
-  write("docs/AGENT-COMPLIANCE-PROTOCOL.md", policy);
-  write(
-    "docs/ACTIVITY.md",
-    "# Activity\n\n## 16. Activity log\n\n## Appendix A — Text\n\nRead docs/AGENT-COMPLIANCE-PROTOCOL.md.\n\n## Appendix B — Other\n",
-  );
+  write("docs/ACTIVITY.md", activity);
+  write("docs/log/archive.md", "### L-0001\n");
   write(".claude/settings.json", JSON.stringify(goodHook()));
   write(".gitignore", "node_modules/\n.claude/settings.local.json\n.claude/worktrees/\n");
   write("scripts/agent-preflight.test.mjs", "// present\n");
@@ -101,22 +98,22 @@ test("rejects missing policy files and missing root instructions", () => {
   const f = fixture();
   try {
     writeFileSync(join(f.root, "AGENTS.md"), "# Missing references\n");
-    rmSync(join(f.root, "docs/AGENT-COMPLIANCE-PROTOCOL.md"));
+    rmSync(join(f.root, "docs/log/archive.md"));
     const errors = validatePolicyFiles(f.root);
     assert.ok(errors.some((e) => e.includes("AGENTS.md does not reference")));
     assert.ok(errors.some((e) => e.includes("AGENTS.md and CLAUDE.md differ")));
-    assert.ok(errors.some((e) => e.includes("Required file is missing: docs/AGENT-COMPLIANCE-PROTOCOL.md")));
+    assert.ok(errors.some((e) => e.includes("Required file is missing: docs/log/archive.md")));
   } finally {
     f.cleanup();
   }
 });
 
-test("rejects an ACTIVITY Appendix A that does not reference the protocol, even if another section does", () => {
+test("rejects an ACTIVITY Appendix A that does not reference docs/log/, even if another section does", () => {
   const f = fixture();
   try {
     f.write(
       "docs/ACTIVITY.md",
-      "# Activity\n\n## 16. Log\n\ndocs/AGENT-COMPLIANCE-PROTOCOL.md\n\n## Appendix A — Text\n\nNothing.\n\n## Appendix B\n\ndocs/AGENT-COMPLIANCE-PROTOCOL.md\n",
+      "# Activity\n\n## 16. Log\n\ndocs/log/\n\n## Appendix A — Text\n\nNothing.\n\n## Appendix B\n\ndocs/log/\n",
     );
     assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("Appendix A must reference")));
     f.write("docs/ACTIVITY.md", "# Activity\n");
@@ -162,12 +159,12 @@ test("rejects a missing, invalid, relative, shell-form or filtered SessionStart 
   }
 });
 
-test("rejects a protocol that has lost its startup or prompt-injection section", () => {
+test("rejects an ACTIVITY.md that has lost its startup or prompt-injection section", () => {
   const f = fixture();
   try {
-    f.write("docs/AGENT-COMPLIANCE-PROTOCOL.md", "# Protocol\n\n## 2. Required startup sequence\n");
+    f.write("docs/ACTIVITY.md", goodActivity.replace("### 1.1 Untrusted content and prompt-injection defence", "### 1.1 Other"));
     assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("missing its untrusted-content and prompt-injection section")));
-    f.write("docs/AGENT-COMPLIANCE-PROTOCOL.md", "# Protocol\n\n## 11. Untrusted content and prompt-injection defence\n");
+    f.write("docs/ACTIVITY.md", goodActivity.replace("## 2. Session-start checklist (all steps required)", "## 2. Other"));
     assert.ok(validatePolicyFiles(f.root).some((e) => e.includes("missing its mandatory startup sequence")));
   } finally {
     f.cleanup();
@@ -200,14 +197,14 @@ test("appendixA cuts at the next section", () => {
   assert.equal(appendixA("## Appendix B\nb"), null);
 });
 
-test("the real hook output is short and pastes none of the protocol or CLAUDE.md", () => {
+test("the real hook output is short and pastes none of ACTIVITY.md or CLAUDE.md", () => {
   const { text } = buildHookContext(REPO);
   assert.ok(text.length <= HOOK_OUTPUT_LIMIT, `hook output is ${text.length} characters`);
-  const protocol = readFileSync(join(REPO, "docs/AGENT-COMPLIANCE-PROTOCOL.md"), "utf8");
+  const activity = readFileSync(join(REPO, "docs/ACTIVITY.md"), "utf8");
   const claudeMd = readFileSync(join(REPO, "CLAUDE.md"), "utf8");
   const sentences = (s) => s.split(/\n+/).filter((line) => line.length > 60);
-  for (const line of [...sentences(protocol), ...sentences(claudeMd)]) {
-    assert.ok(!text.includes(line), `hook output repeats a line from the protocol or CLAUDE.md: ${line.slice(0, 50)}`);
+  for (const line of [...sentences(activity), ...sentences(claudeMd)]) {
+    assert.ok(!text.includes(line), `hook output repeats a line from ACTIVITY.md or CLAUDE.md: ${line.slice(0, 50)}`);
   }
 });
 

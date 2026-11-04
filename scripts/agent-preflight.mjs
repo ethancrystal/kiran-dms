@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Kiran DMS agent preflight (docs/AGENT-COMPLIANCE-PROTOCOL.md §10).
+ * Kiran DMS agent preflight (docs/ACTIVITY.md Appendix C).
  * A read-only tripwire: checks the governance files and references, and reports branch and
  * worktree state. It writes nothing and cannot prove that an agent read or understood anything.
  *
@@ -8,8 +8,8 @@
  *   (none)  local startup: exit 1 on any finding, including work on local main or master
  *   --ci    GitHub Actions: same file checks; the branch is not checked (CI checks out a detached ref)
  *   --hook  Claude Code SessionStart: always exit 0 (a failing SessionStart hook only shows a notice);
- *           prints a short report and tells the agent what to read. It does not paste the protocol:
- *           the protocol must be read in full anyway, so pasting it would load it twice.
+ *           prints a short report and tells the agent what to read. It does not paste the rules:
+ *           they must be read anyway, so pasting them would load them twice.
  */
 
 import { spawnSync } from "node:child_process";
@@ -18,8 +18,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
-export const POLICY_PATH = "docs/AGENT-COMPLIANCE-PROTOCOL.md";
 const ACTIVITY_PATH = "docs/ACTIVITY.md";
+const LOG_DIR = "docs/log/";
+const ARCHIVE_PATH = "docs/log/archive.md";
 const APPENDIX_A_HEADING = "## Appendix A";
 
 // Claude Code caps a hook's plain stdout at 10,000 characters (longer output becomes a file path the
@@ -35,15 +36,15 @@ export const HOOK_COMMAND = "node";
 export const HOOK_ARGS = ["${CLAUDE_PROJECT_DIR}/scripts/agent-preflight.mjs", "--hook"];
 
 const REQUIRED_SECTIONS = [
-  ["## 2. Required startup sequence", "its mandatory startup sequence"],
-  ["## 11. Untrusted content and prompt-injection defence", "its untrusted-content and prompt-injection section"],
+  ["## 2. Session-start checklist", "its mandatory startup sequence"],
+  ["### 1.1 Untrusted content and prompt-injection defence", "its untrusted-content and prompt-injection section"],
 ];
 
 const REQUIRED_FILES = [
   "AGENTS.md",
   "CLAUDE.md",
-  POLICY_PATH,
   ACTIVITY_PATH,
+  ARCHIVE_PATH,
   ".claude/settings.json",
   ".gitignore",
   "package.json",
@@ -105,8 +106,8 @@ export function validatePolicyFiles(root) {
     ["CLAUDE.md", claude],
   ]) {
     if (contents === null) continue;
-    if (!contents.includes(POLICY_PATH)) errors.push(`${name} does not reference ${POLICY_PATH}`);
     if (!contents.includes(ACTIVITY_PATH)) errors.push(`${name} does not reference ${ACTIVITY_PATH}`);
+    if (!contents.includes(LOG_DIR)) errors.push(`${name} does not reference ${LOG_DIR}`);
     if (!contents.includes("pnpm agent:preflight")) {
       errors.push(`${name} does not instruct agents to run pnpm agent:preflight`);
     }
@@ -119,7 +120,10 @@ export function validatePolicyFiles(root) {
   if (activity !== null) {
     const appendix = appendixA(activity);
     if (appendix === null) errors.push(`${ACTIVITY_PATH} has no "${APPENDIX_A_HEADING}" section`);
-    else if (!appendix.includes(POLICY_PATH)) errors.push(`${ACTIVITY_PATH} Appendix A must reference ${POLICY_PATH}`);
+    else if (!appendix.includes(LOG_DIR)) errors.push(`${ACTIVITY_PATH} Appendix A must reference ${LOG_DIR}`);
+    for (const [heading, what] of REQUIRED_SECTIONS) {
+      if (!activity.includes(heading)) errors.push(`${ACTIVITY_PATH} is missing ${what}`);
+    }
   }
 
   const packageJsonText = readText(root, "package.json");
@@ -155,13 +159,6 @@ export function validatePolicyFiles(root) {
     const lines = new Set(gitignore.split(/\r?\n/).map((line) => line.trim()));
     for (const pattern of REQUIRED_IGNORES) {
       if (!lines.has(pattern)) errors.push(`.gitignore must contain the line ${pattern}`);
-    }
-  }
-
-  const policy = readText(root, POLICY_PATH);
-  if (policy !== null) {
-    for (const [heading, what] of REQUIRED_SECTIONS) {
-      if (!policy.includes(heading)) errors.push(`${POLICY_PATH} is missing ${what}`);
     }
   }
 
@@ -222,14 +219,13 @@ export function buildReport(root, { ci = false, hook = false } = {}) {
 }
 
 /**
- * SessionStart context. It does not paste the protocol or repeat CLAUDE.md: the protocol and
- * ACTIVITY.md must be read in full anyway (CLAUDE.md says so), so pasting any of it here would load
- * the same text twice.
+ * SessionStart context. It does not paste the rules or repeat CLAUDE.md: ACTIVITY.md must be read
+ * anyway (CLAUDE.md says so), so pasting any of it here would load the same text twice.
  */
 export function buildHookContext(root) {
   const { lines, errors } = buildReport(root, { hook: true });
   lines.push(
-    `Read ${POLICY_PATH} and ${ACTIVITY_PATH} before any edit, then log SESSION-START and CLAIM (as CLAUDE.md says). Re-run pnpm agent:preflight once you are on your feature branch.`,
+    `Read ${ACTIVITY_PATH} and the 20 newest entries in ${LOG_DIR} (not ${ARCHIVE_PATH}) before any edit. Check git branch -r and open pull requests for overlap; your branch and pull request are the claim. Keep one log entry for your task. Re-run pnpm agent:preflight once you are on your feature branch.`,
   );
   return { text: lines.join("\n"), errors };
 }

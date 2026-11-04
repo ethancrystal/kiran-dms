@@ -12,6 +12,6 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-A label never replaces the build protocol: `ready-for-agent` does not authorise work. An agent still needs a claim in `docs/ACTIVITY.md` §13, and the task's status there governs.
+A label never replaces the build protocol: `ready-for-agent` does not authorise work. An agent still needs its branch and log entry (`docs/ACTIVITY.md` §3, §4), and the task's status on the §12 board governs.
 
 Edit the right-hand column to match whatever vocabulary you actually use.

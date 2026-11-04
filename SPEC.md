@@ -34,29 +34,13 @@ Decisions D-15 to D-20 (independent agents, lost demand, due-list and bag load i
 - every new rep productive within 2 weeks;
 - monthly sales through independent agents, in rupees (D-21; target to be set by the owner, OQ-21).
 
-**Scope and order.** Phase 0 is foundations, and Phase 1 is the existing MVP: the khata, the bag and the controls. The salon portal and dual-channel order requirements are specified in docs 03, 06 and 15 and sequenced in doc 11, subject to the existing phase gates. ACTIVITY §12 remains the live implementation status; requirement IDs are in doc 03.
+**Scope and order.** Phase 0 is foundations, and Phase 1 is the existing MVP: the khata, the bag and the controls. The salon portal and dual-channel order requirements are specified in docs 03, 06 and 15 and sequenced in doc 11, subject to the existing phase gates. Implementation status is only on the ACTIVITY §12 board; requirement IDs are in doc 03.
 
 **Non-goals for now:** accounting, payroll, consumer e-commerce and multi-city features ([doc 01](docs/01-business-context.md)).
 
-## 2. Where we are (2026-11-04)
+## 2. Where we are
 
-The live record is the ACTIVITY status board (§12); this is a snapshot and the board wins. States use the status words of the [master execution prompt](docs/audit-2026-10-31/master-prompt-2026-11-01.md); "IMPLEMENTED — NOT VERIFIED" stands for the board's "DONE (self-reported)" or "awaiting verification" (by the builder or another agent, ACTIVITY §7, MJ L-0401), and the log entry that says so is cited.
-
-| Phase | Item | State |
-|---|---|---|
-| 0 | Repo, CI, auth with MFA, RLS test harness, config defaults, protocol enforcement (P0-04 to P0-09) | PARTIALLY IMPLEMENTED: P0-04 and P0-05 in progress (the owner account is a human step, ACTIVITY §10; B-18 resolved, L-0253); P0-06 in progress again (reopened L-0111, was VERIFIED L-0030); P0-08 VERIFIED (L-0030); P0-09 IMPLEMENTED — NOT VERIFIED (compliance kit L-0188, awaiting an independent check) |
-| 0 | Decisions, territories and pilot rep, vendor sign-ups, Excel real-file run, Gate 0 (P0-01, 02, 03, 07, 10) | NOT STARTED, **waiting on MJ** (§11); P0-02's dry-run tool is built (self-reported) and its real-file run is MJ's (OQ-01) |
-| 1 | P1-01 foundation (roles, devices, audit chain, approvals) | VERIFIED (L-0116) |
-| 1 | P1-04 inventory + lost-demand capture | IMPLEMENTED — NOT VERIFIED (DONE self-reported, L-0133), [PR 5](https://github.com/ethancrystal/kiran-dms/pull/5) |
-| 1 | P1-02: territories, salons, masked phones, stage events (part a); rep days, visits, check-in gating (part b); rep and office salon screens (execution-map slice 3) | PARTIALLY IMPLEMENTED: parts a and b IMPLEMENTED — NOT VERIFIED (L-0147, L-0153); the slice 3 screens IMPLEMENTED — NOT VERIFIED (L-0282, awaiting re-verification); parts c and d NOT STARTED |
-| 1 | P1-16 due-list and manual routes | IMPLEMENTED — NOT VERIFIED (DONE self-reported, L-0159) |
-| 1 | P1-06 parts a to c: credit profile, orders, discount approvals, deliveries, gapless invoices, the invoice document's data | IMPLEMENTED — NOT VERIFIED (DONE self-reported, L-0165, L-0170, L-0199); the invoice PDF renderer NOT STARTED |
-| 1 | P1-06 rework under D-30, PR A of the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md) and its [plan](docs/superpowers/plans/2026-11-03-office-orders-and-cards.md): office-created orders (owner or manager), rep order cards (New Order Details) that the office converts or dismisses, the Orders area, an optional assigned (delivering) rep; migration `20261104090000` | IMPLEMENTED — NOT VERIFIED (L-0391, L-0393): branch `claude/orders-delivery-commission`, not pushed, no pull request; the stack browser tests have not run (no Docker on the build host; CI only); awaiting an independent check |
-| 1 | PR B, planned: delivery approval (D-32). A rep's delivery becomes a submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody | NOT STARTED (its own plan comes first, L-0392) |
-| 1 | PR C, planned: commission (D-31, brought into Phase 1 by MJ, L-0385). A rate per rep set by the owner or manager; earned on the delivered and invoiced value of orders with an assigned rep; earned only, no payouts; date-range commission areas for the rep and the office | NOT STARTED (after PR B, L-0392) |
-| 1 | P1-07 money: payments, allocations and receipts (migration 0021), receivables ageing (0022), two-party cash handover (0023), office cash collection (0024); merged in PR 46 (L-0366) | PARTIALLY IMPLEMENTED: those four parts IMPLEMENTED — NOT VERIFIED (self-reported, L-0350 to L-0364; awaiting an independent check; a verifier's findings, B-41, wait on an unmerged branch, §11); deposits (CTL-04), the cash cap (CTL-17), reversals, receipt sending and dispute settlement NOT STARTED (L-0367) |
-| 1 | P1-02 parts c and d, P1-03, P1-05, P1-08 to P1-15, P1-17 | NOT STARTED; order in ACTIVITY §12.1 (the receivables ageing screen of P1-10 exists, built in P1-07, L-0355) |
-| 2 | Salon portal and dual-channel ordering (SAL-11/12, ORD-11 to 13, SEC-13 to 15) | DEFERRED — FUTURE PHASE (Phase 2 in doc 11; its rules are decided in D-30, nothing is built) |
+Task status lives in one place, [the status board](docs/ACTIVITY.md) (ACTIVITY §12); this file does not repeat it. The order rework's plan is the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md).
 
 Phase 1 started before Gate 0 by MJ's decision (D-20).
 
@@ -90,7 +74,7 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 **J4 — The manager loads tomorrow's bags** ([doc 10 §7a](docs/10-inventory-and-restocking.md))
 1. The system suggests each rep's load from tomorrow's route: open deliveries, due re-orders × last quantity, a prospect allowance, minus what is already in the bag (INV-11).
 2. The suggestion never exceeds warehouse availability or the bag value limit; every shortfall is recorded as lost demand (INV-11, DEM-02, CTL-05).
-3. Stock moves only when the rep confirms the same count; a different count moves nothing (CTL-05). *Built in P1-04.*
+3. Stock moves only when the rep confirms the same count; a different count moves nothing (CTL-05).
 
 **J5 — The owner's morning** ([doc 01](docs/01-business-context.md), [doc 13](docs/13-anti-fraud-controls.md))
 1. "How much are we owed, by whom, and who is collecting it?" is answered from the phone in **under 10 s** (doc 01 system goal 2, doc 11 exit criterion 4).
@@ -108,29 +92,31 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 
 ## 4. Phase 1 feature map
 
-| Feature | Requirements | Proven by | Status |
+The last column names the task whose status is on [the status board](docs/ACTIVITY.md) (ACTIVITY §12).
+
+| Feature | Requirements | Proven by | Board task |
 |---|---|---|---|
-| Foundation: roles, MFA at the database, devices, audit chain, approvals | SEC-01 to 05, 07, 11, 12 | RLS matrix, verifier attack suites | VERIFIED (P1-01, L-0116) |
-| Inventory, two-party bag custody, counts, adjustments, lost-demand tap | INV-01 to 06, CTL-05, DEM-01 | `inventory.test.ts`, RLS matrix | IMPLEMENTED — NOT VERIFIED (P1-04, DONE self-reported, L-0133) |
-| Territories, salons, masked phones, notes, stage events | SAL-01 to 03, 09, PIP-01, MAP-03 | `salons.test.ts`, RLS matrix | IMPLEMENTED — NOT VERIFIED (P1-02a, L-0147) |
-| Visits and check-in gating | PIP-02, PIP-09 | `visits.test.ts`, RLS matrix (Playwright J1 not written yet) | IMPLEMENTED — NOT VERIFIED (P1-02b, L-0153) |
-| Salon OTP verification, phone-change OTP | CTL-09, CTL-18 | DB tests (SMS adapter stubbed) | NOT STARTED (P1-02c) |
-| Excel import write path, timeline | SAL-10, SAL-05 | DB tests, import tests | NOT STARTED (P1-02d); the credit profile (SAL-04) moved to P1-06a |
-| Rep map | MAP-01, 02, 12 | Playwright | NOT STARTED (P1-03) |
-| Vault: suppliers, POs, goods receipts, fill rate | VLT-01 to 06, D-18 | Vault leakage tests (doc 07 §5) | NOT STARTED (P1-05) |
-| Orders (D-30): the office (owner or manager) creates orders, directly or by converting a rep's order card (New Order Details), with an optional assigned rep picked from the salon's territory reps (choosing none is allowed for a manager-direct order, A-16, L-0385); the owner's own discount on an office order needs no approval and is recorded on the order (L-0390); credit profile, credit gate, discount approvals, deliveries, gapless invoices; reps can no longer create orders | SAL-04 (eligibility, limit, block; overdue status waits for P1-07), ORD-01 to 04, ORD-14 (ORD-10 superseded by D-30; ORD-05 in the next row); CTL-07, CTL-08 (digest listing in P1-08) | `orders.test.ts`, `office-orders.test.ts`, `order-cards.test.ts`, `office-order-access.test.ts`, `deliveries.test.ts`, RLS matrix | P1-06a and b IMPLEMENTED — NOT VERIFIED (L-0165, L-0170); the D-30 rework (PR A) IMPLEMENTED — NOT VERIFIED (L-0391, L-0393; unmerged); a rep still delivers its assigned orders as before until PR B |
-| Orders screens: the office Orders area (`/office/orders`: create an order, the open cards queue with convert and dismiss, the order list); the rep's My cards (`/app/cards`), Orders read-only (`/app/orders`) and the New Order Details card on the salon page | ORD-01, ORD-14 | `apps/web/e2e-stack/office.spec.ts` (card to order to the rep's read-only list; CI only, not yet run) | IMPLEMENTED — NOT VERIFIED (PR A, L-0391) |
-| Invoice document | ORD-05 | `invoice-document.test.ts` | Data IMPLEMENTED — NOT VERIFIED (P1-06c, L-0199); the PDF renderer NOT STARTED |
-| Money: payments, allocations, receipts (gapless numbers and the receipt document's data), cash ledger, receivables ageing, two-party handover, office cash collection | PAY-01 to 05, 07, 10, 11; CTL-01 to 04, 17 | `payments.test.ts`, `receivables-ageing.test.ts`, `handovers.test.ts`, `office-cash.test.ts`, RLS matrix, office stack browser tests | PARTIALLY IMPLEMENTED (P1-07): migrations 0021 to 0024 IMPLEMENTED — NOT VERIFIED (PR 46, L-0350 to L-0364; awaiting an independent check, B-41 in §11); deposits (CTL-04), the cash cap (CTL-17), reversals, receipt sending and dispute settlement NOT STARTED (L-0367) |
-| Delivery approval, planned (PR B, D-32): a rep's delivery becomes an immutable submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody; rejected goods stay there until the office settles them | D-32; ORD-04 (to be rewritten in PR B, L-0392) | planned in the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md) (§7): delivery approval DB tests, a real-stack browser journey | NOT STARTED (planned, not built) |
-| Commission, planned (PR C, D-31): a rate per rep, set and changed by the owner or manager from the change onward; earned on the delivered and invoiced value of orders with an assigned rep; earned only, no payouts; date-range commission areas for the rep and the office | CTL-13, FLD-01 (rate), FLD-03 (the earned view) | planned in the design spec (§7): commission DB tests | NOT STARTED (planned, not built) |
-| Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | NOT STARTED (P1-08) |
-| Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | NOT STARTED (P1-09) |
-| Dashboards, admin | RPT-01, 02; MSG-03; ADM-01, 02; FLD-01 | Playwright | NOT STARTED (P1-10, P1-11); the receivables ageing screen exists (P1-07, L-0355) |
-| Independent agents | AGT-01 to 04, 06 | DB tests + Playwright J3 | NOT STARTED (P1-15) |
-| Due-list and manual routes | PIP-03, PIP-05/06 thin | `routes.test.ts`, RLS matrix | IMPLEMENTED — NOT VERIFIED (P1-16, L-0159) |
-| Route-linked bag load, lost-demand report | INV-11, DEM-02, DEM-03 | DB tests + Playwright J4 | NOT STARTED (P1-17) |
-| Security acceptance suite + restore drill | doc 06 §10, doc 07 §5, NFR-10 | launch security checklist below | NOT STARTED (P1-12) |
+| Foundation: roles, MFA at the database, devices, audit chain, approvals | SEC-01 to 05, 07, 11, 12 | RLS matrix, verifier attack suites | P1-01 |
+| Inventory, two-party bag custody, counts, adjustments, lost-demand tap | INV-01 to 06, CTL-05, DEM-01 | `inventory.test.ts`, RLS matrix | P1-04 |
+| Territories, salons, masked phones, notes, stage events | SAL-01 to 03, 09, PIP-01, MAP-03 | `salons.test.ts`, RLS matrix | P1-02 part a |
+| Visits and check-in gating | PIP-02, PIP-09 | `visits.test.ts`, RLS matrix (Playwright J1 not written yet) | P1-02 part b |
+| Salon OTP verification, phone-change OTP | CTL-09, CTL-18 | DB tests (SMS adapter stubbed) | P1-02 part c |
+| Excel import write path, timeline | SAL-10, SAL-05 | DB tests, import tests | P1-02 part d |
+| Rep map | MAP-01, 02, 12 | Playwright | P1-03 |
+| Vault: suppliers, POs, goods receipts, fill rate | VLT-01 to 06, D-18 | Vault leakage tests (doc 07 §5) | P1-05 |
+| Orders (D-30): the office (owner or manager) creates orders, directly or by converting a rep's order card (New Order Details), with an optional assigned rep picked from the salon's territory reps (choosing none is allowed for a manager-direct order, A-16, L-0385); the owner's own discount on an office order needs no approval and is recorded on the order (L-0390); credit profile, credit gate, discount approvals, deliveries, gapless invoices; reps can no longer create orders | SAL-04 (eligibility, limit, block; overdue status waits for P1-07), ORD-01 to 04, ORD-14 (ORD-10 superseded by D-30; ORD-05 in the next row); CTL-07, CTL-08 (digest listing in P1-08) | `orders.test.ts`, `office-orders.test.ts`, `order-cards.test.ts`, `office-order-access.test.ts`, `deliveries.test.ts`, RLS matrix | P1-06 |
+| Orders screens: the office Orders area (`/office/orders`: create an order, the open cards queue with convert and dismiss, the order list); the rep's My cards (`/app/cards`), Orders read-only (`/app/orders`) and the New Order Details card on the salon page | ORD-01, ORD-14 | `apps/web/e2e-stack/office.spec.ts` (card to order to the rep's read-only list; CI only) | P1-06 |
+| Invoice document | ORD-05 | `invoice-document.test.ts` | P1-06 part c |
+| Money: payments, allocations, receipts (gapless numbers and the receipt document's data), cash ledger, receivables ageing, two-party handover, office cash collection | PAY-01 to 05, 07, 10, 11; CTL-01 to 04, 17 | `payments.test.ts`, `receivables-ageing.test.ts`, `handovers.test.ts`, `office-cash.test.ts`, RLS matrix, office stack browser tests | P1-07 |
+| Delivery approval, planned (PR B, D-32): a rep's delivery becomes an immutable submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody; rejected goods stay there until the office settles them | D-32; ORD-04 (to be rewritten in PR B, L-0392) | planned in the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md) (§7): delivery approval DB tests, a real-stack browser journey | P1-06 (PR B) |
+| Commission, planned (PR C, D-31): a rate per rep, set and changed by the owner or manager from the change onward; earned on the delivered and invoiced value of orders with an assigned rep; earned only, no payouts; date-range commission areas for the rep and the office | CTL-13, FLD-01 (rate), FLD-03 (the earned view) | planned in the design spec (§7): commission DB tests | P1-06 (PR C) |
+| Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | P1-08 |
+| Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
+| Dashboards, admin | RPT-01, 02; MSG-03; ADM-01, 02; FLD-01 | Playwright | P1-10, P1-11 |
+| Independent agents | AGT-01 to 04, 06 | DB tests + Playwright J3 | P1-15 |
+| Due-list and manual routes | PIP-03, PIP-05/06 thin | `routes.test.ts`, RLS matrix | P1-16 |
+| Route-linked bag load, lost-demand report | INV-11, DEM-02, DEM-03 | DB tests + Playwright J4 | P1-17 |
+| Security acceptance suite + restore drill | doc 06 §10, doc 07 §5, NFR-10 | launch security checklist below | P1-12 |
 
 **Launch security checklist** ([doc 06 §10](docs/06-security-plan.md)), all required before the pilot:
 1. RLS matrix passes for every table × role, including a rep in territory A failing to read territory B.
@@ -161,7 +147,7 @@ pnpm typecheck                      # every package
 pnpm db:test                        # all migrations on a throwaway Postgres + RLS/invariant suite
 pnpm db:test -- -t "name"           # one test
 pnpm -r --if-present test           # package unit tests (packages/import)
-pnpm activity:check                 # the ACTIVITY.md check CI runs
+pnpm activity:check                 # the ACTIVITY.md and docs/log check CI runs
 pnpm -C apps/web dev                # web app on :3000 (/app rep PWA, /office)
 pnpm -C apps/web build              # production build (CI also scans the bundle, H-18)
 pnpm lint                           # Biome lint + format check (CI job `lint`, §8)
@@ -179,7 +165,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 
 | Path | What |
 |---|---|
-| `docs/` | Planning set 00–15, `ACTIVITY.md` (protocol + live log), `diagrams/`, `runbooks/` |
+| `docs/` | Planning set 00–15, `ACTIVITY.md` (protocol, status board, blockers), `log/` (one file per log entry; `log/archive.md` is frozen), `diagrams/`, `runbooks/` |
 | `supabase/migrations/` | Forward-only SQL: schemas, tables, RLS, `app.*` functions, guards. One file per task, never edited after merge |
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
 | `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. Planned: `app/salon/`, the salon customer portal (Phase 2 in doc 11; not built yet) |
@@ -241,7 +227,7 @@ The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc
 The full list is the hard rules H-01 to H-27 (ACTIVITY §5), "stop and ask MJ" (§9) and the human-only actions (§10). In short:
 
 **Always**
-- Read `docs/ACTIVITY.md`, then log a SESSION-START, a claim and a HANDOFF.
+- Read `docs/ACTIVITY.md` and the 20 newest entries in `docs/log/`, then keep one log entry for your task.
 - Work on a feature branch.
 - Record real evidence: commands, counts, SHAs (H-23, H-24).
 - Enforce controls in the database, not only in the UI.
@@ -273,7 +259,7 @@ Work that needs them is blocked or runs on the stated default (ACTIVITY §14, do
 | B-39: approval use-time rules (who may use, use-time check, expiry, offboarded checker, credit override, write-off) | P1-08 | D-25 registry may be built; the open rules keep today's behaviour |
 | B-38: the service-role scan passes an empty `--bundle` directory, because source files are counted with the bundle files; approve requiring at least one scanned file per `--bundle` directory (H-18), with a test? | — | Leave as is |
 | A-18: an order with no assigned rep (manager-direct, later the salon portal) is delivered from the warehouse by the office (`app.office_deliver`) and paid through the office cash or bank-transfer paths (L-0386) | Delivery and collection of rep-less orders; PR B | As built in PR A's database functions: the office delivers it and records its payments; no rep can deliver it (L-0391); no delivery screen exists yet |
-| B-41 and the verifier's verdict (a CORRECTION entry that also corrects L-0355): findings of an independent check of P1-07 money and the B-34, B-35 fixes, held on the unpushed branch `claude/gifted-mestorf-be2a40` with claim C-038 (L-0383, L-0392); its IDs may change when that branch is renumbered (ACTIVITY §4). Asks: MJ's OK to push it and open its pull request; a DONE entry for P1-07 and a task id for the B-34, B-35 fixes, so that a VERIFIED entry can name them | Any VERIFIED status for P1-07; B-34 item 3 re-verification | Leave as is until a builder fixes the findings |
+| B-41 and the verifier's verdict (a CORRECTION entry that also corrects L-0355): findings of an independent check of P1-07 money and the B-34, B-35 fixes, held on the unpushed branch `claude/gifted-mestorf-be2a40` (L-0383, L-0392); its entries move to `docs/log/` files when that branch is brought forward. Asks: MJ's OK to push it and open its pull request; a task id for the B-34, B-35 fixes, so that a VERIFIED entry can name them | Any VERIFIED status for P1-07; B-34 item 3 re-verification | Leave as is until a builder fixes the findings |
 | OQ-32: rep location policy | Location tracking (PIP-12/13) | Event GPS only |
 | Owner account creation and MFA (human-only, ACTIVITY §10) | P0-05, Gate 0 | — |
 | OQ-01: the real Excel file | P0-02 real run, opening balances | Synthetic data |

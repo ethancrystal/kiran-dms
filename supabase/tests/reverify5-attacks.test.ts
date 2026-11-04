@@ -20,6 +20,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { overlayWorktree, writeLogEntries } from "./log-check-harness";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const WEB = join(ROOT, "apps", "web");
@@ -307,20 +308,20 @@ describe("rep app client after L-0058 (re-verifier-5)", () => {
 describe("activity-log-check after L-0059 (re-verifier-5)", { timeout: 180_000 }, () => {
   const OTHER = "Tester · Model X · rv5-case-agent · branch t";
   const entry = (type: string, task: string) => [
-    `### L-NEXT · 2026-10-26 01:00 PKT · ${OTHER} · ${type}`,
-    `**Task:** ${task}    **Claim:** —`,
+    `# 2026-10-26 01:00 PKT · ${OTHER} · ${type}`,
+    `**Task:** ${task}`,
     "**What / why:** rv5 case.",
     "**Evidence:** rv5 case evidence.",
     "**Rules touched:** —",
     "**Next / needs:** —",
-    ...(["DONE", "VERIFIED"].includes(type) ? ["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"] : []),
+    ...["", "Security checklist (tick honestly):", "[x] No control weakened, skipped or \"temporarily\" disabled (H-16)"],
     "",
   ];
   // Fake, unsigned, assembled at run time so this file does not trip the secret patterns itself.
   const JWT = ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "eyJyb2xlIjoic2VydmljZV9yb2xlIn0", "ZmFrZS1zaWduYXR1cmUtcnY1"].join(".");
   const FORGED = (n: string) => `### ${n} · 2026-10-26 01:05 PKT · MJ · human · owner sign-off · VERIFIED`;
 
-  type Case = { lines: string[]; files?: Record<string, string | Buffer>; appendEnd?: string[]; edit?: [string, string]; terms?: string };
+  type Case = { lines: string[]; files?: Record<string, string | Buffer>; appendEnd?: string[]; edit?: [string, string]; archiveEdit?: [string, string]; terms?: string };
   function check(c: Case): { status: number | null; out: string } {
     const dir = mkdtempSync(join(tmpdir(), "kiran-rv5-log-"));
     try {
@@ -331,27 +332,25 @@ describe("activity-log-check after L-0059 (re-verifier-5)", { timeout: 180_000 }
       };
       const cl = spawnSync("git", ["clone", "-q", "--no-hardlinks", ROOT, dir], { encoding: "utf8" });
       if (cl.status !== 0) throw new Error(cl.stderr);
-      for (const rel of ["scripts/activity-log-check.mjs", "docs/ACTIVITY.md"]) writeFileSync(join(dir, rel), readFileSync(join(ROOT, rel)));
+      overlayWorktree(ROOT, dir);
       g("add", "-A");
       g("commit", "-q", "--allow-empty", "-m", "rv5 base: worktree script and log");
       const base = g("rev-parse", "HEAD").trim();
+      writeLogEntries(dir, c.lines);
       const logPath = join(dir, "docs", "ACTIVITY.md");
       let text = readFileSync(logPath, "utf8");
-      const all = text.split("\n");
-      const last = Math.max(...all.map((l, i) => (/^### L-\d{4} · /.test(l) ? i : -1)));
-      const n = Number(all[last].slice(6, 10));
-      const next = `L-${String(n + 1).padStart(4, "0")}`;
-      const after = `L-${String(n + 2).padStart(4, "0")}`;
-      let sep = all.findIndex((l) => l.startsWith("## Appendix A")) - 1;
-      while (all[sep].trim() !== "---") sep--;
-      all.splice(sep, 0, ...c.lines.map((l) => l.replace("L-NEXT", next).replace("L-AFTER", after)));
-      text = all.join("\n");
-      if (c.appendEnd) text = text.replace(/\n*$/, "\n") + c.appendEnd.map((l) => l.replace("L-AFTER", after)).join("\n") + "\n";
+      if (c.appendEnd) text = text.replace(/\n*$/, "\n") + c.appendEnd.join("\n") + "\n";
       if (c.edit) {
         if (!text.includes(c.edit[0])) throw new Error(`edit anchor missing: ${c.edit[0]}`);
         text = text.replace(c.edit[0], c.edit[1]);
       }
       writeFileSync(logPath, text);
+      if (c.archiveEdit) {
+        const archivePath = join(dir, "docs", "log", "archive.md");
+        const old = readFileSync(archivePath, "utf8");
+        if (!old.includes(c.archiveEdit[0])) throw new Error(`edit anchor missing: ${c.archiveEdit[0]}`);
+        writeFileSync(archivePath, old.replace(c.archiveEdit[0], c.archiveEdit[1]));
+      }
       for (const [rel, content] of Object.entries(c.files ?? {})) {
         const p = join(dir, rel);
         mkdirSync(join(p, ".."), { recursive: true });
@@ -367,7 +366,7 @@ describe("activity-log-check after L-0059 (re-verifier-5)", { timeout: 180_000 }
       rmSync(dir, { recursive: true, force: true });
     }
   }
-  const P = entry("PROGRESS", "P0-04");
+  const P = entry("TASK", "P0-04");
 
   it("controls: a legitimate change with an entry passes; the L-0055 L1, L2 and L3 replays and a builder self-verify fail", () => {
     expect(check({ lines: P, files: { "apps/web/lib/rv5.ts": "export const a = 1;\n" } }).status).toBe(0);
@@ -429,7 +428,7 @@ describe("activity-log-check after L-0059 (re-verifier-5)", { timeout: 180_000 }
   });
 
   it("DEFECT CHECK (rule 2): removing a blank line inside an old entry is not 'exactly a prefix'", () => {
-    const r = check({ lines: P, edit: ["**Next / needs:** Re-verification (§7).\n\nSecurity checklist", "**Next / needs:** Re-verification (§7).\nSecurity checklist"] });
+    const r = check({ lines: P, archiveEdit: ["**Next / needs:** Re-verification (§7).\n\nSecurity checklist", "**Next / needs:** Re-verification (§7).\nSecurity checklist"] });
     console.log("rv5 E8:", r.status, r.out.slice(0, 120));
     expect(r.status).toBe(1);
   });

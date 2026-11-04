@@ -37,6 +37,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { fx, run, sqlstate } from "./helpers/db";
+import { overlayWorktree, writeLogEntries } from "./log-check-harness";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 
@@ -44,10 +45,6 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const QUERY_LABEL_CHARS = 60;
 // The harness files hold at least this many evaluable SELECT queries (schema guards + matrix).
 const MIN_HARNESS_QUERIES = 5;
-// A log entry header starts "### L-0123 · ": the number sits at characters 6 to 10, four digits.
-const LOG_NUM_START = 6;
-const LOG_NUM_END = 10;
-const LOG_NUM_WIDTH = 4;
 // In a board row split on "|", the Status cell is the third piece from the end
 // ("| ... | Status | Claimed by |" splits to [..., " Status ", " Claimed by ", ""]).
 const STATUS_CELL_FROM_END = 3;
@@ -239,21 +236,16 @@ describe("P0-06 harness (re-verifier-11)", () => {
 // ---------------------------------------------------------------------------------------------
 const OTHER = "Tester · Model X · rv11-case-agent · branch t";
 const entry = (type: string, task: string, sig = OTHER) => [
-  `### L-NEXT · 2026-10-29 04:00 PKT · ${sig} · ${type}`,
-  `**Task:** ${task}    **Claim:** —`,
+  `# 2026-10-29 04:00 PKT · ${sig} · ${type}`,
+  `**Task:** ${task}`,
   "**What / why:** rv11 case.",
   "**Evidence:** rv11 case evidence.",
   "**Rules touched:** —",
   "**Next / needs:** —",
-  ...(["DONE", "VERIFIED", "CORRECTION"].includes(type)
-    ? ["", "Security checklist (tick honestly):", '[x] No control weakened, skipped or "temporarily" disabled (H-16)']
-    : []),
+  ...["", "Security checklist (tick honestly):", '[x] No control weakened, skipped or "temporarily" disabled (H-16)'],
   "",
 ];
-const P = entry("PROGRESS", "P0-09");
-// A log entry header: matches "### L-0208 · 2026-11-01 ...", rejects "## 16. Activity log".
-// Tester: https://regex101.com/?regex=%5E%23%23%23%20L-%5Cd%7B4%7D%20%C2%B7%20&flags=&flavor=javascript&testString=%23%23%23%20L-0208%20%C2%B7%202026-11-01%0A%23%23%2016.%20Activity%20log
-const ENTRY_HEADER = /^### L-\d{4} · /;
+const P = entry("TASK", "P0-09");
 // The checker's verdict line: matches "activity-log-check OK (1 new log entry...)" and
 // "activity-log-check FAILED:", rejects "Error: Cannot find module".
 // Tester: https://regex101.com/?regex=%5Eactivity-log-check%20(OK%7CFAILED)&flags=&flavor=javascript&testString=activity-log-check%20OK%20(1%20new%20log%20entry)%0AError%3A%20Cannot%20find%20module
@@ -276,22 +268,15 @@ function check(c: Case): CheckResult {
     };
     const cl = spawnSync("git", ["clone", "-q", "--no-hardlinks", ROOT, dir], { encoding: "utf8" });
     if (cl.status !== 0) throw new Error(cl.stderr);
-    ["scripts/activity-log-check.mjs", "docs/ACTIVITY.md"].forEach((rel) => {
-      writeFileSync(join(dir, rel), readFileSync(join(ROOT, rel)));
-    });
+    overlayWorktree(ROOT, dir);
     g("add", "-A");
     g("commit", "-q", "--allow-empty", "-m", "rv11 base: worktree script and log");
     const base = g("rev-parse", "HEAD").trim();
+    writeLogEntries(dir, c.lines ?? P);
     const logPath = join(dir, "docs", "ACTIVITY.md");
-    const all = readFileSync(logPath, "utf8").split("\n");
-    const last = Math.max(...all.map((l, i) => (ENTRY_HEADER.test(l) ? i : -1)));
-    const next = `L-${String(Number(all[last].slice(LOG_NUM_START, LOG_NUM_END)) + 1).padStart(LOG_NUM_WIDTH, "0")}`;
-    // The "---" line that closes the log, found by walking back from Appendix A.
-    const appendix = all.findIndex((l) => l.startsWith("## Appendix A"));
-    const sep = all.slice(0, appendix).findLastIndex((l) => l.trim() === "---");
-    all.splice(sep, 0, ...(c.lines ?? P));
-    const text = c.mutate ? c.mutate(all.join("\n")) : all.join("\n");
-    writeFileSync(logPath, text.replaceAll("L-NEXT", next));
+    let text = readFileSync(logPath, "utf8");
+    if (c.mutate) text = c.mutate(text);
+    writeFileSync(logPath, text);
     Object.entries(c.files ?? {}).forEach(([rel, content]) => {
       mkdirSync(dirname(join(dir, rel)), { recursive: true });
       writeFileSync(join(dir, rel), content);
@@ -345,11 +330,11 @@ describe("activity-log-check P0-09 (re-verifier-11)", { timeout: LOG_CHECK_TIMEO
 
   // P0-09 D1 (workflow id A7; §7: rework is reopened via CORRECTION to IN PROGRESS; MJ L-0110 "then a
   // fresh verification"; §4 the log wins). Rule 4b runs only when a Status cell's text changes (the
-  // 'continue' in the board loop), so a new DONE for a task whose row already reads VERIFIED (L-nnnn)
-  // leaves the row citing a verdict older than the task's latest DONE. Appendix C rule 4 as written
+  // 'continue' in the board loop), so a new TASK entry (formerly DONE) for a task whose row already reads
+  // VERIFIED (L-nnnn) leaves the row citing a verdict older than the task's latest work entry. Appendix C rule 4 as written
   // scopes the ordering to a changed cell, so the gap is in spec and code.
-  it("REPRODUCTION (P0-09 D1): the checker runs on a new DONE entry for P1-01 and for P0-08", () => {
-    log.staleVerdict = { p101: check({ lines: entry("DONE", "P1-01") }), p008: check({ lines: entry("DONE", "P0-08") }) };
+  it("REPRODUCTION (P0-09 D1): the checker runs on a new work (TASK) entry for P1-01 and for P0-08", () => {
+    log.staleVerdict = { p101: check({ lines: entry("TASK", "P1-01") }), p008: check({ lines: entry("TASK", "P0-08") }) };
     console.log(
       "rv11 P0-09 D1:",
       log.staleVerdict.p101.status,
@@ -359,7 +344,7 @@ describe("activity-log-check P0-09 (re-verifier-11)", { timeout: LOG_CHECK_TIMEO
     );
     expect(ran(log.staleVerdict.p101) && ran(log.staleVerdict.p008)).toBe(true);
   });
-  it.fails("DEFECT CHECK (P0-09 D1, rule 4b): a new DONE entry under an untouched VERIFIED row is refused", () => {
+  it.fails("DEFECT CHECK (P0-09 D1, rule 4b): a new work (TASK) entry under an untouched VERIFIED row is refused", () => {
     expect({ p101: log.staleVerdict?.p101.status, p008: log.staleVerdict?.p008.status }).toEqual({ p101: 1, p008: 1 });
   });
 

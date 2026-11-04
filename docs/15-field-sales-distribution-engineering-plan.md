@@ -3,7 +3,7 @@
 **Status:** Planning directive; not implementation evidence or phase acceptance
 **Business:** Kiran Company
 **Operating market:** Karachi, Pakistan
-**Authority:** Read with AGENTS.md, CLAUDE.md, docs/AGENT-COMPLIANCE-PROTOCOL.md, docs/ACTIVITY.md, SPEC.md and docs 00-14. The existing authority hierarchy, D-08 governance split, H-01 through H-27, approval controls, append-only rules, phase gates and human-only actions remain in force.
+**Authority:** Read with AGENTS.md, CLAUDE.md, docs/ACTIVITY.md, SPEC.md and docs 00-14. The existing authority hierarchy, D-08 governance split, H-01 through H-27, approval controls, append-only rules, phase gates and human-only actions remain in force.
 
 ## 1. Mission and outcome
 

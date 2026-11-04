@@ -62,7 +62,7 @@ Reported by the agents with file and line in the four tables, not re-checked by 
 
 ## Recommended build order (full-stack slices)
 
-Each slice is a task of its own with a claim, a branch and a pull request. Backend-first items are marked.
+Each slice is a task of its own with a branch and a pull request. Backend-first items are marked.
 
 1. Office shell and setup: sign-in to a role-aware layout, `/office/devices` (approve and revoke), users, territories, areas, assignments. Needs B-18 (the owner exposes `app` and `vault_api` on staging) before it can run against staging; works locally now.
 2. Rep shell: check-in and check-out, today's route, `my_day`.
