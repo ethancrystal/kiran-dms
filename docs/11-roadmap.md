@@ -24,7 +24,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 |---|---|
 | Salons & map | SAL-01…05, 09, 10 · MAP-01, 02, 03, 12 · stage machine with manual override (PIP-02 visits, PIP-07 quick-add, PIP-09 check-in gating) |
 | Routes | PIP-03 manual route building by manager; rep can reorder; PIP-05/06 thin due-list (D-19) |
-| Orders & invoices | ORD-01…05, 10 (offline orders) |
+| Orders & invoices | ORD-01…05, 14 (office-created orders and rep order-intake cards; no rep-created orders). Rep intake cards work offline under NFR-01; canonical salon-portal ordering is Phase 2 (ORD-11…13). |
 | Payments | PAY-01, 02, 03 (generate), 04, 05, 07, 10, 11; manual overdue flags (PAY-08 manual) |
 | Stock | INV-01…06 (manual reorder points); INV-11 route-linked bag load (D-19) |
 | Lost demand | DEM-01, DEM-02, DEM-03 (report) (D-18) |
@@ -59,6 +59,7 @@ Principles: ship the ledger and the controls first, because they are what make h
 | Collections | PAY-06 (bank reconciliation), PAY-08 timers, PAY-09 credit rules automation |
 | Orders | ORD-06 returns, ORD-07 price lists & special pricing, ORD-09 suggestions |
 | Salon portal and dual-channel ordering | SAL-11/12, ORD-11/13, SEC-13/15: secure salon membership, own-salon catalogue/price/stock/order/document reads, portal order submission through the common order engine (manager approval first, D-30) |
+| Shared order channel model and safe stock visibility | ORD-11/12, SEC-14/15, INV-12: one canonical order aggregate with explicit office/salon_portal channel, authenticated creator, optional intake-card link and delivering rep; salon membership isolation and allow-listed customer data; safe aggregate on-hand and available-to-order values |
 | Stock | INV-07 restock suggestions, INV-08 batches/expiry, INV-09 counts, INV-10 valuation (vault) |
 | Vault | VLT-07 column encryption (if not already in Phase 1) |
 | Controls | CTL-10 monthly statements + dispute, CTL-11 automated confirmations, CTL-12 quarantine returns, CTL-13 commission (moved to Phase 1 by D-31), CTL-14 anomaly jobs |
