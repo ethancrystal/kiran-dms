@@ -75,7 +75,17 @@ const repF = { id: id(), device: `dev-${id()}`, name: `[Test] Rep F overview ${t
 const S2_NAME = `[Test] Overview salon two ${tag()}`;
 let salonLogin: Login;
 
-type Persona = "repE" | "repF" | "repEWrongDevice" | "manager" | "managerAal1" | "owner" | "ownerAal1" | "suspended" | "anon" | "salon";
+type Persona =
+  | "repE"
+  | "repF"
+  | "repEWrongDevice"
+  | "manager"
+  | "managerAal1"
+  | "owner"
+  | "ownerAal1"
+  | "suspended"
+  | "anon"
+  | "salon";
 const who = (k: Persona) => {
   if (k === "anon") return `reset role; select set_config('request.jwt.claims', '{"role":"anon"}', true); set local role anon;`;
   if (k === "salon") return asLogin(salonLogin);
@@ -170,12 +180,22 @@ beforeAll(async () => {
       [S2, S2_NAME],
     ] as const,
     ([s, name]) =>
-      run(MANAGER, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual', null, $4, $5)", [s, name, AREA, PIN_LAT, PIN_LNG], C),
+      run(
+        MANAGER,
+        "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual', null, $4, $5)",
+        [s, name, AREA, PIN_LAT, PIN_LNG],
+        C,
+      ),
   );
   await run(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Overview colour ${tag()}`], C);
   await run(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Overview colour')", [PRODUCT, GROUP], C);
   await inSeries([SKU1, SKU2], (s) =>
-    run(MANAGER, "select app.office_upsert_sku($1, $2, $3, '[Dummy] shade', 'ml', 100)", [s, PRODUCT, `T-OVW-${tag().toUpperCase()}`], C),
+    run(
+      MANAGER,
+      "select app.office_upsert_sku($1, $2, $3, '[Dummy] shade', 'ml', 100)",
+      [s, PRODUCT, `T-OVW-${tag().toUpperCase()}`],
+      C,
+    ),
   );
   await run(OWNER, "select app.owner_set_sku_price($1, $2, 'dummy list price')", [SKU1, SKU1_PAISA], C);
   await run(OWNER, "select app.owner_set_sku_price($1, $2, 'dummy list price')", [SKU2, SKU2_PAISA], C);
@@ -329,7 +349,10 @@ describe("who may read", () => {
       ["manager", CALLS.office_investor_month],
       ["manager", CALLS.office_rep_month],
       ["repE", CALLS.my_month_orders],
-      ["postgres", "select 'after' as mark_b, count(*)::int n, (select ok from control.verify_audit_chain()) ok from control.audit_event;"],
+      [
+        "postgres",
+        "select 'after' as mark_b, count(*)::int n, (select ok from control.verify_audit_chain()) ok from control.audit_event;",
+      ],
     ]);
     const before = marked(all, "mark_a")[0][0];
     const after = marked(all, "mark_b")[0][0];
@@ -342,7 +365,9 @@ describe("who may read", () => {
 describe("office home: placed, waiting to be delivered, delivered", () => {
   it("the week starts on a Monday in Karachi", async () => {
     const c = (await tx([["manager", "select week_start::text w from app.office_overview_counts();"]]))[0];
-    const dow = (await tx([["postgres", `select extract(isodow from '${c.w}'::date)::int d, ${TODAY} - '${c.w}'::date gap;`]]))[0];
+    const dow = (
+      await tx([["postgres", `select extract(isodow from '${c.w}'::date)::int d, ${TODAY} - '${c.w}'::date gap;`]])
+    )[0];
     expect(dow.d).toBe(MONDAY);
     expect(n(dow, "gap")).toBeGreaterThanOrEqual(0);
     expect(n(dow, "gap")).toBeLessThan(WEEK_DAYS);
@@ -361,7 +386,9 @@ describe("office home: placed, waiting to be delivered, delivered", () => {
       counts,
       overviewRows,
     ]);
-    const [c0, c1, c2] = marked(all, "mark").filter((rows) => rows[0].mark === "counts").map((rows) => rows[0]);
+    const [c0, c1, c2] = marked(all, "mark")
+      .filter((rows) => rows[0].mark === "counts")
+      .map((rows) => rows[0]);
     const [r1, r2] = marked(all, "mark").filter((rows) => rows[0].mark === "rows");
     const orderId = (r1.find((x) => x.section === "placed" && x.total_paisa !== undefined && x.salon_id === S1) as Row).order_id;
 
@@ -383,7 +410,11 @@ describe("office home: placed, waiting to be delivered, delivered", () => {
     expect(waiting).toMatchObject({ waiting_days: 0, deliverer_kind: "rep", deliverer_name: repE.name, waiting_approval: false });
     expect(r2.find((x) => x.section === "waiting" && x.order_id === orderId)).toBeUndefined();
     const delivered = r2.find((x) => x.section === "delivered" && x.order_id === orderId) as Row;
-    expect(delivered).toMatchObject({ invoice_total_paisa: String(TWO * SKU2_PAISA), deliverer_kind: "office", status: "delivered" });
+    expect(delivered).toMatchObject({
+      invoice_total_paisa: String(TWO * SKU2_PAISA),
+      deliverer_kind: "office",
+      status: "delivered",
+    });
     // An invoice number, as INV-26-000123: matches "INV-26-000001", rejects "INV-2026-1".
     // https://regex101.com/?regex=%5EINV-%5B0-9%5D%7B2%7D-%5B0-9%5D%7B6%7D%24&flavor=javascript
     expect(String(delivered.invoice_number)).toMatch(/^INV-[0-9]{2}-[0-9]{6}$/);
@@ -408,7 +439,9 @@ describe("office home: placed, waiting to be delivered, delivered", () => {
       counts,
       overviewRows,
     ]);
-    const [c0, c1] = marked(all, "mark").filter((rows) => rows[0].mark === "counts").map((rows) => rows[0]);
+    const [c0, c1] = marked(all, "mark")
+      .filter((rows) => rows[0].mark === "counts")
+      .map((rows) => rows[0]);
     const rows = marked(all, "mark").filter((x) => x[0].mark === "rows")[0];
     expect(n(c1, "held_orders") - n(c0, "held_orders")).toBe(1);
     expect(n(c1, "to_deliver") - n(c0, "to_deliver")).toBe(0);
@@ -428,7 +461,9 @@ describe("office home: placed, waiting to be delivered, delivered", () => {
       counts,
       overviewRows,
     ]);
-    const [c0, c1, c2] = marked(all, "mark").filter((rows) => rows[0].mark === "counts").map((rows) => rows[0]);
+    const [c0, c1, c2] = marked(all, "mark")
+      .filter((rows) => rows[0].mark === "counts")
+      .map((rows) => rows[0]);
     const rows = marked(all, "mark").filter((x) => x[0].mark === "rows")[0];
     expect(n(c1, "pending_requests") - n(c0, "pending_requests")).toBe(1);
     expect(n(c2, "pending_requests") - n(c0, "pending_requests")).toBe(0);
@@ -459,7 +494,9 @@ describe("office home: placed, waiting to be delivered, delivered", () => {
       counts,
       overviewRows,
     ]);
-    const [c0, c1] = marked(all, "mark").filter((rows) => rows[0].mark === "counts").map((rows) => rows[0]);
+    const [c0, c1] = marked(all, "mark")
+      .filter((rows) => rows[0].mark === "counts")
+      .map((rows) => rows[0]);
     const rows = marked(all, "mark").filter((x) => x[0].mark === "rows")[0];
     expect(n(c1, "waiting_approval") - n(c0, "waiting_approval")).toBe(1);
     const placed = rows.find((x) => x.section === "placed" && x.salon_id === S1 && x.placed_by_kind === "rep") as Row;
@@ -472,10 +509,15 @@ describe("office home: placed, waiting to be delivered, delivered", () => {
     const s = id();
     const all = await txAll([
       counts,
-      ["repE", `select app.create_salon('${s}', '[Test] Proposed ${tag()}', 'ladies_parlor', '${AREA}', 'map_pin', null, ${PIN_LAT}, ${PIN_LNG});`],
+      [
+        "repE",
+        `select app.create_salon('${s}', '[Test] Proposed ${tag()}', 'ladies_parlor', '${AREA}', 'map_pin', null, ${PIN_LAT}, ${PIN_LNG});`,
+      ],
       counts,
     ]);
-    const [c0, c1] = marked(all, "mark").filter((rows) => rows[0].mark === "counts").map((rows) => rows[0]);
+    const [c0, c1] = marked(all, "mark")
+      .filter((rows) => rows[0].mark === "counts")
+      .map((rows) => rows[0]);
     expect(n(c1, "pending_salons") - n(c0, "pending_salons")).toBe(1);
   });
 
@@ -507,7 +549,10 @@ describe("investors: This month, typed amounts only (D-40)", () => {
   const ledger: Step[] = [
     ["manager", `select app.office_create_investor('${inv}', '[Dummy] Investor month', null, null);`],
     ["manager", `select app.office_add_investment('${investment}', ${investorRef}, ${INVESTED}, ${PREV_MONTH}, null);`],
-    ["manager", `select app.office_decide_profit('${decPrev}', ${investmentRef}, ${DECIDED_PREV}, ${PREV_MONTH_LAST_DAY}, null);`],
+    [
+      "manager",
+      `select app.office_decide_profit('${decPrev}', ${investmentRef}, ${DECIDED_PREV}, ${PREV_MONTH_LAST_DAY}, null);`,
+    ],
     ["manager", `select app.office_decide_profit('${decThis}', ${investmentRef}, ${DECIDED_THIS}, ${THIS_MONTH}, null);`],
     [
       "manager",
@@ -559,7 +604,10 @@ describe("investors: This month, typed amounts only (D-40)", () => {
     const payRef = `(select id from public.investor_payout where client_id = '${payProfit}')`;
     const all = await txAll([
       ...ledger,
-      ["manager", `select app.office_reverse_investor_entry('${r1}', 'profit_decision', ${decPrevRef}, 'typed for the wrong month');`],
+      [
+        "manager",
+        `select app.office_reverse_investor_entry('${r1}', 'profit_decision', ${decPrevRef}, 'typed for the wrong month');`,
+      ],
       ["manager", `select app.office_reverse_investor_entry('${r2}', 'payout', ${payRef}, 'paid twice by mistake');`],
       month(PREV_MONTH, "prev"),
       month(TODAY, "this"),
@@ -723,12 +771,7 @@ describe("reps: orders brought and commission, own figures only", () => {
   });
 
   it("a rep cannot read another rep's month: there is no rep argument, and the office read is refused", async () => {
-    const r = await tx([
-      [
-        "postgres",
-        `select pg_get_function_identity_arguments('app.my_month_orders(date)'::regprocedure) a;`,
-      ],
-    ]);
+    const r = await tx([["postgres", `select pg_get_function_identity_arguments('app.my_month_orders(date)'::regprocedure) a;`]]);
     expect(r[0].a).toBe("p_month date");
     expect(await txCode([["repE", `select * from app.office_rep_month(${TODAY});`]])).toBe(DENIED);
     // Rep F's orders never show in rep E's figures.
