@@ -26,6 +26,7 @@ Written 2026-11-05, after PRs 53 to 69 merged and with PR 70 (P1-30, wiring-audi
 | Office home, rep performance, rep detail, grouped sidebar | `20261105180000`, `20261105190000`; `/office`, `/office/reps`, `/office/reps/[id]` |
 | Invoice composer, issued-invoice snapshot, A4 print, customer signature, the delivery rule | `20261105220000`; `/office/orders/[id]/invoice`, `/office/invoices`, `/salon/invoices/[id]` |
 | Audit fixes: owner's own requests, dispute settlement, cash cap, payment reversal, credit screens, settings | `20261105230000` (PR 70) |
+| Product-group controls on Products; storage started in the office browser job; the catalogue journey uploads a product picture | no migration; PR 71 (`claude/product-group-screen`), IMPLEMENTED, NOT VERIFIED until its office browser job passes |
 
 ## A. Before go-live: MJ's own actions (no agent may do these)
 
@@ -65,7 +66,7 @@ Written 2026-11-05, after PRs 53 to 69 merged and with PR 70 (P1-30, wiring-audi
 Each item: what to add, what it extends, and what it waits for.
 
 ### C1. Unblock a fresh database (first)
-- **Product-group screen** (audit H5, FLOW-01). Extends `/office/products` with add and edit over the existing `app.office_upsert_product_group`. Work exists on local branch `claude/product-group-screen` (not pushed): merge main into it, push, CI, merge. Do not rebuild it.
+- **Product-group screen** (audit H5, FLOW-01). Extends `/office/products` with add and edit over the existing `app.office_upsert_product_group`. Built on `claude/product-group-screen` and open as PR 71 together with the CI storage change and the picture-upload step of the catalogue journey. Remaining: the office browser job passes on the exact head, then MJ's OK to merge. Do not rebuild it.
 - **Settings in the sidebar.** Add `/office/settings` to `lib/office-nav.ts` with the existing `ownerOnly` flag. One line plus the sidebar test.
 
 ### C2. Close the loops the audit left open (small, each over existing functions)
@@ -90,7 +91,7 @@ Each item: what to add, what it extends, and what it waits for.
 - Rep home has no Salons link; add it.
 
 ### C4. Salon portal and sign-in polish
-- AUTH-08: a stack test that a salon and a rep actually load product pictures (needs storage in the CI stack; decide with B-46).
+- AUTH-08: the office side is covered by PR 71 (the manager uploads a picture and it loads, also after a reload). Still to add: a stack test that a salon and a rep load a product picture through their own screens.
 - AUTH-12: an office user signing in by email code on the rep or salon page gets a device row; refuse it.
 - AUTH-13, AUTH-14: editing a request that holds a removed product; request lines should keep the price shown when the order was made.
 - AUTH-15, FLOW-19: lists capped at 50 or 100 say "showing N of M".
@@ -137,4 +138,4 @@ F8 test helpers (sign in as each role, wait-for-loaded), F1 generated database t
 
 ## Suggested order
 
-1. Merge PR 70. 2. C1 (product groups, Settings link). 3. MJ's actions A1 to A8 and a staging smoke test. 4. C2, then C3 and C4 as small PRs. 5. C5 items that have no open decision. 6. P1-09 offline before the pilot; P1-08 and P1-12 before Gate 1. 7. C8 alongside.
+1. PR 70 is merged. Merge PR 71 (product groups, storage, picture step) when its checks are green and MJ says so; then the Settings link in C1. 3. MJ's actions A1 to A8 and a staging smoke test. 4. C2, then C3 and C4 as small PRs. 5. C5 items that have no open decision. 6. P1-09 offline before the pilot; P1-08 and P1-12 before Gate 1. 7. C8 alongside.
