@@ -939,8 +939,8 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
     invitee.email,
     `${manager.name} invited ${invitee.name} to a sales rep account.`,
   );
-  await repGuest.waitForURL((u) => !u.pathname.startsWith("/invite"));
-  await expect(repGuest.getByRole("alert")).toHaveCount(0);
+  // A new rep lands on the rep app; the notice there (waiting for the phone to be approved) is expected.
+  await repGuest.waitForURL((u) => u.pathname === "/app");
   await page.reload();
   await expect(page.getByRole("row").filter({ hasText: invitee.email })).toContainText("redeemed");
   const repsSection = page.locator("section", { has: page.getByRole("heading", { name: "Reps" }) });
@@ -1518,7 +1518,7 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
     journeyRep.email,
     `${manager.name} invited ${journeyRep.name} to a sales rep account.`,
   );
-  await repJoined.waitForURL((u) => !u.pathname.startsWith("/invite"));
+  await repJoined.waitForURL((u) => u.pathname === "/app");
   await repJoined.context().close();
   const salonLink = await invite(page, "salon", salonInvitee.name, salonInvitee.email, {
     name: newSalonName,
