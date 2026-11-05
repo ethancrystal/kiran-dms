@@ -710,7 +710,7 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   await expect(page.getByText(`SKU ${code} added to ${productName}.`)).toBeVisible();
   await expect(card.getByTestId(`price-${code}`)).toHaveText("No price yet");
   await card.getByLabel(`List price (Rs) for ${code}`).fill(String(CATALOGUE_LIST_RS));
-  await card.getByLabel(`Reason for the price of ${code}`).fill("[Test] e2e list price");
+  await card.getByLabel(`Why this price for ${code}`).fill("[Test] e2e list price");
   await card.getByRole("button", { name: `Set price of ${code}` }).click();
   const list = rupees(CATALOGUE_LIST_RS * PAISA_PER_RUPEE);
   await expect(page.getByText(`${code} now lists at ${list}.`)).toBeVisible();
@@ -723,7 +723,7 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   const skuOption = page.locator("#salon-price-sku option", { hasText: code });
   await page.getByLabel("SKU for the salon price").selectOption((await skuOption.getAttribute("value")) ?? "");
   await page.getByLabel("Salon price (Rs; empty clears it)").fill(String(CATALOGUE_SALON_RS));
-  await page.getByLabel("Reason for the salon price").fill("[Test] e2e salon price");
+  await page.getByLabel("Why this salon price").fill("[Test] e2e salon price");
   await page.getByRole("button", { name: "Save salon price" }).click();
   const salonPrice = rupees(CATALOGUE_SALON_RS * PAISA_PER_RUPEE);
   await expect(page.getByText(`Salon price set: ${code} at ${salonPrice}.`)).toBeVisible();

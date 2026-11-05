@@ -464,7 +464,7 @@ function SkuRow({ product, sku, onDone }: { product: Product; sku: Sku; onDone: 
           />
         </label>
         <label htmlFor={`reason-${sid}`}>
-          Reason for the price of {sku.code}
+          Why this price for {sku.code}
           <input
             id={`reason-${sid}`}
             value={reason}

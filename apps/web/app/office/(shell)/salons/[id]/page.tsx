@@ -626,7 +626,7 @@ function SalonPrices({
             maxLength={PRICE_MAX_CHARS}
             placeholder={choice?.list_price_paisa ? `List ${rupees(choice.list_price_paisa)}` : ""}
           />
-          <label htmlFor="salon-price-reason">Reason for the salon price</label>
+          <label htmlFor="salon-price-reason">Why this salon price</label>
           <input
             id="salon-price-reason"
             value={reason}
