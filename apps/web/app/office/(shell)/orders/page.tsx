@@ -60,6 +60,10 @@ export default function Orders() {
   const [cardsError, setCardsError] = useState<string | null>(null);
   // A refused one-click conversion, shown above the queue without hiding it.
   const [queueError, setQueueError] = useState<string | null>(null);
+  // One key per request, kept until its conversion succeeds: a retry after a lost answer or a second
+  // click is the same order (H-08). The buttons wait while a conversion is in flight.
+  const [convertKeys, setConvertKeys] = useState<Record<string, string>>({});
+  const [converting, setConverting] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [salonNames, setSalonNames] = useState<Names>(new Map());
   const [repNames, setRepNames] = useState<Names>(new Map());
@@ -121,13 +125,16 @@ export default function Orders() {
 
   // One click: the request's own lines at the database's prices, on CASH, for the version shown. A rep's
   // card keeps its rep as the delivering rep (the database checks the rep still covers the salon); a
-  // salon's request has none, so the office delivers. One key per attempt (H-08).
+  // salon's request has none, so the office delivers.
   const convert = async (c: OrderCard) => {
     setNotice(null);
     setQueueError(null);
+    const key = convertKeys[c.card_id] ?? crypto.randomUUID();
+    setConvertKeys((all) => ({ ...all, [c.card_id]: key }));
+    setConverting(c.card_id);
     try {
       const order = await rpc<CreatedOrder>("office_create_order", {
-        p_client_id: crypto.randomUUID(),
+        p_client_id: key,
         p_salon_id: c.salon_id,
         p_plan: "CASH",
         p_lines: null,
@@ -135,6 +142,7 @@ export default function Orders() {
         p_intake_card_id: c.card_id,
         p_card_version: c.version,
       });
+      setConvertKeys(({ [c.card_id]: _done, ...rest }) => rest);
       if (form.kind === "card" && form.card.card_id === c.card_id) setForm({ kind: "closed" });
       setNotice(
         `Order created for ${c.salon_name ?? "Unnamed salon"} from the request of ${requestFrom(c)}: ${orderSummary(order)}.`,
@@ -142,6 +150,8 @@ export default function Orders() {
       await Promise.all([loadCards(), loadOrders()]);
     } catch (e) {
       setQueueError((e as Error).message);
+    } finally {
+      setConverting(null);
     }
   };
 
@@ -233,8 +243,8 @@ export default function Orders() {
                 </p>
                 <div className="row">
                   {c.lines.length > 0 && (
-                    <button type="button" className="inline" onClick={() => void convert(c)}>
-                      Convert to order
+                    <button type="button" className="inline" disabled={converting !== null} onClick={() => void convert(c)}>
+                      {converting === c.card_id ? "Converting…" : "Convert to order"}
                     </button>
                   )}
                   <button

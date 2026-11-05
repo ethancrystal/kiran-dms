@@ -357,7 +357,12 @@ describe("salon reads resolve the salon from the membership (allow-listed fields
       `select app.salon_edit_request(gen_random_uuid(), gen_random_uuid(), ${L12()})`,
       "select app.salon_cancel_request(gen_random_uuid())",
     ];
-    const outsider = await newLogin();
+    // A login with nothing redeemed, written inside each rolled-back transaction (nothing committed).
+    const outsider: Login = { id: uuid(), email: `outsider.${tag()}@example.test`, session: uuid() };
+    const outsiderRow: Step = [
+      "postgres",
+      `insert into auth.users (id, email, email_confirmed_at) values ('${outsider.id}', '${outsider.email}', now());`,
+    ];
     const actors: Array<[string, Actor]> = [
       ["anon", "anon"],
       ["rep A", "repA"],
@@ -371,7 +376,7 @@ describe("salon reads resolve the salon from the membership (allow-listed fields
       `select app.office_set_member_status('salon', '${memberA}', '${status}', '[Test] stop');`,
     ];
     await each(calls, async (sql) => {
-      await each(actors, async ([n, who]) => expect(await stxCode([[who, `${sql};`]]), `${n}: ${sql}`).toBe(DENIED));
+      await each(actors, async ([n, who]) => expect(await stxCode([outsiderRow, [who, `${sql};`]]), `${n}: ${sql}`).toBe(DENIED));
       await each(["suspended", "revoked"], async (status) =>
         expect(await stxCode([off(status), [A(), `${sql};`]]), `${status}: ${sql}`).toBe(DENIED),
       );
