@@ -194,7 +194,8 @@ describe("§7.6 backdated client timestamps", () => {
     // today or later. office_set_last_purchase(p_last_order_on) is an office-entered opening date that
     // may not be in the future (MJ approval L-0157).
     // Migration 0012 (P1-06 part a; standing approval L-0144): create_order(p_created_at_client) stores the
-    // phone's time as evidence only. Migration 0013 (P1-06 part b; L-0144): rep_deliver(p_delivered_at_client) too.
+    // phone's time as evidence only. Migration 0013 (P1-06 part b; L-0144): rep_deliver(p_delivered_at_client) too,
+    // until migration 20261105130100 (D-32) revoked its grant; its replacement is listed below.
     // Migration 20261104090000 (D-30) keeps create_order's signature, so it stays listed, but it refuses every caller.
     // Migration 0021 (P1-07 part a; standing approval L-0144): rep_record_payment(p_recorded_at_client) stores the
     // phone's time as evidence only, in recorded_at_client, next to the server's recorded_at (H-09); a test in
@@ -204,7 +205,7 @@ describe("§7.6 backdated client timestamps", () => {
     expect(rows.map((x) => x.f)).toEqual([
       "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_route",
       "app.office_propose_stock_issue", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
-      "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out", "app.rep_deliver", "app.rep_record_payment",
+      "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out", "app.rep_record_payment",
       "app.rep_reorder_route", "app.rep_submit_delivery"]);
   });
 });

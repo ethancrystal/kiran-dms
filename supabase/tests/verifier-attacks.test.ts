@@ -224,6 +224,8 @@ describe("internal functions are not callable by app roles", () => {
     "select control.audit_canonical(1, now(), null, null, null, 'INSERT', 't', null, null, null, null, null, null)",
     // Migration 20261105130100 (slice 4, P1-21, D-32): the one finalising path, internal.
     "select app.finalise_delivery(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), null, 'x y', 1, 1, false, null, null, gen_random_uuid(), 'rep')",
+    // Migration 20261105130100 (D-32): the rep's direct delivery has no grant left (its body refuses too).
+    "select app.rep_deliver(gen_random_uuid(), gen_random_uuid(), 'x y', 1, 1)",
   ];
   it.each(CALLS)("%s → 42501 for every app role", async (sql) => {
     for (const [, who] of APP_ROLES) expect(await sqlstate(who, sql)).toBe("42501");
@@ -255,7 +257,7 @@ describe("internal functions are not callable by app roles", () => {
       "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit",
       "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "receipt_document", "recheck_order",
       "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_check_in", "rep_check_out",
-      "rep_confirm_stock_issue", "rep_create_card", "rep_deliver", "rep_device_ok", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
+      "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
       "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_credit_status", "salon_installments", "salon_me",
       "salon_notes", "salon_stages", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role",
       "warehouse_availability",
@@ -280,6 +282,7 @@ describe("internal functions are not callable by app roles", () => {
       // my_submissions, rep_submit_delivery: migration 20261105130100 (slice 4, P1-21, D-32 PR B); MJ standing approval L-0144.
       // office_approve_delivery, office_pending_deliveries: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
       // office_pending_stock, office_reject_delivery, office_resolve_pending: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
+      // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace

@@ -1399,3 +1399,28 @@ describe("rejection keeps history; the office settles pending goods three ways (
   });
 });
 
+// ------------------------------------------------------- Task 7: old rep path closed ----
+describe("the rep's direct delivery is closed (D-32)", () => {
+  it("no one can finalise a delivery through the old rep path", async () => {
+    const o = id();
+    const call = `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG});`;
+    const callers = ["repA", "manager", "owner"] as const;
+    const codes = await inSeries(callers, (who) => txCode([order(o, [[SKU1, 1]]), [who, call]]));
+    expect(codes).toEqual(callers.map(() => DENIED));
+    const asService: Step = [
+      "postgres",
+      `select set_config('request.jwt.claims', '{"role":"service_role"}', true); set local role service_role; ${call}`,
+    ];
+    expect(await txCode([order(o, [[SKU1, 1]]), asService])).toBe(DENIED);
+    // As the table owner the body itself refuses, so nothing is ever written.
+    const owner = await failOf([order(o, [[SKU1, 1]]), ["postgres", call]]);
+    expect([owner[0], owner[1]?.includes("use app.rep_submit_delivery")]).toEqual([DENIED, true]);
+    const [r] = await tx([
+      order(o, [[SKU1, 1]]),
+      ["repA", `do $t$ begin perform app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha', 1, 1); exception when insufficient_privilege then null; end $t$;`],
+      counts(o),
+    ]);
+    expect(r).toEqual({ deliveries: 0, invoices: 0, installments: 0, decisions: 0 });
+  });
+});
+

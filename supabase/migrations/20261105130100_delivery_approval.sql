@@ -1053,3 +1053,23 @@ grant execute on function
   app.office_reject_delivery(uuid, uuid, text), app.office_resolve_pending(uuid, uuid, uuid, integer, text, text, uuid, uuid),
   app.office_pending_stock()
   to authenticated;
+
+-- =============================================================================
+-- The rep's direct delivery is closed (plan Task 7)
+-- =============================================================================
+-- D-32: a rep's delivery is a submission the office approves. app.rep_deliver keeps its signature,
+-- language, SECURITY DEFINER and search_path, refuses every caller as its first statement (nothing in
+-- its declarations runs anything), and loses every grant, so Postgres refuses it before the body for
+-- every API role. Invoices it issued before stay as they are.
+create or replace function app.rep_deliver(
+  p_client_id uuid, p_order_id uuid, p_received_by_name text, p_lat numeric, p_lng numeric,
+  p_lines jsonb default null, p_mock_location boolean default false, p_delivered_at_client timestamptz default null)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+begin
+  raise exception using errcode = '42501',
+    message = 'a rep''s delivery is a submission the office approves: use app.rep_submit_delivery (D-32)';
+end $$;
+
+revoke execute on function app.rep_deliver(uuid, uuid, text, numeric, numeric, jsonb, boolean, timestamptz)
+  from public, anon, authenticated, service_role;
