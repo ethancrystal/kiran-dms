@@ -161,7 +161,14 @@ const oid = (cid: string) => `(select id from public.sales_order where client_id
 // A rep's delivery (D-32): `who` submits it and the manager approves it; returns the invoice row.
 const deliver = (dcid: string, ocid: string, l: Array<[string, number]> | null = null, who: P = "repA", extra = ""): Step => [
   "postgres",
-  submitApproveSql(asUser, { clientId: dcid, orderExpr: oid(ocid), rep: who, approver: "manager", lines: l ? lines(l) : null, extra }),
+  submitApproveSql(asUser, {
+    clientId: dcid,
+    orderExpr: oid(ocid),
+    rep: who,
+    approver: "manager",
+    lines: l ? lines(l) : null,
+    extra,
+  }),
 ];
 /** A delivery of the whole order by its id expression (a literal or PINNED_ORDER), submitted by `who`. */
 const deliverAt = (dcid: string, orderId: string, who: P): Step => [

@@ -206,9 +206,9 @@ describe("delivering from the bag (ORD-04, MJ L-0163)", () => {
     expect(await txError([...base, ["repA", `select app.rep_submit_delivery('${id()}', ${oid(o)}, ' ', 24.9, 67.1);`]])).toMatch(
       /name of the person/,
     );
-    expect(await txError([...base, ["repA", `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'Ayesha', null, null);`]])).toMatch(
-      /GPS is required/,
-    );
+    expect(
+      await txError([...base, ["repA", `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'Ayesha', null, null);`]]),
+    ).toMatch(/GPS is required/);
   });
 
   it("refuses an order that is not confirmed: held, cancelled, or already delivered", async () => {

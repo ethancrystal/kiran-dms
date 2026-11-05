@@ -92,7 +92,15 @@ const delivered = (): Step[] => {
       `select app.office_create_order('${ocid}', '${SALON}', 'INST4', '${JSON.stringify([{ sku_id: SKU, qty: INST4_QTY }])}'::jsonb, '${fx.repA.id}');`,
     ],
     // A rep's delivery (D-32): rep A submits it and the manager approves it.
-    ["postgres", submitApproveSql(asUser, { clientId: dcid, orderExpr: `(select id from public.sales_order where client_id = '${ocid}')`, rep: "repA", approver: "manager" })],
+    [
+      "postgres",
+      submitApproveSql(asUser, {
+        clientId: dcid,
+        orderExpr: `(select id from public.sales_order where client_id = '${ocid}')`,
+        rep: "repA",
+        approver: "manager",
+      }),
+    ],
   ];
 };
 // Moves SALON's installments `days` earlier, with triggers off (installment rows are append-only).

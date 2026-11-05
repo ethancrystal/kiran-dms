@@ -63,16 +63,7 @@ const pendingOf = (k: "repA" | "repB") =>
 const BAG_A = bagOf("repA");
 const PENDING_A = pendingOf("repA");
 
-type Persona =
-  | "repA"
-  | "repB"
-  | "manager"
-  | "owner"
-  | "repAWrongDevice"
-  | "managerAal1"
-  | "ownerAal1"
-  | "suspended"
-  | "anon";
+type Persona = "repA" | "repB" | "manager" | "owner" | "repAWrongDevice" | "managerAal1" | "ownerAal1" | "suspended" | "anon";
 const PERSONA: Record<Exclude<Persona, "anon">, { key: keyof typeof fx; aal: string; device: string | null }> = {
   repA: { key: "repA", aal: "aal1", device: null },
   repB: { key: "repB", aal: "aal1", device: null },
@@ -193,10 +184,7 @@ beforeAll(async () => {
     PIN_LNG,
   ]);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Approval colour ${tag()}`]);
-  await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Approval colour')", [
-    PRODUCT,
-    GROUP,
-  ]);
+  await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Approval colour')", [PRODUCT, GROUP]);
   await inSeries([SKU1, SKU2, SKU3], (s) =>
     one(MANAGER, "select app.office_upsert_sku($1, $2, $3, '[Dummy] shade', 'ml', 100)", [
       s,
@@ -491,7 +479,10 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
     const [r] = await tx([
       order(o, [[SKU1, HANDED]]),
       submit(s, o, [[SKU1, HANDED]]),
-      ["postgres", `create temp table first on commit drop as select id from public.delivery_submission where client_id = '${s}';`],
+      [
+        "postgres",
+        `create temp table first on commit drop as select id from public.delivery_submission where client_id = '${s}';`,
+      ],
       submit(s, o, [[SKU1, HANDED]]),
       submit(s, o),
       [
@@ -565,11 +556,17 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
       [[mine, raw("'Ayesha'", `${PIN_LAT}`, "null")], BAD_INPUT, "GPS is required"],
       [[mine, raw("'Ayesha'", "999", `${PIN_LNG}`)], CHECK, "delivery_lat_check"],
       [[["postgres", legacyDraft], submit(id(), o)], BAD_INPUT, "only a confirmed order"],
-      [[mine, ["manager", `select app.cancel_order(${oid(o)}, 'test: cancelled');`], submit(id(), o)], BAD_INPUT, "only a confirmed order"],
+      [
+        [mine, ["manager", `select app.cancel_order(${oid(o)}, 'test: cancelled');`], submit(id(), o)],
+        BAD_INPUT,
+        "only a confirmed order",
+      ],
       [[mine, submit(id(), o, [[SKU3, 1]])], BAD_INPUT, LEFT],
     ];
     const got = await inSeries(cases, ([steps]) => failOf(steps));
-    expect(got.map(([code, msg], i) => [code, Boolean(msg?.includes(cases[i][2]))])).toEqual(cases.map(([, code]) => [code, true]));
+    expect(got.map(([code, msg], i) => [code, Boolean(msg?.includes(cases[i][2]))])).toEqual(
+      cases.map(([, code]) => [code, true]),
+    );
     // More than the bag holds: refused with the rep path's words, and nothing is written.
     const big = id();
     const BEYOND_BAG = 90;
@@ -603,7 +600,10 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
     ]);
     expect(r).toEqual({ subs: HANDED });
     expect(
-      await failOf([three, first, submit(id(), o, [[SKU1, 1]]), submit(id(), o)]).then(([c, m]) => [c, m?.includes(NOTHING_LEFT)]),
+      await failOf([three, first, submit(id(), o, [[SKU1, 1]]), submit(id(), o)]).then(([c, m]) => [
+        c,
+        m?.includes(NOTHING_LEFT),
+      ]),
     ).toEqual([BAD_INPUT, true]);
   });
 
@@ -621,7 +621,10 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
     const [r] = await tx([
       ["postgres", legacy],
       submit(id(), o),
-      ["postgres", `select count(*)::int subs, bool_and(rep_id = '${fx.repA.id}') mine from public.delivery_submission where order_id = ${oid(o)};`],
+      [
+        "postgres",
+        `select count(*)::int subs, bool_and(rep_id = '${fx.repA.id}') mine from public.delivery_submission where order_id = ${oid(o)};`,
+      ],
     ]);
     expect(r).toEqual({ subs: 1, mine: true });
   });
@@ -654,7 +657,10 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
     const mineRows = await tx([
       order(o, [[SKU1, HANDED]]),
       submit(s, o),
-      ["repA", `select status, salon_name is not null named, lines, unsettled, invoice_id from app.my_submissions() where submission_id = ${sid(s)};`],
+      [
+        "repA",
+        `select status, salon_name is not null named, lines, unsettled, invoice_id from app.my_submissions() where submission_id = ${sid(s)};`,
+      ],
     ]);
     expect(mineRows).toEqual([
       {
@@ -665,7 +671,11 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
         invoice_id: null,
       },
     ]);
-    const theirs = await tx([order(o, [[SKU1, HANDED]]), submit(s, o), ["repB", `select count(*)::int n from app.my_submissions() where submission_id = ${sid(s)};`]]);
+    const theirs = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      ["repB", `select count(*)::int n from app.my_submissions() where submission_id = ${sid(s)};`],
+    ]);
     expect(theirs).toEqual([{ n: 0 }]);
     expect(await txCode([["manager", "select * from app.my_submissions();"]])).toBe(DENIED);
   });
@@ -791,19 +801,12 @@ describe("the office approves a submission: the official record is written once 
       approve(s, d),
       ["postgres", `create temp table first on commit drop as select id from public.invoice where order_id = ${oid(o)};`],
       approve(s, d),
-      [
-        "postgres",
-        `select (select id from first) = (select x.id from public.invoice x where x.order_id = ${oid(o)}) same;`,
-      ],
+      ["postgres", `select (select id from first) = (select x.id from public.invoice x where x.order_id = ${oid(o)}) same;`],
       counts(o),
     ]);
     expect(r).toEqual({ deliveries: 1, invoices: 1, installments: 1, decisions: 1 });
-    const again = await inSeries(
-      [
-        [approve(s, id())],
-        [approve(s, id(), "owner")],
-      ] as Step[][],
-      (steps) => failOf([order(o, [[SKU1, HANDED]]), submit(s, o), approve(s, d), ...steps]),
+    const again = await inSeries([[approve(s, id())], [approve(s, id(), "owner")]] as Step[][], (steps) =>
+      failOf([order(o, [[SKU1, HANDED]]), submit(s, o), approve(s, d), ...steps]),
     );
     expect(again.map(([c, m]) => [c, m?.includes(ALREADY_DECIDED)])).toEqual([
       [WRONG_STATE, true],
@@ -812,7 +815,14 @@ describe("the office approves a submission: the official record is written once 
     const p = id(),
       s2 = id();
     expect(
-      await txCode([order(o, [[SKU1, HANDED]]), order(p, [[SKU2, 1]]), submit(s, o), submit(s2, p), approve(s, d), approve(s2, d)]),
+      await txCode([
+        order(o, [[SKU1, HANDED]]),
+        order(p, [[SKU2, 1]]),
+        submit(s, o),
+        submit(s2, p),
+        approve(s, d),
+        approve(s2, d),
+      ]),
     ).toBe(DUPLICATE);
   });
 
@@ -825,7 +835,10 @@ describe("the office approves a submission: the official record is written once 
       submit(s, o),
       approve(s, d),
       ["postgres", "create temp table n on commit drop as select count(*)::int c from control.audit_event;"],
-      ["manager", `select (app.office_approve_delivery(${sid(s)}, '${d}')).id = (select id from public.invoice where order_id = ${oid(o)}) same;`],
+      [
+        "manager",
+        `select (app.office_approve_delivery(${sid(s)}, '${d}')).id = (select id from public.invoice where order_id = ${oid(o)}) same;`,
+      ],
       ["postgres", "select (select count(*)::int from control.audit_event) - (select c from n) new_audit_rows;"],
     ]);
     expect(r).toEqual({ new_audit_rows: 0 });
@@ -951,7 +964,10 @@ describe("the office approves a submission: the official record is written once 
       ["manager", `select app.office_end_territory('${fx.repA.id}', '${T_A}', 'test: moved away');`],
       ["owner", `select app.owner_set_status('${fx.repA.id}', 'suspended', 'test: suspended with a submission queued');`],
       approve(s, id()),
-      ["postgres", `select commission_rep_id = '${fx.repA.id}' commission_rep, delivered_by = '${fx.repA.id}' delivered_by_rep from public.invoice where order_id = ${oid(o)};`],
+      [
+        "postgres",
+        `select commission_rep_id = '${fx.repA.id}' commission_rep, delivered_by = '${fx.repA.id}' delivered_by_rep from public.invoice where order_id = ${oid(o)};`,
+      ],
     ]);
     expect(r).toEqual({ commission_rep: true, delivered_by_rep: true });
   });
@@ -961,10 +977,7 @@ describe("the office approves a submission: the official record is written once 
       s = id();
     const waiting = [order(o, [[SKU1, HANDED]]), submit(s, o)];
     const blocked = await inSeries(
-      [
-        ["manager", `select app.cancel_order(${oid(o)}, 'test: cancel while waiting');`],
-        officeDeliver(id(), o),
-      ] as Step[],
+      [["manager", `select app.cancel_order(${oid(o)}, 'test: cancel while waiting');`], officeDeliver(id(), o)] as Step[],
       (step) => failOf([...waiting, step]),
     );
     expect(blocked.map(([c, m]) => [c, m?.includes(WAITING)])).toEqual([
@@ -978,10 +991,17 @@ describe("the office approves a submission: the official record is written once 
       ["manager", `select (app.cancel_order(${oid(o)}, 'test: cancel after rejection')).status::text status;`],
     ]);
     expect(cancelled).toEqual({ status: "cancelled" });
-    const [delivered] = await tx([...waiting, reject(s, id()), officeDeliver(id(), o), ["postgres", `select status::text status from public.sales_order where id = ${oid(o)};`]]);
+    const [delivered] = await tx([
+      ...waiting,
+      reject(s, id()),
+      officeDeliver(id(), o),
+      ["postgres", `select status::text status from public.sales_order where id = ${oid(o)};`],
+    ]);
     expect(delivered).toEqual({ status: "delivered" });
     // After approval the order is delivered: cancelling refuses as it does for any delivered order.
-    expect(await txCode([...waiting, approve(s, id()), ["manager", `select app.cancel_order(${oid(o)}, 'test: too late');`]])).toBe(DENIED);
+    expect(
+      await txCode([...waiting, approve(s, id()), ["manager", `select app.cancel_order(${oid(o)}, 'test: too late');`]]),
+    ).toBe(DENIED);
   });
 
   it("the approvals queue lists undecided submissions oldest first", async () => {
@@ -1006,8 +1026,20 @@ describe("the office approves a submission: the official record is written once 
     ]);
     expect(both.map((x) => x.sub)).toEqual(both.map((x) => String(x.sub)).sort());
     expect(both.map(({ sub: _sub, ...rest }) => rest).sort((x, y) => Number(x.total) - Number(y.total))).toEqual([
-      { rep_name: "[Test] Rep A", total: SKU2_PAISA, flags: ["distance_unknown"], received_by_name: "Ayesha at the counter", mock_location: false },
-      { rep_name: "[Test] Rep A", total: HANDED * SKU1_PAISA, flags: [], received_by_name: "Ayesha at the counter", mock_location: false },
+      {
+        rep_name: "[Test] Rep A",
+        total: SKU2_PAISA,
+        flags: ["distance_unknown"],
+        received_by_name: "Ayesha at the counter",
+        mock_location: false,
+      },
+      {
+        rep_name: "[Test] Rep A",
+        total: HANDED * SKU1_PAISA,
+        flags: [],
+        received_by_name: "Ayesha at the counter",
+        mock_location: false,
+      },
     ]);
     const left = await tx([
       order(o, [[SKU1, HANDED]]),
@@ -1051,7 +1083,10 @@ const missingRequest = (
   return checker
     ? [
         ...steps,
-        [checker, `select app.decide_approval((select id from control.approval_request where client_id = '${a}'), true, 'checked the count');`],
+        [
+          checker,
+          `select app.decide_approval((select id from control.approval_request where client_id = '${a}'), true, 'checked the count');`,
+        ],
       ]
     : steps;
 };
@@ -1128,7 +1163,10 @@ describe("rejection keeps history; the office settles pending goods three ways (
     const [r] = await tx([
       ...waiting,
       reject(s, d),
-      ["manager", `select (app.office_reject_delivery(${sid(s)}, '${d}', '${REASON}')).id = (select id from public.delivery_submission_decision where client_id = '${d}') same;`],
+      [
+        "manager",
+        `select (app.office_reject_delivery(${sid(s)}, '${d}', '${REASON}')).id = (select id from public.delivery_submission_decision where client_id = '${d}') same;`,
+      ],
     ]);
     expect(r).toEqual({ same: true });
   });
@@ -1201,14 +1239,20 @@ describe("rejection keeps history; the office settles pending goods three ways (
     const pending = await txFail([
       ...rejectedGoods(o, s),
       ...missingRequest(a, s, HANDED, { checker: null }),
-      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${HANDED}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`],
+      [
+        "manager",
+        `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${HANDED}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`,
+      ],
     ]);
     expect([pending?.code, pending?.message.includes("not approved")]).toEqual([DENIED, true]);
     const [r] = await tx([
       ...rejectedGoods(o, s),
       baseline,
       ...missingRequest(a, s, HANDED),
-      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${HANDED}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`],
+      [
+        "manager",
+        `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${HANDED}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`,
+      ],
       [
         "postgres",
         `select ${deltas}, m.kind::text kind, m.from_location_id = ${PENDING_A} from_pending, m.to_location_id to_loc,
@@ -1216,7 +1260,17 @@ describe("rejection keeps history; the office settles pending goods three ways (
          from public.pending_stock_resolution r join public.stock_movement m on m.id = r.movement_id where r.submission_id = ${sid(s)};`,
       ],
     ]);
-    expect(r).toEqual({ bag1: 0, pend1: -HANDED, bag2: 0, pend2: 0, kind: "adjustment", from_pending: true, to_loc: null, approval: true, settled_with: true });
+    expect(r).toEqual({
+      bag1: 0,
+      pend1: -HANDED,
+      bag2: 0,
+      pend2: 0,
+      kind: "adjustment",
+      from_pending: true,
+      to_loc: null,
+      approval: true,
+      settled_with: true,
+    });
     // Above the owner threshold a manager's check is not enough (Decision 3: the manager raises it, the owner checks).
     const big = id(),
       bs = id(),
@@ -1246,8 +1300,16 @@ describe("rejection keeps history; the office settles pending goods three ways (
       s = id(),
       a = id();
     const settleMissing = (qty: number) =>
-      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${qty}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`] as Step;
-    const reused = await txFail([...rejectedGoods(o, s, ORDER_OF_THREE), ...missingRequest(a, s, 1), settleMissing(1), settleMissing(1)]);
+      [
+        "manager",
+        `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${qty}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`,
+      ] as Step;
+    const reused = await txFail([
+      ...rejectedGoods(o, s, ORDER_OF_THREE),
+      ...missingRequest(a, s, 1),
+      settleMissing(1),
+      settleMissing(1),
+    ]);
     expect(reused?.code).toBe(DENIED);
     const p = id(),
       ps = id();
@@ -1256,7 +1318,9 @@ describe("rejection keeps history; the office settles pending goods three ways (
       missingRequest(a, s, HANDED),
       [order(p, [[SKU1, 1]]), submit(ps, p), reject(ps, id(), REASON), ...missingRequest(a, s, 1, { submission: sid(ps) })],
     ];
-    const codes = await inSeries(mismatches, (steps) => txCode([...rejectedGoods(o, s, ORDER_OF_THREE), ...steps, settleMissing(1)]));
+    const codes = await inSeries(mismatches, (steps) =>
+      txCode([...rejectedGoods(o, s, ORDER_OF_THREE), ...steps, settleMissing(1)]),
+    );
     expect(codes).toEqual(mismatches.map(() => DENIED));
   });
 
@@ -1276,7 +1340,10 @@ describe("rejection keeps history; the office settles pending goods three ways (
         "owner",
         `select app.request_approval('${w}', 'adjustment', 'stock_location', '${WH}', jsonb_build_object('sku_id', '${SKU1}', 'qty_delta', 1), 'found one more');`,
       ],
-      ["manager", `select app.decide_approval((select id from control.approval_request where client_id = '${w}'), true, 'checked the count');`],
+      [
+        "manager",
+        `select app.decide_approval((select id from control.approval_request where client_id = '${w}'), true, 'checked the count');`,
+      ],
       ["manager", `select (app.office_post_adjustment('${id()}', ${approvalId(w)}::uuid)).kind::text kind;`],
     ]);
     expect(r).toEqual({ kind: "adjustment" });
@@ -1313,7 +1380,12 @@ describe("rejection keeps history; the office settles pending goods three ways (
     expect([over?.code, over?.message.includes(UNSETTLED)]).toEqual([CHECK, true]);
     const waiting = await txCode([order(o, [[SKU1, HANDED]]), submit(s, o), resolve(id(), s, SKU1, 1, "returned_to_bag")]);
     expect(waiting).toBe(WRONG_STATE);
-    const approved = await txCode([order(o, [[SKU1, HANDED]]), submit(s, o), approve(s, id()), resolve(id(), s, SKU1, 1, "returned_to_bag")]);
+    const approved = await txCode([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      approve(s, id()),
+      resolve(id(), s, SKU1, 1, "returned_to_bag"),
+    ]);
     expect(approved).toBe(BAD_INPUT);
     const [replay] = await tx([
       ...rejectedGoods(o, s),
@@ -1327,16 +1399,22 @@ describe("rejection keeps history; the office settles pending goods three ways (
       ],
     ]);
     expect(replay).toEqual({ settlements: 1, moves: 1 });
-    expect(await txCode([...rejectedGoods(o, s), resolve(rc, s, SKU1, 1, "returned_to_bag"), resolve(rc, s, SKU1, HANDED, "returned_to_bag")])).toBe(
-      DUPLICATE,
-    );
+    expect(
+      await txCode([
+        ...rejectedGoods(o, s),
+        resolve(rc, s, SKU1, 1, "returned_to_bag"),
+        resolve(rc, s, SKU1, HANDED, "returned_to_bag"),
+      ]),
+    ).toBe(DUPLICATE);
   });
 
   it("who may settle", async () => {
     const o = id(),
       s = id();
     const callers = ["repA", "managerAal1", "suspended"] as const;
-    const codes = await inSeries(callers, (who) => txCode([...rejectedGoods(o, s), resolve(id(), s, SKU1, 1, "returned_to_bag", { who })]));
+    const codes = await inSeries(callers, (who) =>
+      txCode([...rejectedGoods(o, s), resolve(id(), s, SKU1, 1, "returned_to_bag", { who })]),
+    );
     expect(codes).toEqual(callers.map(() => DENIED));
   });
 
@@ -1358,7 +1436,10 @@ describe("rejection keeps history; the office settles pending goods three ways (
     expect([early[0], early[1]?.includes("insufficient stock at the delivery location")]).toEqual([CHECK, true]);
     const [r] = await tx([
       ...full,
-      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', (select n from q), 'returned_to_bag', 'counted at the office');`],
+      [
+        "manager",
+        `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', (select n from q), 'returned_to_bag', 'counted at the office');`,
+      ],
       submit(id(), o),
       [
         "postgres",
@@ -1417,10 +1498,12 @@ describe("the rep's direct delivery is closed (D-32)", () => {
     expect([owner[0], owner[1]?.includes("use app.rep_submit_delivery")]).toEqual([DENIED, true]);
     const [r] = await tx([
       order(o, [[SKU1, 1]]),
-      ["repA", `do $t$ begin perform app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha', 1, 1); exception when insufficient_privilege then null; end $t$;`],
+      [
+        "repA",
+        `do $t$ begin perform app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha', 1, 1); exception when insufficient_privilege then null; end $t$;`,
+      ],
       counts(o),
     ]);
     expect(r).toEqual({ deliveries: 0, invoices: 0, installments: 0, decisions: 0 });
   });
 });
-
