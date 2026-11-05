@@ -24,7 +24,7 @@ export type Approval = {
   qty_delta: number | null;
 };
 
-/** One row of app.office_refused_approvals (migration 20261105210000, P1-30): refused in the last 14 days. */
+/** One row of app.office_refused_approvals (migration 20261105230000, P1-30): refused in the last 14 days. */
 export type RefusedApproval = {
   request_id: string;
   kind: "discount" | "adjustment";

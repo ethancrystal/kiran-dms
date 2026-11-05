@@ -326,11 +326,11 @@ describe("internal functions are not callable by app roles", () => {
       // requests, never the raw payload): migration 20261105170000 (slice 8, P1-25); MJ standing approval L-0144.
       // owner_adjust_stock (owner only, D-45), office_adjustment_checker (owner or manager, a read for audit H2), office_refused_approvals (owner or manager, the second reader's refused requests), office_reverse_payment and office_salon_payments (owner or manager,
       // D-48), office_cash_cap_reps (owner or manager, D-47), owner_settle_handover (owner only, D-46) and
-      // office_withdraw_handover (owner or manager): migration 20261105210000 (P1-30, decision file
+      // office_withdraw_handover (owner or manager): migration 20261105230000 (P1-30, decision file
       // 2026-11-05-mj-audit-decisions); MJ standing approval L-0144. Their helpers rep_session_ok,
       // adjustment_needs_owner, owner_post_adjustment and order_undelivered_paisa have no grant.
       // my_territory_order, my_collections (a rep, own scope, at most 50 rows) and salon_login_status (a salon
-      // login with an emailed-code session, its own account status only): migration 20261105210000 part 2
+      // login with an emailed-code session, its own account status only): migration 20261105230000 part 2
       // (P1-30, audit REP-03, REP-09, AUTH-09); MJ standing approval L-0144.
       // office_rep_detail, office_invoices, office_receipts (owner or manager at AAL2; allow-listed fields, masked
       // phone, no GPS, fingerprint, cost or vault data): read-only, migration 20261105190000 (slice 10, P1-28); MJ standing approval L-0144.

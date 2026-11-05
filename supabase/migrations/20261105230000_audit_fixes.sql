@@ -1,5 +1,5 @@
 -- =============================================================================
--- Kiran DMS · migration 20261105210000 · Fixes from the backend-to-screen wiring audit (P1-30)
+-- Kiran DMS · migration 20261105230000 · Fixes from the backend-to-screen wiring audit (P1-30)
 -- Decisions: D-45 to D-48 (MJ in chat, 2026-11-05; decision file 2026-11-05-mj-audit-decisions).
 -- Requirements: CTL-03, CTL-07, CTL-08, CTL-17, PAY-05, PAY-10, INV-03, ORD-02, SEC-11, SEC-13, SEC-16,
 --               RPT-01 (thin), H-06, H-08, H-10, H-12, H-13, H-17.
@@ -873,76 +873,39 @@ begin
                  from public.payment_reversal pr where pr.payment_id = p.id), '{}'::jsonb);
 end $$;
 
--- D-48: as migration 20261104090000's app.invoice_document; a reversed receipt carries "reversed": true (absent otherwise).
-create or replace function app.invoice_document(p_invoice_id uuid) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
-declare
-  i      public.invoice;
-  d      public.delivery;
-  s      public.salon;
-  v_area text;
-  v_plan text;
-  v_on   date;
-  v_fy   integer;
-begin
-  select * into i from public.invoice where id = p_invoice_id;
-  if i.id is null then return null; end if;
-  if not (app.is_office() or coalesce(app.user_role() = 'rep' and i.rep_id = auth.uid() and app.self_ok(), false)) then
-    return null;
-  end if;
-  select * into d from public.delivery where id = i.delivery_id;
-  select * into s from public.salon where id = i.salon_id;
-  select a.name into v_area from public.area a where a.id = s.area_id;
-  select t ->> 'name' into v_plan
-  from public.app_config c, jsonb_array_elements(c.value) t
-  where c.key = 'plan.templates' and t ->> 'code' = i.plan::text;
-  v_on := (d.delivered_at at time zone 'Asia/Karachi')::date;
-  v_fy := substring(i.number from 5 for 2)::integer;               -- INV-27-000001: the number carries its financial year
-  return jsonb_build_object(
-    'version', 1,
-    'number', i.number,
-    'financial_year', (2000 + v_fy - 1)::text || '-' || lpad(v_fy::text, 2, '0'),
-    'issued_at', i.issued_at,
-    'company', coalesce((select c.value from public.app_config c where c.key = 'company.profile'), '{}'::jsonb),
-    'bank_accounts', coalesce((select c.value from public.app_config c where c.key = 'company.bank_accounts'), '[]'::jsonb),
-    'salon', jsonb_build_object('name', s.name, 'address', s.address, 'area', v_area),
-    'delivery', jsonb_build_object('delivered_at', d.delivered_at, 'received_by_name', d.received_by_name, 'status', d.status),
-    'plan', jsonb_build_object('code', i.plan, 'name', v_plan),
-    'lines', coalesce((
-      select jsonb_agg(jsonb_build_object(
-               'line_no', ol.line_no, 'sku_code', k.code, 'product', p.brand_label || ' ' || p.name,
-               'variant', k.variant, 'qty', dl.qty, 'list_price_paisa', dl.list_price_paisa,
-               'unit_price_paisa', dl.unit_price_paisa, 'line_total_paisa', dl.line_total_paisa)
-             order by ol.line_no)
-      from public.delivery_line dl
-      join public.sales_order_line ol on ol.id = dl.order_line_id
-      join public.sku k on k.id = dl.sku_id
-      join public.product p on p.id = k.product_id
-      where dl.delivery_id = d.id), '[]'::jsonb),
-    'totals', jsonb_build_object('subtotal_paisa', i.subtotal_paisa, 'discount_paisa', i.discount_paisa, 'total_paisa', i.total_paisa),
-    'schedule', coalesce((
-      select jsonb_agg(jsonb_build_object(
-               'no', x.seq, 'of', x.of_count, 'due_on', x.due_on, 'pct', x.pct_of_total, 'amount_paisa', x.amount_due_paisa)
-             order by x.seq)
-      from public.installment x where x.invoice_id = i.id), '[]'::jsonb),
+-- D-48 on the invoice: migration 20261105220000 (P1-31) made app.invoice_document the issue-time snapshot plus this
+-- overlay of what moves afterwards, so the reversal handling lives here. A reversed payment is listed with
+-- "reversed": true (the key is absent otherwise) and does not count as paid. This migration is numbered after
+-- 20261105220000 so that it applies on top of it.
+create or replace function app.invoice_payments_overlay(p_invoice_id uuid) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'acknowledgement', (
+      select jsonb_build_object('signature_id', g.id, 'outcome', g.outcome, 'signatory_name', g.signatory_name,
+                                'signatory_designation', g.signatory_designation, 'signed_at', g.signed_at,
+                                'statement_version', g.statement_version, 'matches_delivery', true)
+      from public.invoice i
+      join public.delivery_signature_use u on u.delivery_id = i.delivery_id
+      join public.delivery_signature g on g.id = u.signature_id
+      where i.id = p_invoice_id),
     'receipts', coalesce((
-      select jsonb_agg(jsonb_build_object('number', r.number, 'issued_at', r.issued_at, 'amount_paisa', t.amt,
-                                         'reversed', exists (select 1 from public.payment_reversal pr where pr.payment_id = t.payment_id))
+      select jsonb_agg(jsonb_build_object('number', r.number, 'issued_at', r.issued_at, 'amount_paisa', t.amt, 'reversed', true)
                        - case when exists (select 1 from public.payment_reversal pr where pr.payment_id = t.payment_id)
                               then '' else 'reversed' end
                        order by r.issued_at, r.number)
       from (select a.payment_id, sum(a.amount_paisa)::bigint amt
             from public.payment_allocation a join public.installment x on x.id = a.installment_id
-            where x.invoice_id = i.id group by a.payment_id) t
+            where x.invoice_id = p_invoice_id group by a.payment_id) t
       join public.receipt r on r.payment_id = t.payment_id), '[]'::jsonb),
-    'notices', jsonb_build_array(
-      jsonb_build_object('code', 'no_paper_receipts',
-        'en', 'Only the numbered receipt the system sends to your registered phone is valid. A paper receipt is not valid.',
-        'ur', 'صرف وہ نمبر والی رسید درست ہے جو سسٹم آپ کے رجسٹرڈ فون پر بھیجتا ہے۔ کاغذی رسید درست نہیں۔'),
-      jsonb_build_object('code', 'official_accounts_only',
-        'en', 'Pay only into the company accounts printed on this invoice. Never pay a rep''s personal account or wallet.',
-        'ur', 'ادائیگی صرف اس انوائس پر چھپے کمپنی کے اکاؤنٹس میں کریں۔ کسی ریپ کے ذاتی اکاؤنٹ یا والٹ میں ہرگز نہیں۔')));
-end $$;
+    'paid_paisa', coalesce((select sum(a.amount_paisa) from public.payment_allocation a join public.installment x on x.id = a.installment_id
+                            where x.invoice_id = p_invoice_id
+                              and not exists (select 1 from public.payment_reversal pr where pr.payment_id = a.payment_id)), 0)::bigint,
+    'outstanding_paisa', greatest(0, (select i.total_paisa from public.invoice i where i.id = p_invoice_id)
+                            - coalesce((select sum(a.amount_paisa) from public.payment_allocation a join public.installment x on x.id = a.installment_id
+                                        where x.invoice_id = p_invoice_id
+                                          and not exists (select 1 from public.payment_reversal pr where pr.payment_id = a.payment_id)), 0))::bigint);
+$$;
+revoke execute on function app.invoice_payments_overlay(uuid) from public, anon, authenticated, service_role;
 
 -- D-48: as migration 20261105150000's app.salon_my_account; a reversed payment carries "reversed": true (the
 -- key is absent otherwise, so an unreversed payment reads as before).

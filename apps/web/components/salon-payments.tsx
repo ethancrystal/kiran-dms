@@ -5,7 +5,7 @@ import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 
-/** One row of app.office_salon_payments (migration 20261105210000, P1-30). */
+/** One row of app.office_salon_payments (migration 20261105230000, P1-30). */
 type Payment = {
   payment_id: string;
   receipt_id: string;

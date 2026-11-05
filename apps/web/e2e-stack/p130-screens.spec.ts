@@ -443,6 +443,12 @@ test("cash handovers: the owner settles disputes at either amount; the manager c
     JSON.stringify([{ sku_id: seed.sku.id, qty: ORDER_UNITS }]),
     rep.id,
   ]);
+  // D-49: a delivery is final only with the salon's signed acknowledgement, so the fixture records one first.
+  await sql(
+    M(),
+    "select app.office_attach_signature($1, (select id from public.sales_order where client_id = $2), null, 'signed', 'Ayesha Khan', 'Owner', $3, null)",
+    [randomUUID(), orderCid, Buffer.from(`89504e470d0a1a0a${"00".repeat(300)}`, "hex").toString("base64")],
+  );
   await sql(M(), "select app.office_deliver($1, (select id from public.sales_order where client_id = $2), $3, 'p130 counter')", [
     randomUUID(),
     orderCid,

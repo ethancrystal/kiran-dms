@@ -1,5 +1,5 @@
 /**
- * P1-30, migration 20261105210000: fixes from the backend-to-screen wiring audit of 2026-11-05 and MJ's
+ * P1-30, migration 20261105230000: fixes from the backend-to-screen wiring audit of 2026-11-05 and MJ's
  * decisions D-45 to D-48 (decision file 2026-11-05-mj-audit-decisions).
  *
  * Each test runs as one rolled-back script of steps, each step as a persona the way PostgREST would run it

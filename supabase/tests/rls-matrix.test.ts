@@ -727,7 +727,7 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
-  // Handover settlements (migration 20261105210000, P1-30, D-46): as the handover answers.
+  // Handover settlements (migration 20261105230000, P1-30, D-46): as the handover answers.
   {
     table: "public.handover_settlement",
     writeCol: "reason",
@@ -744,7 +744,7 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
-  // Payment reversals (migration 20261105210000, P1-30, D-48): as payments: the office reads all; a rep
+  // Payment reversals (migration 20261105230000, P1-30, D-48): as payments: the office reads all; a rep
   // reads the reversals of the payments it recorded, on its approved phone.
   {
     table: "public.payment_reversal",
@@ -762,7 +762,7 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
-  // The owner's own stock adjustments (migration 20261105210000, P1-30, D-45): office only.
+  // The owner's own stock adjustments (migration 20261105230000, P1-30, D-45): office only.
   {
     table: "public.owner_stock_adjustment",
     writeCol: "reason",
