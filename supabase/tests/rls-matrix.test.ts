@@ -817,6 +817,26 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Commission default rates and payments (migration 20261105140000, slice 5, P1-22, D-38): the office
+  // reads all; a rep reads its own through app.my_commission only, and a salon reads nothing.
+  ...(["public.rep_commission_rate", "public.commission_payment"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.rep_commission_rate" ? "rate_bp" : "amount_paisa",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",
