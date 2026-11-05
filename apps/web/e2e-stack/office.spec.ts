@@ -750,3 +750,76 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   const row = page.getByRole("row").filter({ hasText: seed.catalogueSalon.name });
   await expect(row).toContainText(salonPrice);
 });
+
+// Slice 3 (P1-20; D-40): the manager keeps the basic investor ledger, typing every amount; the page
+// shows the database's derived figures, which survive a reload. A rep's signed-in phone has no
+// Investors link and reaches no office page or investor data.
+const INVESTED_PAISA = 10_000_000; // Rs 100,000
+const DECIDED_PAISA = 1_200_000; // Rs 12,000
+const PAID_PAISA = 500_000; // Rs 5,000
+const OWED_PAISA = DECIDED_PAISA - PAID_PAISA; // Rs 7,000
+
+test("a manager records an investor, an investment, a profit decision and a payout; Rs 7,000 owed survives a reload; a rep sees none of it (P1-20)", async ({
+  browser,
+  page,
+}) => {
+  // A further manager sign-in waits for the next TOTP step (up to 30 s) before the test's own work.
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  expect(repPhone, "the rep journey kept the rep's signed-in phone").not.toBeNull();
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Investors", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Investors", exact: true, level: 1 })).toBeVisible();
+  await expect(page.getByTestId("ledger-note")).toContainText("Nothing is calculated");
+
+  const name = `[Dummy] Investor ${Date.now()}`;
+  const add = page.getByRole("form", { name: "Add an investor" });
+  await add.getByLabel("Name").fill(name);
+  await add.getByLabel("Phone (optional)").fill("+920000001234");
+  await add.getByRole("button", { name: "Add investor" }).click();
+  await expect(page.getByText(`Investor ${name} added.`)).toBeVisible();
+  await page.getByRole("link", { name, exact: true }).click();
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+
+  const invest = page.getByRole("form", { name: "Add an investment" });
+  await invest.getByLabel("Amount (Rs)").fill("100000");
+  await invest.getByRole("button", { name: "Record investment" }).click();
+  await expect(page.getByText(`Investment of ${rupees(INVESTED_PAISA)} recorded.`)).toBeVisible();
+  const decide = page.getByRole("form", { name: "Decide profit" });
+  await decide.getByLabel("Amount (Rs)").fill("12000");
+  await decide.getByRole("button", { name: "Record decision" }).click();
+  await expect(page.getByText(`Profit of ${rupees(DECIDED_PAISA)} decided.`)).toBeVisible();
+  const payout = page.getByRole("form", { name: "Record a payout" });
+  await payout.getByLabel("Paid as").selectOption("profit");
+  await payout.getByLabel("Amount (Rs)").fill("5000");
+  await payout.getByRole("button", { name: "Record payout" }).click();
+  await expect(page.getByText(`Profit payout of ${rupees(PAID_PAISA)} recorded.`)).toBeVisible();
+
+  // The investor's own figures and its investment row, as the database derives them.
+  await expect(page.getByTestId("investor-invested")).toHaveText(rupees(INVESTED_PAISA));
+  await expect(page.getByTestId("investor-decided")).toHaveText(rupees(DECIDED_PAISA));
+  await expect(page.getByTestId("investor-paid")).toHaveText(rupees(PAID_PAISA));
+  await expect(page.getByTestId("investor-owed")).toHaveText(rupees(OWED_PAISA));
+  await expect(page.getByTestId("investment-row")).toContainText(rupees(OWED_PAISA));
+  // Data survives a reload: the database answers the same.
+  await page.reload();
+  await expect(page.getByTestId("investor-owed")).toHaveText(rupees(OWED_PAISA));
+  await expect(page.getByTestId("investment-row")).toContainText(rupees(OWED_PAISA));
+  await page.goto("/office/investors");
+  await expect(page.getByRole("row").filter({ hasText: name })).toContainText(rupees(OWED_PAISA));
+
+  // The rep's phone: no Investors link in the rep app, and the office page shows it nothing.
+  const phoneContext = await browser.newContext({ storageState: repPhone ?? undefined });
+  const phone = await phoneContext.newPage();
+  // Positive checks first, so the absence checks below cannot pass on an expired session or an error page:
+  // the rep's Today page renders (signed in), and the office route stops at the TOTP step (the rep is AAL1).
+  await phone.goto("/app");
+  await expect(phone.getByRole("heading", { name: "Today", exact: false, level: 1 })).toBeVisible();
+  await expect(phone.getByRole("link", { name: "Investors" })).toHaveCount(0);
+  await phone.goto("/office/investors");
+  await phone.waitForURL((u) => u.pathname === "/office/mfa");
+  await expect(phone.getByRole("heading", { name: "Two-step verification" })).toBeVisible();
+  await expect(phone.getByRole("navigation", { name: "Office" })).toHaveCount(0);
+  await expect(phone.getByText(name)).toHaveCount(0);
+  await expect(phone.getByTestId("total-owed")).toHaveCount(0);
+  await phoneContext.close();
+});

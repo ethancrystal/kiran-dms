@@ -58,7 +58,7 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | Territories, route days | — | Yes | Yes |
 | **Commission rates** (per rep and salon with a rep default, D-38; approved, not built: slice 5) | View own (D-31) | Set and change rates; view all (D-31; MJ, ACTIVITY L-0385) | Set and change rates; view all (D-31; MJ, ACTIVITY L-0385) |
 | Commission payments and reversals (D-38, supersedes earned-only; approved, not built: slice 5) | View own earned, paid, owed and history, read-only | Record; view all | Record; view all |
-| Investor ledger: investors, investments, typed profit decisions, payouts, reversals (D-40; approved, not built: slice 3) | — | Yes | Yes |
+| Investor ledger: investors, investments, typed profit decisions, payouts, reversals (D-40; built in slice 3: `app.office_create_investor`, `app.office_update_investor`, `app.office_add_investment`, `app.office_decide_profit`, `app.office_record_payout`, `app.office_reverse_investor_entry` and the `app.office_investor*` reads, at AAL2, not verified; no second person, OQ-34 default) | — (reads no row, refused by every function) | Yes | Yes |
 | Salon and order timelines (scoped office functions over `control.audit_event`, D-39; approved, not built: slice 7) | — | Yes | Yes |
 | **Vault (supplier, costs, POs, receipts)** | — | If granted by owner (default: granted) | Yes; grants are owner-only |
 | Exports (watermarked) | — | Operational reports | All |

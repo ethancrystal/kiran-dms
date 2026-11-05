@@ -247,6 +247,8 @@ A basic office ledger, separate from Rep commissions. It calculates nothing and 
 | CAP-02 | Owner or manager types each profit decision (no formula) and records append-only payouts and reversals with reasons; totals are derived | M | 1 |
 | CAP-03 | Investor money stays separate from commission and is not posted to the cash ledger; OQ-23, OQ-26, OQ-27 and OQ-28 stay open with MJ and MJ's advisers | M | 1 |
 
+How CAP-01 to CAP-03 are built (slice 3, P1-20, migration 20261105120000; status on the ACTIVITY board): investments, profit decisions and payouts are recorded per investment. A payout is of profit or of principal and never exceeds the profit owed (decided minus paid) or the principal outstanding (invested minus returned) on its investment. A reversal is a row of its own with a reason of 5 to 300 characters, dated by the server; it is never reversed, an entry is reversed once, and no figure goes below zero. A closed investor takes nothing new until reopened, and closing needs nothing outstanding. The office reads each investor's figures, a totals row over all investors, each investment's figures and a statement with running balances, all derived from the rows.
+
 ## Non-functional requirements
 
 | ID | Requirement |
