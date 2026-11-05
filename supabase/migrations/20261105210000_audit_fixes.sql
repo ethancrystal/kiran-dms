@@ -40,6 +40,17 @@
 --            deliver (undelivered value), and count the orders a rep placed beside the orders assigned
 --            to it; the office home's waiting rows carry the undelivered value; the home counts reps at
 --            the cash cap and handovers waiting for an answer or the owner.
+--   Part 2 (screens; reads only, at the end of this file):
+--   REP-03, FLOW-06  app.my_territory_orders lists the rep's own open assigned orders first and says
+--            why an order is held or cancelled (FLOW-18); app.my_territory_order reads one order by id
+--            for the delivery page, so an assigned order never drops out of reach behind 50 newer ones.
+--   REP-10   app.my_salon returns the office's reason for a rejected proposal; app.my_salons returns
+--            the approval state, so the list can show it.
+--   REP-09   app.my_collections: the rep's own recent payments with their receipt numbers.
+--   AUTH-10  app.salon_my_orders says, in a fixed word, what an order on hold waits for (no credit
+--            figure, no reason typed by the office).
+--   AUTH-09  app.salon_login_status: the status of this login's own salon account, so a suspended or
+--            closed account is told so instead of "no account".
 -- Errors: 42501 wrong role or session; 22023 bad input or an unknown reference; 23505 a client_id used
 -- for something else; 23514 a business limit; 55000 the wrong state.
 -- =============================================================================
@@ -1642,3 +1653,173 @@ comment on function app.owner_settle_handover(uuid, uuid, text, text) is
   'D-46. The owner (AAL2) settles a disputed handover: counted (the difference stays against the rep) or rep (an office difference), with a reason.';
 comment on function app.office_withdraw_handover(uuid, uuid, text) is
   'D-46 (second reader). Owner or manager (AAL2) withdraws a handover the rep has not answered, with a reason; nothing moves.';
+
+-- =============================================================================
+-- Part 2: reads for the screens of the audit's second package (no table, no write path)
+-- =============================================================================
+
+-- REP-03, FLOW-06, FLOW-18. The territory's orders, newest 50 as before, except that the rep's own open
+-- assigned orders (confirmed or part delivered) come first, so they never drop behind 50 newer orders of
+-- other reps. Adds the hold codes and the cancel reason (staff-facing; the rep page words them).
+drop function app.my_territory_orders();
+create function app.my_territory_orders()
+returns table (order_id uuid, salon_id uuid, salon_name text, status public.order_status, plan public.plan_code,
+               total_paisa bigint, assigned_rep_id uuid, created_at timestamptz,
+               hold_credit text, hold_discount text, cancel_reason text)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_role() is distinct from 'rep' or not coalesce(app.self_ok(), false) then
+    perform app.raise_denied('territory orders are listed for reps only, on their approved phone');
+  end if;
+  return query
+  select o.id, o.salon_id, case when app.rep_can_reach_salon(o.salon_id) then s.name end, o.status, o.plan,
+         o.total_paisa, o.assigned_rep_id, o.created_at, o.hold_credit, o.hold_discount, o.cancel_reason
+  from public.sales_order o
+  join public.salon s on s.id = o.salon_id
+  where app.rep_can_reach_salon(o.salon_id)
+  order by coalesce(o.assigned_rep_id = auth.uid() and o.status in ('confirmed', 'partially_delivered'), false) desc,
+           o.created_at desc, o.id
+  limit 50;
+end $$;
+
+-- REP-03. One order of the rep's territories by id (the delivery page): the same columns and guard.
+create function app.my_territory_order(p_order_id uuid)
+returns table (order_id uuid, salon_id uuid, salon_name text, status public.order_status, plan public.plan_code,
+               total_paisa bigint, assigned_rep_id uuid, created_at timestamptz,
+               hold_credit text, hold_discount text, cancel_reason text)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_role() is distinct from 'rep' or not coalesce(app.self_ok(), false) then
+    perform app.raise_denied('territory orders are listed for reps only, on their approved phone');
+  end if;
+  return query
+  select o.id, o.salon_id, s.name, o.status, o.plan, o.total_paisa, o.assigned_rep_id, o.created_at,
+         o.hold_credit, o.hold_discount, o.cancel_reason
+  from public.sales_order o
+  join public.salon s on s.id = o.salon_id
+  where o.id = p_order_id and app.rep_can_reach_salon(o.salon_id);
+end $$;
+
+-- REP-10. my_salon as in migration 20261105160000, plus the office's reason when it rejected the
+-- proposal (what the rep needs to propose again). Null for any other state.
+drop function app.my_salon(uuid);
+create function app.my_salon(p_id uuid)
+returns table (id uuid, name text, type public.salon_type, stage public.salon_stage,
+               verification_status public.salon_verification, area_id uuid, area_name text,
+               lat numeric, lng numeric, phone_masked text, address text, chairs integer,
+               approval_status public.salon_approval, rejection_reason text)
+language sql stable security definer set search_path = '' as $$
+  select s.id, s.name, s.type, s.stage, s.verification_status, a.id, a.name, s.lat, s.lng,
+         app.mask_phone((select c.phone from public.salon_contact c
+                         where c.salon_id = s.id and c.is_primary and c.active)),
+         s.address, s.chairs, s.approval_status,
+         (select d.reason from public.salon_approval_decision d
+           where d.salon_id = s.id and d.decision = 'rejected' and s.approval_status = 'rejected')
+  from public.salon s join public.area a on a.id = s.area_id
+  where s.id = p_id and app.self_ok() and app.user_role() = 'rep'
+    and app.rep_holds_salon(auth.uid(), s.id)
+$$;
+
+-- REP-10. my_salons as in migration 20261105100000, plus the approval state as the last column.
+drop function app.my_salons(text, uuid, integer);
+create function app.my_salons(p_after_name text default null, p_after_id uuid default null, p_limit integer default 50)
+returns table (id uuid, name text, type public.salon_type, stage public.salon_stage,
+               verification_status public.salon_verification, area_id uuid, area_name text,
+               lat numeric, lng numeric, phone_masked text, approval_status public.salon_approval)
+language sql stable security definer set search_path = '' as $$
+  select s.id, s.name, s.type, s.stage, s.verification_status, a.id, a.name, s.lat, s.lng,
+         app.mask_phone((select c.phone from public.salon_contact c
+                         where c.salon_id = s.id and c.is_primary and c.active)),
+         s.approval_status
+  from public.salon s join public.area a on a.id = s.area_id
+  where app.self_ok() and app.user_role() = 'rep'
+    and app.rep_holds_salon(auth.uid(), s.id)
+    and (p_after_id is null or (coalesce(s.name, ''), s.id) > (coalesce(p_after_name, ''), p_after_id))
+  order by coalesce(s.name, ''), s.id
+  limit least(greatest(coalesce(p_limit, 50), 1), 50)
+$$;
+
+-- REP-09. The rep's own payments, newest 50 (H-14), optionally for one salon: receipt number, method,
+-- amount, server time and whether the office reversed it (D-48). The salon's name only while the rep can
+-- still reach the salon. No bank reference, GPS or flags.
+create function app.my_collections(p_salon_id uuid default null)
+returns table (payment_id uuid, salon_id uuid, salon_name text, method public.pay_method, amount_paisa bigint,
+               recorded_at timestamptz, receipt_number text, reversed boolean, reversed_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_role() is distinct from 'rep' or not coalesce(app.self_ok(), false) then
+    perform app.raise_denied('a rep''s collections are listed for that rep only, on their approved phone');
+  end if;
+  return query
+  select p.id, p.salon_id, case when app.rep_can_reach_salon(p.salon_id) then s.name end, p.method, p.amount_paisa,
+         p.recorded_at, r.number, x.id is not null, x.reversed_at
+  from public.payment p
+  join public.salon s on s.id = p.salon_id
+  left join public.receipt r on r.payment_id = p.id
+  left join public.payment_reversal x on x.payment_id = p.id
+  where p.recorded_by = auth.uid() and (p_salon_id is null or p.salon_id = p_salon_id)
+  order by p.recorded_at desc, p.id
+  limit 50;
+end $$;
+
+-- AUTH-10, FLOW-18. salon_my_orders as in migration 20261105150000, plus waiting_on: for an order on
+-- hold, one fixed word for what it waits for ('price_approval' for a discount, 'credit_check' for a
+-- credit check, 'office_check' otherwise); null for every other status. No credit figure and no text the
+-- office typed reaches the salon (the cancel reason stays with the office and the rep).
+drop function app.salon_my_orders();
+create function app.salon_my_orders()
+returns table (order_id uuid, created_at timestamptz, status public.order_status, plan public.plan_code,
+               subtotal_paisa bigint, discount_paisa bigint, total_paisa bigint, from_request boolean, lines jsonb,
+               waiting_on text)
+language plpgsql stable security definer set search_path = '' as $$
+declare v_salon uuid := app.assert_salon_member();
+begin
+  return query
+  select o.id, o.created_at, o.status, o.plan, o.subtotal_paisa, o.discount_paisa, o.total_paisa,
+         o.source_channel = 'salon_portal',
+         coalesce((select jsonb_agg(jsonb_build_object('line_no', l.line_no, 'code', k.code, 'product_name', p.name,
+                                                       'variant', k.variant, 'qty', l.qty,
+                                                       'unit_price_paisa', l.unit_price_paisa,
+                                                       'line_total_paisa', l.line_total_paisa) order by l.line_no)
+                   from public.sales_order_line l
+                   join public.sku k on k.id = l.sku_id
+                   join public.product p on p.id = k.product_id
+                   where l.order_id = o.id), '[]'::jsonb),
+         case when o.status <> 'draft' then null
+              when o.hold_discount is not null then 'price_approval'
+              when o.hold_credit is not null then 'credit_check'
+              else 'office_check' end
+  from public.sales_order o
+  where o.salon_id = v_salon
+  order by o.created_at desc, o.id
+  limit 50;
+end $$;
+
+-- AUTH-09. The status of this login's own salon account (active, suspended or revoked) and the salon's
+-- name, for a session that proved its mailbox (as app.salon_me). Null for any other login. The reason the
+-- office typed is not returned, nor any balance (whether a suspended salon sees its balance is MJ's).
+create function app.salon_login_status() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('membership_status', m.status, 'name', s.name)
+  from public.salon_membership m
+  join public.salon s on s.id = m.salon_id
+  where m.user_id = auth.uid() and app.session_proved_email()
+  order by (m.status = 'active') desc, m.created_at desc
+  limit 1
+$$;
+
+revoke all on function
+  app.my_territory_orders(), app.my_territory_order(uuid), app.my_salon(uuid), app.my_salons(text, uuid, integer),
+  app.my_collections(uuid), app.salon_my_orders(), app.salon_login_status()
+  from public, anon, authenticated, service_role;
+grant execute on function
+  app.my_territory_orders(), app.my_territory_order(uuid), app.my_salon(uuid), app.my_salons(text, uuid, integer),
+  app.my_collections(uuid), app.salon_my_orders(), app.salon_login_status()
+  to authenticated;
+
+comment on function app.my_territory_order(uuid) is
+  'REP-03 (P1-30). One order of the rep''s territories by id, for the delivery page. A rep on its approved phone.';
+comment on function app.my_collections(uuid) is
+  'REP-09 (P1-30). The rep''s own payments, newest 50, with receipt numbers and whether the office reversed them.';
+comment on function app.salon_login_status() is
+  'AUTH-09 (P1-30). The status of this login''s own salon account, for an emailed-code session; no reason, no balance.';

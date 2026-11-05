@@ -253,8 +253,8 @@ describe("internal functions are not callable by app roles", () => {
     expect(rows.map((r) => r.proname)).toEqual([
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon",
       "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invitation_preview", "invoice_document", "is_aal2", "is_office", "is_owner",
-      "is_rep", "log_visit", "low_stock", "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_commission", "my_day",
-      "my_handovers", "my_month_orders", "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_submissions", "my_territory_ids", "my_territory_orders",
+      "is_rep", "log_visit", "low_stock", "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_collections", "my_commission", "my_day",
+      "my_handovers", "my_month_orders", "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_submissions", "my_territory_ids", "my_territory_order", "my_territory_orders",
       "office_add_investment", "office_adjustment_checker", "office_approve_delivery", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue", "office_cash_cap_reps", "office_cash_position",
       "office_catalogue", "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location",
       "office_create_order", "office_decide_profit", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
@@ -273,7 +273,7 @@ describe("internal functions are not callable by app roles", () => {
       "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_cancel_card", "rep_check_in", "rep_check_out",
       "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_edit_card", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
       "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_cancel_request",
-      "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_me", "salon_my_account", "salon_my_orders", "salon_my_requests",
+      "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_login_status", "salon_me", "salon_my_account", "salon_my_orders", "salon_my_requests",
       "salon_notes", "salon_stages", "salon_submit_request", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role",
       "warehouse_availability",
       // my_session, self_ok: added by migration 0004 (L-0026). Inventory RPCs and the my_bag_id RLS
@@ -322,6 +322,9 @@ describe("internal functions are not callable by app roles", () => {
       // office_withdraw_handover (owner or manager): migration 20261105210000 (P1-30, decision file
       // 2026-11-05-mj-audit-decisions); MJ standing approval L-0144. Their helpers rep_session_ok,
       // adjustment_needs_owner, owner_post_adjustment and order_undelivered_paisa have no grant.
+      // my_territory_order, my_collections (a rep, own scope, at most 50 rows) and salon_login_status (a salon
+      // login with an emailed-code session, its own account status only): migration 20261105210000 part 2
+      // (P1-30, audit REP-03, REP-09, AUTH-09); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
     ]);
     const sr = await run("postgres", `

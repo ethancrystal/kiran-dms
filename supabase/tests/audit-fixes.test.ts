@@ -877,3 +877,152 @@ describe("FLOW-09, FLOW-10: the month and home figures", () => {
     expect(r.home[0].x).toEqual({ kind: "rep", same: true });
   });
 });
+
+// =============================================================================
+// Part 2 (P1-30, the screens package): reads added at the end of the migration.
+// =============================================================================
+const wrongDevice = (sql: string) => `
+  reset role;
+  select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
+         set_config('request.headers', '${JSON.stringify({ "x-kiran-device": "dev-not-approved-p130" })}', true);
+  set local role authenticated;
+  ${sql}`;
+const asSalon = (sql: string): Step => ["postgres", `${asLogin(salonLogin)} ${sql}`];
+const membership = () => `(select id from public.salon_membership where user_id = '${salonLogin.id}')`;
+const REP_PAGE_CAP = 50; // H-14: a rep read returns at most 50 rows
+// A receipt number: "R-26-000001" matches; "R-2026-1" and "R26000001" do not.
+// https://regex101.com/?regex=%5ER-%5Cd%7B2%7D-%5Cd%7B6%7D%24&flavor=javascript
+const RECEIPT = /^R-\d{2}-\d{6}$/;
+
+describe("REP-03, FLOW-06, FLOW-18: the rep's orders", () => {
+  it("my_territory_order reads one order by id with its hold codes and the cancel reason; another territory gets nothing", async () => {
+    const [a, b] = [id(), id()];
+    const r = await tx([
+      order(a),
+      order(b),
+      ["manager", `select app.cancel_order(${orderOf(b)}, 'the salon closed for a month');`],
+      mark("a", `t.* from app.my_territory_order(${orderOf(a)}) t`, "repA"),
+      mark("b", `t.* from app.my_territory_order(${orderOf(b)}) t`, "repA"),
+      mark("none", `(select count(*)::int from app.my_territory_order(gen_random_uuid())) as k`, "repA"),
+    ]);
+    expect(r.a[0].status).toBe("confirmed");
+    expect(r.a[0].assigned_rep_id).toBe(fx.repA.id);
+    expect(typeof r.a[0].salon_name).toBe("string");
+    expect(r.b[0].status).toBe("cancelled");
+    expect(r.b[0].cancel_reason).toBe("the salon closed for a month");
+    expect(n(r.none[0].k)).toBe(0);
+  });
+
+  it("an order held over the credit limit carries its hold code for the rep", async () => {
+    const big = id();
+    const r = await tx([order(big, QTY * TWO), mark("h", `t.status::text s, t.hold_credit from app.my_territory_order(${orderOf(big)}) t`, "repA")]);
+    expect(r.h[0].s).toBe("draft");
+    expect(r.h[0].hold_credit).toBe("over_limit");
+  });
+
+  it("the rep's own open assigned orders come before newer orders of others in my_territory_orders", async () => {
+    const mine = id();
+    const others = [id(), id(), id()];
+    const r = await tx([
+      order(mine),
+      ...others.map((o) => order(o, 1, null)),
+      mark("list", `jsonb_agg(t.order_id order by t.ordinality) as ids from app.my_territory_orders() with ordinality t`, "repA"),
+      mark("ids", `jsonb_build_object('mine', ${orderOf(mine)}, 'others', jsonb_build_array(${others.map(orderOf).join(", ")})) as x`),
+    ]);
+    const list = r.list[0].ids as string[];
+    const x = r.ids[0].x as { mine: string; others: string[] };
+    expect(list).toContain(x.mine);
+    const later = x.others.filter((o) => list.includes(o)).map((o) => list.indexOf(o));
+    expect(later.every((i) => list.indexOf(x.mine) < i)).toBe(true);
+    expect(list.length).toBeLessThanOrEqual(REP_PAGE_CAP);
+  });
+
+  it("is for reps on their approved phone: a wrong device, the office and anon are refused 42501", async () => {
+    expect(await sqlstate("postgres", wrongDevice("select * from app.my_territory_order(gen_random_uuid());"))).toBe(DENIED);
+    expect(await sqlstate(MANAGER, "select * from app.my_territory_order(gen_random_uuid())")).toBe(DENIED);
+    expect(await sqlstate(OWNER, "select * from app.my_territory_order(gen_random_uuid())")).toBe(DENIED);
+    expect(await sqlstate("anon", "select * from app.my_territory_order(gen_random_uuid())")).toBe(DENIED);
+  });
+});
+
+describe("REP-10: a rejected proposal tells the rep why", () => {
+  it("my_salon returns the office's rejection reason and my_salons the approval state", async () => {
+    const s = id();
+    const r = await tx([
+      ["repA", `select app.create_salon('${s}', '[Test] Proposal ${tag()}', 'ladies_parlor', '${AREA}', 'manual');`],
+      mark("pending", `t.approval_status::text a, t.rejection_reason from app.my_salon('${s}') t`, "repA"),
+      ["manager", `select app.office_decide_salon('${id()}', '${s}', false, 'already a customer under another name');`],
+      mark("rejected", `t.approval_status::text a, t.rejection_reason from app.my_salon('${s}') t`, "repA"),
+      mark("list", `(select approval_status::text from app.my_salons(null, null, 50) where id = '${s}') as a`, "repA"),
+      mark("other", `(select count(*)::int from app.my_salon('${s}')) as k`, "repB"),
+    ]);
+    expect(r.pending[0]).toEqual({ mark: "pending", a: "pending", rejection_reason: null });
+    expect(r.rejected[0]).toEqual({ mark: "rejected", a: "rejected", rejection_reason: "already a customer under another name" });
+    expect(r.list[0].a).toBe("rejected");
+    // Rep B covers the same territory, so it reaches the salon too; the reason is the same office text.
+    expect(n(r.other[0].k)).toBe(1);
+  });
+});
+
+describe("REP-09: the rep's own collections", () => {
+  it("my_collections lists the rep's payment with its receipt number, marks a reversal, and shows nothing to rep B", async () => {
+    const [o, p] = [id(), id()];
+    const r = await tx([
+      order(o),
+      deliver(o),
+      repCash(p, UNIT),
+      mark("before", `c.receipt_number, c.reversed, c.amount_paisa, c.method::text m from app.my_collections('${SALON}') c
+                      where c.payment_id = (select id from public.payment where client_id = '${p}')`, "repA"),
+      ["manager", `select app.office_reverse_payment('${id()}', (select id from public.payment where client_id = '${p}'), 'recorded against the wrong salon');`],
+      mark("after", `c.reversed from app.my_collections(null) c where c.payment_id = (select id from public.payment where client_id = '${p}')`, "repA"),
+      mark("b", `(select count(*)::int from app.my_collections(null) c where c.payment_id = (select id from public.payment where client_id = '${p}')) as k`, "repB"),
+    ]);
+    expect(String(r.before[0].receipt_number)).toMatch(RECEIPT);
+    expect(r.before[0].reversed).toBe(false);
+    expect(n(r.before[0].amount_paisa)).toBe(UNIT);
+    expect(r.before[0].m).toBe("cash");
+    expect(r.after[0].reversed).toBe(true);
+    expect(n(r.b[0].k)).toBe(0);
+  });
+
+  it("is for reps only: the office, a wrong device and anon are refused 42501", async () => {
+    expect(await sqlstate(MANAGER, "select * from app.my_collections()")).toBe(DENIED);
+    expect(await sqlstate("postgres", wrongDevice("select * from app.my_collections();"))).toBe(DENIED);
+    expect(await sqlstate("anon", "select * from app.my_collections()")).toBe(DENIED);
+  });
+});
+
+describe("AUTH-10, AUTH-09: what the salon is told", () => {
+  it("an order on hold for credit reads waiting_on credit_check in the portal, with no hold field or figure", async () => {
+    const big = id();
+    const r = await tx([
+      order(big, QTY * TWO, null, SALON2),
+      // The salon cannot read sales_order under RLS, so the order id is pinned as postgres first.
+      ["postgres", `select set_config('kiran_test.oid', ${orderOf(big)}::text, true);`],
+      asSalon(
+        `select 'o' as mark, o.status::text s, o.waiting_on, row_to_json(o)::text j from app.salon_my_orders() o
+          where o.order_id = current_setting('kiran_test.oid')::uuid;`,
+      ),
+    ]);
+    expect(r.o[0].s).toBe("draft");
+    expect(r.o[0].waiting_on).toBe("credit_check");
+    expect(String(r.o[0].j)).not.toContain("hold_");
+    expect(String(r.o[0].j)).not.toContain("over_limit");
+  });
+
+  it("salon_login_status says active, then suspended (where salon_me says nothing); null for a password session and for staff", async () => {
+    const r = await tx([
+      asSalon("select 'a' as mark, app.salon_login_status() as x;"),
+      ["manager", `select app.office_set_member_status('salon', ${membership()}, 'suspended', 'unpaid for three months');`],
+      asSalon("select 's' as mark, app.salon_login_status() as x, app.salon_me() as me;"),
+      ["postgres", `${asLogin(salonLogin, "password")} select 'p' as mark, app.salon_login_status() as x;`],
+      mark("staff", "app.salon_login_status() as x", "manager"),
+    ]);
+    expect((r.a[0].x as { membership_status: string }).membership_status).toBe("active");
+    expect(r.s[0].x).toMatchObject({ membership_status: "suspended" });
+    expect(JSON.stringify(r.s[0].x)).not.toContain("unpaid");
+    expect(r.s[0].me).toBeNull();
+    expect(r.p[0].x).toBeNull();
+    expect(r.staff[0].x).toBeNull();
+  });
+});
