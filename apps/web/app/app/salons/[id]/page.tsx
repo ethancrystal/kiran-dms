@@ -7,6 +7,7 @@ import { MyCollections } from "@/components/my-collections";
 import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Note = { id: string; author_id: string; body: string; created_at: string };
 type Visit = {
@@ -22,7 +23,6 @@ type Stage = { from_stage: string | null; to_stage: string; trigger: string; rea
 // app.rep_create_card: an order card holds a note of 1 to 2000 characters.
 const CARD_MAX = 2000;
 const CARD_ROWS = 4;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // One salon, the whole relationship the rep may see (execution map slice 3; SAL-05 in part,
 // PIP-02 visits, MAP-03 notes, doc 06 §4 phone reveal, B-28 parking). Every list and action is

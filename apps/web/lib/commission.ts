@@ -1,6 +1,8 @@
 // Commission statements (D-38, migration 20261105140000): the shape app.my_commission and
 // app.office_commission return. Every figure is the database's; pages only show it.
 
+import { KARACHI } from "./time";
+
 export type CommissionInvoice = {
   invoice_id: string;
   number: string;
@@ -39,7 +41,6 @@ export type CommissionStatement = {
   salon_rates: Array<{ salon_id: string; salon_name: string | null; rate_bp: number | null }>;
 };
 
-const KARACHI = "Asia/Karachi";
 const FIRST_DAY = "01";
 
 /** Today's date in Karachi as YYYY-MM-DD (the database's dates are Karachi dates). */
@@ -48,5 +49,4 @@ export const karachiToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: K
 /** The first day of the Karachi month that holds `day` (YYYY-MM-DD). */
 export const monthStart = (day: string) => `${day.slice(0, "YYYY-MM-".length)}${FIRST_DAY}`;
 
-export const when = (t: string) =>
-  new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short", timeZone: KARACHI });
+export { when } from "./time";

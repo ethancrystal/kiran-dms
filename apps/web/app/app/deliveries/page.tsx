@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Acknowledgement } from "@/components/acknowledgement";
 import { rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 type Line = { sku_id: string; code: string; variant: string; qty: number };
 type Submission = {
@@ -19,7 +20,6 @@ type Submission = {
   unsettled: number;
 };
 
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const STATUS_TEXT: Record<Submission["status"], string> = {
   pending: "Waiting for approval",
   approved: "Approved",

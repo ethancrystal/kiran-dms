@@ -7,6 +7,7 @@ import { Timeline } from "@/components/timeline";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Order = {
   id: string;
@@ -39,7 +40,6 @@ const RECEIVER_MIN = 2;
 const RECEIVER_MAX = 80;
 const DELIVERABLE = ["confirmed", "partially_delivered"];
 const CANCELLABLE = ["draft", "confirmed"];
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // One order for the office (owner or manager at AAL2; D-30, D-32, A-18, ORD-02, ORD-03). Its lines,
 // what is left to deliver and its invoices, as the database holds them. Actions, each the existing

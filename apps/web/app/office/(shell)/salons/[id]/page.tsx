@@ -11,6 +11,7 @@ import { Timeline } from "@/components/timeline";
 import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, SALON_TYPES } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 const STAGES = ["prospect", "visited", "trial", "active_new", "active_regular", "at_risk", "dormant", "parked", "blocked"];
 
@@ -37,8 +38,6 @@ type Assignment = { rep_id: string | null; rate_bp: number | null; created_at: s
 type Rep = { id: string; full_name: string };
 
 const REP_LIMIT = 500;
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // One salon for the office (execution map slice 3; SAL-01 edit, SAL-05 history, MAP-02 pin,
 // stage override). Reads through office RLS and the app.* history functions; writes through

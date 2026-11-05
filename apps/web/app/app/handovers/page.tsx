@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MyCollections } from "@/components/my-collections";
 import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 type Handover = {
   handover_id: string;
@@ -20,7 +21,6 @@ type Handover = {
 };
 type Cash = { balance_paisa: number };
 
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const STATUS_TEXT: Record<Handover["status"], string> = {
   pending: "Waiting for you",
   final: "Final",

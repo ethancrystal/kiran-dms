@@ -6,6 +6,7 @@ import type { Approval, RefusedApproval } from "@/lib/approvals";
 import { rupees } from "@/lib/money";
 import { mySession, type Role, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Order = { status: string; hold_discount: string | null; hold_credit: string | null };
 
@@ -18,7 +19,6 @@ const unitsText = (delta: number | string | null, kind: string | null) => {
   if (q >= 0) return `${q} units added`;
   return kind === "pending_delivery" ? `${-q} units missing` : `${-q} units removed`;
 };
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // Approvals (owner or manager at AAL2; SEC-11, CTL-07, CTL-05). Pending discount requests (an order held
 // below list price) and pending stock adjustments, read through app.office_pending_approvals. Approve or

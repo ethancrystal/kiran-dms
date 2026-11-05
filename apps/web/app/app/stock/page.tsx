@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { db, rows, rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 type Issue = {
   id: string;
@@ -13,8 +14,6 @@ type Sku = { id: string; code: string; variant: string | null };
 type BagLine = { sku_id: string; code: string; variant: string | null; on_hand: number };
 type Confirmed = { status: string };
 type Available = { sku_id: string; code: string; available: number };
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // My bag and incoming stock (rep, approved phone; INV-03, INV-04, CTL-05 two-party custody). The office proposes
 // a stock issue to this rep's bag, or a return from it (direction to_warehouse), on /office/stock; the rep counts what it was handed and confirms with

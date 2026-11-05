@@ -9,6 +9,7 @@ import { signedImageUrls } from "@/lib/product-images";
 import { rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { when } from "@/lib/time";
 
 type Me = { name: string | null; address: string | null; approval_status: string; membership_status: string };
 type Item = {
@@ -101,7 +102,6 @@ const NOTE_MAX = 2000;
 const NOTE_ROWS = 3;
 const MAX_LINES = 50;
 const QTY_MAX = 10_000;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const day = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString("en-PK", { dateStyle: "medium" });
 const REQUEST_STATUS: Record<Request["status"], string> = {
   open: "Waiting for the office",

@@ -5,6 +5,7 @@ import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { percent, toBasisPoints } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Pending = {
   salon_id: string;
@@ -21,8 +22,6 @@ type Rep = { id: string; full_name: string };
 const REP_LIMIT = 500;
 // app.office_decide_salon refuses a rejection reason shorter than 5 characters (22023).
 const REJECT_REASON_MIN_LENGTH = 5;
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // Salon approvals (D-35, D-36; spec section 3): pending salons, oldest first (app.office_pending_salons).
 // The owner or a manager approves one, optionally with a rep (who alone then reaches it, R4) and a

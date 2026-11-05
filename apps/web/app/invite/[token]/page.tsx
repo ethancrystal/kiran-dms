@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 import { rpc } from "@/lib/rpc";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { when } from "@/lib/time";
 
 type Preview = {
   kind: "rep" | "salon";
@@ -31,8 +32,6 @@ const CLOSED: Record<Exclude<Preview["status"], "pending">, string> = {
 const DIGITS = "0123456789";
 /** What the code box keeps of a paste: "12 34-56" → "123456". */
 const digitsOnly = (text: string) => [...text].filter((c) => DIGITS.includes(c)).join("");
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // The one page that creates a login (D-39, spec section 3; every other sign-in page has
 // shouldCreateUser false). The invitee confirms the invited email with the 6-digit code; only then

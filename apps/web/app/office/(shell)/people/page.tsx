@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, SALON_TYPES } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Invitation = {
   id: string;
@@ -29,8 +30,6 @@ type Created = { id: string; full_name: string; token: string | null };
 const LIST_LIMIT = 500;
 // app.office_set_member_status and app.office_revoke_invitation take a reason of at least 3 characters.
 const REASON_MIN_LENGTH = 3;
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // People (D-39; spec section 5): the owner or a manager invites reps and salons, revokes unused links,
 // and suspends or reactivates reps and salon accounts. Owners and managers are not invited here; the

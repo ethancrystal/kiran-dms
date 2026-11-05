@@ -4,6 +4,7 @@ import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 /** One row of app.office_salon_payments (migration 20261105230000, P1-30). */
 type Payment = {
@@ -27,8 +28,6 @@ type Payment = {
 
 // app.office_reverse_payment asks for a reason of 5 to 300 characters.
 const REASON_MIN = 5;
-const KARACHI = "Asia/Karachi";
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short", timeZone: KARACHI });
 // The CTL-02 flags record_payment keeps for the office's review, in plain words.
 const FLAG_TEXT: Record<string, string> = {
   far_from_salon: "recorded far from the salon",

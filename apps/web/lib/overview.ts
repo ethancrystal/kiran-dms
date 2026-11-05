@@ -2,7 +2,8 @@
 // "This month" block, the rep's month and the office's rep performance. Every figure comes from the
 // database's app.* reads; this file only names the rows and turns codes into plain words.
 
-const KARACHI = "Asia/Karachi";
+import { KARACHI } from "./time";
+
 const FIRST_DAY = "-01";
 const MONTH_PART = "YYYY-MM".length;
 const MONTHS_IN_YEAR = 12;
@@ -31,8 +32,7 @@ export const monthName = (month: string) =>
   new Date(`${month}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 
 /** A database time as a short Karachi date and time. */
-export const when = (t: string) =>
-  new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short", timeZone: KARACHI });
+export { when } from "./time";
 
 /** A database date (YYYY-MM-DD) as a short date. */
 export const day = (d: string) =>
