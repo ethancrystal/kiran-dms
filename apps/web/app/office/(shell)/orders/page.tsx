@@ -290,6 +290,9 @@ export default function Orders() {
 
       <section aria-labelledby="orders-h">
         <h2 id="orders-h">Order list</h2>
+        <p className="muted">
+          Open an order to deliver it from a warehouse, cancel it, release a credit hold or recheck its holds.
+        </p>
         <div className="inline-form">
           <label>
             Status
@@ -345,6 +348,12 @@ export default function Orders() {
                     <td data-label="Delivering rep">{repText(o)}</td>
                     <td data-label="Channel">{label(o.source_channel)}</td>
                     <td data-label="History">
+                      <a
+                        href={`/office/orders/${o.id}`}
+                        aria-label={`Open the order for ${salonText(o.salon_id)} of ${rupees(Number(o.total_paisa))}`}
+                      >
+                        Open
+                      </a>{" "}
                       <button
                         type="button"
                         className="inline"

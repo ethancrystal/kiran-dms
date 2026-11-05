@@ -107,6 +107,9 @@ export default function RepHome() {
             </a>
           </p>
           <p>
+            <a href="/app/stock">My bag and incoming stock</a>
+          </p>
+          <p>
             <a href="/app/commission">
               My commission · <span lang="ur">میرا کمیشن</span>
             </a>

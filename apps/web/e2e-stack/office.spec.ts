@@ -10,7 +10,7 @@ import { percent, rupees } from "../lib/money";
 type P = { id: string; email: string; name: string };
 const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "utf8")) as {
   password: string;
-  people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer" | "invitee", P>;
+  people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer" | "invitee" | "journeyRep" | "journeySalon", P>;
   sku: { id: string; code: string; list_price_paisa: number };
   pendingSalon: { id: string; name: string; area: string };
   warehouse: { id: string; name: string };
@@ -18,7 +18,7 @@ const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "
   catalogueSalon: { id: string; name: string };
   productGroup: { name: string };
 };
-const { owner, manager, rep, rep2, newcomer, invitee } = seed.people;
+const { owner, manager, rep, rep2, newcomer, invitee, journeyRep, journeySalon: salonInvitee } = seed.people;
 const MAILPIT = process.env.KIRAN_STACK_MAILPIT_URL ?? "http://127.0.0.1:54324";
 
 // RFC 6238 TOTP (SHA-1, 6 digits, 30 s), the authenticator app's arithmetic. One code per
@@ -1210,6 +1210,117 @@ test("a manager records an investor, an investment, a profit decision and a payo
   await phoneContext.close();
 });
 
+// Slice 8 (P1-25): the delivery-approval boundary through the UI and the database (D-32; MJ's answers of
+// 2026-11-05, frontend structure section 5). Rep One hands over one more unit of the order the rejection
+// test left (3 ordered, 1 delivered by the commission test, so 2 left). Until the office approves: no
+// new invoice, no new sale movement for the order, its status unchanged, no approve control on the rep's
+// phone, and a direct call of the approval function with the rep's own identity is refused (42501).
+// The manager approves on Delivery approvals: exactly one invoice more; a second approval of the same
+// submission (a new key) is refused as already decided (55000) and adds nothing.
+const BOUNDARY_QTY = 1;
+
+/** Runs one query on the local stack's database as postgres. */
+async function stackQuery<T extends pg.QueryResultRow = Record<string, unknown>>(sql: string, params: unknown[] = []) {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    return (await c.query<T>(sql, params)).rows;
+  } finally {
+    await c.end();
+  }
+}
+
+/** Calls one statement as the person (claims as PostgREST sets them, rolled back); returns the SQLSTATE or null. */
+async function sqlstateAs(person: P, aal: "aal1" | "aal2", sql: string, params: unknown[] = []) {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ sub: person.id, role: "authenticated", aal }),
+    ]);
+    await c.query("set local role authenticated");
+    await c.query(sql, params);
+    return null;
+  } catch (e) {
+    return (e as { code?: string }).code ?? "unknown";
+  } finally {
+    await c.query("rollback").catch(() => {});
+    await c.end();
+  }
+}
+
+test("delivery-approval boundary: a rep's submission writes no invoice or sale; only the office's approval does, once (D-32, P1-25)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const orderTotal = seed.sku.list_price_paisa * REJECTED_ORDER_QTY;
+  const [order] = await stackQuery<{ id: string; status: string }>(
+    `select o.id, o.status::text from public.sales_order o join public.salon s on s.id = o.salon_id
+      where s.name = $1 and o.total_paisa = $2`,
+    [journeySalon, orderTotal],
+  );
+  expect(order, "the rejection test left this order").toBeDefined();
+  const facts = async () =>
+    (
+      await stackQuery<{ invoices: number; sales: number; status: string }>(
+        `select (select count(*)::int from public.invoice i where i.order_id = $1) invoices,
+                (select count(*)::int from public.stock_movement m join public.delivery d on d.id = m.source_id
+                  where m.kind = 'sale' and d.order_id = $1) sales,
+                (select status::text from public.sales_order where id = $1) status`,
+        [order.id],
+      )
+    )[0];
+  const before = await facts();
+
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app/orders");
+  const row = phone
+    .getByRole("listitem")
+    .filter({ hasText: journeySalon })
+    .filter({ hasText: rupees(orderTotal) });
+  await submitDelivery(phone, row, BOUNDARY_QTY);
+  // Nothing official yet.
+  expect(await facts()).toEqual(before);
+  const [submission] = await stackQuery<{ id: string }>(
+    `select s.id from public.delivery_submission s
+      where s.order_id = $1 and not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)`,
+    [order.id],
+  );
+  expect(submission).toBeDefined();
+  // The rep's phone offers no approval, and the approval function refuses the rep's own identity.
+  await phone.goto("/app/deliveries");
+  await expect(phone.getByRole("button", { name: "Approve delivery" })).toHaveCount(0);
+  expect(await sqlstateAs(rep, "aal1", "select app.office_approve_delivery($1, gen_random_uuid())", [submission.id])).toBe(
+    "42501",
+  );
+  expect(await facts()).toEqual(before);
+
+  // The manager approves: one invoice and one sale movement more.
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Delivery approvals", exact: true }).click();
+  await page
+    .getByTestId("waiting-delivery")
+    .filter({ hasText: journeySalon })
+    .getByRole("button", { name: "Approve delivery" })
+    .click();
+  await expect(page.getByText(`Approved the delivery to ${journeySalon}; the invoice is issued.`)).toBeVisible();
+  const after = await facts();
+  expect(after.invoices).toBe(before.invoices + 1);
+  expect(after.sales).toBe(before.sales + 1);
+  // Deciding it again, with a new key, is refused and adds nothing.
+  expect(await sqlstateAs(manager, "aal2", "select app.office_approve_delivery($1, gen_random_uuid())", [submission.id])).toBe(
+    "55000",
+  );
+  expect(await facts()).toEqual(after);
+  await ctx.close();
+});
+
 // J1 step 15 and B-35, moved here from the rep journey (slice 4) so the rep's day stays open for the
 // delivery tests above. The bag holds what it holds now: the seeded quantity less the approved delivery.
 test("the rep sends the evening count and checks out (J1 step 15, B-35)", async ({ browser }) => {
@@ -1224,4 +1335,302 @@ test("the rep sends the evening count and checks out (J1 step 15, B-35)", async 
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
   await ctx.close();
+});
+
+// Slice 8 (P1-25): the end-to-end journey of the completion design (spec section 7; the 14 steps of
+// docs/superpowers/plans/2026-11-05-final-review-checklist.md), on the screens slice 8 adds. It runs
+// after the check-out above: the only rep step here (confirming a stock issue) needs no open day.
+// Mail: the local stack sends at most 2 e-mails an hour and earlier journeys use both, so the new rep and
+// the new salon are redeemed with a code session on the database (redeemAs); the browser steps of a
+// salon use the slice 1 salon's kept session (portalSalon), and of a rep Rep One's kept phone.
+// Amounts, hand-worked in paisa:
+//   new SKU list price Rs 100 = 10_000; opening stock 10 units (Rs 1,000: under the adjustment owner
+//   threshold of 10 units and Rs 10,000, migration 0001 config; the owner approves anyway);
+//   2 units issued to Rep One's bag: CTL-05 bag value after the issue is what the bag holds of the seed
+//   SKU (6 seeded - 2 - 1 - 1 delivered = 2 x Rs 1,500 = Rs 3,000) + 2 x Rs 100 = Rs 3,200, under the
+//   seeded Rs 10,000 limit;
+//   the salon requests 3 at list = Rs 300 = 30_000, CASH, confirmed; the office delivers all 3 from the
+//   warehouse: invoice Rs 300; warehouse left 10 - 2 - 3 = 5; the salon pays Rs 100 = 10_000 cash, so its
+//   balance moves by +30_000 - 10_000; no rep, so no commission (Rep One's owed figure unchanged).
+const J8_LIST_RS = 100;
+const J8_LIST_PAISA = 10_000;
+const J8_OPENING = 10;
+const J8_ISSUE = 2;
+const J8_SALON_QTY = 3;
+const J8_WAREHOUSE_LEFT = J8_OPENING - J8_ISSUE - J8_SALON_QTY;
+const J8_PAY_RS = 100;
+const J8_PAY_PAISA = 10_000;
+const J8_BAG_LIMIT_RS = 5000;
+const J8_TIMEOUT_MS = 360_000;
+const P1_19_TOTAL_RS = 900; // the slice 2 test's order: 1 x Rs 900 salon price, held for a Rs 100 discount
+const PAISA_DIGITS = 2;
+const TAG_RADIX = 36; // a short run tag: the time in base 36
+
+/** "Rs 1,234.5" as the pages print it (lib/money.ts) back to paisa, without floating point. */
+function paisaOf(text: string) {
+  // Keeps digits and the decimal point: "Rs 1,234.5" becomes "1234.5"; "Rs" and "," are dropped.
+  // https://regex101.com/?regex=%5B%5E%5Cd.%5D&flavor=javascript
+  const [whole, fraction = ""] = text.replace(/[^\d.]/g, "").split(".");
+  return Number(whole) * PAISA_PER_RUPEE + Number(fraction.padEnd(PAISA_DIGITS, "0"));
+}
+
+test("end to end: invite, catalogue, opening stock, a stock issue the rep confirms, a salon request delivered by the office, payment, cancel and approvals (P1-25)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(J8_TIMEOUT_MS);
+  expect(salonPhone, "the slice 1 journey kept the invited salon's signed-in session").not.toBeNull();
+  const tag = Date.now().toString(TAG_RADIX).toUpperCase();
+  const code = `J8-${tag}`;
+  const productName = `[Dummy] Journey colour ${tag}`;
+  const newSalonName = `[Test] Journey salon ${tag}`;
+  const bagName = `[Test] Journey bag ${tag}`;
+  const requestNote = `[Test] journey request ${tag}`;
+  const list = rupees(J8_LIST_PAISA);
+  const requestTotal = rupees(J8_LIST_PAISA * J8_SALON_QTY);
+  const owedBefore = await repOwedPaisa();
+  const nav = () => page.getByRole("navigation", { name: "Office" });
+
+  // 1-2. The manager invites a rep and a salon; both join by invitation (code sessions, see above).
+  await officeSignIn(page, manager);
+  await nav().getByRole("link", { name: "People", exact: true }).click();
+  const repLink = await invite(page, "rep", journeyRep.name, journeyRep.email);
+  expect(await redeemAs(journeyRep, repLink.pathname.split("/").at(-1) ?? "")).toMatchObject({ kind: "rep" });
+  const salonLink = await invite(page, "salon", salonInvitee.name, salonInvitee.email, {
+    name: newSalonName,
+    area: seed.pendingSalon.area,
+  });
+  expect(await redeemAs(salonInvitee, salonLink.pathname.split("/").at(-1) ?? "")).toMatchObject({ kind: "salon" });
+  await page.reload();
+  const repsSection = page.locator("section", { has: page.getByRole("heading", { name: "Reps" }) });
+  await expect(repsSection.getByRole("row").filter({ hasText: journeyRep.name })).toContainText("active");
+  const members = page.locator("section", { has: page.getByRole("heading", { name: "Salon accounts" }) });
+  await expect(members.getByRole("row").filter({ hasText: salonInvitee.email })).toContainText("active");
+
+  // 3. A [Dummy] product with a SKU and a list price (no picture: no storage-api in this stack).
+  await nav().getByRole("link", { name: "Products", exact: true }).click();
+  const add = page.getByRole("form", { name: "Add a product" });
+  await add.getByLabel("Product group").selectOption({ label: seed.productGroup.name });
+  await add.getByLabel("Brand label").fill("[Dummy] Kiran");
+  await add.getByLabel("Product name").fill(productName);
+  await add.getByRole("button", { name: "Add product" }).click();
+  await expect(page.getByText(`Product ${productName} added.`)).toBeVisible();
+  const card = page.getByRole("region", { name: `Product ${productName}` });
+  const addSku = card.getByRole("form", { name: `Add a SKU to ${productName}` });
+  await addSku.getByLabel("SKU code").fill(code);
+  await addSku.getByLabel("Variant").fill("[Dummy] Shade 8");
+  await addSku.getByRole("button", { name: "Add SKU" }).click();
+  await expect(page.getByText(`SKU ${code} added to ${productName}.`)).toBeVisible();
+  await card.getByLabel(`List price (Rs) for ${code}`).fill(String(J8_LIST_RS));
+  await card.getByLabel(`Why this price for ${code}`).fill("[Test] journey list price");
+  await card.getByRole("button", { name: `Set price of ${code}` }).click();
+  await expect(page.getByText(`${code} now lists at ${list}.`)).toBeVisible();
+
+  // Opening stock: the manager asks; the manager sees no rep-bag form (A-08, owner only).
+  await nav().getByRole("link", { name: "Stock", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Stock", exact: true, level: 1 })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Add a rep bag" })).toHaveCount(0);
+  const opening = page.getByRole("form", { name: "Ask for opening stock" });
+  await opening.getByLabel("Warehouse for the opening stock").selectOption({ label: seed.warehouse.name });
+  const openingSku = opening.locator("#opening-sku option", { hasText: code });
+  await opening.getByLabel("SKU for the opening stock").selectOption((await openingSku.getAttribute("value")) ?? "");
+  await opening.getByLabel("Units counted in").fill(String(J8_OPENING));
+  await opening.getByLabel("Why (for the approver)").fill("[Test] journey opening count");
+  await opening.getByRole("button", { name: "Ask for approval" }).click();
+  await expect(page.getByText("Opening stock requested; the owner approves it on Approvals.")).toBeVisible();
+  await expect(page.getByTestId("adjustment").filter({ hasText: code })).toContainText("waiting for approval");
+  // The maker sees its own request on Approvals with no buttons (maker is not checker, H-12).
+  await nav().getByRole("link", { name: "Approvals", exact: true }).click();
+  const mine = page.getByTestId("approval").filter({ hasText: code });
+  await expect(mine).toContainText("You asked for this; another office user decides it.");
+  await expect(mine.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
+
+  // The owner, in a second browser: approves the adjustment and the slice 2 test's held discount.
+  const ownerPage = await newPage(browser);
+  await officeSignIn(ownerPage, owner);
+  const ownerNav = () => ownerPage.getByRole("navigation", { name: "Office" });
+  await ownerNav().getByRole("link", { name: "Approvals", exact: true }).click();
+  await expect(ownerPage.getByRole("heading", { name: "Approvals", exact: true, level: 1 })).toBeVisible();
+  const adjustment = ownerPage.getByTestId("approval").filter({ hasText: code });
+  await expect(adjustment).toContainText(`+${J8_OPENING} units`);
+  await adjustment.getByRole("button", { name: "Approve", exact: true }).click();
+  await adjustment.getByLabel("Checked how").fill("[Test] counted with the manager");
+  await adjustment.getByRole("button", { name: "Approve request" }).click();
+  await expect(ownerPage.getByText("Approved the adjustment request. Post it on the Stock page.")).toBeVisible();
+  const discount = ownerPage
+    .getByTestId("approval")
+    .filter({ hasText: seed.catalogueSalon.name })
+    .filter({ hasText: `total ${rupees(P1_19_TOTAL_RS * PAISA_PER_RUPEE)}` });
+  await discount.getByRole("button", { name: "Approve", exact: true }).click();
+  await discount.getByLabel("Checked how").fill("[Test] agreed salon price");
+  await discount.getByRole("button", { name: "Approve request" }).click();
+  await expect(ownerPage.getByText("Approved the discount request. The order is now confirmed.")).toBeVisible();
+  // Decided, it leaves the manager's queue.
+  await page.reload();
+  await expect(page.getByTestId("approval").filter({ hasText: code })).toHaveCount(0);
+
+  // The owner posts the approved adjustment, makes the new rep's bag and issues stock to Rep One's bag.
+  await ownerNav().getByRole("link", { name: "Stock", exact: true }).click();
+  await ownerPage.getByTestId("adjustment").filter({ hasText: code }).getByRole("button", { name: "Post to stock" }).click();
+  await expect(ownerPage.getByText(`Posted: ${J8_OPENING} units of ${code} at ${seed.warehouse.name}.`)).toBeVisible();
+  const onHand = () =>
+    ownerPage.getByTestId("on-hand").filter({ hasText: seed.warehouse.name }).filter({ hasText: code }).locator("td").last();
+  await expect(onHand()).toHaveText(String(J8_OPENING));
+  const bagForm = ownerPage.getByRole("form", { name: "Add a rep bag" });
+  await bagForm.getByLabel("Rep for the bag").selectOption({ label: journeyRep.name });
+  await bagForm.getByLabel("Bag name").fill(bagName);
+  await bagForm.getByLabel("Bag value limit (Rs, at list price)").fill(String(J8_BAG_LIMIT_RS));
+  await bagForm.getByRole("button", { name: "Add bag" }).click();
+  await expect(
+    ownerPage.getByText(`Bag ${bagName} added with a value limit of ${rupees(J8_BAG_LIMIT_RS * PAISA_PER_RUPEE)}.`),
+  ).toBeVisible();
+  await expect(
+    ownerPage.getByTestId("stock-location").filter({ hasText: journeyRep.name }).filter({ hasText: "rep bag" }),
+  ).toContainText(bagName);
+  const issue = ownerPage.getByRole("form", { name: "Issue stock to a bag" });
+  await issue.getByLabel("From warehouse").selectOption({ label: seed.warehouse.name });
+  await issue.getByLabel("To the bag of").selectOption({ label: `${rep.name} · [Test] Rep One bag` });
+  const issueSku = issue.locator("#issue-sku-0 option", { hasText: code });
+  await issue.getByLabel("Issue SKU 1").selectOption((await issueSku.getAttribute("value")) ?? "");
+  await issue.getByLabel("Issue quantity 1").fill(String(J8_ISSUE));
+  await issue.getByRole("button", { name: "Propose the issue" }).click();
+  await expect(ownerPage.getByText("Stock issue proposed. Nothing moves until the rep confirms the same count.")).toBeVisible();
+  await expect(ownerPage.getByTestId("stock-issue").filter({ hasText: code })).toContainText("pending");
+  await expect(onHand()).toHaveText(String(J8_OPENING));
+
+  // Rep One confirms with its own count (blind: the page does not show the office's quantity).
+  const { ctx: repCtx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app");
+  await phone.getByRole("link", { name: "My bag and incoming stock" }).click();
+  const count = phone.getByLabel(`Counted of incoming ${code}`);
+  await count.fill(String(J8_ISSUE));
+  await phone.getByTestId("incoming-issue").filter({ has: count }).getByRole("button", { name: "Confirm my count" }).click();
+  await expect(phone.getByText("Confirmed: the stock is in your bag.")).toBeVisible();
+  await phone.reload();
+  await expect(phone.getByTestId("bag-line").filter({ hasText: code })).toContainText(`: ${J8_ISSUE}`);
+  await expect(phone.getByTestId("incoming-issue")).toHaveCount(0);
+  await ownerPage.reload();
+  await expect(ownerPage.getByTestId("stock-issue").filter({ hasText: code })).toContainText("confirmed");
+  await expect(onHand()).toHaveText(String(J8_OPENING - J8_ISSUE));
+  // The rep reaches no office stock page.
+  await phone.goto("/office/stock");
+  await phone.waitForURL((u) => u.pathname === "/office/mfa");
+  await expect(phone.getByRole("navigation", { name: "Office" })).toHaveCount(0);
+  await repCtx.close();
+
+  // 4. The salon requests the new SKU at the database's price.
+  const salonContext = await browser.newContext({ storageState: salonPhone ?? undefined });
+  const salon = await salonContext.newPage();
+  await salon.goto("/salon");
+  await expect(salon.getByTestId(`price-${code}`)).toHaveText(list);
+  await salon.getByLabel(`Quantity of ${code} to add`).fill(String(J8_SALON_QTY));
+  await salon.getByRole("button", { name: `Add ${code} to the basket` }).click();
+  await salon.getByLabel("A note for the office (optional)").fill(requestNote);
+  await salon.getByRole("button", { name: "Send request" }).click();
+  await expect(salon.getByText("Request sent. The office will make the order from it.")).toBeVisible();
+  const balanceBefore = paisaOf(await salon.getByTestId("salon-balance").innerText());
+
+  // 5-6. The manager converts it in one click; the order page shows no invoice yet and the timeline.
+  await nav().getByRole("link", { name: "Orders", exact: true }).click();
+  await page
+    .getByTestId("request")
+    .filter({ hasText: requestNote })
+    .getByRole("button", { name: "Convert to order", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      `Order created for ${portalSalon.name} from the request of the salon ${portalSalon.name}: confirmed · ${requestTotal}.`,
+    ),
+  ).toBeVisible();
+  await page.getByRole("link", { name: `Open the order for ${portalSalon.name} of ${requestTotal}`, exact: true }).click();
+  await expect(page.getByRole("heading", { name: `Order for ${portalSalon.name}`, level: 1 })).toBeVisible();
+  await expect(page.getByTestId("order-status")).toHaveText("confirmed");
+  await expect(page.getByText("No invoice yet: an invoice is issued only when a delivery is recorded.")).toBeVisible();
+  const timeline = page.getByTestId("order-timeline");
+  await expect(timeline).toContainText("request sent");
+  await expect(timeline).toContainText("request converted");
+  await expect(timeline).toContainText("order created");
+
+  // 7-8. A rep-less order: the office delivers it from the warehouse (A-18); the invoice appears.
+  const deliver = page.getByRole("form", { name: "Deliver from a warehouse" });
+  await deliver.getByLabel("Warehouse", { exact: true }).selectOption({ label: seed.warehouse.name });
+  const deliverQty = deliver.getByLabel(`Quantity to deliver of ${code}`);
+  await expect(deliverQty).toHaveValue(String(J8_SALON_QTY));
+  await deliver.getByLabel("Received by (name)").fill(RECEIVER);
+  // One more than is left: the database refuses it and the page shows its words; nothing is written.
+  await deliverQty.fill(String(J8_SALON_QTY + 1));
+  await deliver.getByRole("button", { name: "Deliver and issue the invoice" }).click();
+  await expect(deliver.getByRole("alert")).toHaveText("every line must be a SKU of this order, at most what is left to deliver");
+  await expect(page.getByTestId("order-status")).toHaveText("confirmed");
+  await deliverQty.fill(String(J8_SALON_QTY));
+  await deliver.getByRole("button", { name: "Deliver and issue the invoice" }).click();
+  await expect(page.getByText(`Delivered to ${portalSalon.name} from the warehouse: invoice INV-`)).toBeVisible();
+  await expect(page.getByTestId("order-status")).toHaveText("delivered");
+  await page.reload();
+  await expect(page.getByTestId("order-status")).toHaveText("delivered");
+  await expect(page.getByTestId("order-invoice")).toContainText("INV-");
+  await expect(page.getByTestId("order-invoice")).toContainText(requestTotal);
+  await expect(timeline).toContainText("delivery recorded");
+  await expect(timeline).toContainText("invoice issued");
+  // 9. No rep, so no commission: Rep One's owed figure is unchanged.
+  expect(await repOwedPaisa()).toBe(owedBefore);
+  await ownerPage.reload();
+  await expect(onHand()).toHaveText(String(J8_WAREHOUSE_LEFT));
+
+  // 10-12. The office records a cash payment on the salon page; the salon sees its balance and order.
+  await page.getByRole("link", { name: portalSalon.name, exact: true }).click();
+  await expect(page.getByTestId("balance")).toHaveText(rupees(balanceBefore + J8_LIST_PAISA * J8_SALON_QTY));
+  await page.getByLabel("Amount (Rs)", { exact: true }).fill(String(J8_PAY_RS));
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText("Payment recorded. Receipt")).toBeVisible();
+  const balanceAfter = rupees(balanceBefore + J8_LIST_PAISA * J8_SALON_QTY - J8_PAY_PAISA);
+  await expect(page.getByTestId("balance")).toHaveText(balanceAfter);
+  await salon.reload();
+  await expect(salon.getByTestId("salon-balance")).toHaveText(balanceAfter);
+  await expect(salon.getByTestId("salon-order").filter({ hasText: `${J8_SALON_QTY} × ${code}` })).toContainText("delivered");
+  await salonContext.close();
+  // 14. The salon's timeline on the office salon page, read again after a reload.
+  await page.reload();
+  await expect(page.getByTestId("balance")).toHaveText(balanceAfter);
+  const salonTimeline = page.getByTestId("salon-timeline");
+  await expect(salonTimeline).toContainText("delivery recorded");
+  await expect(salonTimeline).toContainText("invoice issued");
+  await expect(salonTimeline).toContainText("payment recorded");
+
+  // Cancel with a reason: a direct order for the catalogue salon, then cancelled on its page.
+  await nav().getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByRole("button", { name: "Create New Order" }).click();
+  const form = page.getByRole("form", { name: "New order" });
+  await form.getByLabel("Salon", { exact: true }).selectOption(seed.catalogueSalon.id);
+  const lineOption = form.locator("select[id^='sku-'] option", { hasText: code });
+  await form.getByLabel("Product 1").selectOption((await lineOption.getAttribute("value")) ?? "");
+  await form.getByLabel("Quantity 1").fill("1");
+  await form.getByLabel("Plan").selectOption("CASH");
+  await form.getByRole("button", { name: "Create order" }).click();
+  await expect(page.getByText(`Order created for ${seed.catalogueSalon.name}: confirmed · ${list}.`)).toBeVisible();
+  await page.getByRole("link", { name: `Open the order for ${seed.catalogueSalon.name} of ${list}`, exact: true }).click();
+  await page.getByRole("button", { name: "Cancel order" }).click();
+  await page.getByLabel("Why the order is cancelled").fill("[Test] the salon changed its mind");
+  await page.getByRole("button", { name: "Cancel this order" }).click();
+  await expect(page.getByText("The order is cancelled.", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("order-status")).toHaveText("cancelled");
+  await expect(page.getByRole("form", { name: "Deliver from a warehouse" })).toHaveCount(0);
+
+  // 13. An investor entry.
+  await nav().getByRole("link", { name: "Investors", exact: true }).click();
+  const investor = `[Dummy] Journey investor ${tag}`;
+  const addInvestor = page.getByRole("form", { name: "Add an investor" });
+  await addInvestor.getByLabel("Name").fill(investor);
+  await addInvestor.getByRole("button", { name: "Add investor" }).click();
+  await expect(page.getByText(`Investor ${investor} added.`)).toBeVisible();
+  await ownerPage.context().close();
+});
+
+test("Stock and Approvals without a session send the visitor to the sign-in page", async ({ browser }) => {
+  const visitor = await newPage(browser);
+  await visitor.goto("/office/stock");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
+  await visitor.goto("/office/approvals");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
 });

@@ -16,6 +16,8 @@ const NAV = [
   { href: "/office/products", label: "Products" },
   { href: "/office/orders", label: "Orders" },
   { href: "/office/deliveries", label: "Delivery approvals" },
+  { href: "/office/approvals", label: "Approvals" },
+  { href: "/office/stock", label: "Stock" },
   { href: "/office/commission", label: "Commission" },
   { href: "/office/receivables", label: "Receivables" },
   { href: "/office/handovers", label: "Cash handover" },

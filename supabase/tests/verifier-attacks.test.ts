@@ -258,8 +258,9 @@ describe("internal functions are not callable by app roles", () => {
       "office_add_investment", "office_approve_delivery", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue", "office_cash_position",
       "office_catalogue", "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location",
       "office_create_order", "office_decide_profit", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
-      "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors", "office_invitations",
-      "office_invite", "office_open_cards", "office_order_timeline", "office_orders", "office_override_stage", "office_overview_counts", "office_overview_rows", "office_pending_deliveries", "office_pending_salons",
+      "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors",
+      "office_invitations", "office_invite", "office_open_cards", "office_order_timeline", "office_orders", "office_override_stage", "office_overview_counts",
+      "office_overview_rows", "office_pending_approvals", "office_pending_deliveries", "office_pending_salons",
       "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing", "office_record_cash",
       "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_reject_delivery", "office_release_credit_hold",
       "office_rep_cash_position", "office_rep_month", "office_resolve_pending", "office_reverse_commission_payment", "office_reverse_investor_entry", "office_revoke_invitation",
@@ -314,6 +315,8 @@ describe("internal functions are not callable by app roles", () => {
       // at AAL2) and my_month_orders (a rep, own orders only): read-only, migration 20261105180000 (slice 9,
       // P1-26; doc 16, D-38, D-40); MJ standing approval L-0144. Their helpers karachi_month, overview_month,
       // order_placed_by and rep_month_orders have no grant.
+      // office_pending_approvals (owner or manager at AAL2; allow-listed fields of pending discount and adjustment
+      // requests, never the raw payload): migration 20261105170000 (slice 8, P1-25); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
     ]);
     const sr = await run("postgres", `
