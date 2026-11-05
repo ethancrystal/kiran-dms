@@ -836,11 +836,9 @@ test("Commission without a session sends the visitor to the sign-in page", async
 });
 
 // Slice 1 (P1-18; D-35, D-36, D-39): the manager invites a rep and a salon on People, approves a
-// proposed salon with a rep and a rate, and both invitees join. The local stack sends at most 2
-// e-mails an hour and the rep journey above spends one, so ONE invitee goes through the real page
-// and code (the salon, a brand-new address: shouldCreateUser, Mailpit, Accept). The rep invitee's
-// link is redeemed with a session made the way scripts/e2e-stack-seed.mjs acts for a person (claims
-// with an emailed-code amr, straight on the local database); its page is the same page.
+// proposed salon with a rep and a rate, and both invitees join. Both go through the real invitation
+// page and the code GoTrue e-mails (Mailpit, then Accept). The local stack allows 30 e-mails an hour
+// (supabase/config.toml, D-50), enough for the rep journey above and these two.
 
 const MAIL_TRIES = 20;
 const MAIL_POLL_MS = 1_000;
@@ -875,24 +873,31 @@ async function mailedCode(email: string, since: number) {
   return found;
 }
 
-/** Redeems a link as the person, on the local database, as the seed acts for people (no service key). */
-async function redeemAs(person: P, token: string) {
-  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
-  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
-  const c = new pg.Client({ connectionString: dbUrl });
-  await c.connect();
-  try {
-    await c.query("begin");
-    await c.query("select set_config('request.jwt.claims', $1, true)", [
-      JSON.stringify({ sub: person.id, role: "authenticated", aal: "aal1", amr: [{ method: "otp", timestamp: 1 }] }),
-    ]);
-    await c.query("set local role authenticated");
-    const r = await c.query("select app.redeem_invitation($1) as r", [token]);
-    await c.query("commit");
-    return r.rows[0].r as { kind: string };
-  } finally {
-    await c.end();
-  }
+/**
+ * Opens an invitation link as a guest and joins through the real page: the e-mail address, the 6-digit
+ * code from the local mail catcher, then Accept. The preview answers only a session that proved the
+ * mailbox (the amr claim GoTrue signs); if it does not, the message names the methods GoTrue wrote.
+ */
+async function joinThroughCode(browser: Browser, link: URL, email: string, expectedDetails: string) {
+  const guest = await newPage(browser);
+  await guest.goto(link.pathname);
+  await expect(guest.getByRole("heading", { name: "Your Kiran invitation" })).toBeVisible();
+  await guest.getByLabel("Email").fill(email);
+  const asked = Date.now();
+  await guest.getByRole("button", { name: "Send code" }).click();
+  await guest.getByLabel("Code").fill(await mailedCode(email, asked));
+  const previewCall = guest.waitForRequest((r) => r.url().includes("/rpc/invitation_preview"));
+  await guest.getByRole("button", { name: "Sign in" }).click();
+  const bearer = ((await previewCall).headers().authorization ?? "").split(" ")[1] ?? "";
+  const claims = JSON.parse(Buffer.from(bearer.split(".")[1] ?? "", "base64url").toString() || "{}") as {
+    amr?: Array<{ method?: string }>;
+  };
+  const methods = (claims.amr ?? []).map((m) => m.method).join(", ");
+  await expect(guest.getByTestId("invite-details"), `amr methods in the invitee's session: ${methods || "none"}`).toHaveText(
+    expectedDetails,
+  );
+  await guest.getByRole("button", { name: "Accept invitation" }).click();
+  return guest;
 }
 
 async function invite(page: Page, kind: "rep" | "salon", name: string, email: string, salon?: { name: string; area: string }) {
@@ -924,11 +929,18 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "People", exact: true }).click();
   await expect(page.getByRole("heading", { name: "People", exact: true })).toBeVisible();
 
-  // The rep: invited on People, joined with a code session on the database (see the note above).
+  // The rep: invited on People, joined through the real page and the e-mailed code.
   const repLink = await invite(page, "rep", invitee.name, invitee.email);
   const repRow = page.getByRole("row").filter({ hasText: invitee.email });
   await expect(repRow).toContainText("pending");
-  expect(await redeemAs(invitee, repLink.pathname.split("/").at(-1) ?? "")).toEqual({ kind: "rep" });
+  const repGuest = await joinThroughCode(
+    browser,
+    repLink,
+    invitee.email,
+    `${manager.name} invited ${invitee.name} to a sales rep account.`,
+  );
+  // A new rep lands on the rep app; the notice there (waiting for the phone to be approved) is expected.
+  await repGuest.waitForURL((u) => u.pathname === "/app");
   await page.reload();
   await expect(page.getByRole("row").filter({ hasText: invitee.email })).toContainText("redeemed");
   const repsSection = page.locator("section", { has: page.getByRole("heading", { name: "Reps" }) });
@@ -952,26 +964,12 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
     name: salonName,
     area: seed.pendingSalon.area,
   });
-  const guest = await newPage(browser);
-  await guest.goto(salonLink.pathname);
-  await expect(guest.getByRole("heading", { name: "Your Kiran invitation" })).toBeVisible();
-  await guest.getByLabel("Email").fill(salonEmail);
-  const asked = Date.now();
-  await guest.getByRole("button", { name: "Send code" }).click();
-  await guest.getByLabel("Code").fill(await mailedCode(salonEmail, asked));
-  // The preview answers only a session that proved the mailbox (the amr claim GoTrue signs). If it
-  // does not answer, the message names the methods GoTrue wrote, so one CI run shows the cause.
-  const previewCall = guest.waitForRequest((r) => r.url().includes("/rpc/invitation_preview"));
-  await guest.getByRole("button", { name: "Sign in" }).click();
-  const bearer = ((await previewCall).headers().authorization ?? "").split(" ")[1] ?? "";
-  const claims = JSON.parse(Buffer.from(bearer.split(".")[1] ?? "", "base64url").toString() || "{}") as {
-    amr?: Array<{ method?: string }>;
-  };
-  const methods = (claims.amr ?? []).map((m) => m.method).join(", ");
-  await expect(guest.getByTestId("invite-details"), `amr methods in the invitee's session: ${methods || "none"}`).toHaveText(
+  const guest = await joinThroughCode(
+    browser,
+    salonLink,
+    salonEmail,
     `${manager.name} invited [Test] Salon Owner to the salon account of ${salonName}.`,
   );
-  await guest.getByRole("button", { name: "Accept invitation" }).click();
   await guest.waitForURL((u) => u.pathname === "/salon");
   await expect(guest.getByRole("heading", { name: salonName })).toBeVisible();
   await expect(guest.getByText("active")).toBeVisible();
@@ -1460,7 +1458,7 @@ test("the rep sends the evening count and checks out (J1 step 15, B-35)", async 
 // docs/superpowers/plans/2026-11-05-final-review-checklist.md), on the screens slice 8 adds. It runs
 // after the check-out above: the only rep step here (confirming a stock issue) needs no open day.
 // Mail: the local stack sends at most 2 e-mails an hour and earlier journeys use both, so the new rep and
-// the new salon are redeemed with a code session on the database (redeemAs); the browser steps of a
+// the new salon join through the real invitation page and the e-mailed code; the browser steps of a
 // salon use the slice 1 salon's kept session (portalSalon), and of a rep Rep One's kept phone.
 // Amounts, hand-worked in paisa:
 //   new SKU list price Rs 100 = 10_000; opening stock 10 units (Rs 1,000: under the adjustment owner
@@ -1510,16 +1508,30 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   const owedBefore = await repOwedPaisa();
   const nav = () => page.getByRole("navigation", { name: "Office" });
 
-  // 1-2. The manager invites a rep and a salon; both join by invitation (code sessions, see above).
+  // 1-2. The manager invites a rep and a salon; both join by invitation through the real page and the e-mailed code.
   await officeSignIn(page, manager);
   await nav().getByRole("link", { name: "People", exact: true }).click();
   const repLink = await invite(page, "rep", journeyRep.name, journeyRep.email);
-  expect(await redeemAs(journeyRep, repLink.pathname.split("/").at(-1) ?? "")).toMatchObject({ kind: "rep" });
+  const repJoined = await joinThroughCode(
+    browser,
+    repLink,
+    journeyRep.email,
+    `${manager.name} invited ${journeyRep.name} to a sales rep account.`,
+  );
+  await repJoined.waitForURL((u) => u.pathname === "/app");
+  await repJoined.context().close();
   const salonLink = await invite(page, "salon", salonInvitee.name, salonInvitee.email, {
     name: newSalonName,
     area: seed.pendingSalon.area,
   });
-  expect(await redeemAs(salonInvitee, salonLink.pathname.split("/").at(-1) ?? "")).toMatchObject({ kind: "salon" });
+  const salonJoined = await joinThroughCode(
+    browser,
+    salonLink,
+    salonInvitee.email,
+    `${manager.name} invited ${salonInvitee.name} to the salon account of ${newSalonName}.`,
+  );
+  await salonJoined.waitForURL((u) => u.pathname === "/salon");
+  await salonJoined.context().close();
   await page.reload();
   const repsSection = page.locator("section", { has: page.getByRole("heading", { name: "Reps" }) });
   await expect(repsSection.getByRole("row").filter({ hasText: journeyRep.name })).toContainText("active");
