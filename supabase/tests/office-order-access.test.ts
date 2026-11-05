@@ -2,7 +2,8 @@
  * Assigned rep reads and delivers office orders (migration 20261104090000, PR A, D-30; MJ L-0374:
  * reps still deliver and collect as now). An office order may name an assigned rep: that rep reads
  * the order (my_orders, RLS on the order, its lines and deliveries, order_remaining, the invoice
- * document) and delivers it from the bag with app.rep_deliver. The invoice carries the assigned rep
+ * document) and delivers it from the bag (since D-32, migration 20261105130100: it submits the delivery
+ * with app.rep_submit_delivery and the office approves it). The invoice carries the assigned rep
  * (coalesce(assigned_rep_id, rep_id)); a rep-less office order delivered by the office has none.
  * Another rep reads and delivers nothing of it, and the assigned rep still cannot cancel it.
  * app.my_territory_orders lists the orders of salons the rep reaches; app.office_orders is the
@@ -15,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, OWNER, REP_A, REP_B, run, sqlstate, type Who } from "./helpers/db";
 import { legacyOrderSql } from "./helpers/legacy-order";
+import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -118,10 +120,10 @@ const repOrder = (cid: string): Step => [
     plan: "INST4",
   }),
 ];
-// Pins the order first, then delivers it as the given person.
+// Pins the order first, then the given person submits its delivery and the manager approves it (D-32).
 const repDeliver = (dcid: string, ocid: string, who: P = "repA"): Step[] => [
   pin(ocid),
-  [who, `select (app.rep_deliver('${dcid}', ${OID}, 'Ayesha at the counter', 24.9, 67.1)).id;`],
+  ["postgres", submitApproveSql(asUser, { clientId: dcid, orderExpr: OID, rep: who, approver: "manager", returning: "id" })],
 ];
 const officeDeliver = (dcid: string, ocid: string): Step[] => [
   pin(ocid),

@@ -202,7 +202,7 @@ describe("order channel, creator, assigned rep (D-30)", () => {
       select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
              set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
       set local role authenticated;`;
-    const deliver = `select app.rep_deliver('${id()}', '${oid}', 'Ayesha at the counter', 24.9, 67.1);`;
+    const deliver = `select app.rep_submit_delivery('${id()}', '${oid}', 'Ayesha at the counter', 24.9, 67.1);`;
     expect(await txCode(`${confirmed} ${asRepA} ${deliver}`)).toBe("42501");
     expect(await txError(`${confirmed} ${asRepA} ${deliver}`)).toContain("own orders");
   });
