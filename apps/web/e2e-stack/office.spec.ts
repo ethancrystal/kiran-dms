@@ -810,9 +810,14 @@ test("a manager records an investor, an investment, a profit decision and a payo
   // The rep's phone: no Investors link in the rep app, and the office page shows it nothing.
   const phoneContext = await browser.newContext({ storageState: repPhone ?? undefined });
   const phone = await phoneContext.newPage();
+  // Positive checks first, so the absence checks below cannot pass on an expired session or an error page:
+  // the rep's Today page renders (signed in), and the office route stops at the TOTP step (the rep is AAL1).
   await phone.goto("/app");
+  await expect(phone.getByRole("heading", { name: "Today", exact: false, level: 1 })).toBeVisible();
   await expect(phone.getByRole("link", { name: "Investors" })).toHaveCount(0);
   await phone.goto("/office/investors");
+  await phone.waitForURL((u) => u.pathname === "/office/mfa");
+  await expect(phone.getByRole("heading", { name: "Two-step verification" })).toBeVisible();
   await expect(phone.getByRole("navigation", { name: "Office" })).toHaveCount(0);
   await expect(phone.getByText(name)).toHaveCount(0);
   await expect(phone.getByTestId("total-owed")).toHaveCount(0);

@@ -12,7 +12,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, run, sqlstate } from "./helpers/db";
-import { asLoginCode, newLogin, quote, tag, uuid } from "./helpers/invite";
+import { asLogin, type Login, quote, tag, uuid } from "./helpers/invite";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -730,11 +730,13 @@ describe("who may (D-40, doc 06 section 2): owner or manager at AAL2, nobody els
   });
 
   it("anon and a signed-in login with nothing redeemed are refused on every function (42501)", async () => {
-    const login = await newLogin();
+    // The login is made inside each rolled-back transaction, so no auth.users row is left behind.
+    const login: Login = { id: uuid(), email: `investor.${tag()}@example.test`, session: uuid() };
+    const signedUp = `insert into auth.users (id, email, email_confirmed_at) values ('${login.id}', '${login.email}', now());`;
     await Promise.all(
       calls().map(async (sql) => {
         expect(await sqlstate("anon", sql), sql).toBe(DENIED);
-        expect(await asLoginCode(login, sql), sql).toBe(DENIED);
+        expect(await sqlstate("postgres", `${signedUp} ${asLogin(login)} ${sql}`), sql).toBe(DENIED);
       }),
     );
   });
