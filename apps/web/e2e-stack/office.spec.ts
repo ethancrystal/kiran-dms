@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import pg from "pg";
@@ -1633,4 +1633,302 @@ test("Stock and Approvals without a session send the visitor to the sign-in page
   await expect(visitor).toHaveURL(OFFICE_LOGIN);
   await visitor.goto("/office/approvals");
   await expect(visitor).toHaveURL(OFFICE_LOGIN);
+});
+
+// Slice 11 (P1-29): routes and the stock leftovers. They run after the slice 8 journey on Rep One's kept
+// phone; none of the rep steps here needs an open day. Setup goes through the app.* functions as the owner,
+// and stock arrives as postgres, the way the seed does; nothing here touches another journey's data.
+const R11_TODAY = "(now() at time zone 'Asia/Karachi')::date";
+// The seeded product group's cycle is 30 days: a purchase 40 days ago is overdue (not yet at risk, 45).
+const R11_LAST_PURCHASE_DAYS_AGO = 40;
+const R11_POINT = 5;
+const R11_RECEIVED = 7;
+const R11_TO_BAG = 3;
+const R11_BACK = 1;
+const R11_LEFT_IN_BAG = R11_TO_BAG - R11_BACK;
+const R11_IN_WAREHOUSE = R11_RECEIVED - R11_TO_BAG + R11_BACK;
+const R11_COUNTED = R11_IN_WAREHOUSE - 1;
+const R11_LOST_QTY = 3;
+const R11_PRICE_PAISA = 10_000;
+const R11_SIZE_ML = 100;
+const R11_TWO_STOPS = 2;
+const R11_THREE_STOPS = 3;
+const R11_THIRD_STOP = 2; // nth counts from 0
+/** A salon of the route journey, kept for the lost-demand step of the next test. */
+let r11Salon = { id: "", name: "" };
+
+/** One committed statement on the local database as a signed-in office person, or as postgres. */
+async function r11Sql(as: P | null, sql: string, params: unknown[] = []) {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    await c.query("begin");
+    if (as) {
+      await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.headers', '{}', true)", [
+        JSON.stringify({ sub: as.id, role: "authenticated", aal: "aal2" }),
+      ]);
+      await c.query("set local role authenticated");
+    }
+    const r = await c.query(sql, params);
+    await c.query("commit");
+    return r.rows as Array<Record<string, unknown>>;
+  } catch (e) {
+    await c.query("rollback").catch(() => {});
+    throw e;
+  } finally {
+    await c.end();
+  }
+}
+
+test("a manager builds a rep's route, the rep sees it in order and reorders it, and other roles are refused (P1-29)", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const tag = String(Date.now());
+  const territory = randomUUID();
+  const otherTerritory = randomUUID();
+  const area = randomUUID();
+  const otherArea = randomUUID();
+  const salon = (name: string) => ({ id: randomUUID(), name: `[Test] Route ${name} ${tag}` });
+  const [dueSalon, plannedSalon, repAddedSalon, outsideSalon] = [
+    salon("due"),
+    salon("planned"),
+    salon("added"),
+    salon("outside"),
+  ];
+  await r11Sql(owner, "select app.office_upsert_territory($1, $2)", [territory, `[Test] Route territory ${tag}`]);
+  await r11Sql(owner, "select app.office_upsert_area($1, $2, $3)", [area, territory, `[Test] Route area ${tag}`]);
+  await r11Sql(owner, "select app.office_upsert_territory($1, $2)", [otherTerritory, `[Test] Other territory ${tag}`]);
+  await r11Sql(owner, "select app.office_upsert_area($1, $2, $3)", [otherArea, otherTerritory, `[Test] Other area ${tag}`]);
+  await Promise.all(
+    [dueSalon, plannedSalon, repAddedSalon].map((s) =>
+      r11Sql(owner, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [s.id, s.name, area]),
+    ),
+  );
+  await r11Sql(owner, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [
+    outsideSalon.id,
+    outsideSalon.name,
+    otherArea,
+  ]);
+  await r11Sql(owner, "select app.office_assign_territory($1, $2)", [rep.id, territory]);
+  const group = await r11Sql(null, "select id from public.product_group where name = $1", [seed.productGroup.name]);
+  await r11Sql(owner, `select app.office_set_last_purchase($1, $2, ${R11_TODAY} - ${R11_LAST_PURCHASE_DAYS_AGO})`, [
+    dueSalon.id,
+    group[0].id,
+  ]);
+  r11Salon = plannedSalon;
+
+  // The manager picks the rep, adds a due salon and a chosen one, puts them in order and saves.
+  await officeSignIn(page, manager);
+  await page.goto("/office/routes");
+  const pickRep = () => page.getByLabel("Rep for the route").selectOption({ label: rep.name });
+  const officeStops = page.getByTestId("route-stop");
+  await pickRep();
+  const dueRow = page.getByTestId("route-due").filter({ hasText: dueSalon.name });
+  await expect(dueRow).toContainText("overdue");
+  await dueRow.getByRole("button", { name: "from the due list" }).click();
+  const addForm = page.getByRole("form", { name: "Add a salon to the route" });
+  // A salon outside the rep's territories is not offered.
+  await expect(addForm.getByLabel("Salon for the new stop").locator("option", { hasText: outsideSalon.name })).toHaveCount(0);
+  await addForm.getByLabel("Salon for the new stop").selectOption(plannedSalon.id);
+  await addForm.getByLabel("Reason for the new stop").selectOption("prospect");
+  await addForm.getByRole("button", { name: "Add stop" }).click();
+  await expect(officeStops).toHaveCount(R11_TWO_STOPS);
+  await page.getByRole("button", { name: `Move ${plannedSalon.name} up` }).click();
+  await page.getByRole("button", { name: "Save route" }).click();
+  await expect(page.getByText(`Route saved for ${rep.name}`)).toBeVisible();
+  await page.reload();
+  await pickRep();
+  await expect(officeStops).toHaveCount(R11_TWO_STOPS);
+  await expect(officeStops.nth(0)).toContainText(plannedSalon.name);
+  await expect(officeStops.nth(1)).toContainText(dueSalon.name);
+
+  // The rep's phone shows the same order, then the rep changes it and adds a stop of its own.
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app");
+  await phone.getByRole("link", { name: "My route" }).click();
+  await phone.waitForURL((u) => u.pathname === "/app/route");
+  const repStops = phone.getByTestId("my-route-stop");
+  await expect(repStops).toHaveCount(R11_TWO_STOPS);
+  await expect(repStops.nth(0)).toContainText(plannedSalon.name);
+  await expect(repStops.nth(1)).toContainText(dueSalon.name);
+  await phone.getByRole("button", { name: `Move ${dueSalon.name} up` }).click();
+  await expect(phone.getByText("Route reordered.")).toBeVisible();
+  await phone.reload();
+  await expect(repStops.nth(0)).toContainText(dueSalon.name);
+  await expect(repStops.nth(1)).toContainText(plannedSalon.name);
+  const addMine = phone.getByRole("form", { name: "Add one of my salons" });
+  await addMine.getByLabel("Add one of my salons").selectOption(repAddedSalon.id);
+  await addMine.getByRole("button", { name: "Add stop" }).click();
+  await expect(phone.getByText(`Added ${repAddedSalon.name} to today's route.`)).toBeVisible();
+  await expect(repStops).toHaveCount(R11_THREE_STOPS);
+  await expect(repStops.nth(R11_THIRD_STOP)).toContainText(repAddedSalon.name);
+
+  // The office sees the rep's order and its stop; saving again keeps that stop, as a manual one, because
+  // the database refuses the rep's own reason from the office.
+  await page.reload();
+  await pickRep();
+  await expect(officeStops).toHaveCount(R11_THREE_STOPS);
+  await expect(officeStops.nth(0)).toContainText(dueSalon.name);
+  await expect(officeStops.nth(R11_THIRD_STOP)).toContainText("added by the rep");
+  await page.getByRole("button", { name: `Remove ${plannedSalon.name}` }).click();
+  await page.getByRole("button", { name: "Save route" }).click();
+  await expect(page.getByText(`Route saved for ${rep.name}`)).toBeVisible();
+  const saved = await r11Sql(
+    null,
+    `select st.salon_id, st.sequence, st.reason from public.route_stop st join public.route r on r.id = st.route_id
+      where r.rep_id = $1 and r.day = ${R11_TODAY} order by st.sequence`,
+    [rep.id],
+  );
+  expect(saved.map((s) => [s.salon_id, s.reason])).toEqual([
+    [dueSalon.id, "reorder_due"],
+    [repAddedSalon.id, "manual"],
+  ]);
+  await phone.reload();
+  await expect(repStops).toHaveCount(R11_TWO_STOPS);
+  await expect(repStops.nth(1)).toContainText(repAddedSalon.name);
+
+  // Refused: a salon the rep does not hold, even by the manager; the function itself for a rep.
+  const stop = JSON.stringify([{ salon_id: outsideSalon.id, reason: "manual" }]);
+  expect(await sqlstateAs(manager, "aal2", `select app.office_set_route($1, ${R11_TODAY}, $2::jsonb)`, [rep.id, stop])).toBe(
+    "22023",
+  );
+  expect(await sqlstateAs(rep, "aal1", `select app.office_set_route($1, ${R11_TODAY}, '[]'::jsonb)`, [rep.id])).toBe("42501");
+  // The rep cannot open the office page, and a signed-out visitor is sent to sign in.
+  await phone.goto("/office/routes");
+  await phone.waitForURL((u) => u.pathname === "/office/mfa");
+  await expect(phone.getByRole("navigation", { name: "Office" })).toHaveCount(0);
+  await ctx.close();
+  const visitor = await newPage(browser);
+  await visitor.goto("/office/routes");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
+  await visitor.goto("/office/stock/levels");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
+});
+
+test("reorder point and low stock, a bag return the rep confirms, a count with its variance, and a lost-demand tap (P1-29)", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const tag = String(Date.now());
+  const code = `R11-${tag}`;
+  const skuId = randomUUID();
+  const product = randomUUID();
+  const warehouse = { id: randomUUID(), name: `[Test] Levels warehouse ${tag}` };
+  const group = await r11Sql(null, "select id from public.product_group where name = $1", [seed.productGroup.name]);
+  await r11Sql(owner, "select app.office_upsert_product($1, $2, $3, $4)", [
+    product,
+    group[0].id,
+    "[Dummy] Kiran",
+    `[Dummy] Levels ${tag}`,
+  ]);
+  await r11Sql(owner, "select app.office_upsert_sku($1, $2, $3, $4, 'ml', $5)", [
+    skuId,
+    product,
+    code,
+    "[Dummy] Levels",
+    R11_SIZE_ML,
+  ]);
+  await r11Sql(owner, "select app.owner_set_sku_price($1, $2, $3)", [skuId, R11_PRICE_PAISA, "[Test] e2e list price"]);
+  await r11Sql(owner, "select app.office_create_location($1, 'warehouse', $2)", [warehouse.id, warehouse.name]);
+
+  // A reorder point on a SKU with no stock: it is listed as low, with the database's figures.
+  await officeSignIn(page, manager);
+  await page.goto("/office/stock/levels");
+  const level = page.getByTestId("sku-level").filter({ hasText: code });
+  const low = page.getByTestId("low-stock").filter({ hasText: code });
+  await expect(low).toHaveCount(0);
+  await level.getByLabel(`Reorder point for ${code}`).fill(String(R11_POINT));
+  await level.getByRole("button", { name: `Save the reorder point for ${code}` }).click();
+  await expect(page.getByText(`Reorder point of ${code} set to ${R11_POINT}.`)).toBeVisible();
+  await expect(low.getByTestId("low-on-hand")).toHaveText("0");
+  await expect(low.getByTestId("low-point")).toHaveText(String(R11_POINT));
+  await page.reload();
+  await expect(level.getByLabel(`Reorder point for ${code}`)).toHaveValue(String(R11_POINT));
+  await expect(low).toHaveCount(1);
+
+  // Stock arrives above the point: the SKU leaves the list and availability shows it.
+  await r11Sql(
+    null,
+    `insert into public.stock_movement (client_id, sku_id, qty, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, 'receipt', $4)`,
+    [skuId, R11_RECEIVED, warehouse.id, owner.id],
+  );
+  await page.reload();
+  await expect(level.getByTestId("sku-available")).toHaveText(String(R11_RECEIVED));
+  await expect(low).toHaveCount(0);
+
+  // A bag return: the office proposes it, nothing moves, the rep counts and confirms on its phone.
+  const bag = await r11Sql(null, "select id, name from public.stock_location where kind = 'rep_bag' and owner_user_id = $1", [
+    rep.id,
+  ]);
+  await r11Sql(
+    null,
+    `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, $4, 'issue_to_rep', $5)`,
+    [skuId, R11_TO_BAG, warehouse.id, bag[0].id, owner.id],
+  );
+  await page.goto("/office/stock");
+  const back = page.getByRole("form", { name: "Take stock back from a bag" });
+  await back.getByLabel("Take back from the bag of").selectOption({ label: `${rep.name} · ${String(bag[0].name)}` });
+  await back.getByLabel("Into warehouse").selectOption({ label: warehouse.name });
+  await back.getByLabel(`Units back of ${code}`).fill(String(R11_BACK));
+  await back.getByRole("button", { name: "Propose the return" }).click();
+  await expect(page.getByText("Return proposed. Nothing moves until the rep confirms the same count.")).toBeVisible();
+  const issueRow = page.getByTestId("stock-issue").filter({ hasText: code });
+  await expect(issueRow).toContainText("Return from");
+  await expect(issueRow).toContainText("pending");
+  const warehouseOnHand = page
+    .getByTestId("on-hand")
+    .filter({ hasText: warehouse.name })
+    .filter({ hasText: code })
+    .locator("td")
+    .last();
+  await expect(warehouseOnHand).toHaveText(String(R11_RECEIVED - R11_TO_BAG));
+
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app/stock");
+  await phone.getByLabel(`Counted going back ${code}`).fill(String(R11_BACK));
+  await phone.getByTestId("outgoing-return").getByRole("button", { name: "Confirm my count" }).click();
+  await expect(phone.getByText("Confirmed: the stock has gone back to the warehouse.")).toBeVisible();
+  await expect(phone.getByTestId("bag-line").filter({ hasText: code })).toContainText(`: ${R11_LEFT_IN_BAG}`);
+  await expect(phone.getByTestId("warehouse-line").filter({ hasText: code })).toContainText(`: ${R11_IN_WAREHOUSE}`);
+  await page.reload();
+  await expect(issueRow).toContainText("confirmed");
+  await expect(warehouseOnHand).toHaveText(String(R11_IN_WAREHOUSE));
+
+  // A stock take one short: the variance is recorded and stock does not change.
+  await page.goto("/office/stock/levels");
+  const count = page.getByRole("form", { name: "Record a stock count" });
+  await count.getByLabel("Location counted").selectOption({ label: `warehouse · ${warehouse.name}` });
+  await count.getByLabel(`Counted of ${code}`).fill(String(R11_COUNTED));
+  await count.getByRole("button", { name: "Save the count" }).click();
+  await expect(page.getByText("Count saved: variance 1 units.")).toBeVisible();
+  const counted = page.getByTestId("stock-count").filter({ hasText: warehouse.name });
+  await expect(counted).toContainText("variance 1 units");
+  await expect(counted).toContainText(`expected ${R11_IN_WAREHOUSE}, counted ${R11_COUNTED}`);
+  await expect(level.getByTestId("sku-available")).toHaveText(String(R11_IN_WAREHOUSE));
+
+  // The lost-demand tap on a salon page, read again after a reload and on the database.
+  await phone.goto(`/app/salons/${r11Salon.id}`);
+  const lost = phone.getByRole("form", { name: "Record lost demand" });
+  await lost.getByLabel("Why it could not be sold").selectOption("out_of_stock");
+  await lost.getByLabel("Item asked for").selectOption(skuId);
+  await lost.getByLabel("Units asked for").fill(String(R11_LOST_QTY));
+  await lost.getByRole("button", { name: "Record lost demand" }).click();
+  await expect(phone.getByText("Lost demand recorded.")).toBeVisible();
+  await phone.reload();
+  await expect(phone.getByTestId("lost-demand").filter({ hasText: code })).toContainText(`${R11_LOST_QTY} ×`);
+  const signals = await r11Sql(null, "select qty, salon_id, captured_by from public.demand_signal where sku_id = $1", [skuId]);
+  expect(signals).toEqual([{ qty: R11_LOST_QTY, salon_id: r11Salon.id, captured_by: rep.id }]);
+  await ctx.close();
+
+  // Refused for a rep, by the functions themselves.
+  expect(await sqlstateAs(rep, "aal1", "select app.office_set_reorder_point($1, 1)", [skuId])).toBe("42501");
+  expect(await sqlstateAs(rep, "aal1", "select * from app.low_stock()")).toBe("42501");
+  expect(await sqlstateAs(rep, "aal1", "select * from app.stock_on_hand(null)")).toBe("42501");
 });
