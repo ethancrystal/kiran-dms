@@ -2,6 +2,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
+import { LostDemand } from "@/components/lost-demand";
 import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
@@ -156,6 +157,8 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
       )}
 
       <MoneySection salonId={id} mode="rep" />
+
+      <LostDemand salonId={id} />
 
       <section aria-labelledby="notes-h">
         <h2 id="notes-h">
