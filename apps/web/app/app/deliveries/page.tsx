@@ -1,8 +1,12 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { Acknowledgement } from "@/components/acknowledgement";
+import { ListCapNote } from "@/components/list-cap-note";
 import { rpc } from "@/lib/rpc";
 import { when } from "@/lib/time";
+
+// app.my_submissions reads the newest 50 (migration 20261105130100).
+const CAP = 50;
 
 type Line = { sku_id: string; code: string; variant: string; qty: number };
 type Submission = {
@@ -143,6 +147,7 @@ export default function MyDeliveries() {
         </p>
       )}
       {!loading && !error && list.length === 0 && <p className="muted">You have sent no deliveries yet.</p>}
+      <ListCapNote shown={list.length} cap={CAP} what="deliveries" />
       {!error && list.length > 0 && (
         <ul className="plain">
           {list.map((s) => (

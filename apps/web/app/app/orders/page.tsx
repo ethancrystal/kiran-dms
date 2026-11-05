@@ -1,11 +1,15 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { ListCapNote } from "@/components/list-cap-note";
 import { rupees } from "@/lib/money";
 import { PLAN_TEXT, REP_HOLD_TEXT, STATUS_TEXT } from "@/lib/overview";
 import { rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { when } from "@/lib/time";
+
+// app.my_territory_orders reads the newest 50 (migration 20261105230000).
+const CAP = 50;
 
 type Order = {
   order_id: string;
@@ -87,6 +91,7 @@ export default function TerritoryOrders() {
         </p>
       )}
       {!loading && !error && list.length === 0 && <p className="muted">No orders in your territories yet.</p>}
+      <ListCapNote shown={list.length} cap={CAP} what="orders" />
       {!error && list.length > 0 && (
         <ul className="plain">
           {list.map((o) => (
