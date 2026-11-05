@@ -5,6 +5,7 @@ import { PLAN_TEXT, REP_HOLD_TEXT, STATUS_TEXT } from "@/lib/overview";
 import { rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { when } from "@/lib/time";
 
 type Order = {
   order_id: string;
@@ -23,8 +24,6 @@ type Submission = { order_id: string; status: string };
 
 // An order the rep may hand over: confirmed, or partly delivered (ORD-03).
 const DELIVERABLE = ["confirmed", "partially_delivered"];
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // The orders of the salons in the rep's territories (D-30): app.my_territory_orders, newest 50 (the rep's
 // own open assigned orders first, P1-30 REP-03), with the reason an order is held or cancelled (FLOW-18),

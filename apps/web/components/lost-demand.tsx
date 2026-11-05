@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Sku = { id: string; code: string; variant: string | null };
 type Group = { id: string; name: string };
@@ -21,7 +22,6 @@ const RECENT = 5;
 const LIMIT = 200;
 // The demand_signal check: 1 to 100000 units.
 const MAX_QTY = 100_000;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // Lost demand (DEM-01, the rep's tap during a visit): "asked for, could not sell". A SKU, or for an
 // item Kiran does not carry its product group, with no free text (H-27); a quantity and a reason. One

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 type CardLine = { line_no: number; sku_id: string; code: string; product_name: string; variant: string; qty: number };
 type Card = {
@@ -23,7 +24,6 @@ const SHORT_ID = 8;
 // app.rep_edit_card: a note of 1 to 2000 characters.
 const CARD_MAX = 2000;
 const CARD_ROWS = 3;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const STATUS_TEXT: Record<Card["status"], string> = {
   open: "Open",
   converted: "Converted",

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { db, rows, rpc } from "@/lib/rpc";
+import { whenOrDash } from "@/lib/time";
 
 type Device = {
   id: string;
@@ -16,7 +17,7 @@ type Device = {
 };
 type Person = { id: string; full_name: string; role: string; status: string };
 
-const when = (t: string | null) => (t ? new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" }) : "—");
+const when = whenOrDash;
 
 // SEC-03: a rep's phone works only after an office user approves it. A revoked id is dead for
 // good (migration 0006); the phone registers a fresh one. Nobody approves their own device

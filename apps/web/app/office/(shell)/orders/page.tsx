@@ -6,6 +6,7 @@ import { Timeline } from "@/components/timeline";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Order = {
   id: string;
@@ -29,8 +30,6 @@ const NAME_CHUNK = 50;
 const DISMISS_REASON_MIN_LENGTH = 5;
 // The orders table's columns, so an open timeline row spans them all.
 const ORDER_COLUMNS = 8;
-
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // The rep who delivers: the assigned rep of an office order, or the rep who took a rep_visit order.
 const deliveringRep = (o: Order) => o.assigned_rep_id ?? o.rep_id;

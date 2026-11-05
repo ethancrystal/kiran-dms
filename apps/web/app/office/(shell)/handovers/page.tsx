@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { rupees, toPaisa } from "@/lib/money";
 import { db, mySession, type Role, rows, rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 type Rep = { id: string; full_name: string };
 type Cash = { in_paisa: number; out_paisa: number; balance_paisa: number };
@@ -26,7 +27,6 @@ type Handover = {
 // app.owner_settle_handover and app.office_withdraw_handover take a reason of 5 to 300 characters.
 const REASON_MIN = 5;
 
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const STATUS_TEXT: Record<Handover["status"], string> = {
   pending: "Waiting for the rep",
   final: "Final",

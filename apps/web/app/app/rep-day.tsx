@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { karachiToday, day as shortDay } from "@/lib/overview";
 import { db, rows, rpc } from "@/lib/rpc";
+import { clock } from "@/lib/time";
 
 type Day = {
   id: string;
@@ -188,8 +189,7 @@ export function RepDay() {
         <>
           <div className="card">
             <p>
-              Checked in at {new Date(day.check_in_at).toLocaleTimeString("en-PK", { timeStyle: "short" })}. Visits so far:{" "}
-              {day.visits}.
+              Checked in at {clock(day.check_in_at)}. Visits so far: {day.visits}.
             </p>
             {day.bag_variance_units > 0 && (
               <p className="error">

@@ -5,6 +5,7 @@ import { SubmissionSignature } from "@/components/submission-signature";
 import { rupees } from "@/lib/money";
 import { db, mySession, type Role, rows, rpc } from "@/lib/rpc";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { when } from "@/lib/time";
 
 type Line = { sku_id: string; code: string; variant: string; qty: number; unit_price_paisa: number };
 type Waiting = {
@@ -50,7 +51,6 @@ const NOTE_MIN = 3;
 // D-45: the owner's own missing-goods settlement is recorded with app.owner_post_adjustment, whose reason is 5 to 300.
 const OWNER_NOTE_MIN = 5;
 const FLAG_TEXT: Record<string, string> = { mock_location: "mock location", distance_unknown: "salon has no pin" };
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const rowKey = (u: Unsettled) => `${u.submission_id}:${u.sku_id}`;
 
 /** One client id per action, kept until it succeeds, so a retry replays the same write (H-08). */

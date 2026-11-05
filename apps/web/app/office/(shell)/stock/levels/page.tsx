@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ListState } from "@/components/confirm-action";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
+import { when } from "@/lib/time";
 
 type Sku = { id: string; code: string; variant: string | null };
 type Available = { sku_id: string; code: string; available: number };
@@ -27,7 +28,6 @@ const SKU_LIMIT = 200;
 const COUNT_LIST = 50;
 // app.parse_lines refuses a counted quantity above this.
 const MAX_COUNT = 100_000;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const skuText = (s: Sku | undefined) => (s ? `${s.code}${s.variant ? ` ${s.variant}` : ""}` : "Unknown SKU");
 const wholeInRange = (text: string, max: number) => {
   const t = text.trim();

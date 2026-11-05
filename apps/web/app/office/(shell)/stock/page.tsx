@@ -7,6 +7,7 @@ import { rupees, toPaisa } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { when } from "@/lib/time";
 
 type Location = {
   id: string;
@@ -41,7 +42,6 @@ const MAX_ISSUE_LINES = 10;
 const MAX_ADJUSTMENT_UNITS = 100_000;
 // app.owner_adjust_stock asks for a reason of 5 to 300 characters (D-45).
 const OWNER_REASON_MIN = 5;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 /** One client id per form, kept until the database accepts the write, so a retry replays it (H-08). */
 function useKey() {

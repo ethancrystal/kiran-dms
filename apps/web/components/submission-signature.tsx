@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 // The salon's acknowledgement of one rep delivery, for the office to review before approving (P1-31, D-49). A delivery
 // is final only with this signed acknowledgement of exactly these goods and the office's approval, so the page shows
@@ -19,7 +20,6 @@ export type SignatureStatus = {
 };
 
 const PICTURE_WIDTH = 300;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 export function SubmissionSignature({
   submissionId,

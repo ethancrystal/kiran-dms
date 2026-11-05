@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { rpc } from "@/lib/rpc";
+import { when } from "@/lib/time";
 
 /** One row of app.office_salon_timeline or app.office_order_timeline (migration 20261105160000). */
 export type TimelineEvent = {
@@ -16,7 +17,6 @@ export type TimelineEvent = {
 
 const FN = { salon: "office_salon_timeline", order: "office_order_timeline" } as const;
 const ARG = { salon: "p_salon_id", order: "p_order_id" } as const;
-const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const label = (s: string) => s.replaceAll("_", " ");
 
 /**
