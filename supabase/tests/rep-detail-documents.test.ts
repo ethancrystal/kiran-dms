@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, run } from "./helpers/db";
+import { signOrderSql } from "./helpers/submit-approve";
 import { asLogin, type Login, newLogin, quote } from "./helpers/invite";
 
 const C = { commit: true };
@@ -123,7 +124,7 @@ const order = (cid: string, salon: string, rep: string | null): Step => [
 ];
 const deliver = (dcid: string, ocid: string): Step => [
   "manager",
-  `select app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha at the counter');`,
+  `${signOrderSql(dcid, oid(ocid))} select app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha at the counter');`,
 ];
 const detail = (rep: string, mark = "d", as: Persona = "manager"): Step => [
   as,

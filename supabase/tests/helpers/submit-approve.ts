@@ -14,6 +14,18 @@
  * submission with the same SQLSTATE and words app.rep_deliver used, before the approval runs.
  */
 const DEFAULT_RECEIVER = "Ayesha at the counter";
+// P1-31 (D-49, MJ 2026-11-05): a delivery is final only with the salon's signed acknowledgement of exactly the goods and
+// the office's approval, so every fixture that gets an invoice through the API signs first. A PNG signature plus zeros: the
+// database checks the signature bytes and the size, not the drawing.
+const PNG_HEADER = "89504e470d0a1a0a";
+const PNG_PADDING_BYTES = 300;
+export const SIGNATURE_PNG_BASE64 = Buffer.from(PNG_HEADER + "00".repeat(PNG_PADDING_BYTES), "hex").toString("base64");
+/** The rep's signed acknowledgement of the submission whose client_id is given (replay-safe: its key is derived). */
+export const signSubmissionSql = (submissionClientId: string, signatory = "Ayesha Khan", role = "Owner") =>
+  `select app.rep_attach_signature(md5('sig-${submissionClientId}')::uuid, (select id from public.delivery_submission where client_id = '${submissionClientId}'), 'signed', '${signatory}', '${role}', '${SIGNATURE_PNG_BASE64}', null);`;
+/** The office's signed acknowledgement of everything still to deliver on an order, before app.office_deliver. */
+export const signOrderSql = (key: string, orderExpr: string, linesSql = "null", signatory = "Ayesha Khan", role = "Owner") =>
+  `select app.office_attach_signature(md5('osig-${key}')::uuid, ${orderExpr}, ${linesSql}, 'signed', '${signatory}', '${role}', '${SIGNATURE_PNG_BASE64}', null);`;
 const DEFAULT_LAT = 24.9;
 const DEFAULT_LNG = 67.1;
 
@@ -38,6 +50,7 @@ export const submitApproveSql = <K extends string>(asUser: (who: K) => string, a
   select app.rep_submit_delivery('${a.clientId}', ${a.orderExpr}, '${a.name ?? DEFAULT_RECEIVER}', ${DEFAULT_LAT}, ${DEFAULT_LNG}, ${
     a.lines ?? "null"
   }${a.extra ?? ""});
+  ${signSubmissionSql(a.clientId)}
   ${asUser(a.approver)}
   select (app.office_approve_delivery((select id from public.delivery_submission where client_id = '${a.clientId}'), '${a.clientId}')).${
     a.returning ?? "*"

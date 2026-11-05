@@ -2,6 +2,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
+import { Acknowledgement, type AckLine, type AckResult } from "@/components/acknowledgement";
 import { label, position } from "@/lib/salons";
 
 type Order = { order_id: string; salon_id: string; salon_name: string | null; status: string; total_paisa: number };
@@ -17,6 +18,12 @@ const DELIVERABLE = ["confirmed", "partially_delivered"];
 // https://regex101.com/?regex=%5CD&flavor=javascript
 const NOT_DIGIT = /\D/g;
 // Pinned copy (plan Task 8, MJ's Decision 1: cash at the door is collected after approval).
+const ACK_TEXT: Record<AckResult, string> = {
+  signed: "The customer's acknowledgement is recorded.",
+  refused: "Recorded: the customer refused to sign. The office will see your reason.",
+  unable: "Recorded: no one could sign. The office will see your reason.",
+  skipped: "No acknowledgement was recorded. The office will see that.",
+};
 const SENT = "Sent for approval. No invoice yet: the office approves first. Collect payment after approval.";
 
 // The rep's delivery of one order assigned to it (D-32): what is left on the order (app.order_remaining)
@@ -37,6 +44,9 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  // The submission just made and the goods in it, for the customer to acknowledge before the screen says "sent".
+  const [ack, setAck] = useState<{ id: string; lines: AckLine[] } | null>(null);
+  const [ackResult, setAckResult] = useState<AckResult | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -84,7 +94,7 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
         .map((r) => ({ sku_id: r.sku_id, qty: Number.parseInt(qty[r.sku_id] ?? "", 10) }))
         .filter((l) => Number.isInteger(l.qty) && l.qty > 0);
       // Without a fix the call still goes out with no position, so the database's own GPS rule answers.
-      await rpc("rep_submit_delivery", {
+      const made = await rpc<{ id: string }>("rep_submit_delivery", {
         p_client_id: clientId,
         p_order_id: id,
         p_received_by_name: name.trim(),
@@ -92,6 +102,13 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
         p_lng: gps?.lng ?? null,
         p_lines: lines,
         p_submitted_at_client: new Date().toISOString(),
+      });
+      setAck({
+        id: made.id,
+        lines: lines.map((l) => {
+          const k = skus.get(l.sku_id);
+          return { label: k ? `${k.code} ${k.variant}` : "Product", qty: l.qty };
+        }),
       });
       setSent(true);
     } catch (e) {
@@ -125,7 +142,30 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
           <span className="badge">{label(order.status)}</span>
         </p>
       )}
-      {sent && (
+      {sent && ack && ackResult === null && order && (
+        <Acknowledgement
+          salonName={order.salon_name ?? "the salon"}
+          lines={ack.lines}
+          onDone={setAckResult}
+          record={async (a) => {
+            await rpc("rep_attach_signature", {
+              p_client_id: a.key,
+              p_submission_id: ack.id,
+              p_outcome: a.outcome,
+              p_name: a.name,
+              p_designation: a.designation,
+              p_png_base64: a.png,
+              p_note: a.note,
+            });
+          }}
+        />
+      )}
+      {sent && ackResult !== null && (
+        <p className="ok" data-testid="ack-result">
+          {ACK_TEXT[ackResult]}
+        </p>
+      )}
+      {sent && (ackResult !== null || !ack) && (
         <div className="card">
           <p className="ok" data-testid="delivery-sent">
             {SENT}

@@ -898,14 +898,14 @@ const MATRIX: Row[] = [
       },
     }),
   ),
-  // Invoice drafts, issue snapshots, signature openings and accepted exceptions (migration 20261105220000, P1-31, D-49):
+  // Invoice drafts, issue snapshots, signature openings and the uses of acknowledgements (migration 20261105220000, P1-31, D-49):
   // the office reads them; no rep, salon, AAL1 office session or anon reads any row.
   ...(
     [
       ["public.invoice_draft_version", "notes"],
       ["public.invoice_snapshot", "doc_hash"],
       ["public.delivery_signature_access", "purpose"],
-      ["public.delivery_signature_exception", "reason"],
+      ["public.delivery_signature_use", "used_at"],
     ] as const
   ).map(
     ([table, writeCol]): Row => ({

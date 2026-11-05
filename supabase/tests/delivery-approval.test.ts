@@ -16,6 +16,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { approveSalon, fx, MANAGER, OWNER, REP_A, run } from "./helpers/db";
+import { signOrderSql, signSubmissionSql } from "./helpers/submit-approve";
 import { legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
@@ -132,7 +133,7 @@ const submit = (
   extra = "",
 ): Step => [
   who,
-  `select (app.rep_submit_delivery('${scid}', ${oid(ocid)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG}, ${l ? lines(l) : "null"}${extra})).*;`,
+  `select (app.rep_submit_delivery('${scid}', ${oid(ocid)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG}, ${l ? lines(l) : "null"}${extra})).*; ${signSubmissionSql(scid)}`,
 ];
 const approve = (scid: string, dcid: string, who: Persona = "manager"): Step => [
   who,
@@ -353,7 +354,7 @@ describe("schema: pending location, submission tables, invoice stamps (D-32)", (
 // ------------------------------------------------------- Task 2: finalise_delivery ----
 const officeDeliver = (dcid: string, ocid: string, who: Persona = "manager"): Step => [
   who,
-  `select (app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Bilal at the door')).*;`,
+  `${signOrderSql(dcid, oid(ocid))} select (app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Bilal at the door')).*;`,
 ];
 const stamps = (ocid: string): Step => [
   "postgres",

@@ -12,8 +12,12 @@
 --                             lines. Append-only. Its picture is a PNG in delivery_signature_image, a table no API
 --                             role can read and the audit trigger does not copy; the office opens it through an
 --                             audited function.
---   4. delivery_signature_access / delivery_signature_exception   Who opened a picture; why the office accepted a
---                             delivery without a valid acknowledgement.
+--   4. delivery_signature_access   Who opened a picture. delivery_signature_use   Which delivery used an acknowledgement.
+--   5. The rule (MJ, 2026-11-05): a delivery is final only with BOTH the salon's signed acknowledgement of exactly the
+--      goods delivered AND the manager's or owner's approval. A trigger on the invoice insert enforces it for every
+--      path that issues an invoice (the approval of a rep's submission, and the office delivering a rep-less order),
+--      so app.finalise_delivery, app.office_approve_delivery and app.office_deliver are not touched. A refusal or
+--      an inability to sign is recorded honestly, but it does not satisfy the rule: the delivery cannot be final.
 -- An acknowledgement is an electronic proof of receipt, not a legally qualified electronic signature.
 
 -- ------------------------------------------------------------------ tables ---
@@ -46,10 +50,10 @@ comment on table public.invoice_snapshot is
 create table public.delivery_signature (
   id                    uuid primary key default gen_random_uuid(),
   client_id             uuid not null unique,
-  submission_id         uuid not null references public.delivery_submission (id),
+  submission_id         uuid references public.delivery_submission (id),     -- null: taken by the office for a rep-less delivery
   order_id              uuid not null references public.sales_order (id),
   salon_id              uuid not null references public.salon (id),
-  rep_id                uuid not null references public.user_profile (id),
+  rep_id                uuid not null references public.user_profile (id),     -- who recorded it: the delivering rep, or the office user
   device_fingerprint    text not null,
   outcome               text not null check (outcome in ('signed', 'refused', 'unable')),
   signatory_name        text check (length(btrim(signatory_name)) between 2 and 80),
@@ -87,16 +91,13 @@ create table public.delivery_signature_access (
 );
 comment on table public.delivery_signature_access is 'P1-31. Append-only. Every time the office opened a signature picture.';
 
-create table public.delivery_signature_exception (
-  id            uuid primary key default gen_random_uuid(),
-  client_id     uuid not null unique,
-  submission_id uuid not null unique references public.delivery_submission (id),
-  reason        text not null check (length(btrim(reason)) between 5 and 300),
-  recorded_by   uuid not null references public.user_profile (id),
-  recorded_at   timestamptz not null default now()
+create table public.delivery_signature_use (
+  signature_id uuid primary key references public.delivery_signature (id),
+  delivery_id  uuid not null unique references public.delivery (id),
+  used_at      timestamptz not null default now()
 );
-comment on table public.delivery_signature_exception is
-  'P1-31, D-49. Append-only. The office accepted a delivery whose acknowledgement is missing, refused or no longer matches, with a reason. A signature is not a delivery blocker; this makes the exception auditable.';
+comment on table public.delivery_signature_use is
+  'P1-31, D-49. Append-only. The delivery an acknowledgement made final. One acknowledgement makes one delivery final, once.';
 
 create trigger append_only before update or delete on public.invoice_draft_version        for each row execute function control.forbid_mutation();
 create trigger no_truncate before truncate on public.invoice_draft_version                for each statement execute function control.forbid_mutation();
@@ -108,14 +109,14 @@ create trigger append_only before update or delete on public.delivery_signature_
 create trigger no_truncate before truncate on public.delivery_signature_image             for each statement execute function control.forbid_mutation();
 create trigger append_only before update or delete on public.delivery_signature_access    for each row execute function control.forbid_mutation();
 create trigger no_truncate before truncate on public.delivery_signature_access            for each statement execute function control.forbid_mutation();
-create trigger append_only before update or delete on public.delivery_signature_exception for each row execute function control.forbid_mutation();
-create trigger no_truncate before truncate on public.delivery_signature_exception         for each statement execute function control.forbid_mutation();
+create trigger append_only before update or delete on public.delivery_signature_use       for each row execute function control.forbid_mutation();
+create trigger no_truncate before truncate on public.delivery_signature_use               for each statement execute function control.forbid_mutation();
 create trigger audit after insert or update or delete on public.invoice_draft_version        for each row execute function control.audit_row();
 create trigger audit after insert or update or delete on public.invoice_snapshot             for each row execute function control.audit_row();
 create trigger audit after insert or update or delete on public.delivery_signature           for each row execute function control.audit_row();
 create trigger audit after insert or update or delete on public.delivery_signature_image      for each row execute function control.audit_row();
 create trigger audit after insert or update or delete on public.delivery_signature_access    for each row execute function control.audit_row();
-create trigger audit after insert or update or delete on public.delivery_signature_exception for each row execute function control.audit_row();
+create trigger audit after insert or update or delete on public.delivery_signature_use       for each row execute function control.audit_row();
 
 alter table public.invoice_draft_version        enable row level security;
 alter table public.invoice_draft_version        force  row level security;
@@ -127,10 +128,10 @@ alter table public.delivery_signature_image     enable row level security;
 alter table public.delivery_signature_image     force  row level security;
 alter table public.delivery_signature_access    enable row level security;
 alter table public.delivery_signature_access    force  row level security;
-alter table public.delivery_signature_exception enable row level security;
-alter table public.delivery_signature_exception force  row level security;
+alter table public.delivery_signature_use       enable row level security;
+alter table public.delivery_signature_use       force  row level security;
 
--- The office reads drafts, snapshots, the access log and exceptions. Acknowledgements and pictures are read through
+-- The office reads drafts, snapshots, the access log and the uses. Acknowledgements and pictures are read through
 -- functions only (a rep sees just its own status, with no picture).
 create policy invoice_draft_version_select on public.invoice_draft_version for select to authenticated
   using ((select app.is_office()));
@@ -138,14 +139,14 @@ create policy invoice_snapshot_select on public.invoice_snapshot for select to a
   using ((select app.is_office()));
 create policy delivery_signature_access_select on public.delivery_signature_access for select to authenticated
   using ((select app.is_office()));
-create policy delivery_signature_exception_select on public.delivery_signature_exception for select to authenticated
+create policy delivery_signature_use_select on public.delivery_signature_use for select to authenticated
   using ((select app.is_office()));
 
 revoke all on public.invoice_draft_version, public.invoice_snapshot, public.delivery_signature, public.delivery_signature_image,
-              public.delivery_signature_access, public.delivery_signature_exception
+              public.delivery_signature_access, public.delivery_signature_use
   from public, anon, authenticated, service_role;
 grant select on public.invoice_draft_version, public.invoice_snapshot, public.delivery_signature_access,
-                public.delivery_signature_exception to authenticated, service_role;
+                public.delivery_signature_use to authenticated, service_role;
 
 -- ----------------------------------------------------- the acknowledgement ----
 create function app.delivery_ack_statement() returns jsonb
@@ -154,14 +155,20 @@ language sql immutable security definer set search_path = '' as $$
     'I confirm that I have received the goods listed on this screen, in the quantities shown, on behalf of the salon named, and that I am allowed to sign for it. This is a record of receipt, not a legally qualified electronic signature.');
 $$;
 
--- A hash of what was handed over: the salon, the order, the submission and its exact lines.
+-- A hash of what is being handed over: the salon, the order and the exact goods, by SKU. p_lines is [{sku_id, qty}].
+create function app.delivery_lines_hash(p_salon_id uuid, p_order_id uuid, p_lines jsonb) returns text
+language sql immutable security definer set search_path = '' as $$
+  select encode(sha256(convert_to(
+           p_salon_id::text || '|' || p_order_id::text || '|' ||
+           coalesce((select string_agg(k || ':' || q, ',' order by k)
+                     from (select e ->> 'sku_id' k, sum((e ->> 'qty')::integer)::text q
+                           from jsonb_array_elements(p_lines) e group by e ->> 'sku_id') g), ''), 'utf8')), 'hex');
+$$;
+
+-- The same, for a rep's submission.
 create function app.submission_lines_hash(p_submission_id uuid) returns text
 language sql stable security definer set search_path = '' as $$
-  select encode(sha256(convert_to(
-           s.salon_id::text || '|' || s.order_id::text || '|' || s.id::text || '|' ||
-           coalesce((select string_agg((e ->> 'sku_id') || ':' || (e ->> 'qty'), ',' order by (e ->> 'sku_id'))
-                     from jsonb_array_elements(s.lines) e), ''), 'utf8')), 'hex')
-  from public.delivery_submission s where s.id = p_submission_id;
+  select app.delivery_lines_hash(s.salon_id, s.order_id, s.lines) from public.delivery_submission s where s.id = p_submission_id;
 $$;
 
 -- The statement a rep puts in front of the customer, so the screen and the record cannot differ.
@@ -262,14 +269,13 @@ end $$;
 -- The office reads one submission's acknowledgement status (no picture) and any recorded exception.
 create function app.office_delivery_signature(p_submission_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
-declare sg public.delivery_signature; ex public.delivery_signature_exception;
+declare sg public.delivery_signature;
 begin
   perform app.assert_office();
   if not exists (select 1 from public.delivery_submission where id = p_submission_id) then
     raise exception using errcode = '22023', message = 'unknown delivery submission';
   end if;
   select g.* into sg from public.delivery_signature g where g.submission_id = p_submission_id order by g.signed_at desc, g.id limit 1;
-  select * into ex from public.delivery_signature_exception where submission_id = p_submission_id;
   return jsonb_build_object(
     'signature_id', sg.id,
     'outcome', sg.outcome,
@@ -279,8 +285,7 @@ begin
     'signed_at', sg.signed_at,
     'note', sg.note,
     'valid', case when sg.id is null then false else sg.lines_hash = app.submission_lines_hash(p_submission_id) end,
-    'has_picture', sg.signature_size is not null,
-    'exception', case when ex.id is null then null else jsonb_build_object('reason', ex.reason, 'recorded_at', ex.recorded_at) end);
+    'has_picture', sg.signature_size is not null);
 end $$;
 
 -- The picture, to the office only, as base64; every opening is logged. Nothing is stored or linked, so every look is a
@@ -303,37 +308,149 @@ begin
 ', '');                -- one line: a browser data URL cannot hold the wrapping
 end $$;
 
--- The office accepts a delivery without a valid acknowledgement, with a reason. It does not approve the delivery.
-create function app.office_accept_unsigned(p_client_id uuid, p_submission_id uuid, p_reason text)
-returns public.delivery_signature_exception
+-- A rep-less order is delivered by the office, in front of the customer: the office user records the salon's
+-- acknowledgement of exactly the goods about to be delivered (p_lines, or everything still to deliver when null), then
+-- calls app.office_deliver with the same goods. Owner or manager at AAL2.
+create function app.office_attach_signature(
+  p_client_id uuid, p_order_id uuid, p_lines jsonb, p_outcome text, p_name text, p_designation text,
+  p_png_base64 text default null, p_note text default null)
+returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare ex public.delivery_signature_exception;
+declare
+  v_role  public.app_role := app.assert_office();
+  o       public.sales_order;
+  sg      public.delivery_signature;
+  st      jsonb := app.delivery_ack_statement();
+  v_lines jsonb;
+  v_png   bytea;
+  v_hash  text;
+  v_lh    text;
+  v_now   timestamptz := now();
+  v_dev   text := coalesce(app.request_device_id(), 'office');
 begin
-  perform app.assert_office();
   if p_client_id is null then
-    raise exception using errcode = '22023', message = 'an exception needs a client_id (idempotency key, H-08)';
+    raise exception using errcode = '22023', message = 'an acknowledgement needs a client_id (idempotency key, H-08)';
   end if;
-  select * into ex from public.delivery_signature_exception where client_id = p_client_id;
-  if ex.id is not null then
-    if ex.submission_id = p_submission_id and ex.reason = btrim(p_reason) then return ex; end if;
+  select * into sg from public.delivery_signature where client_id = p_client_id;
+  if sg.id is not null then
+    if sg.rep_id = auth.uid() and sg.order_id = p_order_id and sg.submission_id is null and sg.outcome = p_outcome then
+      return jsonb_build_object('id', sg.id, 'outcome', sg.outcome, 'signed_at', sg.signed_at);
+    end if;
     raise exception using errcode = '23505', message = 'client_id already used with different content';
   end if;
-  if not exists (select 1 from public.delivery_submission where id = p_submission_id) then
-    raise exception using errcode = '22023', message = 'unknown delivery submission';
+  if p_outcome not in ('signed', 'refused', 'unable') then
+    raise exception using errcode = '22023', message = 'the outcome is signed, refused or unable';
   end if;
-  if exists (select 1 from public.delivery_submission_decision x where x.submission_id = p_submission_id) then
-    raise exception using errcode = '55000', message = 'this delivery is already decided';
+  select * into o from public.sales_order where id = p_order_id;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  if o.status not in ('confirmed', 'partially_delivered') then
+    raise exception using errcode = '55000', message = 'only an order that is waiting to be delivered has a delivery to acknowledge';
   end if;
-  if length(btrim(coalesce(p_reason, ''))) not between 5 and 300 then
-    raise exception using errcode = '22023', message = 'a reason of 5 to 300 characters is required';
+  if exists (select 1 from public.delivery_submission s where s.order_id = o.id
+               and not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)) then
+    raise exception using errcode = '55000', message = 'this order has a rep''s delivery waiting for approval; its acknowledgement is taken by the rep';
   end if;
-  select * into ex from public.delivery_signature_exception where submission_id = p_submission_id;
-  if ex.id is not null then return ex; end if;
-  perform app.set_purpose('delivery accepted without a valid acknowledgement');
-  insert into public.delivery_signature_exception (client_id, submission_id, reason, recorded_by)
-  values (p_client_id, p_submission_id, btrim(p_reason), auth.uid()) returning * into ex;
-  return ex;
+  if p_lines is null then
+    select jsonb_agg(jsonb_build_object('sku_id', x.sku_id, 'qty', x.remaining)) into v_lines
+    from app.order_lines_left(o.id) x where x.remaining > 0;
+  else
+    select jsonb_agg(jsonb_build_object('sku_id', x.sku_id, 'qty', x.qty)) into v_lines from app.parse_lines(p_lines) x;
+    if exists (select 1 from jsonb_to_recordset(v_lines) g(sku_id uuid, qty integer)
+               left join app.order_lines_left(o.id) x on x.sku_id = g.sku_id where x.order_line_id is null or g.qty > x.remaining) then
+      raise exception using errcode = '22023', message = 'every line must be a SKU of this order, at most what is left to deliver';
+    end if;
+  end if;
+  if v_lines is null then raise exception using errcode = '22023', message = 'nothing is left to deliver on this order'; end if;
+  v_lh := app.delivery_lines_hash(o.salon_id, o.id, v_lines);
+  if p_outcome = 'signed' then
+    if length(btrim(coalesce(p_name, ''))) not between 2 and 80 or length(btrim(coalesce(p_designation, ''))) not between 2 and 80 then
+      raise exception using errcode = '22023', message = 'the name and the role of the person signing for the salon are required';
+    end if;
+    begin
+      v_png := decode(coalesce(p_png_base64, ''), 'base64');
+    exception when others then
+      raise exception using errcode = '22023', message = 'the signature picture is not valid';
+    end;
+    if v_png is null or length(v_png) not between 200 and 120000
+       or substring(v_png from 1 for 8) <> '\x89504e470d0a1a0a'::bytea then
+      raise exception using errcode = '22023', message = 'the signature must be a PNG picture of a reasonable size';
+    end if;
+    v_hash := encode(sha256(v_png), 'hex');
+  elsif length(btrim(coalesce(p_note, ''))) not between 5 and 300 then
+    raise exception using errcode = '22023', message = 'say in a few words why the salon did not sign (5 to 300 characters)';
+  end if;
+  perform app.set_purpose('customer acknowledgement of receipt (office delivery)');
+  insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_fingerprint, outcome,
+      signatory_name, signatory_designation, statement_version, statement_text, lines_hash, signature_size, signature_hash,
+      evidence_hash, note, signed_at)
+  values (p_client_id, null, o.id, o.salon_id, auth.uid(), v_dev, p_outcome,
+      case when p_outcome = 'signed' then btrim(p_name) end, case when p_outcome = 'signed' then btrim(p_designation) end,
+      (st ->> 'version')::integer, st ->> 'text', v_lh, case when v_png is not null then length(v_png) end, v_hash,
+      encode(sha256(convert_to(v_lh || '|' || p_outcome || '|' || coalesce(btrim(p_name), '') || '|' || coalesce(btrim(p_designation), '')
+        || '|' || (st ->> 'version') || '|' || coalesce(v_hash, '') || '|' || v_dev || '|' || v_now::text, 'utf8')), 'hex'),
+      case when p_outcome <> 'signed' then btrim(p_note) end, v_now)
+  returning * into sg;
+  if v_png is not null then insert into public.delivery_signature_image (signature_id, png) values (sg.id, v_png); end if;
+  return jsonb_build_object('id', sg.id, 'outcome', sg.outcome, 'signed_at', sg.signed_at);
 end $$;
+
+-- Whether an order that waits for the office to deliver it has an unused signed acknowledgement of everything still to
+-- deliver (the common case), and by whom.
+create function app.office_order_signature(p_order_id uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare o public.sales_order; v_hash text; sg public.delivery_signature;
+begin
+  perform app.assert_office();
+  select * into o from public.sales_order where id = p_order_id;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  select app.delivery_lines_hash(o.salon_id, o.id, coalesce(jsonb_agg(jsonb_build_object('sku_id', x.sku_id, 'qty', x.remaining)), '[]'::jsonb))
+    into v_hash from app.order_lines_left(o.id) x where x.remaining > 0;
+  select g.* into sg from public.delivery_signature g
+   where g.order_id = o.id and g.submission_id is null and g.outcome = 'signed' and g.lines_hash = v_hash
+     and not exists (select 1 from public.delivery_signature_use u where u.signature_id = g.id)
+   order by g.signed_at desc, g.id limit 1;
+  return jsonb_build_object('covers_everything_left', sg.id is not null, 'signature_id', sg.id,
+                            'signatory_name', sg.signatory_name, 'signatory_designation', sg.signatory_designation, 'signed_at', sg.signed_at);
+end $$;
+
+-- THE RULE. A delivery is final only with the salon's signed acknowledgement of exactly the goods delivered, plus the
+-- office's approval. The approval is the act that reaches this insert; this AFTER INSERT trigger (so the invoice's own
+-- checks answer first; it sorts after invoice_installments and before invoice_snapshot_write) refuses the invoice (and with it the
+-- whole transaction: the delivery, the sale movement, the order status) unless an unused signed acknowledgement of
+-- these exact goods exists, taken for the rep's pending submission or, for a rep-less order, by the office. It applies
+-- to every path an API caller can use (an API caller always has a user id). A refusal to sign, an inability, or a
+-- signature for different goods does not count.
+create function control.invoice_signature_gate() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare
+  d     public.delivery;
+  v_h   text;
+  v_sub uuid;
+  v_sig uuid;
+begin
+  if auth.uid() is null then return null; end if;               -- not an API caller (a migration or a fixture)
+  select * into d from public.delivery where id = new.delivery_id;
+  select app.delivery_lines_hash(d.salon_id, d.order_id, coalesce(jsonb_agg(jsonb_build_object('sku_id', t.sku_id, 'qty', t.qty)), '[]'::jsonb))
+    into v_h from (select dl.sku_id, sum(dl.qty)::integer qty from public.delivery_line dl where dl.delivery_id = d.id group by dl.sku_id) t;
+  -- A rep's delivery is the order's one undecided submission with exactly these goods.
+  select s.id into v_sub from public.delivery_submission s
+   where s.order_id = d.order_id and app.submission_lines_hash(s.id) = v_h
+     and not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)
+   limit 1;
+  select g.id into v_sig from public.delivery_signature g
+   where g.order_id = d.order_id and g.outcome = 'signed' and g.lines_hash = v_h
+     and g.submission_id is not distinct from v_sub
+     and not exists (select 1 from public.delivery_signature_use u where u.signature_id = g.id)
+   order by g.signed_at desc, g.id limit 1;
+  if v_sig is null then
+    raise exception using errcode = '55000',
+      message = 'a delivery is final only with the salon''s signed acknowledgement of exactly these goods and the office''s approval (D-49)';
+  end if;
+  insert into public.delivery_signature_use (signature_id, delivery_id) values (v_sig, d.id);
+  return null;
+end $$;
+create trigger invoice_signature_gate after insert on public.invoice
+  for each row execute function control.invoice_signature_gate();
 
 -- ------------------------------------------------------------- the document ---
 -- The builder: the invoice as the records say now, in the version 2 shape (the keys of version 1 are all kept). No
@@ -422,17 +539,15 @@ end $$;
 create function app.invoice_payments_overlay(p_invoice_id uuid) returns jsonb
 language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
-    -- The acknowledgement of the submission that produced this invoice's delivery. It cannot change once the delivery is
-    -- decided (app.rep_attach_signature refuses), so reading it live is the same as having snapshotted it.
+    -- The acknowledgement that made this invoice's delivery final (the rule: there is always one). It is fixed once used.
     'acknowledgement', (
       select jsonb_build_object('outcome', g.outcome, 'signatory_name', g.signatory_name,
                                 'signatory_designation', g.signatory_designation, 'signed_at', g.signed_at,
-                                'statement_version', g.statement_version,
-                                'matches_delivery', g.lines_hash = app.submission_lines_hash(g.submission_id))
+                                'statement_version', g.statement_version, 'matches_delivery', true)
       from public.invoice i
-      join public.delivery_submission_decision x on x.delivery_id = i.delivery_id
-      join public.delivery_signature g on g.submission_id = x.submission_id
-      where i.id = p_invoice_id order by g.signed_at desc, g.id limit 1),
+      join public.delivery_signature_use u on u.delivery_id = i.delivery_id
+      join public.delivery_signature g on g.id = u.signature_id
+      where i.id = p_invoice_id),
     'receipts', coalesce((
       select jsonb_agg(jsonb_build_object('number', r.number, 'issued_at', r.issued_at, 'amount_paisa', t.amt)
                        order by r.issued_at, r.number)
@@ -622,18 +737,20 @@ end $$;
 
 -- --------------------------------------------------------------- privileges ---
 revoke execute on function
-  app.delivery_ack_statement(), app.submission_lines_hash(uuid), app.invoice_document_live(uuid),
-  app.invoice_payments_overlay(uuid), control.write_invoice_snapshot()
+  app.delivery_ack_statement(), app.submission_lines_hash(uuid), app.delivery_lines_hash(uuid, uuid, jsonb), app.invoice_document_live(uuid),
+  app.invoice_payments_overlay(uuid), control.write_invoice_snapshot(), control.invoice_signature_gate()
   from public, anon, authenticated, service_role;
 revoke execute on function
   app.delivery_ack_text(), app.rep_attach_signature(uuid, uuid, text, text, text, text, text), app.my_signature_status(uuid),
-  app.office_delivery_signature(uuid), app.office_signature_image(uuid, text), app.office_accept_unsigned(uuid, uuid, text),
+  app.office_delivery_signature(uuid), app.office_signature_image(uuid, text),
+  app.office_attach_signature(uuid, uuid, jsonb, text, text, text, text, text), app.office_order_signature(uuid),
   app.office_save_invoice_draft(uuid, uuid, text, text, jsonb), app.office_invoice_preview(uuid, uuid),
   app.salon_my_invoices(), app.salon_invoice_document(uuid)
   from public, anon;
 grant execute on function
   app.delivery_ack_text(), app.rep_attach_signature(uuid, uuid, text, text, text, text, text), app.my_signature_status(uuid),
-  app.office_delivery_signature(uuid), app.office_signature_image(uuid, text), app.office_accept_unsigned(uuid, uuid, text),
+  app.office_delivery_signature(uuid), app.office_signature_image(uuid, text),
+  app.office_attach_signature(uuid, uuid, jsonb, text, text, text, text, text), app.office_order_signature(uuid),
   app.office_save_invoice_draft(uuid, uuid, text, text, jsonb), app.office_invoice_preview(uuid, uuid),
   app.salon_my_invoices(), app.salon_invoice_document(uuid)
   to authenticated;
