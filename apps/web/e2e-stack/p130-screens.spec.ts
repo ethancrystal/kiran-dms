@@ -9,11 +9,14 @@ import pg from "pg";
 // functions, or as postgres where a test needs a state no screen makes (a rep day left open from an
 // earlier date). Every result checked on a page is the database's. CI only: this host has no Docker.
 // It changes no threshold: the settings journey changes only the company's printed city, and restores it.
+// The journeys after the settings one cover part 1's decisions (D-45 to D-48, added after review): the
+// owner's opening stock, the handover settlement and withdrawal, the payment reversal and the cash cap.
 
 type P = { id: string; email: string; name: string };
 const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "utf8")) as {
   password: string;
   people: Record<"owner" | "rep" | "rep2", P>;
+  sku: { id: string; code: string; list_price_paisa: number };
 };
 const DB_URL = process.env.KIRAN_STACK_DB_URL ?? "";
 const TAG_LENGTH = 8;
@@ -83,6 +86,29 @@ async function sql(as: { id: string; aal: "aal1" | "aal2" } | null, text: string
   }
 }
 const OWNER = { id: seed.people.owner.id, aal: "aal2" as const };
+
+/** As sql(), for the rep on its approved phone: the device id goes in the header PostgREST would pass. */
+async function repSql(device: string, text: string, params: unknown[] = []) {
+  expect(["127.0.0.1", "localhost"], "this stack test runs only on a local database").toContain(new URL(DB_URL).hostname);
+  const c = new pg.Client({ connectionString: DB_URL });
+  await c.connect();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.headers', $2, true)", [
+      JSON.stringify({ sub: rep.id, role: "authenticated", aal: "aal1" }),
+      JSON.stringify({ "x-kiran-device": device }),
+    ]);
+    await c.query("set local role authenticated");
+    const r = await c.query(text, params);
+    await c.query("commit");
+    return r.rows;
+  } catch (e) {
+    await c.query("rollback");
+    throw e;
+  } finally {
+    await c.end();
+  }
+}
 
 /** A password login, as the seed and overviews.spec.ts make them. */
 async function makeLogin(p: P) {
@@ -316,4 +342,222 @@ test("the owner changes a bag's value limit; settings are owner only (M9, FLOW-1
   await m.goto("/office/settings");
   await expect(m.getByText("Only the owner changes settings.")).toBeVisible();
   await expect(m.getByRole("form", { name: "Company details" })).toHaveCount(0);
+});
+
+// ------------------------------------------------------------------ part 1 decisions (review of P1-30) ----
+const store = { id: randomUUID(), name: `[Test] P130 store ${tag}` };
+const repPhone = `p130-phone-${tag}-0000`;
+const ORDER_UNITS = 3; // Rs 4,500 at the seed's Rs 1,500 list price: room for four Rs 1,000 payments
+const STOCK_UNITS = 100;
+const OPENING_UNITS = "7";
+const RS_1000 = 100_000; // paisa
+const SHORT_100 = 90_000;
+const SHORT_50 = 95_000;
+const M = () => ({ id: manager.id, aal: "aal2" as const });
+// The owner's notice after opening stock: matches "Opening stock added: 7 units, on the record with your reason."
+// https://regex101.com/?regex=Opening+stock+added%3A+7+units&flavor=javascript
+const OPENING_ADDED = /Opening stock added: 7 units/;
+// The database's refusal of a manager's own count: matches "a manager cannot withdraw a count they made; the
+// owner can"; rejects "the rep has answered this handover".
+// https://regex101.com/?regex=cannot+withdraw+a+count+they+made&flavor=javascript
+const OWN_COUNT = /cannot withdraw a count they made/;
+// The database's refusal of a manager's own payment: matches "a manager cannot reverse a payment they recorded;
+// the owner can (D-48)"; rejects "this payment is already reversed".
+// https://regex101.com/?regex=cannot+reverse+a+payment+they+recorded&flavor=javascript
+const OWN_PAYMENT = /cannot reverse a payment they recorded/;
+// The owner's notice: matches "Receipt RCP-27-000001 reversed. The salon owes Rs 1,000 again."; rejects
+// "Receipt RCP-27-000001 reversed".
+// https://regex101.com/?regex=reversed%5C.+The+salon+owes&flavor=javascript
+const REVERSED = /reversed\. The salon owes/;
+// The cap refusal: matches "cash limit reached: you hold Rs 50,000.00"; rejects "cash limit is Rs 50,000".
+// https://regex101.com/?regex=cash+limit+reached&flavor=javascript
+const CAP_REACHED = /cash limit reached/;
+
+const handoverRow = (page: Page, status: string) =>
+  page.getByRole("row").filter({ hasText: rep.name }).filter({ hasText: status }).first();
+/** The rep collects Rs 1,000 cash from the salon on its approved phone. */
+const collect = () =>
+  repSql(repPhone, "select (app.rep_record_payment($1, $2, 'cash', $3, 24.9, 67.1)).number n", [randomUUID(), salon.id, RS_1000]);
+/** The manager counts the rep's cash (the database fixes the expected figure); returns the handover id. */
+async function count(counted: number, why: string | null) {
+  const [h] = await sql(M(), "select (app.office_count_handover($1, $2, $3, $4)).id", [randomUUID(), rep.id, counted, why]);
+  return h.id as string;
+}
+const dispute = (hid: string) =>
+  repSql(repPhone, "select app.rep_respond_handover($1, $2, false, 'I handed over the full amount')", [randomUUID(), hid]);
+const settlement = async (hid: string) =>
+  (await sql(null, "select outcome, settled_by from public.handover_settlement where handover_id = $1", [hid]))[0];
+
+test("the owner adds opening stock at once, with a reason on the record (D-45)", async ({ browser }) => {
+  await sql(M(), "select app.office_create_location($1, 'warehouse', $2)", [store.id, store.name]);
+  const page = await officePage(browser, owner2);
+  await page.goto("/office/stock");
+  const form = page.getByRole("form", { name: "Add opening stock" });
+  await form.getByLabel("Warehouse for the opening stock").selectOption({ label: store.name });
+  await form.getByLabel("SKU for the opening stock").selectOption(seed.sku.id);
+  await form.getByLabel("Units counted in").fill(OPENING_UNITS);
+  await form.getByLabel("Why (kept on the record)").fill("p130: opening count of the new store");
+  await form.getByRole("button", { name: "Add to stock" }).click();
+  await expect(page.getByText(OPENING_ADDED)).toBeVisible();
+  const [row] = await sql(
+    null,
+    `select a.qty_delta, a.owner_id, a.reason, m.approval_id is null as no_approval
+       from public.owner_stock_adjustment a
+       join public.stock_movement m on m.source_type = 'owner_stock_adjustment' and m.source_id = a.id
+      where a.location_id = $1`,
+    [store.id],
+  );
+  expect(row).toEqual({
+    qty_delta: Number(OPENING_UNITS),
+    owner_id: owner2.id,
+    reason: "p130: opening count of the new store",
+    no_approval: true,
+  });
+});
+
+test("cash handovers: the owner settles disputes at either amount; the manager cannot withdraw their own count, the owner can (D-46)", async ({
+  browser,
+}) => {
+  // Stock to deliver, the rep's approved phone and open day, and a delivered cash order the salon owes for.
+  await sql(
+    null,
+    `insert into public.stock_movement (client_id, sku_id, qty, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, 'receipt', $4)`,
+    [seed.sku.id, STOCK_UNITS, store.id, manager.id],
+  );
+  await repSql(repPhone, "select app.register_device($1, 'web', 'p130 phone')", [repPhone]);
+  await sql(
+    M(),
+    "select app.approve_device((select d.id from public.device d where d.user_id = $1 order by d.created_at desc limit 1), 'p130 phone')",
+    [rep.id],
+  );
+  await sql(
+    null,
+    "insert into public.rep_day (rep_id, day) values ($1, (now() at time zone 'Asia/Karachi')::date) on conflict do nothing",
+    [rep.id],
+  );
+  const orderCid = randomUUID();
+  await sql(M(), "select app.office_create_order($1, $2, 'CASH', $3::jsonb, $4)", [
+    orderCid,
+    salon.id,
+    JSON.stringify([{ sku_id: seed.sku.id, qty: ORDER_UNITS }]),
+    rep.id,
+  ]);
+  await sql(M(), "select app.office_deliver($1, (select id from public.sales_order where client_id = $2), $3, 'p130 counter')", [
+    randomUUID(),
+    orderCid,
+    store.id,
+  ]);
+
+  // 1. Counted Rs 100 short and disputed. The manager is told only the owner settles; the owner keeps the count.
+  await collect();
+  const first = await count(SHORT_100, "p130: counted short at the desk");
+  await dispute(first);
+  const m = await officePage(browser, manager);
+  await m.goto("/office/handovers");
+  await expect(handoverRow(m, "Disputed").getByText("Only the owner settles a dispute.")).toBeVisible();
+  const page = await officePage(browser, owner2);
+  await page.goto("/office/handovers");
+  const disputed = handoverRow(page, "Disputed");
+  await disputed.getByRole("button", { name: "Keep the counted Rs 900 (the rep is short Rs 100)" }).click();
+  await disputed.getByLabel("Why (kept on the record)").fill("p130: the till roll shows Rs 900");
+  await disputed.getByRole("button", { name: "Settle at the counted Rs 900" }).click();
+  await expect(page.getByText(`Settled ${rep.name}'s handover.`)).toBeVisible();
+  expect(await settlement(first)).toEqual({ outcome: "counted", settled_by: owner2.id });
+
+  // 2. Counted Rs 50 short and disputed; the owner accepts the rep's amount, so the office absorbs it.
+  await collect();
+  const second = await count(SHORT_50, "p130: counted short again");
+  await dispute(second);
+  await page.reload();
+  const again = handoverRow(page, "Disputed");
+  await again.getByRole("button", { name: "Accept the rep's Rs 1,000 (the office absorbs Rs 50)" }).click();
+  await again.getByLabel("Why (kept on the record)").fill("p130: a note was stuck in the bag");
+  await again.getByRole("button", { name: "Settle at the rep's Rs 1,000" }).click();
+  await expect(page.getByText(`Settled ${rep.name}'s handover.`)).toBeVisible();
+  expect(await settlement(second)).toEqual({ outcome: "rep", settled_by: owner2.id });
+
+  // 3. An unanswered count: the manager who made it is refused in the database's words; the owner withdraws it.
+  await collect();
+  const third = await count(RS_1000, null);
+  await m.reload();
+  const waitingM = handoverRow(m, "Waiting for the rep");
+  await waitingM.getByRole("button", { name: "Withdraw this count" }).click();
+  await waitingM.getByLabel("Why it is withdrawn").fill("p130: the rep lost the phone");
+  await waitingM.getByRole("button", { name: "Withdraw the count" }).click();
+  await expect(waitingM.getByText(OWN_COUNT)).toBeVisible();
+  await page.reload();
+  const waiting = handoverRow(page, "Waiting for the rep");
+  await waiting.getByRole("button", { name: "Withdraw this count" }).click();
+  await waiting.getByLabel("Why it is withdrawn").fill("p130: the rep lost the phone");
+  await waiting.getByRole("button", { name: "Withdraw the count" }).click();
+  await expect(page.getByText(`Withdrew the count for ${rep.name}; nothing moved.`)).toBeVisible();
+  expect(await settlement(third)).toEqual({ outcome: "withdrawn", settled_by: owner2.id });
+  // Survives a reload: the row reads withdrawn from the database.
+  await page.reload();
+  await expect(handoverRow(page, "Withdrawn")).toBeVisible();
+});
+
+test("payment reversal: the manager cannot reverse a payment they recorded; the owner can, and the receipt shows it (D-48)", async ({
+  browser,
+}) => {
+  const [receipt] = await sql(M(), "select (app.office_record_cash($1, $2, $3)).number n", [randomUUID(), salon.id, RS_1000]);
+  const number = String(receipt.n);
+  const m = await officePage(browser, manager);
+  await m.goto(`/office/salons/${salon.id}`);
+  const mine = m.getByTestId("salon-payment").filter({ hasText: number });
+  await expect(mine).toBeVisible();
+  // The page hides Reverse when the database says the caller may not, and the database refuses it anyway.
+  await expect(mine.getByRole("button", { name: "Reverse" })).toHaveCount(0);
+  await expect(
+    sql(M(), "select app.office_reverse_payment($1, (select r.payment_id from public.receipt r where r.number = $2), $3)", [
+      randomUUID(),
+      number,
+      "p130: recorded by mistake",
+    ]),
+  ).rejects.toThrow(OWN_PAYMENT);
+
+  const page = await officePage(browser, owner2);
+  await page.goto(`/office/salons/${salon.id}`);
+  const row = page.getByTestId("salon-payment").filter({ hasText: number });
+  await row.getByRole("button", { name: "Reverse" }).click();
+  await row.getByLabel("Why it is reversed").fill("p130: recorded against the wrong salon");
+  await row.getByRole("button", { name: `Reverse receipt ${number}` }).click();
+  await expect(page.getByText(REVERSED)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("salon-payment").filter({ hasText: number })).toContainText("Reversed");
+  const [rev] = await sql(
+    null,
+    `select x.reversed_by, x.cash_holder from public.payment_reversal x
+       join public.receipt r on r.payment_id = x.payment_id where r.number = $1`,
+    [number],
+  );
+  expect(rev).toEqual({ reversed_by: owner2.id, cash_holder: "office" });
+});
+
+test("a rep at the cash limit is refused more cash and shows on the office home (D-47)", async ({ browser }) => {
+  // The rep's ledger is brought to the configured limit as postgres: collecting Rs 50,000 through salons is
+  // more setup than this check needs, and the limit itself is not changed.
+  const [cap] = await sql(null, "select (value #>> '{}')::bigint v from public.app_config where key = 'cash.intraday_cap_paisa'");
+  const [held] = await sql(
+    null,
+    `select coalesce(sum(case direction when 'in' then amount_paisa else -amount_paisa end), 0)::bigint v
+       from public.cash_ledger_entry where holder_type = 'rep' and holder_id = $1`,
+    [rep.id],
+  );
+  const missing = BigInt(String(cap.v)) - BigInt(String(held.v));
+  if (missing > BigInt(0)) {
+    await sql(
+      null,
+      `insert into public.cash_ledger_entry (holder_type, holder_id, direction, amount_paisa, source_type, source_id)
+       values ('rep', $1, 'in', $2, 'payment', gen_random_uuid())`,
+      [rep.id, missing.toString()],
+    );
+  }
+  await expect(
+    repSql(repPhone, "select app.rep_record_payment($1, $2, 'cash', 100, 24.9, 67.1)", [randomUUID(), salon.id]),
+  ).rejects.toThrow(CAP_REACHED);
+  const page = await officePage(browser, manager);
+  await page.goto("/office");
+  await expect(page.getByTestId("cash-cap-rep").filter({ hasText: rep.name })).toBeVisible();
 });
