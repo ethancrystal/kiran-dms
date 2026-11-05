@@ -318,6 +318,11 @@ test("the owner changes a bag's value limit; settings are owner only (M9, FLOW-1
 
   // Settings: the owner changes the printed city and puts it back; every field stays as it was.
   const [before] = await sql(null, "select value from public.app_config where key = 'company.profile'");
+  // The owner's sidebar lists Settings (Administration group); the owner opens it from there.
+  const sidebar = page.getByRole("navigation", { name: "Office" });
+  await expect(sidebar.getByRole("link", { name: "Settings", exact: true })).toHaveCount(1);
+  await sidebar.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   await page.goto("/office/team");
   await page.getByRole("link", { name: SETTINGS_LINK }).click();
   const details = page.getByRole("form", { name: "Company details" });
@@ -342,6 +347,8 @@ test("the owner changes a bag's value limit; settings are owner only (M9, FLOW-1
     .toEqual(before.value);
 
   const m = await officePage(browser, manager);
+  // The manager's sidebar has no Settings link and no Administration group (ownerOnly).
+  await expect(m.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Settings", exact: true })).toHaveCount(0);
   await m.goto("/office/settings");
   await expect(m.getByText("Only the owner changes settings.")).toBeVisible();
   await expect(m.getByRole("form", { name: "Company details" })).toHaveCount(0);

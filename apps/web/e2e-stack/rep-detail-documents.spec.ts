@@ -231,7 +231,7 @@ test("sidebar: grouped, collapsible by keyboard, the current page marked, and us
     "Money and Collections",
     "Field Team",
   ]);
-  // No page that does not exist is listed; Routes exists since slice 11 (P1-29), Settings is not in the sidebar.
+  // No page that does not exist is listed; Routes exists since slice 11 (P1-29), Settings is owner-only, so this manager's sidebar has no Settings link.
   await expect(nav.getByRole("link", { name: "Routes", exact: true })).toHaveCount(1);
   await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(0);
   await expect(navLink(page, "Overview")).toHaveAttribute("aria-current", "page");

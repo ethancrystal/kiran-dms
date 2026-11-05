@@ -67,7 +67,7 @@ Each item: what to add, what it extends, and what it waits for.
 
 ### C1. Unblock a fresh database (first)
 - **Product-group screen** (audit H5, FLOW-01). Extends `/office/products` with add and edit over the existing `app.office_upsert_product_group`. Built on `claude/product-group-screen` and open as PR 71 together with the CI storage change and the picture-upload step of the catalogue journey. Remaining: the office browser job passes on the exact head, then MJ's OK to merge. Do not rebuild it.
-- **Settings in the sidebar.** Add `/office/settings` to `lib/office-nav.ts` with the existing `ownerOnly` flag. One line plus the sidebar test.
+- **Settings in the sidebar.** Done on branch `claude/settings-nav`: an Administration group with Settings, `ownerOnly`; the browser journey checks the owner sees it and the manager does not. Awaiting CI and MJ's OK.
 
 ### C2. Close the loops the audit left open (small, each over existing functions)
 | Item | Extends | Waits for |
