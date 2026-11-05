@@ -208,11 +208,13 @@ describe("§7.6 backdated client timestamps", () => {
     // office_decide_profit(p_decided_on) and office_record_payout(p_paid_on) take an office-entered business date that
     // may not be in the future (Karachi) and is kept next to the server's created_at; reversals are dated by the server.
     // office_investor_statement(p_from, p_to) is a read filter. investors.test.ts proves the future refusal.
+    // Migration 20261105180000 (slice 9, P1-26; L-0144): office_investor_month(p_month), my_month_orders(p_month) and
+    // office_rep_month(p_month) take a month to read (a month not yet started is refused); they write nothing.
     expect(rows.map((x) => x.f)).toEqual([
-      "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_commission",
+      "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_commission", "app.my_month_orders",
       "app.my_route", "app.office_add_investment", "app.office_commission", "app.office_commission_reps",
-      "app.office_decide_profit", "app.office_investor_statement", "app.office_propose_stock_issue",
-      "app.office_record_payout", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
+      "app.office_decide_profit", "app.office_investor_month", "app.office_investor_statement", "app.office_propose_stock_issue",
+      "app.office_record_payout", "app.office_rep_month", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
       "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out", "app.rep_record_payment",
       "app.rep_reorder_route", "app.rep_submit_delivery"]);
   });

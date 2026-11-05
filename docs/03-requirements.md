@@ -198,7 +198,7 @@ How PIP-03, INV-04, INV-05 (the office's view), INV-06, CTL-05 (spot checks, ret
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| RPT-01 | Owner dashboard (mobile-first): today's sales, today's collections, cash in reps' hands, overdue total, low-stock count, reps checked in | M | 1 |
+| RPT-01 | Owner dashboard (mobile-first): today's sales, today's collections, cash in reps' hands, overdue total, low-stock count, reps checked in. A first part is built in slice 9 (P1-26, D-43, not verified): the office home with orders placed this week, waiting to be delivered, delivered and needs-your-attention, and Rep performance; the figures named here are not all on it yet | M | 1 |
 | RPT-02 | Receivables ageing; sales by territory/product/salon type; stock by location | M | 1 |
 | RPT-03 | Pipeline funnel and stage movement | S | 2 |
 | RPT-04 | Margin reports (vault-gated) | S | 2 |

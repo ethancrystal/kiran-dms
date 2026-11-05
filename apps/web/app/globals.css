@@ -97,3 +97,13 @@ ol.stops.route-tap button { min-width: 44px; font-size: 1.2rem; }
 /* Product pictures (slice 2): a small square thumbnail; "No picture" keeps the same box. */
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--muted, #666); vertical-align: middle; }
 .thumb.small { width: 32px; height: 32px; }
+/* Slice 9 overview pages (P1-26): large, plain figures and wide tap targets. */
+ul.summary { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.75rem; }
+ul.summary li { padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); font-size: 1.05rem; }
+ul.summary li a { display: block; text-decoration: none; color: var(--fg); min-height: 2.75rem; }
+ul.summary strong { display: block; font-size: 1.8rem; color: var(--accent); }
+.month-picker { margin: 0.5rem 0; }
+.month-picker strong { font-size: 1.1rem; }
+.month-picker button.inline { min-height: 2.75rem; }
+.rep-month .big-line { font-size: 1.15rem; }
+.rep-month dl { font-size: 1.05rem; }
