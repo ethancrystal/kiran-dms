@@ -727,6 +727,58 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Handover settlements (migration 20261105230000, P1-30, D-46): as the handover answers.
+  {
+    table: "public.handover_settlement",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: `handover_id in (select h.id from public.handover h where h.rep_id = ${me("repA")})`,
+      repAWrongDevice: "false",
+      repB: `handover_id in (select h.id from public.handover h where h.rep_id = ${me("repB")})`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  // Payment reversals (migration 20261105230000, P1-30, D-48): as payments: the office reads all; a rep
+  // reads the reversals of the payments it recorded, on its approved phone.
+  {
+    table: "public.payment_reversal",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: `payment_id in (select p.id from public.payment p where p.recorded_by = ${me("repA")})`,
+      repAWrongDevice: "false",
+      repB: `payment_id in (select p.id from public.payment p where p.recorded_by = ${me("repB")})`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  // The owner's own stock adjustments (migration 20261105230000, P1-30, D-45): office only.
+  {
+    table: "public.owner_stock_adjustment",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
   // Order cards (D-30): a rep reads its own cards and their closes on its approved phone; the office reads all.
   {
     table: "public.order_intake_card",
@@ -760,6 +812,27 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Request versions and lines (migration 20261105150000, slice 6, D-34): as the card itself, the office
+  // reads all; a rep reads those of its own cards on its approved phone; a salon reads none of them (it
+  // reads through app.salon_* only).
+  ...(["public.order_intake_card_version", "public.order_intake_card_line"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.order_intake_card_version" ? "body" : "qty",
+      select: {
+        anon: "denied",
+        repA: `card_id in (select c.id from public.order_intake_card c where c.rep_id = ${me("repA")})`,
+        repAWrongDevice: "false",
+        repB: `card_id in (select c.id from public.order_intake_card c where c.rep_id = ${me("repB")})`,
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   // Invitations (migration 20261105100000, slice 1, D-39): no grant and no policy, so nobody reads the
   // table, not even the office (app.office_invitations lists it without the token hash). Memberships,
   // salon decisions and rep assignments: the office reads all; a rep or a salon reads none of them
@@ -855,6 +928,67 @@ const MATRIX: Row[] = [
         suspended: "false",
         service_role: "true",
       },
+    }),
+  ),
+  // Commission default rates and payments (migration 20261105140000, slice 5, P1-22, D-38): the office
+  // reads all; a rep reads its own through app.my_commission only, and a salon reads nothing.
+  ...(["public.rep_commission_rate", "public.commission_payment"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.rep_commission_rate" ? "rate_bp" : "amount_paisa",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
+  // Invoice drafts, issue snapshots, signature openings and the uses of acknowledgements (migration 20261105220000, P1-31, D-49):
+  // the office reads them; no rep, salon, AAL1 office session or anon reads any row.
+  ...(
+    [
+      ["public.invoice_draft_version", "notes"],
+      ["public.invoice_snapshot", "doc_hash"],
+      ["public.delivery_signature_access", "purpose"],
+      ["public.delivery_signature_use", "used_at"],
+    ] as const
+  ).map(
+    ([table, writeCol]): Row => ({
+      table,
+      writeCol,
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
+  // The acknowledgement and its picture: no API role has any grant. The office reads them through functions only, and a
+  // rep sees only the status of its own, through app.my_signature_status.
+  ...(
+    [
+      ["public.delivery_signature", "note"],
+      ["public.delivery_signature_image", "png"],
+    ] as const
+  ).map(
+    ([table, writeCol]): Row => ({
+      table,
+      writeCol,
+      select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])) as Row["select"],
     }),
   ),
   {

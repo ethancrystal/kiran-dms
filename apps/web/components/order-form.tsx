@@ -5,16 +5,39 @@ import { signedImageUrls } from "@/lib/product-images";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 
-/** An open order card, as app.office_open_cards returns it (migration 0025). */
+/** A line of a request as the office reads it: a SKU and a quantity, and the price the database would take. */
+export type RequestLine = {
+  line_no: number;
+  sku_id: string;
+  code: string;
+  product_name: string;
+  variant: string;
+  qty: number;
+  price_paisa: number;
+};
+
+/**
+ * An open request, as app.office_open_cards returns it (migrations 0025 and 20261105150000): a rep's
+ * order card (rep_id set) or a salon's request (submitter_kind salon, no rep), at its current version.
+ */
 export type OrderCard = {
   card_id: string;
   salon_id: string;
   salon_name: string | null;
-  rep_id: string;
-  rep_name: string;
-  body: string;
+  submitter_kind: "rep" | "salon";
+  rep_id: string | null;
+  rep_name: string | null;
+  body: string | null;
   created_at: string;
+  version: number;
+  updated_at: string;
+  lines: RequestLine[];
+  estimate_paisa: number | null;
 };
+
+/** Who sent a request, in words. */
+export const requestFrom = (c: OrderCard) =>
+  c.submitter_kind === "salon" ? `the salon ${c.salon_name ?? "(unnamed)"}` : (c.rep_name ?? "a rep");
 
 /** The order row app.office_create_order returns (public.sales_order, the fields this page shows). */
 export type CreatedOrder = {
@@ -53,6 +76,11 @@ const SKU_LIMIT = 1000;
 const QTY_MAX = 10_000;
 
 const newLine = (): Line => ({ key: crypto.randomUUID(), skuId: "", qty: "1", price: "" });
+// A request's own lines, without prices: the database prices them (the salon's price, else the list price).
+const linesOf = (card: OrderCard | null): Line[] =>
+  card && card.lines.length > 0
+    ? card.lines.map((l) => ({ key: crypto.randomUUID(), skuId: l.sku_id, qty: String(l.qty), price: "" }))
+    : [newLine()];
 const skuText = (s: Sku, salonPrice: number | undefined) =>
   `${s.code} · ${s.product?.name ?? "Product"} ${s.variant} · ${rupees(Number(s.list_price_paisa))}${
     salonPrice === undefined ? "" : ` · salon price ${rupees(salonPrice)}`
@@ -62,9 +90,9 @@ const skuText = (s: Sku, salonPrice: number | undefined) =>
  * The reps who may deliver an order for this salon (R4, A-16): its directly assigned rep when it has
  * one (latest salon_rep_assignment row), otherwise the active reps currently assigned (to_date null)
  * to the salon's area's territory. Office users read these tables under RLS; the database checks the
- * same rule again in app.office_create_order.
+ * same rule again in app.office_create_order. `direct` is true when the salon has its own rep (D-36).
  */
-async function territoryReps(salonId: string): Promise<Rep[]> {
+async function territoryReps(salonId: string): Promise<{ reps: Rep[]; direct: boolean }> {
   const [direct] = await rows<{ rep: { id: string; full_name: string; role: string; status: string } | null }>(
     db()
       .from("salon_rep_assignment")
@@ -74,13 +102,16 @@ async function territoryReps(salonId: string): Promise<Rep[]> {
       .limit(1),
   );
   if (direct?.rep) {
-    return direct.rep.status === "active" ? [{ id: direct.rep.id, full_name: direct.rep.full_name }] : [];
+    return {
+      reps: direct.rep.status === "active" ? [{ id: direct.rep.id, full_name: direct.rep.full_name }] : [],
+      direct: true,
+    };
   }
   const [salon] = await rows<{ area: { territory_id: string } | null }>(
     db().from("salon").select("area:area_id(territory_id)").eq("id", salonId),
   );
   const territory = salon?.area?.territory_id;
-  if (!territory) return [];
+  if (!territory) return { reps: [], direct: false };
   const links = await rows<RepLink>(
     db()
       .from("rep_territory")
@@ -88,9 +119,12 @@ async function territoryReps(salonId: string): Promise<Rep[]> {
       .eq("territory_id", territory)
       .is("to_date", null),
   );
-  return links.flatMap((l) =>
-    l.rep && l.rep.role === "rep" && l.rep.status === "active" ? [{ id: l.rep.id, full_name: l.rep.full_name }] : [],
-  );
+  return {
+    reps: links.flatMap((l) =>
+      l.rep && l.rep.role === "rep" && l.rep.status === "active" ? [{ id: l.rep.id, full_name: l.rep.full_name }] : [],
+    ),
+    direct: false,
+  };
 }
 
 /** The lines as app.office_create_order takes them, or an error to show before anything is sent. */
@@ -129,12 +163,15 @@ export function OrderForm({
   const [reps, setReps] = useState<Rep[]>([]);
   const [repsLoading, setRepsLoading] = useState(false);
   const [repId, setRepId] = useState(card?.rep_id ?? "");
+  // The card's rep, pre-selected when it still covers the salon; a salon's request has none.
+  const cardRepId = card?.rep_id ?? null;
+  const cardRepName = card?.rep_name ?? "The card's rep";
   const [repNote, setRepNote] = useState<string | null>(null);
   // The salon's own prices by SKU (read from the database; it also applies them, app.build_order).
   const [salonPrices, setSalonPrices] = useState<Record<string, number>>({});
   const [pictures, setPictures] = useState<Record<string, string>>({});
   const [plan, setPlan] = useState("CASH");
-  const [lines, setLines] = useState<Line[]>(() => [newLine()]);
+  const [lines, setLines] = useState<Line[]>(() => linesOf(card));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A failed read of the catalogue, salons or reps: kept apart from the submit error, so a submit
@@ -199,7 +236,9 @@ export function OrderForm({
     void read();
   }, [salonId]);
 
-  // The salon's territory reps; the card's rep stays selected only when it is one of them.
+  // The salon's territory reps; the card's rep stays selected only when it is one of them. FLOW-11 (P1-30):
+  // a salon with its own rep (D-36) gets that rep by default, so the order carries the salon's rep and rate;
+  // "No rep (office delivers)" stays a choice (A-16).
   useEffect(() => {
     setReps([]);
     setRepNote(null);
@@ -207,11 +246,17 @@ export function OrderForm({
     const read = async () => {
       setRepsLoading(true);
       try {
-        const r = await territoryReps(salonId);
+        const { reps: r, direct } = await territoryReps(salonId);
         setReps(r);
-        setRepId((current) => (r.some((x) => x.id === current) ? current : ""));
-        if (card && !r.some((x) => x.id === card.rep_id)) {
-          setRepNote(`${card.rep_name} no longer covers this salon's territory, so no rep is selected.`);
+        const own = direct ? (r[0]?.id ?? "") : "";
+        setRepId((current) => (r.some((x) => x.id === current) ? current : own));
+        if (own && !cardRepId) {
+          setRepNote(
+            `${r[0]?.full_name ?? "The salon's rep"} is this salon's own rep, so they are chosen; their commission rate for this salon applies. Choose "No rep" if the office delivers.`,
+          );
+        }
+        if (cardRepId && !r.some((x) => x.id === cardRepId)) {
+          setRepNote(`${cardRepName} no longer covers this salon's territory, so no rep is selected.`);
         }
       } catch (e) {
         setLoadError((e as Error).message);
@@ -220,7 +265,7 @@ export function OrderForm({
       }
     };
     void read();
-  }, [salonId, card]);
+  }, [salonId, cardRepId, cardRepName]);
 
   const setLine = (key: string, change: Partial<Line>) =>
     setLines((all) => all.map((l) => (l.key === key ? { ...l, ...change } : l)));
@@ -243,6 +288,8 @@ export function OrderForm({
             p_lines: linesPayload(lines),
             p_assigned_rep_id: repId || null,
             p_intake_card_id: card?.card_id ?? null,
+            // The version the office looked at: the database refuses the order if the request changed since.
+            p_card_version: card?.version ?? null,
           });
           setLines([newLine()]);
           setRepId("");
@@ -257,13 +304,21 @@ export function OrderForm({
         }
       }}
     >
-      <h2>{card ? "Create order from a card" : "Create New Order"}</h2>
+      <h2>
+        {card
+          ? card.submitter_kind === "salon"
+            ? "Create order from a salon request"
+            : "Create order from a card"
+          : "Create New Order"}
+      </h2>
       {card && (
         <>
           <p className="muted">
-            Card from {card.rep_name} for <strong>{salonName}</strong>:
+            {card.submitter_kind === "salon" ? "Request from the salon" : `Card from ${card.rep_name ?? "a rep"}`} for{" "}
+            <strong>{salonName}</strong> (version {card.version}):
           </p>
-          <blockquote data-testid="card-body">{card.body}</blockquote>
+          {card.body && <blockquote data-testid="card-body">{card.body}</blockquote>}
+          {card.lines.length > 0 && <p className="muted">Its lines are filled in below; you may change them.</p>}
         </>
       )}
       {!card && (

@@ -1,25 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { OfficeNav } from "@/components/office-nav";
+import type { OfficeRole } from "@/lib/office-nav";
 import { assurance, supabaseServer } from "@/lib/supabase/server";
 import { SignOut } from "./sign-out";
 
 export const dynamic = "force-dynamic";
-
-const NAV = [
-  { href: "/office", label: "Overview" },
-  { href: "/office/devices", label: "Devices" },
-  { href: "/office/team", label: "Team" },
-  { href: "/office/people", label: "People" },
-  { href: "/office/territories", label: "Territories" },
-  { href: "/office/salons", label: "Salons" },
-  { href: "/office/salons/approvals", label: "Salon approvals" },
-  { href: "/office/products", label: "Products" },
-  { href: "/office/orders", label: "Orders" },
-  { href: "/office/deliveries", label: "Delivery approvals" },
-  { href: "/office/receivables", label: "Receivables" },
-  { href: "/office/handovers", label: "Cash handover" },
-  { href: "/office/investors", label: "Investors" },
-];
 
 // The office shell (execution map, slice 1). Signed in with TOTP (SEC-02) and an active owner or
 // manager profile; otherwise no office page renders. This is convenience: every read and write
@@ -75,19 +60,15 @@ export default async function OfficeShell({ children }: { children: React.ReactN
     <div className="office">
       <header className="topbar">
         <strong>Kiran DMS</strong>
-        <nav aria-label="Office">
-          {NAV.map((n) => (
-            <Link key={n.href} href={n.href}>
-              {n.label}
-            </Link>
-          ))}
-        </nav>
         <span className="muted who">
           {profile.full_name} · {profile.role}
         </span>
         <SignOut />
       </header>
-      <main>{children}</main>
+      <div className="office-body">
+        <OfficeNav role={profile.role as OfficeRole} />
+        <main>{children}</main>
+      </div>
     </div>
   );
 }

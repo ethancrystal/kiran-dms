@@ -190,4 +190,19 @@ describe("schema hygiene", () => {
         and column_name ~* '(supplier|manufacturer|vendor|unit_cost|cost_price|landed_cost|margin)'`);  // activity-log-check:allow-supplier-pattern
     expect(rows).toEqual([]);
   });
+
+  // Slice 7 (P1-24, migration 20261105160000): the office timelines read the audit chain inside
+  // definer functions with allow-listed columns; the raw log itself stays owner-only (doc 06 section 2,
+  // H-15), and no function returns the audit row images, ip, device, purpose or hash.
+  it("control.audit_event keeps one SELECT policy, owner-only; no app function returns its raw columns", async () => {
+    const pol = await run("postgres", `
+      select policyname, cmd, qual from pg_policies where schemaname = 'control' and tablename = 'audit_event'`);
+    expect(pol.rows).toEqual([{ policyname: "audit_event_select", cmd: "SELECT", qual: "( SELECT app.is_owner() AS is_owner)" }]);
+    const { rows } = await run("postgres", `
+      select p.proname f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'app' and has_function_privilege('authenticated', p.oid, 'execute')
+        and exists (select 1 from unnest(coalesce(p.proargnames, '{}')) a
+                    where a in ('before', 'after', 'ip', 'device_id', 'purpose', 'prev_hash', 'hash'))`);
+    expect(rows).toEqual([]);
+  });
 });

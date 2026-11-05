@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { MyCollections } from "@/components/my-collections";
 import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
 
@@ -11,8 +12,11 @@ type Handover = {
   variance_paisa: number;
   variance_reason: string | null;
   counted_by_name: string;
-  status: "pending" | "final" | "disputed";
+  status: "pending" | "final" | "disputed" | "settled" | "withdrawn";
   response_note: string | null;
+  settlement: "counted" | "rep" | "withdrawn" | null;
+  settlement_reason: string | null;
+  settled_at: string | null;
 };
 type Cash = { balance_paisa: number };
 
@@ -20,12 +24,21 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 const STATUS_TEXT: Record<Handover["status"], string> = {
   pending: "Waiting for you",
   final: "Final",
-  disputed: "Disputed: with the owner",
+  disputed: "Disputed: waiting for the owner's decision",
+  settled: "Settled by the owner",
+  withdrawn: "Withdrawn by the office",
+};
+// D-46: what the owner decided, in the rep's words.
+const SETTLEMENT_TEXT: Record<string, string> = {
+  counted: "The owner kept the counted amount. The difference stays recorded against you.",
+  rep: "The owner accepted your amount. The difference is recorded as the office's.",
+  withdrawn: "The office withdrew this count. Nothing moved; you will be counted again.",
 };
 
 // The rep's side of the handover (CTL-03, doc 08: "the rep acknowledges the counted figure in their
 // own app"). The count is final only when the rep acknowledges it here; a dispute needs a reason and
-// moves nothing. The database checks it is this rep, on the approved phone, answering once.
+// moves nothing. The database checks it is this rep, on the approved phone, answering once. The owner
+// settles a dispute (D-46) and the office may withdraw a count not yet answered; the rep sees which and why.
 export default function MyHandovers() {
   const [list, setList] = useState<Handover[]>([]);
   const [cash, setCash] = useState<number | null>(null);
@@ -54,9 +67,7 @@ export default function MyHandovers() {
       <p>
         <a href="/app">← Today</a>
       </p>
-      <h1>
-        Cash handover · <span lang="ur">نقد حوالگی</span>
-      </h1>
+      <h1>Cash handover</h1>
       {cash !== null && (
         <p>
           Cash you should have: <strong data-testid="my-cash">{rupees(cash)}</strong>
@@ -90,6 +101,11 @@ export default function MyHandovers() {
             <span className="badge">{STATUS_TEXT[h.status]}</span>
             {h.response_note && <span className="muted"> · {h.response_note}</span>}
           </p>
+          {h.settlement && (
+            <p data-testid="handover-settlement">
+              {SETTLEMENT_TEXT[h.settlement]} <span className="muted">Reason: {h.settlement_reason}</span>
+            </p>
+          )}
           {h.status === "pending" && (
             <Answer
               handoverId={h.handover_id}
@@ -101,6 +117,7 @@ export default function MyHandovers() {
           )}
         </section>
       ))}
+      <MyCollections />
     </main>
   );
 }
@@ -123,7 +140,9 @@ function Answer({ handoverId, onDone }: { handoverId: string; onDone: (message: 
         p_accept: accept,
         p_note: accept ? null : note.trim() || null,
       });
-      await onDone(accept ? "Acknowledged. The handover is final." : "Disputed. The owner will review it.");
+      await onDone(
+        accept ? "Acknowledged. The handover is final." : "Disputed. The owner decides it, and you will see the decision here.",
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -136,7 +155,7 @@ function Answer({ handoverId, onDone }: { handoverId: string; onDone: (message: 
       {!disputing ? (
         <div className="row">
           <button type="button" disabled={busy} onClick={() => send(true)}>
-            The count is right · <span lang="ur">درست ہے</span>
+            The count is right
           </button>
           <button type="button" className="inline danger" disabled={busy} onClick={() => setDisputing(true)}>
             I disagree

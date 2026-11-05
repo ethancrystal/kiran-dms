@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { db, mySession, type Role, rows, rpc, type Session } from "@/lib/rpc";
@@ -58,6 +59,11 @@ export default function Team() {
     <>
       <h1>Team</h1>
       {!isOwner && me && <p className="muted">Only the owner adds people or changes their status (doc 06 §2).</p>}
+      {isOwner && (
+        <p>
+          <Link href="/office/settings">Company settings: name, bank accounts and limits</Link>
+        </p>
+      )}
       {notice && <output className="ok">{notice}</output>}
       {isOwner && (
         <AddPerson

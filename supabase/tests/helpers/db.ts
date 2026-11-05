@@ -85,4 +85,14 @@ export async function errorOf(who: Who, sql: string, params: unknown[] = []): Pr
   }
 }
 
+/**
+ * D-35, R3 (slice 7, migration 20261105160000): a salon a rep adds is a pending proposal, and only an
+ * approved salon gets a card or an order. Files that make their salons as a rep and then work on them
+ * have the manager approve each one, committed, the way the office does (app.office_decide_salon).
+ * The salon's creator stays the rep.
+ */
+export async function approveSalon(salonId: string) {
+  await run(MANAGER, "select app.office_decide_salon(gen_random_uuid(), $1, true, null)", [salonId], { commit: true });
+}
+
 export { idOf };

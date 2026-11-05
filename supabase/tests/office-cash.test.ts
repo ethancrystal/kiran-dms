@@ -9,7 +9,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fx, MANAGER, OWNER, run, sqlstate, type Who } from "./helpers/db";
+import { approveSalon, fx, MANAGER, OWNER, run, sqlstate, type Who } from "./helpers/db";
 import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
@@ -109,6 +109,8 @@ beforeAll(async () => {
     `[Test] Office cash salon ${tag()}`,
     AREA_A,
   ]);
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves it before any order.
+  await approveSalon(SALON);
   await one(OWNER, "select app.owner_set_credit($1, 'INST4', $2, 'office cash tests, owner decision')", [SALON, CREDIT_LIMIT]);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, $3)", [
     GROUP,

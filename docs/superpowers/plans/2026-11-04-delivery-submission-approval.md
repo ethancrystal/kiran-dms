@@ -324,7 +324,7 @@ Depends on Task 6.
 - Consumes: `rep_submit_delivery`, `my_submissions`, `my_territory_orders`, `order_remaining`; `apps/web/lib/rpc.ts`, `apps/web/lib/money.ts`.
 - Copy pinned: after submit, the page says `Sent for approval. No invoice yet: the office approves first. Collect payment after approval.` (Decision 1). A refused GPS reading blocks the submit with the database's GPS message, as for payments.
 
-- [ ] **Step 1: Build the pages** (loading, empty and error states, database messages as returned, Urdu labels as neighbouring pages have them).
+- [ ] **Step 1: Build the pages** (loading, empty and error states, database messages as returned, English only, D-42).
 - [ ] **Step 2: Run** `pnpm typecheck`, `pnpm lint`, `pnpm -C apps/web build` (placeholder public env), `pnpm -C apps/web test:e2e` → all pass.
 - [ ] **Step 3: Commit**: `git commit -m "Rep Deliver form and delivery status"`
 

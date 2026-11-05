@@ -17,6 +17,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  approveSalon,
   errorOf,
   fx,
   MANAGER,
@@ -203,6 +204,11 @@ beforeAll(async () => {
           ]),
     ),
   );
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves each before any order.
+  await salons.reduce(async (prev, [, sid]) => {
+    await prev;
+    await approveSalon(sid);
+  }, Promise.resolve());
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, $3)", [
     GROUP,
     `[Test] Order colour ${tag()}`,

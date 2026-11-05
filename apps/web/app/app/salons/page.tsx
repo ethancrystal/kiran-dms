@@ -34,9 +34,7 @@ export default function Salons() {
 
   return (
     <main>
-      <h1>
-        Salons · <span lang="ur">سیلون</span>
-      </h1>
+      <h1>Salons</h1>
       <p className="row spread">
         <a href="/app">← Home</a>
         <a className="btn inline" href="/app/salons/new">
@@ -60,6 +58,12 @@ export default function Salons() {
             <span className="muted">{s.area_name}</span>
             <br />
             <span className="badge">{label(s.stage)}</span> <span className="badge">{label(s.type)}</span>
+            {s.approval_status !== "approved" && (
+              <span className="badge" data-testid="salon-approval">
+                {" "}
+                {s.approval_status === "pending" ? "proposed: waiting for the office" : "not approved by the office"}
+              </span>
+            )}
             {s.phone_masked && <span className="muted"> · {s.phone_masked}</span>}
           </li>
         ))}

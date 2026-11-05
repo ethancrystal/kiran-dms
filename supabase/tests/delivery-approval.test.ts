@@ -15,8 +15,9 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fx, MANAGER, OWNER, REP_A, run } from "./helpers/db";
+import { approveSalon, fx, MANAGER, OWNER, REP_A, run } from "./helpers/db";
 import { legacyOrderSql } from "./helpers/legacy-order";
+import { signOrderSql, signSubmissionSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -132,7 +133,7 @@ const submit = (
   extra = "",
 ): Step => [
   who,
-  `select (app.rep_submit_delivery('${scid}', ${oid(ocid)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG}, ${l ? lines(l) : "null"}${extra})).*;`,
+  `select (app.rep_submit_delivery('${scid}', ${oid(ocid)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG}, ${l ? lines(l) : "null"}${extra})).*; ${signSubmissionSql(scid)}`,
 ];
 const approve = (scid: string, dcid: string, who: Persona = "manager"): Step => [
   who,
@@ -183,6 +184,10 @@ beforeAll(async () => {
     PIN_LAT,
     PIN_LNG,
   ]);
+  // D-35: a salon a rep creates is pending until the office approves it; orders on it wait for that.
+  await approveSalon(SALON);
+  await approveSalon(SALON_NOPIN);
+  await approveSalon(SALON_B);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Approval colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Approval colour')", [PRODUCT, GROUP]);
   await inSeries([SKU1, SKU2, SKU3], (s) =>
@@ -349,7 +354,7 @@ describe("schema: pending location, submission tables, invoice stamps (D-32)", (
 // ------------------------------------------------------- Task 2: finalise_delivery ----
 const officeDeliver = (dcid: string, ocid: string, who: Persona = "manager"): Step => [
   who,
-  `select (app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Bilal at the door')).*;`,
+  `${signOrderSql(dcid, oid(ocid))} select (app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Bilal at the door')).*;`,
 ];
 const stamps = (ocid: string): Step => [
   "postgres",

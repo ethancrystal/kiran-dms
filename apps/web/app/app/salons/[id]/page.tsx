@@ -1,7 +1,10 @@
 "use client";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { LostDemand } from "@/components/lost-demand";
 import { MoneySection } from "@/components/money-section";
+import { MyCollections } from "@/components/my-collections";
+import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
 
@@ -28,6 +31,7 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 export default function SalonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [salon, setSalon] = useState<SalonDetail | null>(null);
+  const [paid, setPaid] = useState(0); // a recorded payment reloads the list of the rep's own payments
   const [notes, setNotes] = useState<Note[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -95,9 +99,24 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
       </p>
       <p>
         {salon.address ?? <span className="muted">No address.</span>}
-        {salon.chairs !== null && <span className="muted"> · {salon.chairs} chairs</span>}{" "}
-        <a href={`/app/salons/${id}/edit`}>Edit</a>
+        {salon.chairs !== null && <span className="muted"> · {salon.chairs} chairs</span>}
       </p>
+      {/* D-35 (slice 7): salon details are read-only for a rep; app.update_salon refuses reps. */}
+      <p className="muted" data-testid="salon-readonly">
+        Pin: {salon.lat !== null && salon.lng !== null ? `${salon.lat}, ${salon.lng}` : "not set"}. The office keeps the salon's
+        details; to report a change, add a note.
+      </p>
+      {salon.approval_status === "pending" && (
+        <p className="badge" data-testid="salon-pending">
+          Proposed: waiting for the office's approval. Notes and visits work now; order details wait until it is approved.
+        </p>
+      )}
+      {salon.approval_status === "rejected" && (
+        <p className="badge" data-testid="salon-rejected">
+          The office did not approve this salon
+          {salon.rejection_reason ? `: ${salon.rejection_reason}` : "."} To try again, propose it as a new salon.
+        </p>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -135,14 +154,18 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
         }}
       />
 
-      <CardForm salonId={id} onDone={() => done("Order details saved. The office makes the order from them.")} />
+      {/* app.rep_create_card refuses a salon that is not approved (55000), so the form waits for it. */}
+      {salon.approval_status === "approved" && (
+        <CardForm salonId={id} onDone={() => done("Order details saved. The office makes the order from them.")} />
+      )}
 
-      <MoneySection salonId={id} mode="rep" />
+      <MoneySection salonId={id} mode="rep" onRecorded={() => setPaid((n) => n + 1)} />
+      <MyCollections salonId={id} reloadKey={String(paid)} />
+
+      <LostDemand salonId={id} />
 
       <section aria-labelledby="notes-h">
-        <h2 id="notes-h">
-          Notes · <span lang="ur">نوٹس</span>
-        </h2>
+        <h2 id="notes-h">Notes</h2>
         <NoteForm salonId={id} onDone={() => done("Note added.")} />
         {notes.length === 0 ? (
           <p className="muted">No notes yet.</p>
@@ -250,9 +273,7 @@ function VisitForm({ salonId, onDone }: { salonId: string; onDone: (outcome: str
         }
       }}
     >
-      <h2>
-        Record a visit · <span lang="ur">دورہ درج کریں</span>
-      </h2>
+      <h2>Record a visit</h2>
       <label htmlFor="outcome">Outcome</label>
       <select id="outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
         {VISIT_OUTCOMES.map((o) => (
@@ -320,14 +341,27 @@ function NoteForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
   );
 }
 
-// New Order Details (ORD-14, D-30): reps no longer place orders; the rep writes down what the salon
-// wants and the office makes the order from it. app.rep_create_card checks the rep, the approved phone,
-// the open day and the territory, and its words are shown as they are. One key per attempt (H-08).
+// New Order Details (ORD-14, D-30, D-34): reps no longer place orders; the rep writes down what the
+// salon wants, and may pick products and quantities (never prices), and the office makes the order from
+// it. app.rep_create_card checks the rep, the approved phone, the open day and the territory, and its
+// words are shown as they are. One key per attempt (H-08).
 function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<void> }) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
+  const [options, setOptions] = useState<PickOption[]>([]);
+  const [picks, setPicks] = useState<PickLine[]>(() => [newPick()]);
+  useEffect(() => {
+    const read = async () => {
+      try {
+        setOptions(await repProductOptions());
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
+    void read();
+  }, []);
   return (
     <form
       className="card"
@@ -342,8 +376,10 @@ function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
             p_salon_id: salonId,
             p_body: body.trim(),
             p_visit_id: null,
+            p_lines: picksPayload(picks),
           });
           setBody("");
+          setPicks([newPick()]);
           setClientId(crypto.randomUUID());
           await onDone();
         } catch (err) {
@@ -364,6 +400,8 @@ function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
         required
         maxLength={CARD_MAX}
       />
+      <p className="muted">Products (optional): pick them and the office can make the order in one click.</p>
+      <LinePicker name="Card" options={options} lines={picks} onChange={setPicks} />
       {error && (
         <p className="error" role="alert">
           {error}

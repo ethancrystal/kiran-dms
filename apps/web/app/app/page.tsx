@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { RepMonth } from "@/components/rep-month";
 import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
 
 type Session = {
@@ -13,6 +14,7 @@ type State =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "unregistered"; code: string }
+  | { kind: "salon" }
   | { kind: "ready"; session: Session };
 
 // Rep home. On first open it registers this phone (SEC-03). Until an office user approves
@@ -32,7 +34,12 @@ export default function RepHome() {
       const first = await supabaseBrowser().schema("app").rpc("my_session");
       const s0 = first.data as Session | null;
       if (first.error) return setState({ kind: "error", message: "Could not load your session." });
-      if (!s0) return setState({ kind: "unregistered", code: user.id });
+      if (!s0) {
+        // AUTH-07 (P1-30): a salon's login is not "not set up"; it belongs in the salon portal.
+        const salon = await supabaseBrowser().schema("app").rpc("salon_me");
+        if (!salon.error && salon.data) return setState({ kind: "salon" });
+        return setState({ kind: "unregistered", code: user.id });
+      }
       if (s0.status !== "active") {
         return setState({ kind: "error", message: "Your account is not active. Contact your manager." });
       }
@@ -50,15 +57,25 @@ export default function RepHome() {
 
   return (
     <main>
-      <h1>Today · <span lang="ur">آج</span></h1>
+      <h1>Today</h1>
       {state.kind === "loading" && <p className="muted">Loading…</p>}
       {state.kind === "error" && <p className="error" role="alert">{state.message}</p>}
+      {state.kind === "salon" && (
+        <div className="card">
+          <p className="error" role="alert">
+            This is a salon&apos;s login, not a rep&apos;s. Your account is in the salon portal.
+          </p>
+          <p>
+            <a className="btn" href="/salon">
+              Open the salon portal
+            </a>
+          </p>
+        </div>
+      )}
       {state.kind === "unregistered" && (
         <div className="card">
           <p className="error" role="alert">
             Your account is not set up yet. Give this sign-in code to the owner:
-            <br />
-            <span lang="ur">آپ کا اکاؤنٹ ابھی تیار نہیں۔ یہ کوڈ مالک کو دیں:</span>
           </p>
           <p>
             <code data-testid="signin-code">{state.code}</code>
@@ -73,38 +90,71 @@ export default function RepHome() {
           ) : (
             <p className="error">
               This phone is waiting for your manager&apos;s approval. You can&apos;t take orders or payments until it is approved.
-              <br />
-              <span lang="ur">یہ فون مینیجر کی منظوری کا منتظر ہے۔</span>
             </p>
           )}
         </div>
       )}
+      {state.kind === "ready" && state.session.device_status === "approved" && <RepMonth />}
       {state.kind === "ready" && state.session.device_status === "approved" && (
         <>
           <a className="btn" href="/app/day">
-            Start your day · <span lang="ur">دن شروع کریں</span>
+            Start your day
           </a>
           <p>
             <a href="/app/handovers">
-              Cash handover · <span lang="ur">نقد حوالگی</span>
+              Cash handover
             </a>
           </p>
           <p>
             <a href="/app/cards">
-              My cards · <span lang="ur">میرے کارڈ</span>
+              My cards
             </a>
           </p>
           <p>
             <a href="/app/orders">
-              Orders · <span lang="ur">آرڈرز</span>
+              Orders
             </a>
           </p>
           <p>
             <a href="/app/deliveries">
-              My deliveries · <span lang="ur">میری ڈیلیوریاں</span>
+              My deliveries
+            </a>
+          </p>
+          <p>
+            <a href="/app/stock">My bag and incoming stock</a>
+          </p>
+          <p>
+            <a href="/app/route">My route</a>
+          </p>
+          <p>
+            <a href="/app/commission">
+              My commission
+            </a>
+          </p>
+          <p>
+            <a href="/app/salons">My salons</a>
+          </p>
+          <p>
+            <a href="/app/account">
+              My account
             </a>
           </p>
         </>
+      )}
+      {state.kind !== "loading" && (
+        <p>
+          {/* REP-11 (P1-30): sign out on a phone that is handed on, or from a message this page shows. */}
+          <button
+            type="button"
+            className="inline link"
+            onClick={async () => {
+              await supabaseBrowser().auth.signOut();
+              window.location.assign("/app/login");
+            }}
+          >
+            Sign out
+          </button>
+        </p>
       )}
     </main>
   );

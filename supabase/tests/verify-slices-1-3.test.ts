@@ -495,13 +495,19 @@ describe("slices 2 and 3: the rep's day, visits, notes, park and override (PIP-0
 });
 
 describe("slice 3: edits keep history and the audit chain (H-07, H-17)", () => {
-  it("a partial rep edit keeps the rest; a half pin is refused for rep and office alike", async () => {
-    await asC(rep1, "select app.update_salon($1, '[Test] Verify Salon A2', 'ladies_parlor', $2, null, null, null, 6)", [SA, AA2]);
+  // Slice 7 (D-35, R3): reps no longer edit a salon. This was "a partial rep edit keeps the rest": the
+  // rep's edit is now refused before anything else (42501, also for a half pin, which was 22023), and
+  // the partial-edit rule is checked on the office's edit, which later tests of this file rely on.
+  it("a rep's edit is refused; a partial office edit keeps the rest; a half pin is refused for the office", async () => {
+    const repEdit = "select app.update_salon($1, '[Test] Verify Salon A2', 'ladies_parlor', $2, null, null, null, 6)";
+    expect(await stateOf(rep1, repEdit, [SA, AA2])).toBe("42501");
+    expect((await pg1("select area_id from public.salon where id = $1", [SA]))[0].area_id).toBe(AA1);
+    await one(MANAGER, repEdit, [SA, AA2]);
     const s = (await pg1("select name, area_id, address, lat, lng, chairs from public.salon where id = $1", [SA]))[0];
     expect(s).toMatchObject({ name: "[Test] Verify Salon A2", area_id: AA2, address: "[Test] 1 Fake Street", chairs: 6 });
     expect([Number(s.lat), Number(s.lng)]).toEqual([24.9, 67.1]);
     expect(await stateOf(rep1, "select app.update_salon($1, null, 'ladies_parlor', $2, null, 25.0, null)", [SA, AA2])).toBe(
-      "22023",
+      "42501",
     );
     expect(await sqlstate(MANAGER, "select app.update_salon($1, null, 'ladies_parlor', $2, null, null, 67.0)", [SA, AA2])).toBe(
       "22023",
@@ -514,10 +520,11 @@ describe("slice 3: edits keep history and the audit chain (H-07, H-17)", () => {
       "select action, actor_id, purpose, device_id from control.audit_event where table_name = 'public.salon' and row_id = $1 order by seq",
       [SA],
     );
-    expect(ev[0]).toMatchObject({ action: "INSERT", actor_id: rep1.id, purpose: "salon created" });
+    // Slice 7: a rep's new salon is a proposal (purpose "salon proposed"), and the edit is the office's.
+    expect(ev[0]).toMatchObject({ action: "INSERT", actor_id: rep1.id, purpose: "salon proposed" });
+    expect(ev[0].device_id).toBe((await pg1("select app.fingerprint_hash($1) h", [rep1.device]))[0].h);
     const edit = ev.find((e) => e.purpose === "salon edited");
-    expect(edit).toMatchObject({ action: "UPDATE", actor_id: rep1.id });
-    expect(edit?.device_id).toBe((await pg1("select app.fingerprint_hash($1) h", [rep1.device]))[0].h);
+    expect(edit).toMatchObject({ action: "UPDATE", actor_id: fx.manager.id });
     expect(ev.some((e) => e.actor_id === fx.manager.id && String(e.purpose).startsWith("stage override"))).toBe(true);
     for (const t of [
       "public.rep_territory",

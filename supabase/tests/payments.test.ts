@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  approveSalon,
   errorOf,
   fx,
   MANAGER,
@@ -24,7 +25,7 @@ import {
   sqlstate,
   type Who,
 } from "./helpers/db";
-import { submitApproveSql } from "./helpers/submit-approve";
+import { SIGNATURE_PNG_BASE64, signOrderSql, submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -189,6 +190,9 @@ beforeAll(async () => {
       ]),
     ),
   );
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON);
+  await approveSalon(SALON_B);
   await one(OWNER, "select app.owner_set_credit($1, 'INST4', 100000000, 'payments tests, owner decision')", [SALON]);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Payment colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Payment colour')", [PRODUCT, GROUP]);
@@ -1094,10 +1098,18 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
       `[Test] Payment salon C ${tag()}`,
       AREA_A,
     ]);
+    await approveSalon(salon); // D-35 (slice 7): the office approves a rep's proposal before any order
     return salon;
   };
-  const deliverOffice = (ord: string) =>
-    one(MANAGER, "select (app.office_deliver($1, $2, $3, 'Ayesha at the counter')).number", [id(), ord, WH]);
+  const deliverOffice = async (ord: string) => {
+    // D-49: the salon's signed acknowledgement of everything left, then the delivery.
+    await one(MANAGER, "select app.office_attach_signature($1, $2, null, 'signed', 'Ayesha Khan', 'Owner', $3, null)", [
+      id(),
+      ord,
+      SIGNATURE_PNG_BASE64,
+    ]);
+    return one(MANAGER, "select (app.office_deliver($1, $2, $3, 'Ayesha at the counter')).number", [id(), ord, WH]);
+  };
 
   it("two concurrent payments with different client_ids cannot allocate more than the salon owes", async () => {
     const salonC = await newSalon();
@@ -1131,6 +1143,7 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
     // from deadlocking is proved by the test with the paused delivery, not by this one.
     // Session B's transaction starts first and delivers the second order after a pause: its transaction start
     // is earlier than the payment's, which is what a now()-based issue time would compare.
+    await run(MANAGER, signOrderSql(`later-${second}`, `'${second}'`), [], C);
     const deliverLater = observed(
       run(
         MANAGER,
@@ -1232,6 +1245,7 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
       controller = observed(run("postgres", `select pg_advisory_xact_lock(${gateKey}); select pg_sleep(${GATE_MAX_S});`));
       seen.gateHeld = await waitFor(async () => (await lockState(gateKey)).held === 1);
       // 2. The delivery runs until the pause trigger waits on the gate: it has written its audited row.
+      await run(MANAGER, signOrderSql(`paused-${second}`, `'${second}'`), [], C);
       delivery = observed(
         run(
           MANAGER,

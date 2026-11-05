@@ -72,7 +72,7 @@ These are proposals to be confirmed and quantified by the owner once the Excel d
 - **Trust is low by default.** Reps are new hires carrying stock and cash. Controls must assume honest mistakes *and* dishonesty.
 - **Connectivity is uneven.** Many salons are in basements or dense markets. Rep workflows must work offline and sync later.
 - **Phones are cheap.** Assume a 3–4 year old Android phone with 2–3 GB RAM and a cracked screen.
-- **Language.** Reps are comfortable with Urdu and Roman Urdu; the owner and manager use English. Key screens carry both.
+- **Language.** Reps are comfortable with Urdu and Roman Urdu; the owner and manager use English. The UI is English only (D-42); Roman Urdu stays accepted in free-text fields.
 - **Budget.** Running cost should stay in the tens of dollars per month at launch (Supabase + Vercel + a messaging provider).
 - **Legal.** Pakistan's data-protection regime is still forming (PECA 2016; Personal Data Protection Bill drafts). Treat salon owners' names and phone numbers as personal data: collect only what is needed, protect it, delete on request.
 

@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
+import { SubmissionSignature } from "@/components/submission-signature";
 import { rupees } from "@/lib/money";
-import { db, rows, rpc } from "@/lib/rpc";
+import { db, mySession, type Role, rows, rpc } from "@/lib/rpc";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type Line = { sku_id: string; code: string; variant: string; qty: number; unit_price_paisa: number };
@@ -33,9 +34,12 @@ type Unsettled = {
   reason: string;
   decided_at: string;
   request_id: string | null;
-  request_status: "pending" | "approved" | null;
+  request_status: "pending" | "approved" | "rejected" | null;
   request_maker_id: string | null;
   request_checker_role: "manager" | "owner" | null;
+  /** P1-30 (M8): the units the request is for, and the checker's reason when it was refused. */
+  request_qty: number | null;
+  request_decision_reason: string | null;
 };
 type Warehouse = { id: string; name: string };
 
@@ -43,6 +47,8 @@ type Warehouse = { id: string; name: string };
 // (count note 3 to 300), app.decide_approval (a decision reason of at least 3, approval_decision_shape).
 const REJECT_REASON_MIN = 5;
 const NOTE_MIN = 3;
+// D-45: the owner's own missing-goods settlement is recorded with app.owner_post_adjustment, whose reason is 5 to 300.
+const OWNER_NOTE_MIN = 5;
 const FLAG_TEXT: Record<string, string> = { mock_location: "mock location", distance_unknown: "salon has no pin" };
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const rowKey = (u: Unsettled) => `${u.submission_id}:${u.sku_id}`;
@@ -69,15 +75,26 @@ function useClientIds() {
 // to a warehouse, or as missing, which needs an approved adjustment request (app.request_approval and
 // app.decide_approval, by someone other than its maker; above the owner threshold the owner must check
 // it, Decision 3). Every rule is the database's; its refusals are shown as returned.
+// P1-30: the request asks the checker the database names (app.office_adjustment_checker, audit H2); the
+// row shows the request's own quantity and fills it in (M8); a refused request shows its reason and a new
+// one can be made; the maker can withdraw a pending one (app.cancel_approval); the owner settles goods as
+// missing at once, with a note on the record (D-45).
 export default function DeliveryApprovals() {
   const [waiting, setWaiting] = useState<Waiting[]>([]);
   const [unsettled, setUnsettled] = useState<Unsettled[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [me, setMe] = useState<string | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  // Which waiting deliveries have the salon's valid signed acknowledgement (D-49): only those can be approved.
+  const [signed, setSigned] = useState<Record<string, boolean>>({});
+  const markSigned = useCallback(
+    (id: string, ok: boolean) => setSigned((all) => (all[id] === ok ? all : { ...all, [id]: ok })),
+    [],
+  );
   const [qty, setQty] = useState<Record<string, string>>({});
   const [warehouse, setWarehouse] = useState<Record<string, string>>({});
   const clientIds = useClientIds();
@@ -85,16 +102,18 @@ export default function DeliveryApprovals() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [w, u, wh, user] = await Promise.all([
+      const [w, u, wh, user, session] = await Promise.all([
         rpc<Waiting[]>("office_pending_deliveries"),
         rpc<Unsettled[]>("office_pending_stock"),
         rows<Warehouse>(db().from("stock_location").select("id, name").eq("kind", "warehouse").eq("active", true).order("name")),
         supabaseBrowser().auth.getUser(),
+        mySession(),
       ]);
       setWaiting(w ?? []);
       setUnsettled(u ?? []);
       setWarehouses(wh);
       setMe(user.data.user?.id ?? null);
+      setRole(session?.role ?? null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -127,7 +146,11 @@ export default function DeliveryApprovals() {
       setRowError((all) => ({ ...all, [key]: (e as Error).message }));
     }
   };
-  const quantityOf = (u: Unsettled) => Number.parseInt(qty[rowKey(u)] ?? String(u.unsettled), 10);
+  // An approved request is usable for its own quantity, when that is still unsettled (app.office_resolve_pending).
+  const usable = (u: Unsettled) =>
+    u.request_status === "approved" && u.request_qty !== null && u.request_qty >= 1 && u.request_qty <= u.unsettled;
+  const defaultQty = (u: Unsettled) => String(usable(u) ? u.request_qty : u.unsettled);
+  const quantityOf = (u: Unsettled) => Number.parseInt(qty[rowKey(u)] ?? defaultQty(u), 10);
 
   return (
     <main>
@@ -163,8 +186,19 @@ export default function DeliveryApprovals() {
                     {when(w.submitted_at)}
                     {w.flags.length > 0 && <> · flags: {w.flags.map((f) => FLAG_TEXT[f] ?? f).join(", ")}</>}
                   </span>
+                  <SubmissionSignature
+                    submissionId={w.submission_id}
+                    orderId={w.order_id}
+                    onStatus={(ok) => markSigned(w.submission_id, ok)}
+                  />
                   <div className="row">
-                    <button type="button" className="inline" onClick={() => void approve(w)}>
+                    <button
+                      type="button"
+                      className="inline"
+                      disabled={signed[w.submission_id] !== true}
+                      title={signed[w.submission_id] === true ? undefined : "Needs the salon's signed acknowledgement first"}
+                      onClick={() => void approve(w)}
+                    >
                       Approve delivery
                     </button>
                     <ConfirmAction
@@ -217,7 +251,9 @@ export default function DeliveryApprovals() {
                   p_note: note,
                   ...extra,
                 });
-              const canCheck = u.request_status === "pending" && u.request_maker_id !== me;
+              const ownerLevel = u.request_checker_role === "owner";
+              const canCheck = u.request_status === "pending" && u.request_maker_id !== me && (!ownerLevel || role === "owner");
+              const canAsk = !u.request_id || u.request_status === "rejected" || (u.request_status === "approved" && !usable(u));
               return (
                 <li key={key} data-testid="unsettled-goods">
                   <strong>
@@ -233,7 +269,7 @@ export default function DeliveryApprovals() {
                     <input
                       id={`sq-${key}`}
                       inputMode="numeric"
-                      value={qty[key] ?? String(u.unsettled)}
+                      value={qty[key] ?? defaultQty(u)}
                       onChange={(e) => setQty((all) => ({ ...all, [key]: e.target.value }))}
                     />
                   </div>
@@ -274,8 +310,40 @@ export default function DeliveryApprovals() {
                       }
                     />
                   </div>
+                  {u.request_id && u.request_status !== "rejected" && (
+                    <p className="muted" data-testid="missing-request">
+                      Missing request for {u.request_qty ?? "?"} units ·{" "}
+                      {u.request_status === "approved" ? "approved" : "waiting for a decision"} · needs{" "}
+                      {ownerLevel ? "the owner" : "an owner or a manager"}
+                      {u.request_status === "approved" &&
+                        !usable(u) &&
+                        " · only " + u.unsettled + " are still unsettled, so it cannot be used; ask again"}
+                    </p>
+                  )}
+                  {u.request_status === "rejected" && (
+                    <p className="muted" data-testid="missing-refused">
+                      The missing request for {u.request_qty ?? "?"} units was refused: {u.request_decision_reason}
+                    </p>
+                  )}
                   <div className="row">
-                    {!u.request_id && (
+                    {role === "owner" && (
+                      <ConfirmAction
+                        label="Record as missing (owner)"
+                        confirmLabel="Record these goods as missing"
+                        reasonLabel="What happened to the goods (kept on the record)"
+                        reasonMinLength={OWNER_NOTE_MIN}
+                        danger
+                        onConfirm={(note) =>
+                          act(
+                            // The same key as settle() uses, so a second settlement of this row gets a new client id.
+                            `missing:${key}`,
+                            () => settle("missing", note),
+                            "Recorded as missing, with your note.",
+                          )
+                        }
+                      />
+                    )}
+                    {role !== "owner" && canAsk && (
                       <ConfirmAction
                         label="Report missing"
                         confirmLabel="Ask for an approved adjustment"
@@ -284,7 +352,7 @@ export default function DeliveryApprovals() {
                         onConfirm={(reason) =>
                           act(
                             `request:${key}`,
-                            () =>
+                            async () =>
                               rpc("request_approval", {
                                 p_client_id: clientIds.idFor(`request:${key}`),
                                 p_kind: "adjustment",
@@ -292,6 +360,11 @@ export default function DeliveryApprovals() {
                                 p_subject_id: u.pending_location_id,
                                 p_payload: { sku_id: u.sku_id, qty_delta: -quantityOf(u), submission_id: u.submission_id },
                                 p_reason: reason,
+                                // Audit H2: the checker the database names for this SKU and quantity.
+                                p_checker_role: await rpc<string>("office_adjustment_checker", {
+                                  p_sku_id: u.sku_id,
+                                  p_qty_delta: -quantityOf(u),
+                                }),
                               }),
                             "Adjustment requested; another office user must check it.",
                           )
@@ -299,7 +372,29 @@ export default function DeliveryApprovals() {
                       />
                     )}
                     {u.request_status === "pending" && !canCheck && (
-                      <span className="muted">Adjustment requested; waiting for another office user to check it.</span>
+                      <span className="muted">
+                        {u.request_maker_id === me
+                          ? ownerLevel
+                            ? "You asked for this; the owner checks it."
+                            : "You asked for this; another office user checks it."
+                          : "Waiting for the owner to check it."}
+                      </span>
+                    )}
+                    {u.request_status === "pending" && u.request_maker_id === me && u.request_id && (
+                      <ConfirmAction
+                        label="Withdraw request"
+                        confirmLabel="Withdraw the adjustment request"
+                        reasonLabel="Why it is withdrawn"
+                        reasonMinLength={NOTE_MIN}
+                        danger
+                        onConfirm={(reason) =>
+                          act(
+                            `withdraw:${key}`,
+                            () => rpc("cancel_approval", { p_request_id: u.request_id, p_reason: reason }),
+                            "Request withdrawn.",
+                          )
+                        }
+                      />
                     )}
                     {canCheck && u.request_id && (
                       <>
@@ -332,7 +427,7 @@ export default function DeliveryApprovals() {
                         />
                       </>
                     )}
-                    {u.request_status === "approved" && u.request_id && (
+                    {usable(u) && u.request_id && (
                       <ConfirmAction
                         label="Settle as missing"
                         confirmLabel="Settle as missing"

@@ -32,6 +32,10 @@ const people = {
   newcomer: person("newcomer", "Newcomer"),
   // Slice 1 (D-39): a login with no profile, invited as a rep on the People page by the stack test.
   invitee: person("invitee", "Invited Rep"),
+  // Slice 8 (P1-25): two more logins with no profile for the end-to-end journey, invited on People and
+  // redeemed with a code session on the database (the local stack sends at most 2 e-mails an hour).
+  journeyRep: person("journeyrep", "Journey Rep"),
+  journeySalon: person("journeysalon", "Journey Salon Owner"),
 };
 
 // One priced product for the office order test (D-30): a [Dummy] catalogue entry (no real supplier or
@@ -99,7 +103,7 @@ try {
   await create(people.rep, "rep", "+920000000102");
   await create(people.rep2, "rep", "+920000000103");
   // newcomer has a sign-in but no profile: the tests add it through the Team page. invitee too: the
-  // tests invite it as a rep on the People page.
+  // tests invite it as a rep on the People page; journeyRep and journeySalon are invited in the slice 8 journey.
 
   // Rep One has a bag (owner only, A-08): the evening count then has a bag to close, so check-out
   // depends on the daily close being sent (B-35, INV-05). Rep Two has none. The bag's pending-delivery
@@ -139,8 +143,8 @@ try {
   ]);
 
   // Slice 4 (D-32): a warehouse, and BAG_QTY of the SKU in Rep One's bag, so the rep can hand goods
-  // over and the office can return rejected goods. No office stock screen exists, so the opening
-  // receipt and the issue to the bag are written as postgres, the way the database tests do.
+  // over and the office can return rejected goods. Written as postgres, the way the database tests do,
+  // so the earlier journeys do not depend on the Stock page (slice 8), which the slice 8 journey exercises.
   await as(people.owner.id, "aal2", null, "select app.office_create_location($1, 'warehouse', $2)", [
     warehouse.id,
     warehouse.name,
@@ -157,8 +161,8 @@ try {
   );
 
   // Slice 1 (D-35, D-39): a territory and area for a salon the manager creates while inviting it,
-  // and a salon a rep proposed, waiting on Salon approvals. Nothing in the app makes a pending salon
-  // until slice 7, so it is written here as postgres, the way the database tests do.
+  // and a salon a rep proposed, waiting on Salon approvals. Since slice 7 a rep's app.create_salon makes one
+  // too (the rep journey does); this one is written as postgres, the way the database tests do.
   const territory = { id: randomUUID(), name: `[Test] Seed territory ${tag}` };
   const area = { id: randomUUID(), name: `[Test] Seed area ${tag}` };
   await as(people.owner.id, "aal2", null, "select app.office_upsert_territory($1, $2)", [territory.id, territory.name]);

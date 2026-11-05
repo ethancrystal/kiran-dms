@@ -11,7 +11,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fx, MANAGER, OWNER, REP_A, run, type Who } from "./helpers/db";
+import { approveSalon, fx, MANAGER, OWNER, REP_A, run, type Who } from "./helpers/db";
 import { type LegacyStatus, legacyOrderSql } from "./helpers/legacy-order";
 import { submitApproveSql } from "./helpers/submit-approve";
 
@@ -193,6 +193,9 @@ beforeAll(async () => {
     `[Test] Attack salon B ${tag()}`,
     AREA_B,
   ]);
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON_A);
+  await approveSalon(SALON_B);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Attack colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Attack colour')", [PRODUCT, GROUP]);
   for (const s of [SKU1, SKU2]) {
@@ -342,6 +345,8 @@ describe("direct writes are refused to every application role (H-06, H-08)", () 
     "invoice",
     "sku_price_change",
     "salon_sku_price",
+    "order_intake_card_version",
+    "order_intake_card_line",
   ];
   const PERSONAS: Array<[string, Who]> = [
     ["rep A", { as: "repA" }],
@@ -1068,10 +1073,13 @@ describe("stock: adjustments, issues, counts (INV-03 to INV-06, CTL-05, H-12)", 
 // ---------------------------------------------------------------------------------------------
 describe("regression: a partial salon edit keeps what it does not name (migration 0014, L-0192 defect 1)", () => {
   // A script of several statements returns one result per statement; a single statement returns one result.
-  const edit = async (sql: string) => {
-    const r = (await run(REP_A, sql)) as unknown as Multi | Multi[number];
+  // Since slice 7 (D-35) only the office edits a salon, so the partial-edit regression runs as the
+  // manager; the rep's refusal is pinned in the last test of this block.
+  const editAs = async (who: Who, sql: string) => {
+    const r = (await run(who, sql)) as unknown as Multi | Multi[number];
     return Array.isArray(r) ? r : [r];
   };
+  const edit = (sql: string) => editAs(MANAGER, sql);
 
   it("editing only the name and area leaves the address, pin and chair count as they were", async () => {
     const r = await edit(`
@@ -1099,10 +1107,10 @@ describe("regression: a partial salon edit keeps what it does not name (migratio
     }
   });
 
-  it("the territory check still holds: a rep cannot move the salon to another territory's area", async () => {
+  it("a rep cannot move the salon to another territory's area (nor edit it at all since slice 7, D-35)", async () => {
     let c: string | undefined;
     try {
-      await edit(`select app.update_salon('${SALON_A}', 'x', 'ladies_parlor', '${AREA_B}');`);
+      await editAs(REP_A, `select app.update_salon('${SALON_A}', 'x', 'ladies_parlor', '${AREA_B}');`);
     } catch (e) {
       c = (e as { code?: string }).code;
     }

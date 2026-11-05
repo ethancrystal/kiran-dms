@@ -8,6 +8,9 @@ const PAISA_DIGITS = 2;
 export const rupees = (paisa: number) =>
   `Rs ${(Number(paisa) / PAISA_PER_RUPEE).toLocaleString("en-PK", { maximumFractionDigits: PAISA_DIGITS })}`;
 
+/** Paisa as a rupee field shows it: 150050 → "1500.5" (no grouping, so toPaisa reads it back). */
+export const rupeesInput = (paisa: number) => String(Number(paisa) / PAISA_PER_RUPEE);
+
 // Rupees as typed, with at most two decimals: "1500" and "1500.5" match; "1,500", "1.234" and "-5" do not.
 // https://regex101.com/?regex=%5E%28%5Cd%7B1%2C9%7D%29%28%3F%3A%5C.%28%5Cd%7B1%2C2%7D%29%29%3F%24&flavor=javascript
 const AMOUNT = /^(\d{1,9})(?:\.(\d{1,2}))?$/;

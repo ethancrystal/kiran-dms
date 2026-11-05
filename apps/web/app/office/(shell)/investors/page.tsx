@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
+import { InvestorMonth } from "@/components/investor-month";
 import { type InvestorRow, LEDGER_NOTE } from "@/lib/investors";
 import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
@@ -57,6 +58,8 @@ export default function Investors() {
           </dl>
         </section>
       )}
+      {/* Reloads when an investor is added (the list grows). */}
+      <InvestorMonth version={investors.length} />
       <h2>Investors</h2>
       <ListState loading={loading} error={error} empty={investors.length === 0} emptyText="No investors yet." />
       {!loading && !error && investors.length > 0 && (

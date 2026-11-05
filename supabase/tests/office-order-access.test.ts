@@ -14,9 +14,9 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, OWNER, REP_A, REP_B, run, sqlstate, type Who } from "./helpers/db";
+import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, REP_B, run, sqlstate, type Who } from "./helpers/db";
 import { legacyOrderSql } from "./helpers/legacy-order";
-import { submitApproveSql } from "./helpers/submit-approve";
+import { signOrderSql, submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -127,7 +127,7 @@ const repDeliver = (dcid: string, ocid: string, who: P = "repA"): Step[] => [
 ];
 const officeDeliver = (dcid: string, ocid: string): Step[] => [
   pin(ocid),
-  ["manager", `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter')).id;`],
+  ["manager", `${signOrderSql(dcid, OID)} select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter')).id;`],
 ];
 // The invoice of a delivery, its installments and the order's status, read as postgres.
 const invoiceOf = (dcid: string): Step => [
@@ -156,6 +156,9 @@ beforeAll(async () => {
     `[Test] Office access salon B ${tag()}`,
     AREA_B,
   ]);
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON);
+  await approveSalon(SALON_B);
   await one(OWNER, "select app.owner_set_credit($1, 'INST4', $2, 'office access tests, owner decision')", [SALON, CREDIT_LIMIT]);
   await one(OWNER, "select app.owner_set_credit($1, 'INST4', $2, 'office access tests, owner decision')", [
     SALON_B,
@@ -329,7 +332,7 @@ describe("the assigned rep reads the office order; another rep does not", () => 
     pin(ocid),
     [
       "manager",
-      `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
+      `${signOrderSql(dcid, OID, `'${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb`)} select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
                   '${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb)).id;`,
     ],
     pin(ocid, dcid),
@@ -358,7 +361,7 @@ describe("the assigned rep reads the office order; another rep does not", () => 
       pin(ocid),
       [
         "manager",
-        `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
+        `${signOrderSql(dcid, OID, `'${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb`)} select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
                     '${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb)).id;`,
       ],
       pin(ocid, dcid),

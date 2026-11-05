@@ -141,7 +141,7 @@ function probe(scenario: string, opts: { store?: Record<string, string>; visible
       globalThis.loadPage = async (bUrl = browserUrl) => {
         const f = ${JSON.stringify(join(dir, "page"))} + (++pageN) + ".mjs";
         transpile(${JSON.stringify(join(WEB, "app", "app", "page.tsx"))},
-          [['"@/lib/supabase/browser"', JSON.stringify(bUrl)], ['"react"', ${JSON.stringify(url(join(dir, "react.mjs")))}]], f, true);
+          [['"@/lib/supabase/browser"', JSON.stringify(bUrl)], ['"react"', ${JSON.stringify(url(join(dir, "react.mjs")))}], ['import { RepMonth } from "@/components/rep-month";', "const RepMonth = () => null;"]], f, true);
         return (await import(new URL("file:///" + f.replace(/\\\\/g, "/").replace(/^\\/+/, "")).href)).default;
       };
       globalThis.runPage = async (Page, runs, waitMs = 10000) => {

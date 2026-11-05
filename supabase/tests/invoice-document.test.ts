@@ -10,7 +10,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate } from "./helpers/db";
+import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate } from "./helpers/db";
 import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
@@ -115,6 +115,9 @@ beforeAll(async () => {
     "select app.create_salon($1, '[Test] Invoice salon B', 'ladies_parlor', $2, 'map_pin', null, 24.9, 67.1)",
     [SALON_B, AREA_B],
   );
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON);
+  await approveSalon(SALON_B);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Invoice colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Invoice colour')", [PRODUCT, GROUP]);
   for (const s of [SKU1, SKU2, SKU3]) {
@@ -155,7 +158,9 @@ describe("the invoice document (ORD-05)", () => {
     );
     const doc = r.repA as Doc;
     const inv = r.invoice as { number: string; total_paisa: number; subtotal_paisa: number; discount_paisa: number };
-    expect(doc.version).toBe(1);
+    // P1-31 (D-49): version 2 adds fields (customer, people, uom, discount per line, notes, acknowledgement) and keeps every
+    // version 1 key; the document is now the issue-time snapshot plus the live payments.
+    expect(doc.version).toBe(2);
     expect(doc.number).toBe(inv.number);
     expect(doc.financial_year).toMatch(/^20[0-9]{2}-[0-9]{2}$/);
     expect(Number(doc.financial_year.slice(2, 4)) + 1).toBe(Number(doc.financial_year.slice(-2)));

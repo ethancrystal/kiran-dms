@@ -30,12 +30,12 @@ export default function NewSalon() {
 
   return (
     <main>
-      <h1>
-        Add a salon · <span lang="ur">نیا سیلون</span>
-      </h1>
+      <h1>Add a salon</h1>
       <p>
         <a href="/app/salons">← Salons</a>
       </p>
+      {/* R3, D-35 (slice 7): app.create_salon makes a rep's salon a pending proposal. */}
+      <p className="muted">A salon you add is a proposal: the office approves it before order details can be saved for it.</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();

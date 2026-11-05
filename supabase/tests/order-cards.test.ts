@@ -13,7 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate, type Who } from "./helpers/db";
+import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate, type Who } from "./helpers/db";
 import { legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
@@ -78,6 +78,9 @@ beforeAll(async () => {
     `[Test] Cards second salon ${tag()}`,
     AREA_A,
   ]);
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any card.
+  await approveSalon(SALON);
+  await approveSalon(SALON_2);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, $3)", [
     GROUP,
     `[Test] Cards colour ${tag()}`,

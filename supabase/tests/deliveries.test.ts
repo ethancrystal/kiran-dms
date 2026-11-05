@@ -9,8 +9,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate, type Who } from "./helpers/db";
-import { submitApproveSql } from "./helpers/submit-approve";
+import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate, type Who } from "./helpers/db";
+import { signOrderSql, submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -85,6 +85,9 @@ beforeAll(async () => {
     `[Test] Delivery salon B ${tag()}`,
     AREA_B,
   ]);
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON);
+  await approveSalon(SALON_B);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Delivery colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Delivery colour')", [PRODUCT, GROUP]);
   for (const s of [SKU1, SKU2]) {
@@ -281,7 +284,7 @@ describe("delivering from the warehouse (office, doc 06 on behalf)", () => {
       d = id();
     const call = (who: P, loc: string): Step => [
       who,
-      `select (app.office_deliver('${d}', ${oid(o)}, ${loc}, 'Driver handed to owner')).number;`,
+      `${signOrderSql(d, oid(o))} select (app.office_deliver('${d}', ${oid(o)}, ${loc}, 'Driver handed to owner')).number;`,
     ];
     expect(
       await tx([
