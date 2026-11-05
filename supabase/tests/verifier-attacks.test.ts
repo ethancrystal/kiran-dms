@@ -226,6 +226,12 @@ describe("internal functions are not callable by app roles", () => {
     "select app.finalise_delivery(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), null, 'x y', 1, 1, false, null, null, gen_random_uuid(), 'rep')",
     // Migration 20261105130100 (D-32): the rep's direct delivery has no grant left (its body refuses too).
     "select app.rep_deliver(gen_random_uuid(), gen_random_uuid(), 'x y', 1, 1)",
+    // Migration 20261105140000 (slice 5, P1-22, D-38): the commission helpers are internal.
+    "select app.commission_rate_for(gen_random_uuid(), gen_random_uuid())",
+    "select app.commission_statement(gen_random_uuid(), current_date, current_date)",
+    "select app.commission_earned_paisa(gen_random_uuid(), null, null)",
+    "select app.commission_paid_paisa(gen_random_uuid(), null, null)",
+    "select app.assert_commission_range(current_date, current_date)",
   ];
   it.each(CALLS)("%s → 42501 for every app role", async (sql) => {
     for (const [, who] of APP_ROLES) expect(await sqlstate(who, sql)).toBe("42501");
@@ -247,17 +253,18 @@ describe("internal functions are not callable by app roles", () => {
     expect(rows.map((r) => r.proname)).toEqual([
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon",
       "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invitation_preview", "invoice_document", "is_aal2", "is_office", "is_owner",
-      "is_rep", "log_visit", "low_stock", "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_day", "my_handovers",
-      "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_submissions", "my_territory_ids", "my_territory_orders", "office_add_investment",
-      "office_approve_delivery", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue", "office_cash_position", "office_catalogue",
-      "office_count_handover", "office_create_investor", "office_create_location", "office_create_order", "office_decide_profit", "office_decide_salon",
-      "office_deliver", "office_dismiss_card", "office_end_territory", "office_force_close_rep_day", "office_handovers", "office_investor_investments",
-      "office_investor_statement", "office_investors", "office_invitations", "office_invite", "office_open_cards", "office_orders", "office_override_stage",
-      "office_pending_deliveries", "office_pending_salons", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit",
-      "office_receivables_ageing", "office_record_cash", "office_record_payment", "office_record_payout", "office_reject_delivery", "office_release_credit_hold",
-      "office_rep_cash_position", "office_resolve_pending", "office_reverse_investor_entry", "office_revoke_invitation", "office_salon_prices", "office_set_blocked",
-      "office_set_last_purchase", "office_set_member_status", "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price",
-      "office_set_sku_price", "office_update_investor", "office_upsert_area",
+      "is_rep", "log_visit", "low_stock", "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_commission", "my_day",
+      "my_handovers", "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_submissions", "my_territory_ids", "my_territory_orders",
+      "office_add_investment", "office_approve_delivery", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue", "office_cash_position",
+      "office_catalogue", "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location",
+      "office_create_order", "office_decide_profit", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
+      "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_statement", "office_investors", "office_invitations",
+      "office_invite", "office_open_cards", "office_orders", "office_override_stage", "office_pending_deliveries", "office_pending_salons", "office_pending_stock",
+      "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing", "office_record_cash",
+      "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_reject_delivery", "office_release_credit_hold",
+      "office_rep_cash_position", "office_resolve_pending", "office_reverse_commission_payment", "office_reverse_investor_entry", "office_revoke_invitation",
+      "office_salon_prices", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase", "office_set_member_status", "office_set_primary_contact",
+      "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price", "office_update_investor", "office_upsert_area",
       "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
       "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit",
       "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "receipt_document", "recheck_order",
@@ -292,6 +299,9 @@ describe("internal functions are not callable by app roles", () => {
       // my_submissions, rep_submit_delivery: migration 20261105130100 (slice 4, P1-21, D-32 PR B); MJ standing approval L-0144.
       // office_approve_delivery, office_pending_deliveries: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
       // office_pending_stock, office_reject_delivery, office_resolve_pending: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
+      // my_commission, office_commission, office_commission_reps, office_record_commission_payment,
+      // office_reverse_commission_payment, office_set_commission_rate: migration 20261105140000 (slice 5,
+      // P1-22, D-38); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
     ]);
     const sr = await run("postgres", `
