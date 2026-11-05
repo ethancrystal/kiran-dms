@@ -20,7 +20,7 @@ import {
   sqlstate,
   type Who,
 } from "./helpers/db";
-import { asLoginCode, newLogin, tag, uuid } from "./helpers/invite";
+import { asLogin, tag, uuid } from "./helpers/invite";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -128,9 +128,30 @@ describe("app.office_pending_approvals: who may read it", () => {
     expect(await sqlstate(who, "select * from app.office_pending_approvals()")).toBe(DENIED);
   });
 
-  it("a salon login and a login with nothing redeemed are refused (42501)", async () => {
-    const l = await newLogin();
-    expect(await asLoginCode(l, "select * from app.office_pending_approvals();")).toBe(DENIED);
+  // Both logins are written inside the rolled-back transaction, so this file commits no auth.users row.
+  const login = () => ({ id: uuid(), email: `approvals.${tag()}@example.test`, session: uuid() });
+  const authUser = (l: { id: string; email: string }) =>
+    `insert into auth.users (id, email, email_confirmed_at) values ('${l.id}', '${l.email}', now());`;
+
+  it("a login with nothing redeemed is refused (42501)", async () => {
+    const l = login();
+    expect(await sqlstate("postgres", `${authUser(l)} ${asLogin(l)} select * from app.office_pending_approvals();`)).toBe(DENIED);
+  });
+
+  it("an active salon account (emailed-code session) is refused (42501)", async () => {
+    const l = login();
+    const invitation = uuid();
+    const member = `${authUser(l)}
+      insert into public.invitation (id, client_id, kind, email, full_name, salon_id, token_hash, status, expires_at,
+                                     invited_by, redeemed_by, redeemed_at)
+      values ('${invitation}', gen_random_uuid(), 'salon', '${l.email}', '[Test] Approvals member', '${SALON}',
+              encode(sha256(gen_random_uuid()::text::bytea), 'hex'), 'redeemed', now() + interval '7 days',
+              '${fx.manager.id}', '${l.id}', now());
+      insert into public.salon_membership (user_id, salon_id, invitation_id, full_name, email)
+      values ('${l.id}', '${SALON}', '${invitation}', '[Test] Approvals member', '${l.email}');`;
+    // The membership works: the salon reads its own account in the same transaction.
+    expect(await sqlstate("postgres", `${member} ${asLogin(l)} select * from app.salon_my_account();`)).toBeNull();
+    expect(await sqlstate("postgres", `${member} ${asLogin(l)} select * from app.office_pending_approvals();`)).toBe(DENIED);
   });
 
   it("the manager and the owner may read it; the fields are the allow-list", async () => {
@@ -250,6 +271,20 @@ describe("adjustment approvals (opening stock on the Stock page)", () => {
 });
 
 describe("integrity", () => {
+  it("one request with an odd payload does not stop the queue: its quantity and SKU read as null", async () => {
+    const id = (
+      await run(
+        MANAGER,
+        "select (app.request_approval($1, 'adjustment', 'stock_location', $2, $3::jsonb, '[Test] odd payload')).id",
+        [uuid(), WAREHOUSE, JSON.stringify({ sku_id: "-".repeat(36), qty_delta: 1e20 })],
+        C,
+      )
+    ).rows[0].id as string;
+    const row = await byId(MANAGER, id);
+    expect(row).toMatchObject({ kind: "adjustment", sku_id: null, sku_code: null, qty_delta: null });
+    await run(MANAGER, "select app.cancel_approval($1, '[Test] done')", [id], C);
+  });
+
   it("reading writes no audit row", async () => {
     const head = async () => (await run("postgres", "select max(seq)::text s from control.audit_event")).rows[0].s;
     const before = await head();

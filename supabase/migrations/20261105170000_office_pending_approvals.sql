@@ -32,15 +32,20 @@ begin
          a.checker_role_required, a.reason, a.created_at,
          o.status, o.salon_id, s.name, o.subtotal_paisa, o.discount_paisa, o.total_paisa,
          l.name, l.kind, k.id, k.code,
+         -- Casts only what is surely castable: a request's payload is free JSON, and one odd row must not
+         -- stop the whole queue (a CASE evaluates its condition before its result).
          case when a.kind = 'adjustment' and jsonb_typeof(a.payload -> 'qty_delta') = 'number'
-              then (a.payload ->> 'qty_delta')::numeric::bigint end
+                   and (a.payload ->> 'qty_delta') ~ '^-?[0-9]{1,6}$'
+              then (a.payload ->> 'qty_delta')::bigint end
   from control.approval_request a
   join public.user_profile mk on mk.id = a.maker_id
   left join public.sales_order o on a.kind = 'discount' and a.subject_type = 'sales_order' and o.id = a.subject_id
   left join public.salon s on s.id = o.salon_id
   left join public.stock_location l on a.kind = 'adjustment' and a.subject_type = 'stock_location' and l.id = a.subject_id
-  left join public.sku k on a.kind = 'adjustment' and coalesce(a.payload ->> 'sku_id', '') ~ '^[0-9a-fA-F-]{36}$'
-                         and k.id = (a.payload ->> 'sku_id')::uuid
+  left join public.sku k on a.kind = 'adjustment'
+                         and k.id = case when coalesce(a.payload ->> 'sku_id', '')
+                                               ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+                                         then (a.payload ->> 'sku_id')::uuid end
   where a.kind in ('discount', 'adjustment')
     and (a.status = 'pending'
          or (a.status = 'approved' and a.kind = 'adjustment' and l.kind in ('warehouse', 'rep_bag')

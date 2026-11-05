@@ -36,6 +36,8 @@ type IssueLine = { sku: string; qty: string };
 const REASON_MIN = 3;
 const ISSUE_LIST = 50;
 const MAX_ISSUE_LINES = 10;
+// app.office_post_adjustment refuses an adjustment above 100000 units.
+const MAX_ADJUSTMENT_UNITS = 100_000;
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 /** One client id per form, kept until the database accepts the write, so a retry replays it (H-08). */
@@ -196,8 +198,8 @@ export default function Stock() {
           <section aria-labelledby="opening-h">
             <h2 id="opening-h">Opening stock in a warehouse</h2>
             <p className="muted">
-              Ask for an adjustment; another office user approves it on Approvals (the owner above the threshold), then post it
-              here.
+              A manager asks for an adjustment; the owner approves it on Approvals (nobody approves their own request), then it is
+              posted here.
             </p>
             <OpeningStock warehouses={warehouses} skus={skus} onDone={done} />
             {adjustments.length > 0 && (
@@ -391,8 +393,8 @@ function OpeningStock({
         e.preventDefault();
         setError(null);
         const units = Number.parseInt(qty, 10);
-        if (!Number.isInteger(units) || units <= 0 || String(units) !== qty.trim()) {
-          setError("Enter a whole number of units above 0.");
+        if (!Number.isInteger(units) || units <= 0 || units > MAX_ADJUSTMENT_UNITS || String(units) !== qty.trim()) {
+          setError(`Enter a whole number of units from 1 to ${MAX_ADJUSTMENT_UNITS}.`);
           return;
         }
         setBusy(true);
@@ -404,11 +406,14 @@ function OpeningStock({
             p_subject_id: warehouse || null,
             p_payload: { sku_id: sku, qty_delta: units },
             p_reason: reason,
+            // The owner checks opening stock: app.office_post_adjustment needs the owner above the doc 13
+            // threshold, and a manager-approved request over it could then never be posted or cancelled.
+            p_checker_role: "owner",
           });
           renew();
           setQty("");
           setReason("");
-          await onDone("Opening stock requested; another office user must approve it on Approvals.");
+          await onDone("Opening stock requested; the owner approves it on Approvals.");
         } catch (err) {
           setError((err as Error).message);
         } finally {

@@ -1437,8 +1437,13 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   await opening.getByLabel("Units counted in").fill(String(J8_OPENING));
   await opening.getByLabel("Why (for the approver)").fill("[Test] journey opening count");
   await opening.getByRole("button", { name: "Ask for approval" }).click();
-  await expect(page.getByText("Opening stock requested; another office user must approve it on Approvals.")).toBeVisible();
+  await expect(page.getByText("Opening stock requested; the owner approves it on Approvals.")).toBeVisible();
   await expect(page.getByTestId("adjustment").filter({ hasText: code })).toContainText("waiting for approval");
+  // The maker sees its own request on Approvals with no buttons (maker is not checker, H-12).
+  await nav().getByRole("link", { name: "Approvals", exact: true }).click();
+  const mine = page.getByTestId("approval").filter({ hasText: code });
+  await expect(mine).toContainText("You asked for this; another office user decides it.");
+  await expect(mine.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
 
   // The owner, in a second browser: approves the adjustment and the slice 2 test's held discount.
   const ownerPage = await newPage(browser);
@@ -1460,8 +1465,8 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   await discount.getByLabel("Checked how").fill("[Test] agreed salon price");
   await discount.getByRole("button", { name: "Approve request" }).click();
   await expect(ownerPage.getByText("Approved the discount request. The order is now confirmed.")).toBeVisible();
-  // The manager, who asked for the adjustment, gets no buttons on it (maker is not checker, H-12).
-  await nav().getByRole("link", { name: "Approvals", exact: true }).click();
+  // Decided, it leaves the manager's queue.
+  await page.reload();
   await expect(page.getByTestId("approval").filter({ hasText: code })).toHaveCount(0);
 
   // The owner posts the approved adjustment, makes the new rep's bag and issues stock to Rep One's bag.
@@ -1549,8 +1554,15 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   // 7-8. A rep-less order: the office delivers it from the warehouse (A-18); the invoice appears.
   const deliver = page.getByRole("form", { name: "Deliver from a warehouse" });
   await deliver.getByLabel("Warehouse", { exact: true }).selectOption({ label: seed.warehouse.name });
-  await expect(deliver.getByLabel(`Quantity to deliver of ${code}`)).toHaveValue(String(J8_SALON_QTY));
+  const deliverQty = deliver.getByLabel(`Quantity to deliver of ${code}`);
+  await expect(deliverQty).toHaveValue(String(J8_SALON_QTY));
   await deliver.getByLabel("Received by (name)").fill(RECEIVER);
+  // One more than is left: the database refuses it and the page shows its words; nothing is written.
+  await deliverQty.fill(String(J8_SALON_QTY + 1));
+  await deliver.getByRole("button", { name: "Deliver and issue the invoice" }).click();
+  await expect(deliver.getByRole("alert")).toHaveText("every line must be a SKU of this order, at most what is left to deliver");
+  await expect(page.getByTestId("order-status")).toHaveText("confirmed");
+  await deliverQty.fill(String(J8_SALON_QTY));
   await deliver.getByRole("button", { name: "Deliver and issue the invoice" }).click();
   await expect(page.getByText(`Delivered to ${portalSalon.name} from the warehouse: invoice INV-`)).toBeVisible();
   await expect(page.getByTestId("order-status")).toHaveText("delivered");
@@ -1600,7 +1612,7 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   await page.getByRole("button", { name: "Cancel order" }).click();
   await page.getByLabel("Why the order is cancelled").fill("[Test] the salon changed its mind");
   await page.getByRole("button", { name: "Cancel this order" }).click();
-  await expect(page.getByText("The order is cancelled.")).toBeVisible();
+  await expect(page.getByText("The order is cancelled.", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByTestId("order-status")).toHaveText("cancelled");
   await expect(page.getByRole("form", { name: "Deliver from a warehouse" })).toHaveCount(0);

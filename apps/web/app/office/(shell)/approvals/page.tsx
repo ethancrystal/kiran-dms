@@ -54,7 +54,10 @@ export default function Approvals() {
         message += ` The order could not be rechecked: ${(e as Error).message}`;
       }
     }
-    if (a.kind === "adjustment" && approve) message += " Post it on the Stock page.";
+    if (a.kind === "adjustment" && approve) {
+      message +=
+        a.location_kind === "pending_delivery" ? " Settle the goods on Delivery approvals." : " Post it on the Stock page.";
+    }
     setNotice(message);
     await load();
   };
