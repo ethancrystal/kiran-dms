@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
 import { rupees, toPaisa } from "@/lib/money";
 import { IMAGE_ACCEPT, signedImageUrls, uploadProductImage } from "@/lib/product-images";
-import { db, rows, rpc } from "@/lib/rpc";
+import { db, mySession, rows, rpc, type Session } from "@/lib/rpc";
 
 type Sku = {
   id: string;
@@ -27,7 +27,7 @@ type Product = {
   active: boolean;
   skus: Sku[];
 };
-type Group = { id: string; name: string; active: boolean };
+type Group = { id: string; name: string; default_cycle_days: number; active: boolean };
 
 const UNITS = ["ml", "l", "g", "kg", "pack", "piece"];
 const GROUP_LIMIT = 500;
@@ -40,12 +40,26 @@ const REASON_MAX = 300;
 // app.office_set_sku_price takes a reason of 3 to 300 characters.
 const REASON_MIN = 3;
 const PRICE_MAX_CHARS = 12; // rupees as typed (lib/money.ts toPaisa)
+// public.product_group checks.
+const GROUP_NAME_MIN = 2;
+const GROUP_NAME_MAX = 60;
+const CYCLE_MIN_DAYS = 1;
+const CYCLE_MAX_DAYS = 365;
+
+// A whole number of days, or null. The database has the last word on the range.
+const cycleDays = (typed: string) => {
+  const days = Number(typed.trim());
+  return typed.trim() !== "" && Number.isInteger(days) ? days : null;
+};
 
 // Products (D-39; spec section 5): the owner or a manager adds and edits products and SKUs, writes a
 // description, uploads or replaces a picture, sets list prices with a reason, and activates or
 // deactivates. Every rule is the database's (app.office_upsert_product, app.office_upsert_sku,
 // app.office_set_sku_price, the product-images storage policies); this page shows their answer.
+// Product groups and their default cycles are config (ADM-01), owner only in doc 06 section 2 and not
+// among D-39's manager powers, so a manager sees the list but no controls.
 export default function Products() {
+  const [me, setMe] = useState<Session | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -56,10 +70,12 @@ export default function Products() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [p, g] = await Promise.all([
+      const [s, p, g] = await Promise.all([
+        mySession(),
         rpc<Product[]>("office_catalogue"),
-        rows<Group>(db().from("product_group").select("id, name, active").order("name").limit(GROUP_LIMIT)),
+        rows<Group>(db().from("product_group").select("id, name, default_cycle_days, active").order("name").limit(GROUP_LIMIT)),
       ]);
+      setMe(s);
       setProducts(p ?? []);
       setGroups(g);
       setUrls(await signedImageUrls((p ?? []).map((x) => x.image_path)));
@@ -86,6 +102,7 @@ export default function Products() {
         salon&apos;s page.
       </p>
       {notice && <output className="ok">{notice}</output>}
+      {!loading && !error && <ProductGroups groups={groups} isOwner={me?.role === "owner"} onDone={done} />}
       <AddProduct groups={groups.filter((g) => g.active)} onDone={done} />
       <ListState loading={loading} error={error} empty={products.length === 0} emptyText="No products yet." />
       {!loading &&
@@ -99,6 +116,185 @@ export default function Products() {
           />
         ))}
     </>
+  );
+}
+
+const upsertGroup = (id: string, name: string, days: number, active: boolean) =>
+  rpc("office_upsert_product_group", { p_id: id, p_name: name, p_default_cycle_days: days, p_active: active });
+
+function ProductGroups({ groups, isOwner, onDone }: { groups: Group[]; isOwner: boolean; onDone: (m: string) => Promise<void> }) {
+  return (
+    <section className="card" aria-label="Product groups">
+      <h2>Product groups</h2>
+      <p className="muted">
+        Every product belongs to a group. A group&apos;s default cycle is how many days a salon usually takes to reorder it.
+      </p>
+      {!isOwner && <p className="muted">Only the owner adds or changes product groups (doc 06 §2).</p>}
+      {groups.length === 0 && <p className="muted">No product groups yet.</p>}
+      <ul className="plain">
+        {groups.map((g) => (
+          <GroupRow key={g.id} group={g} isOwner={isOwner} onDone={onDone} />
+        ))}
+      </ul>
+      {isOwner && <AddGroup onDone={onDone} />}
+    </section>
+  );
+}
+
+function GroupRow({ group, isOwner, onDone }: { group: Group; isOwner: boolean; onDone: (m: string) => Promise<void> }) {
+  const init = () => ({ name: group.name, days: String(group.default_cycle_days) });
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(init);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (action: () => Promise<unknown>, message: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      setOpen(false);
+      await onDone(message);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const id = group.id;
+
+  return (
+    <li aria-label={`Group ${group.name}`}>
+      <strong>{group.name}</strong> · {group.default_cycle_days} days{" "}
+      <span className={`badge ${group.active ? "active" : "suspended"}`}>{group.active ? "Active" : "Inactive"}</span>
+      {isOwner && (
+        <div className="row">
+          <button
+            type="button"
+            className="inline"
+            disabled={busy}
+            onClick={() => {
+              setForm(init());
+              setOpen((o) => !o);
+            }}
+          >
+            {open ? `Close edit of ${group.name}` : `Edit ${group.name}`}
+          </button>
+          <button
+            type="button"
+            className="inline"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () => upsertGroup(id, group.name, group.default_cycle_days, !group.active),
+                `${group.name} ${group.active ? "deactivated: it leaves the choices for products" : "activated"}.`,
+              )
+            }
+          >
+            {group.active ? `Deactivate ${group.name}` : `Activate ${group.name}`}
+          </button>
+        </div>
+      )}
+      {open && (
+        <form
+          aria-label={`Edit group ${group.name}`}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const days = cycleDays(form.days);
+            if (days === null) return setError("Enter the default cycle as a whole number of days.");
+            void run(() => upsertGroup(id, form.name.trim(), days, group.active), `${form.name.trim()} saved.`);
+          }}
+        >
+          <label htmlFor={`group-name-${id}`}>Group name</label>
+          <input
+            id={`group-name-${id}`}
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            minLength={GROUP_NAME_MIN}
+            maxLength={GROUP_NAME_MAX}
+            required
+          />
+          <label htmlFor={`group-days-${id}`}>Default cycle (days)</label>
+          <input
+            id={`group-days-${id}`}
+            inputMode="numeric"
+            value={form.days}
+            onChange={(e) => setForm((f) => ({ ...f, days: e.target.value }))}
+            required
+          />
+          <button type="submit" disabled={busy}>
+            {busy ? "Saving…" : "Save group"}
+          </button>
+        </form>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </li>
+  );
+}
+
+function AddGroup({ onDone }: { onDone: (m: string) => Promise<void> }) {
+  const empty = { name: "", days: "" };
+  const [form, setForm] = useState(empty);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // One id per attempt: the upsert is keyed by it, so a retry after a lost answer is the same group.
+  const [groupId, setGroupId] = useState(() => crypto.randomUUID());
+  return (
+    <form
+      className="inline-form"
+      aria-label="New product group"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setError(null);
+        const days = cycleDays(form.days);
+        if (days === null) return setError("Enter the default cycle as a whole number of days.");
+        setBusy(true);
+        try {
+          const name = form.name.trim();
+          await upsertGroup(groupId, name, days, true);
+          setForm(empty);
+          setGroupId(crypto.randomUUID());
+          await onDone(`Group ${name} added. You can now add products to it.`);
+        } catch (err) {
+          setError((err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label htmlFor="new-group-name">
+        New group name
+        <input
+          id="new-group-name"
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          minLength={GROUP_NAME_MIN}
+          maxLength={GROUP_NAME_MAX}
+          required
+        />
+      </label>
+      <label htmlFor="new-group-days">
+        Default cycle (days, {CYCLE_MIN_DAYS} to {CYCLE_MAX_DAYS})
+        <input
+          id="new-group-days"
+          inputMode="numeric"
+          value={form.days}
+          onChange={(e) => setForm((f) => ({ ...f, days: e.target.value }))}
+          required
+        />
+      </label>
+      <button type="submit" className="inline" disabled={busy}>
+        {busy ? "Saving…" : "Add group"}
+      </button>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }
 
@@ -151,7 +347,7 @@ function AddProduct({ groups, onDone }: { groups: Group[]; onDone: (m: string) =
           </option>
         ))}
       </select>
-      {groups.length === 0 && <p className="muted">No active product group yet.</p>}
+      {groups.length === 0 && <p className="muted">No active product group yet. The owner adds one under Product groups.</p>}
       <label htmlFor="new-brand">Brand label</label>
       <input id="new-brand" value={form.brand} onChange={set("brand")} maxLength={BRAND_MAX} required />
       <label htmlFor="new-name">Product name</label>

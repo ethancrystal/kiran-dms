@@ -751,6 +751,60 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   await expect(row).toContainText(salonPrice);
 });
 
+// ADM-01: on a fresh database nothing else creates a product group, and a product needs one. Groups are
+// config, owner only in doc 06 section 2. The owner's changes survive a reload and reach the Add a product
+// choices; the database's refusal of a repeated name is shown; a manager sees the list but no controls.
+test("the owner adds, edits and deactivates a product group, and a product can use it (ADM-01)", async ({ page }) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const name = `[Dummy] Group ${Date.now()}`;
+  await officeSignIn(page, owner);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Products", exact: true }).click();
+
+  const add = page.getByRole("form", { name: "New product group" });
+  await add.getByLabel("New group name").fill(name);
+  await add.getByLabel("Default cycle (days").fill("3.5");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).toContainText("whole number of days");
+  await add.getByLabel("Default cycle (days").fill("400");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).toBeVisible();
+  await add.getByLabel("Default cycle (days").fill("21");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(page.getByText(`Group ${name} added.`)).toBeVisible();
+  await page.reload();
+  const row = page.getByRole("listitem", { name: `Group ${name}` });
+  await expect(row).toContainText("21 days");
+  await expect(page.locator("#new-group option", { hasText: name })).toHaveCount(1);
+
+  await add.getByLabel("New group name").fill(name);
+  await add.getByLabel("Default cycle (days").fill("30");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).toBeVisible();
+
+  await row.getByRole("button", { name: `Edit ${name}` }).click();
+  await row.getByLabel("Default cycle (days)").fill("30");
+  await row.getByRole("button", { name: "Save group" }).click();
+  await expect(page.getByText(`${name} saved.`)).toBeVisible();
+  await page.reload();
+  await expect(row).toContainText("30 days");
+
+  await row.getByRole("button", { name: `Deactivate ${name}` }).click();
+  await expect(row).toContainText("Inactive");
+  await expect(page.locator("#new-group option", { hasText: name })).toHaveCount(0);
+  await row.getByRole("button", { name: `Activate ${name}` }).click();
+  await expect(page.locator("#new-group option", { hasText: name })).toHaveCount(1);
+});
+
+test("a manager sees the product groups but no controls for them (ADM-01, doc 06 section 2)", async ({ page }) => {
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Products", exact: true }).click();
+  await expect(page.getByText("Only the owner adds or changes product groups")).toBeVisible();
+  await expect(page.getByRole("listitem", { name: `Group ${seed.productGroup.name}` })).toBeVisible();
+  await expect(page.getByRole("form", { name: "New product group" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `Edit ${seed.productGroup.name}` })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `Deactivate ${seed.productGroup.name}` })).toHaveCount(0);
+});
+
 // Slice 3 (P1-20; D-40): the manager keeps the basic investor ledger, typing every amount; the page
 // shows the database's derived figures, which survive a reload. A rep's signed-in phone has no
 // Investors link and reaches no office page or investor data.
