@@ -44,17 +44,23 @@ const KEY_LABELS: Record<string, string> = {
 };
 // Parts of a threshold object: "paisa" is money, the others plain numbers.
 const PART_LABELS: Record<string, string> = { paisa: "amount (Rs)", pct: "percent", units: "units" };
-// A plain number as typed: "10", "2.5" and "0" match; "-1", "1,000" and "1.234" do not.
+// A share as typed: "10", "2.5" and "0" match; "-1", "1,000" and "1.234" do not.
 // https://regex101.com/?regex=%5E%5Cd%7B1%2C9%7D%28%5C.%5Cd%7B1%2C2%7D%29%3F%24&flavor=javascript
-const NUMBER = /^\d{1,9}(\.\d{1,2})?$/;
+const DECIMAL = /^\d{1,9}(\.\d{1,2})?$/;
+// A count as typed (units, days, minutes, metres, times): "10" and "0" match; "10.5", "-1" and "1,000" do not.
+// https://regex101.com/?regex=%5E%5Cd%7B1%2C9%7D%24&flavor=javascript
+const WHOLE = /^\d{1,9}$/;
 
 const isMoney = (key: string) => key.endsWith("_paisa") || key === "paisa";
+const isPercent = (key: string) => key.endsWith("_pct") || key === "pct";
 const show = (key: string, v: number) => (isMoney(key) ? rupees(v) : String(v));
 const asInput = (key: string, v: number) => (isMoney(key) ? rupeesInput(v) : String(v));
 /** The typed text as the JSON number the database expects (paisa for money), or null. */
 function parse(key: string, text: string): number | null {
   if (isMoney(key)) return toPaisa(text);
-  return NUMBER.test(text.trim()) ? Number(text.trim()) : null;
+  // Only a percentage may have decimals; every other number here counts something whole.
+  const shape = isPercent(key) ? DECIMAL : WHOLE;
+  return shape.test(text.trim()) ? Number(text.trim()) : null;
 }
 const isNumberObject = (v: unknown): v is Record<string, number> =>
   typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every((x) => typeof x === "number");
@@ -291,7 +297,8 @@ function NumberSetting({ row, onDone }: { row: ConfigRow; onDone: Done }) {
       onSubmit={(e) => {
         e.preventDefault();
         const values = parts.map(([k]) => [k, parse(k, form[k])] as const);
-        if (values.some(([, v]) => v === null)) return setError("Enter plain numbers, for example 50000 or 2.5.");
+        if (values.some(([, v]) => v === null))
+          return setError("Enter plain numbers: rupees or a percentage may have two decimals; counts are whole numbers.");
         const value = typeof row.value === "number" ? values[0][1] : Object.fromEntries(values);
         void save(row.key, value, reason, `${title}: saved.`);
       }}

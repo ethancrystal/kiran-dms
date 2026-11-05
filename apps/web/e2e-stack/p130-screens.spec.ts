@@ -307,6 +307,10 @@ test("the owner changes a bag's value limit; settings are owner only (M9, FLOW-1
   await restore.getByLabel("Why change it").fill("p130: put the city back");
   await restore.getByRole("button", { name: "Save company details" }).click();
   await expect(page.getByText("Company details saved.")).toBeVisible();
+  // The notice was already on screen, so the database is the proof that the restore was saved.
+  await expect
+    .poll(async () => (await sql(null, "select value from public.app_config where key = 'company.profile'"))[0].value)
+    .toEqual(before.value);
 
   const m = await officePage(browser, manager);
   await m.goto("/office/settings");
