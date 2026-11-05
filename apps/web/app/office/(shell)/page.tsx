@@ -57,7 +57,7 @@ export default async function OfficeHome() {
       )}
 
       {c && (
-        <ul className="summary" aria-label="Today at a glance" data-testid="home-summary">
+        <ul className="summary" data-testid="home-summary">
           <li>
             <Link href="/office/orders">
               <strong data-testid="count-to-deliver">{c.to_deliver}</strong>{" "}
@@ -128,7 +128,7 @@ export default async function OfficeHome() {
             No orders this week yet. Orders made on the Orders page, and requests you turn into orders, show here.
           </p>
         ) : (
-          <table aria-label="Orders placed this week">
+          <table>
             <thead>
               <tr>
                 <th>When</th>
@@ -163,7 +163,7 @@ export default async function OfficeHome() {
         {waiting.length === 0 ? (
           <p className="muted">Nothing is waiting to be delivered.</p>
         ) : (
-          <table aria-label="Waiting to be delivered">
+          <table>
             <thead>
               <tr>
                 <th>Salon</th>
@@ -201,7 +201,7 @@ export default async function OfficeHome() {
         {delivered.length === 0 ? (
           <p className="muted">Nothing delivered yet. Each delivery gets an invoice and shows here.</p>
         ) : (
-          <table aria-label="Delivered">
+          <table>
             <thead>
               <tr>
                 <th>Invoice</th>

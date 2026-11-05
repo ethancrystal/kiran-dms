@@ -23,7 +23,7 @@ export default function RepPerformance() {
         Commission counts in the month the delivery is approved. To pay a rep, use the{" "}
         <Link href="/office/commission">commission page</Link>.
       </p>
-      <MonthPicker month={month} onChange={setMonth} what="rep performance" />
+      <MonthPicker month={month} onChange={setMonth} />
       {read.loading && (
         <p className="muted" aria-busy="true">
           Loading…
@@ -36,7 +36,7 @@ export default function RepPerformance() {
       )}
       {!read.loading && !read.error && reps.length === 0 && <p className="muted">No reps yet. Invite one on the People page.</p>}
       {!read.loading && !read.error && reps.length > 0 && (
-        <table aria-label="Rep performance this month">
+        <table>
           <thead>
             <tr>
               <th>Rep</th>

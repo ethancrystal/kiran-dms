@@ -45,7 +45,7 @@ export function RepMonth() {
   return (
     <section className="card rep-month" aria-labelledby="rep-month-h" data-testid="rep-month">
       <h2 id="rep-month-h">My month</h2>
-      <MonthPicker month={month} onChange={setMonth} what="my figures" />
+      <MonthPicker month={month} onChange={setMonth} />
       {state.loading && (
         <p className="muted" aria-busy="true">
           Loading…

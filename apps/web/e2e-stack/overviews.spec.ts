@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { expect, type Page, test } from "@playwright/test";
+import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import pg from "pg";
 import { rupees } from "../lib/money";
 
@@ -75,7 +75,7 @@ async function sql(as: { id: string; aal: "aal1" | "aal2" } | null, text: string
   try {
     await c.query("begin");
     if (as) {
-      await c.query("select set_config('request.jwt.claims', $1, true)", [
+      await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.headers', '{}', true)", [
         JSON.stringify({ sub: as.id, role: "authenticated", aal: as.aal }),
       ]);
       await c.query("set local role authenticated");
@@ -129,9 +129,25 @@ async function signIn(page: Page) {
   await page.waitForURL(HOME_URL);
 }
 
+// The manager signs in once (password and TOTP enrolment); later tests reuse the signed-in session, as
+// office.spec.ts does with the rep's phone, so no test waits for a fresh 30-second code.
+let session: Awaited<ReturnType<BrowserContext["storageState"]>> | null = null;
+async function officePage(browser: Browser) {
+  const ctx = await browser.newContext(session ? { storageState: session } : {});
+  const page = await ctx.newPage();
+  if (session) await page.goto("/office");
+  else {
+    await signIn(page);
+    session = await ctx.storageState();
+  }
+  return page;
+}
+
 const num = async (page: Page, testId: string) => Number((await page.getByTestId(testId).innerText()).trim());
 
-test.describe.configure({ mode: "serial" });
+// Each test does several database and page round trips on one real stack: more than the 60 s default.
+const TEST_TIMEOUT_MS = 120_000;
+test.describe.configure({ mode: "serial", timeout: TEST_TIMEOUT_MS });
 
 test.beforeAll(async () => {
   // A manager login with a password (as the seed makes people), then its profile through the owner.
@@ -172,9 +188,9 @@ test.beforeAll(async () => {
 });
 
 test("office home: an order shows as placed and waiting with its rep; once delivered it shows its invoice, and the counts move by one", async ({
-  page,
+  browser,
 }) => {
-  await signIn(page);
+  const page = await officePage(browser);
   await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
   const toDeliver = await num(page, "count-to-deliver");
   const placed = await num(page, "count-placed");
@@ -215,8 +231,8 @@ test("office home: an order shows as placed and waiting with its rep; once deliv
   await expect(page.getByText("phones waiting for approval")).toBeVisible();
 });
 
-test("rep performance: Rep Two's order of this month is counted as brought and delivered", async ({ page }) => {
-  await signIn(page);
+test("rep performance: Rep Two's order of this month is counted as brought and delivered", async ({ browser }) => {
+  const page = await officePage(browser);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Rep performance", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Rep performance", level: 1 })).toBeVisible();
   const row = page.getByTestId("rep-month-row").filter({ hasText: rep2.name });
@@ -226,16 +242,16 @@ test("rep performance: Rep Two's order of this month is counted as brought and d
   expect(Number((await cells.nth(1).innerText()).split(" ")[0])).toBeGreaterThanOrEqual(ONE);
   expect(Number(await cells.nth(2).innerText())).toBeGreaterThanOrEqual(ONE);
   // The previous month has nothing from this run; Next goes back to this month.
-  await page.getByRole("button", { name: "Previous month for rep performance" }).click();
-  await expect(page.getByRole("button", { name: "Next month for rep performance" })).toBeEnabled();
-  await page.getByRole("button", { name: "Next month for rep performance" }).click();
-  await expect(page.getByRole("button", { name: "Next month for rep performance" })).toBeDisabled();
+  await page.getByRole("button", { name: "Previous month" }).click();
+  await expect(page.getByRole("button", { name: "Next month" })).toBeEnabled();
+  await page.getByRole("button", { name: "Next month" }).click();
+  await expect(page.getByRole("button", { name: "Next month" })).toBeDisabled();
 });
 
 test("investors: a new investor with nothing decided says so; deciding fills the month; the previous month stays empty", async ({
-  page,
+  browser,
 }) => {
-  await signIn(page);
+  const page = await officePage(browser);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Investors", exact: true }).click();
   const name = `[Dummy] Overview investor ${tag}`;
   const add = page.getByRole("form", { name: "Add an investor" });
@@ -260,7 +276,7 @@ test("investors: a new investor with nothing decided says so; deciding fills the
   // Survives a reload: the database answers the same.
   await page.reload();
   await expect(page.getByTestId("month-one-decided")).toHaveText(rupees(DECIDED_PAISA));
-  await page.getByRole("button", { name: "Previous month for investors" }).click();
+  await page.getByRole("button", { name: "Previous month" }).click();
   await expect(page.getByTestId("month-one-decided")).toHaveText("Nothing decided yet for this month.");
   // Still owed is over all months, so it does not change with the month.
   await expect(page.getByTestId("month-one-owed")).toHaveText(rupees(DECIDED_PAISA));
