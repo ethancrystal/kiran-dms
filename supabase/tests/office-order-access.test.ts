@@ -383,7 +383,7 @@ describe("the assigned rep reads the office order; another rep does not", () => 
     expect(await txError(deliver)).toContain("own orders");
     const internal: Step = [
       "repA",
-      `select app.deliver('${id()}', ${OID}, ${BAG_A}, null, 'Ayesha at the counter', 24.9, 67.1, false, null, null);`,
+      `select app.finalise_delivery('${id()}', ${OID}, ${BAG_A}, null, 'Ayesha at the counter', 24.9, 67.1, false, null, null, '${fx.repA.id}', 'rep');`,
     ];
     expect(await txCode([...repLess, internal])).toBe(DENIED);
   });

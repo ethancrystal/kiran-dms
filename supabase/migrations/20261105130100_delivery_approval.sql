@@ -262,3 +262,194 @@ grant select on public.delivery_submission, public.delivery_submission_decision,
 
 revoke execute on function control.stock_location_pending_twin(), control.pending_resolution_guard()
   from public, anon, authenticated, service_role;
+
+-- =============================================================================
+-- The one finalising path (plan Task 2)
+-- =============================================================================
+-- Internal (no grant): migration 20261104090000's app.deliver, every guard and the M1 lock note kept,
+-- with the deliverer passed in instead of read from the session. Exactly these actors change:
+--   delivery.delivered_by, delivered_by_role, rep_day_id, lat, lng, mock_location, delivered_at_client:
+--     the parameters (the submitting rep and its submission's evidence, or the office user);
+--   delivery.delivered_at: server time now, the approval (Decision 5);
+--   stock_movement.actor_id, invoice.issued_by, cycle_estimate.set_by: auth.uid(), the approver or the
+--     office user who delivered;
+--   invoice.delivered_by: p_delivered_by; invoice.commission_rep_id: the order's assigned rep (Decision 6);
+--   invoice.rep_id: coalesce(assigned_rep_id, rep_id), unchanged.
+-- Callers: app.office_approve_delivery (the rep's approved submission, from its pending location) and
+-- app.office_deliver (the office, from a warehouse).
+create function app.finalise_delivery(
+  p_client_id uuid, p_order_id uuid, p_from_location_id uuid, p_lines jsonb, p_received_by_name text,
+  p_lat numeric, p_lng numeric, p_mock_location boolean, p_delivered_at_client timestamptz, p_rep_day_id uuid,
+  p_delivered_by uuid, p_delivered_by_role public.app_role)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  o       public.sales_order;
+  s       public.salon;
+  d       public.delivery;
+  inv     public.invoice;
+  v_left  integer;
+  v_bad   integer;
+  v_sub   bigint;
+  v_tot   bigint;
+  v_dist  integer;
+  v_done  integer;
+  v_lines jsonb;                                            -- [{order_line_id, sku_id, qty, list_price_paisa, unit_price_paisa}]
+begin
+  select * into o from public.sales_order where id = p_order_id for update;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  if o.status not in ('confirmed', 'partially_delivered') then
+    raise exception using errcode = '22023', message = 'only a confirmed order is delivered (ORD-03)';
+  end if;
+  if length(btrim(coalesce(p_received_by_name, ''))) not between 2 and 80 then
+    raise exception using errcode = '22023', message = 'the name of the person who received the goods is required (MJ L-0163)';
+  end if;
+  -- The lines to deliver: as given (duplicates summed), or everything left.
+  if p_lines is null then
+    select jsonb_agg(jsonb_build_object('order_line_id', x.order_line_id, 'sku_id', x.sku_id, 'qty', x.remaining,
+                                        'list_price_paisa', x.list_price_paisa, 'unit_price_paisa', x.unit_price_paisa))
+      into v_lines
+    from app.order_lines_left(o.id) x where x.remaining > 0;
+  else
+    select count(*) into v_bad
+    from app.parse_lines(p_lines) p
+    left join app.order_lines_left(o.id) x on x.sku_id = p.sku_id
+    where x.order_line_id is null or p.qty > x.remaining;
+    if v_bad > 0 then
+      raise exception using errcode = '22023', message = 'every line must be a SKU of this order, at most what is left to deliver';
+    end if;
+    select jsonb_agg(jsonb_build_object('order_line_id', x.order_line_id, 'sku_id', x.sku_id, 'qty', p.qty,
+                                        'list_price_paisa', x.list_price_paisa, 'unit_price_paisa', x.unit_price_paisa))
+      into v_lines
+    from app.parse_lines(p_lines) p join app.order_lines_left(o.id) x on x.sku_id = p.sku_id;
+  end if;
+  if v_lines is null then
+    raise exception using errcode = '22023', message = 'nothing is left to deliver on this order';
+  end if;
+  -- Units promised to a pending issue out of this location are not available (migration 0008).
+  if exists (select 1 from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint)
+             where app.on_hand(p_from_location_id, t.sku_id) - app.pending_out(p_from_location_id, t.sku_id) < t.qty) then
+    raise exception using errcode = '23514', message = 'insufficient stock at the delivery location (part delivery is allowed)';
+  end if;
+  select * into s from public.salon where id = o.salon_id;
+  if s.lat is not null and p_lat is not null and p_lng is not null then
+    v_dist := app.distance_m(s.lat, s.lng, p_lat, p_lng);
+  end if;
+  select coalesce(sum(t.qty::bigint * t.list_price_paisa), 0), coalesce(sum(t.qty::bigint * t.unit_price_paisa), 0)
+    into v_sub, v_tot from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  select coalesce(sum(x.remaining), 0)::integer into v_left from app.order_lines_left(o.id) x;
+  select coalesce(sum(t.qty), 0)::integer into v_done from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  -- Lock order (M1): the per-salon payment lock comes before the first audited write of this delivery.
+  -- A payment takes that lock first and then writes audited rows; a delivery that wrote its audited
+  -- delivery row (which holds the audit chain head until commit) and only then asked for the lock at
+  -- the invoice would deadlock with it. Nothing above this line writes an audited row. The invoice
+  -- trigger asks for the same lock again later in this transaction, which is free.
+  perform pg_advisory_xact_lock(hashtextextended('payment:' || o.salon_id::text, 0));
+  perform app.set_purpose('order delivered');
+  insert into public.delivery (client_id, order_id, salon_id, from_location_id, delivered_by, delivered_by_role, rep_day_id,
+                               status, received_by_name, lat, lng, distance_from_pin_m, mock_location, delivered_at_client)
+  values (p_client_id, o.id, o.salon_id, p_from_location_id, p_delivered_by, p_delivered_by_role, p_rep_day_id,
+          case when v_done = v_left then 'full' else 'partial' end::public.delivery_status, btrim(p_received_by_name),
+          p_lat, p_lng, v_dist, coalesce(p_mock_location, false), p_delivered_at_client)
+  returning * into d;
+  insert into public.delivery_line (delivery_id, order_line_id, sku_id, qty, list_price_paisa, unit_price_paisa, line_total_paisa)
+  select d.id, t.order_line_id, t.sku_id, t.qty, t.list_price_paisa, t.unit_price_paisa, t.qty * t.unit_price_paisa
+  from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  insert into public.stock_movement (client_id, sku_id, qty, from_location_id, kind, source_type, source_id, actor_id)
+  select gen_random_uuid(), t.sku_id, t.qty, p_from_location_id, 'sale', 'delivery', d.id, auth.uid()
+  from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint);
+  -- The invoice and its attribution stamps. This insert is the single stamping point: delivered_by is
+  -- who handed the goods over, commission_rep_id the order's assigned rep at approval (D-31, Decision
+  -- 6). Slice 5 (P1-22, D-38) adds commission_rate_bp to this same insert.
+  insert into public.invoice (number, delivery_id, order_id, salon_id, rep_id, plan, subtotal_paisa, discount_paisa,
+                              total_paisa, issued_by, delivered_by, commission_rep_id)
+  values (app.next_doc_number('INV'), d.id, o.id, o.salon_id, coalesce(o.assigned_rep_id, o.rep_id), o.plan, v_sub, v_sub - v_tot, v_tot,
+          auth.uid(), p_delivered_by, o.assigned_rep_id)
+  returning * into inv;
+  update public.sales_order set status = case when v_done = v_left then 'delivered' else 'partially_delivered' end::public.order_status
+   where id = o.id and status is distinct from case when v_done = v_left then 'delivered' else 'partially_delivered' end::public.order_status;
+  -- PIP-05: deliveries keep the last purchase per product group (basis orders, migration 0011).
+  insert into public.cycle_estimate as c (salon_id, product_group_id, last_order_on, basis, basis_orders, set_by)
+  select distinct o.salon_id, p.product_group_id, app.karachi_today(), 'orders'::public.cycle_basis, 1, auth.uid()
+  from jsonb_to_recordset(v_lines) as t(order_line_id uuid, sku_id uuid, qty integer, list_price_paisa bigint, unit_price_paisa bigint) join public.sku k on k.id = t.sku_id join public.product p on p.id = k.product_id
+  on conflict (salon_id, product_group_id) do update
+    set last_order_on = greatest(c.last_order_on, excluded.last_order_on), basis = 'orders',
+        basis_orders = case when c.basis = 'orders' then c.basis_orders + 1 else 1 end,
+        set_by = excluded.set_by, set_at = now();
+  -- Doc 02: 3 completed orders make a new active salon a regular one.
+  if v_done = v_left and s.stage = 'active_new'
+     and (select count(*) from public.sales_order x where x.salon_id = o.salon_id and x.status in ('delivered', 'closed')) >= 3 then
+    perform app.move_stage(o.salon_id, 'active_regular', 'order', '3 orders delivered');
+  end if;
+  return inv;
+end $$;
+
+revoke all on function
+  app.finalise_delivery(uuid, uuid, uuid, jsonb, text, numeric, numeric, boolean, timestamptz, uuid, uuid, public.app_role)
+  from public, anon, authenticated, service_role;
+
+-- Migration 20261104090000's app.rep_deliver, calling app.finalise_delivery with the caller as the
+-- deliverer. Kept only until the test fixtures move to submit-then-approve; closed further down.
+create or replace function app.rep_deliver(
+  p_client_id uuid, p_order_id uuid, p_received_by_name text, p_lat numeric, p_lng numeric,
+  p_lines jsonb default null, p_mock_location boolean default false, p_delivered_at_client timestamptz default null)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_actor_ready();
+  d      public.delivery;
+  o      public.sales_order;
+  v_day  uuid;
+  v_bag  uuid := app.my_bag_id();
+begin
+  if v_role <> 'rep' then perform app.raise_denied('reps deliver from their bag; the office uses office_deliver'); end if;
+  select * into d from public.delivery where client_id = p_client_id;
+  if d.id is not null then
+    if d.order_id = p_order_id and d.delivered_by = auth.uid() then
+      return (select i from public.invoice i where i.delivery_id = d.id);          -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  select * into o from public.sales_order where id = p_order_id;
+  if o.id is null or (o.rep_id is distinct from auth.uid() and o.assigned_rep_id is distinct from auth.uid()) then
+    perform app.raise_denied('reps deliver only their own orders');
+  end if;
+  v_day := app.my_open_day_id();
+  if v_day is null then perform app.raise_denied('check in before delivering (PIP-09)'); end if;
+  if not app.rep_can_reach_salon(o.salon_id) then
+    perform app.raise_denied('reps deliver only to salons in their own territories');
+  end if;
+  if v_bag is null then perform app.raise_denied('this rep has no bag to deliver from'); end if;
+  if p_lat is null or p_lng is null then
+    raise exception using errcode = '22023', message = 'GPS is required for a delivery (MJ L-0163)';
+  end if;
+  return app.finalise_delivery(p_client_id, p_order_id, v_bag, p_lines, p_received_by_name, p_lat, p_lng, p_mock_location,
+                               p_delivered_at_client, v_day, auth.uid(), v_role);
+end $$;
+
+-- Migration 0013's app.office_deliver, calling app.finalise_delivery with the office user as the
+-- deliverer (A-18: a rep-less order is delivered by the office).
+create or replace function app.office_deliver(
+  p_client_id uuid, p_order_id uuid, p_warehouse_id uuid, p_received_by_name text,
+  p_lines jsonb default null, p_lat numeric default null, p_lng numeric default null)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_office();
+  d      public.delivery;
+begin
+  select * into d from public.delivery where client_id = p_client_id;
+  if d.id is not null then
+    if d.order_id = p_order_id and d.delivered_by = auth.uid() then
+      return (select i from public.invoice i where i.delivery_id = d.id);          -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if not exists (select 1 from public.stock_location l where l.id = p_warehouse_id and l.kind = 'warehouse' and l.active) then
+    raise exception using errcode = '22023', message = 'the office delivers from an active warehouse';
+  end if;
+  return app.finalise_delivery(p_client_id, p_order_id, p_warehouse_id, p_lines, p_received_by_name, p_lat, p_lng, false,
+                               null, null, auth.uid(), v_role);
+end $$;
+
+drop function app.deliver(uuid, uuid, uuid, jsonb, text, numeric, numeric, boolean, timestamptz, uuid);

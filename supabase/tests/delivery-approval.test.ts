@@ -357,3 +357,58 @@ describe("schema: pending location, submission tables, invoice stamps (D-32)", (
   });
 });
 
+// ------------------------------------------------------- Task 2: finalise_delivery ----
+const officeDeliver = (dcid: string, ocid: string, who: Persona = "manager"): Step => [
+  who,
+  `select (app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Bilal at the door')).*;`,
+];
+const stamps = (ocid: string): Step => [
+  "postgres",
+  `select i.delivered_by, i.commission_rep_id, i.rep_id, i.issued_by, d.delivered_by_role::text role
+   from public.invoice i join public.delivery d on d.id = i.delivery_id where i.order_id = ${oid(ocid)};`,
+];
+
+describe("the internal finalising function stamps who delivered and who earns (D-32, D-31)", () => {
+  it("a rep-less order delivered by the office stamps delivered_by and no commission rep", async () => {
+    const o = id();
+    const r = await tx([order(o, [[SKU1, 1]], SALON, null), officeDeliver(id(), o), stamps(o)]);
+    expect(r).toEqual([
+      { delivered_by: fx.manager.id, commission_rep_id: null, rep_id: null, issued_by: fx.manager.id, role: "manager" },
+    ]);
+  });
+
+  it("an assigned order delivered by the office keeps the assigned rep as commission rep", async () => {
+    const o = id();
+    const r = await tx([order(o, [[SKU1, 1]]), officeDeliver(id(), o, "owner"), stamps(o)]);
+    expect(r).toEqual([
+      { delivered_by: fx.owner.id, commission_rep_id: fx.repA.id, rep_id: fx.repA.id, issued_by: fx.owner.id, role: "owner" },
+    ]);
+  });
+
+  it("a new invoice without delivered_by is refused", async () => {
+    const o = id(),
+      d = id();
+    const f = await txFail([
+      order(o, [[SKU1, 1]]),
+      [
+        "postgres",
+        `insert into public.delivery (client_id, order_id, salon_id, from_location_id, delivered_by, delivered_by_role, status, received_by_name)
+         values ('${d}', ${oid(o)}, '${SALON}', '${WH}', '${fx.manager.id}', 'manager', 'full', 'Bilal at the door');
+         insert into public.invoice (number, delivery_id, order_id, salon_id, plan, subtotal_paisa, discount_paisa, total_paisa, issued_by)
+         select app.next_doc_number('INV'), d.id, d.order_id, d.salon_id, 'CASH', ${SKU1_PAISA}, 0, ${SKU1_PAISA}, '${fx.manager.id}'
+         from public.delivery d where d.client_id = '${d}';`,
+      ],
+    ]);
+    expect([f?.code, f?.constraint]).toEqual([CHECK, "invoice_delivered_by_set"]);
+  });
+
+  it("no app role can call the internal function, and app.deliver is gone", async () => {
+    const o = id();
+    const call = `select app.finalise_delivery('${id()}', ${oid(o)}, '${WH}', null, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG}, false, null, null, '${fx.repA.id}', 'rep');`;
+    const codes = await inSeries(["repA", "manager", "owner"] as const, (who) => txCode([order(o, [[SKU1, 1]]), [who, call]]));
+    expect(codes).toEqual([DENIED, DENIED, DENIED]);
+    const gone = await tx([["postgres", "select to_regproc('app.deliver') is null gone;"]]);
+    expect(gone).toEqual([{ gone: true }]);
+  });
+});
+

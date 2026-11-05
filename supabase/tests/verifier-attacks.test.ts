@@ -222,6 +222,8 @@ describe("internal functions are not callable by app roles", () => {
     "select app.fiscal_year(current_date)",
     "select * from control.verify_audit_chain()",
     "select control.audit_canonical(1, now(), null, null, null, 'INSERT', 't', null, null, null, null, null, null)",
+    // Migration 20261105130100 (slice 4, P1-21, D-32): the one finalising path, internal.
+    "select app.finalise_delivery(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), null, 'x y', 1, 1, false, null, null, gen_random_uuid(), 'rep')",
   ];
   it.each(CALLS)("%s → 42501 for every app role", async (sql) => {
     for (const [, who] of APP_ROLES) expect(await sqlstate(who, sql)).toBe("42501");
