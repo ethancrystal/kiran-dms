@@ -15,9 +15,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, REP_B, run, sqlstate, type Who } from "./helpers/db";
-import { signOrderSql } from "./helpers/submit-approve";
 import { legacyOrderSql } from "./helpers/legacy-order";
-import { submitApproveSql } from "./helpers/submit-approve";
+import { signOrderSql, submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();

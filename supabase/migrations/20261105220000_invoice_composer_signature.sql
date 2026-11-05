@@ -500,7 +500,7 @@ begin
     'plan', jsonb_build_object('code', i.plan, 'name', v_plan),
     'lines', coalesce((
       select jsonb_agg(jsonb_build_object(
-               'line_no', ol.line_no, 'sku_code', k.code, 'product', p.brand_label || ' ' || p.name,
+               'line_no', ol.line_no, 'sku_id', k.id, 'sku_code', k.code, 'product', p.brand_label || ' ' || p.name,
                'variant', k.variant,
                'description', coalesce(nullif(btrim(dr.line_text ->> k.id::text), ''), p.brand_label || ' ' || p.name || ' ' || k.variant),
                'uom', case when k.size_value is not null
@@ -541,7 +541,7 @@ language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     -- The acknowledgement that made this invoice's delivery final (the rule: there is always one). It is fixed once used.
     'acknowledgement', (
-      select jsonb_build_object('outcome', g.outcome, 'signatory_name', g.signatory_name,
+      select jsonb_build_object('signature_id', g.id, 'outcome', g.outcome, 'signatory_name', g.signatory_name,
                                 'signatory_designation', g.signatory_designation, 'signed_at', g.signed_at,
                                 'statement_version', g.statement_version, 'matches_delivery', true)
       from public.invoice i
@@ -682,7 +682,7 @@ begin
                 else coalesce((select (e ->> 'qty')::integer from jsonb_array_elements(sub.lines) e where (e ->> 'sku_id')::uuid = x.sku_id), 0) end as qty
     from app.order_lines_left(o.id) x)
   select jsonb_agg(jsonb_build_object(
-           'line_no', q.line_no, 'sku_code', k.code, 'product', p.brand_label || ' ' || p.name, 'variant', k.variant,
+           'line_no', q.line_no, 'sku_id', k.id, 'sku_code', k.code, 'product', p.brand_label || ' ' || p.name, 'variant', k.variant,
            'description', coalesce(nullif(btrim(dr.line_text ->> k.id::text), ''), p.brand_label || ' ' || p.name || ' ' || k.variant),
            'uom', case when k.size_value is not null
                        then trim(trailing '.' from trim(trailing '0' from k.size_value::text)) || ' ' || k.unit else k.unit end,

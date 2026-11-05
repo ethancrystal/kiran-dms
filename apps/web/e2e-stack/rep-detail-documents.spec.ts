@@ -182,6 +182,11 @@ test.beforeAll(async () => {
   // One order of Rep Two delivered by the office (it has an invoice), one waiting on Rep Two's submission.
   const delivered = randomUUID();
   await sql(MANAGER, "select app.office_create_order($1, $2, 'CASH', $3::jsonb, $4)", [delivered, salon.id, LINE, rep2.id]);
+  await sql(
+    MANAGER,
+    "select app.office_attach_signature($1, (select id from public.sales_order where client_id = $2), null, 'signed', 'Ayesha Khan', 'Owner', $3, null)",
+    [randomUUID(), delivered, SIGNATURE_PNG],
+  );
   const invoice = await sql(
     MANAGER,
     "select (app.office_deliver($1, (select id from public.sales_order where client_id = $2), $3, 'Ayesha at the counter')).number n",
@@ -210,6 +215,10 @@ test.beforeAll(async () => {
     [pendingOrderId, salon.id, rep2.id, LINE],
   );
 });
+
+// P1-31 (D-49): a delivery is final only with the salon's signed acknowledgement of the goods and the office's approval,
+// so a fixture that delivers through SQL records one first. A PNG signature plus zeros: the database checks the bytes and size.
+const SIGNATURE_PNG = Buffer.from(`89504e470d0a1a0a${"00".repeat(300)}`, "hex").toString("base64");
 
 test("sidebar: grouped, collapsible by keyboard, the current page marked, and usable at tablet width", async ({ browser }) => {
   const page = await officePage(browser);

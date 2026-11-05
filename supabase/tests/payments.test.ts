@@ -25,8 +25,7 @@ import {
   sqlstate,
   type Who,
 } from "./helpers/db";
-import { SIGNATURE_PNG_BASE64, signOrderSql } from "./helpers/submit-approve";
-import { submitApproveSql } from "./helpers/submit-approve";
+import { SIGNATURE_PNG_BASE64, signOrderSql, submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -1104,7 +1103,11 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
   };
   const deliverOffice = async (ord: string) => {
     // D-49: the salon's signed acknowledgement of everything left, then the delivery.
-    await one(MANAGER, "select app.office_attach_signature($1, $2, null, 'signed', 'Ayesha Khan', 'Owner', $3, null)", [id(), ord, SIGNATURE_PNG_BASE64]);
+    await one(MANAGER, "select app.office_attach_signature($1, $2, null, 'signed', 'Ayesha Khan', 'Owner', $3, null)", [
+      id(),
+      ord,
+      SIGNATURE_PNG_BASE64,
+    ]);
     return one(MANAGER, "select (app.office_deliver($1, $2, $3, 'Ayesha at the counter')).number", [id(), ord, WH]);
   };
 

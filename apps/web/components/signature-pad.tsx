@@ -14,6 +14,18 @@ const MIN_POINTS = 8;
 const DOT = 0.01;
 const PNG_PREFIX = "data:image/png;base64,";
 
+// Blank white paper and the pen, with no state: used on mount and by the clear button.
+function paint(c: HTMLCanvasElement | null) {
+  const g = c?.getContext("2d");
+  if (!c || !g) return;
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = "#111111";
+  g.lineWidth = LINE_WIDTH;
+  g.lineCap = "round";
+  g.lineJoin = "round";
+}
+
 export function SignaturePad({ ref, onInk }: { ref: Ref<SignaturePadHandle>; onInk?: (hasInk: boolean) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -21,21 +33,15 @@ export function SignaturePad({ ref, onInk }: { ref: Ref<SignaturePadHandle>; onI
   const [hasInk, setHasInk] = useState(false);
 
   const reset = () => {
-    const c = canvas.current;
-    const g = c?.getContext("2d");
-    if (!c || !g) return;
-    g.fillStyle = "#ffffff";
-    g.fillRect(0, 0, c.width, c.height);
-    g.strokeStyle = "#111111";
-    g.lineWidth = LINE_WIDTH;
-    g.lineCap = "round";
-    g.lineJoin = "round";
+    paint(canvas.current);
     points.current = 0;
     setHasInk(false);
     onInk?.(false);
   };
 
-  useEffect(reset, []);
+  useEffect(() => {
+    paint(canvas.current);
+  }, []);
 
   useImperativeHandle(ref, () => ({
     toPng: () => {
@@ -61,7 +67,15 @@ export function SignaturePad({ ref, onInk }: { ref: Ref<SignaturePadHandle>; onI
       height={HEIGHT}
       aria-label="Signature area"
       data-testid="signature-pad"
-      style={{ width: "100%", maxWidth: WIDTH, aspectRatio: `${WIDTH} / ${HEIGHT}`, border: "2px dashed var(--border)", borderRadius: 8, background: "#fff", touchAction: "none" }}
+      style={{
+        width: "100%",
+        maxWidth: WIDTH,
+        aspectRatio: `${WIDTH} / ${HEIGHT}`,
+        border: "2px dashed var(--border)",
+        borderRadius: 8,
+        background: "#fff",
+        touchAction: "none",
+      }}
       onPointerDown={(e) => {
         const g = canvas.current?.getContext("2d");
         if (!g) return;

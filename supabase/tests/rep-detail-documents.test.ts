@@ -12,8 +12,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, run } from "./helpers/db";
-import { signOrderSql } from "./helpers/submit-approve";
 import { asLogin, type Login, newLogin, quote } from "./helpers/invite";
+import { signOrderSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const DENIED = "42501";

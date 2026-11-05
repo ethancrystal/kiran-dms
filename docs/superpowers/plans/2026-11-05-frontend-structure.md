@@ -6,6 +6,8 @@ Evidence base, all read on 2026-11-05: `origin/main` at e703fe3 (P1-21 delivery 
 
 Progress note, 2026-11-05 (slice 10, P1-28, branch claude/p1-28-office-shell, implemented, not verified): F5 for the office shell (section 4: grouped, collapsible, current route marked; only working pages listed; see A-21 for placement); section 6 Rep-detail page (profile, phones, cash and commission, submissions waiting with a link to Delivery approvals, orders, invoices, cards, territories, salons, days, visits, bag; not built from section 6: payments and collections, handover history, approving from this page); F6 for the office (invoice and receipt views, Invoices list; statement views, rep and salon views and a PDF renderer are not built). S-D1's Rep-detail item is covered by a pending list and link. Status cells in section 8 are not rewritten here.
 
+Progress note, 2026-11-05 (P1-31, on the P1-28 branch, implemented, not verified): F6 gains the invoice composer and the customer acknowledgement (D-49). Office: `/office/orders/[id]/invoice` (draft preview and display text), `/office/invoices/[id]` on a printable A4 sheet, the signature review on Delivery approvals, the salon's signing step before an office delivery. Rep: the signing screen after sending a delivery and on My deliveries. Salon: My invoices. MJ's rule: a delivery is final only with the salon's signed acknowledgement and the manager's or owner's approval. Not built: a server-side PDF, expiry or batch data, a logo (B-46).
+
 ## 1. Decisions this plan rests on (already made)
 
 | Decision | Source | Effect on the frontend |

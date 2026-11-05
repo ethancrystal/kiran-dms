@@ -6,27 +6,78 @@
 export const ONLY_VALID_PROOF = "The system receipt is the only valid proof of payment.";
 
 export type Notice = { code: string; en: string };
-export type Company = { name_en?: string; city?: string };
+export type Company = {
+  name_en?: string;
+  city?: string;
+  // Optional keys of the company.profile setting; shown only when the owner has set them (P1-31, A-22).
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  tax_registration?: string;
+  signatory_name?: string;
+  signatory_title?: string;
+};
+export type Acknowledgement = {
+  signature_id?: string;
+  outcome: "signed" | "refused" | "unable";
+  signatory_name: string | null;
+  signatory_designation: string | null;
+  signed_at: string;
+  statement_version: number;
+  matches_delivery: boolean;
+};
+
+export type InvoiceLine = {
+  line_no: number;
+  sku_id?: string;
+  sku_code: string;
+  product: string;
+  variant: string | null;
+  // Version 2 (P1-31): the customer-facing text, the unit, the expiry (null: not recorded), and the money split.
+  description?: string;
+  uom?: string;
+  expiry?: string | null;
+  qty: number;
+  list_price_paisa?: number;
+  unit_price_paisa: number;
+  discount_paisa?: number;
+  gross_paisa?: number;
+  line_total_paisa: number;
+};
 
 export type InvoiceDocument = {
+  version?: number;
+  status?: "issued" | "draft";
+  banner?: string;
   number: string;
   financial_year: string;
-  issued_at: string;
+  issued_at?: string;
+  issue_date?: string;
+  order_reference?: string;
   company: Company;
   bank_accounts: Array<{ bank: string; account_title: string; account_no: string }>;
   salon: { name: string | null; address: string | null; area: string | null };
+  customer?: {
+    reference: string | null;
+    name: string | null;
+    contact_person: string | null;
+    telephone: string | null;
+    billing_address: string | null;
+    area: string | null;
+  };
+  sales_officer?: string | null;
+  delivery_person?: string | null;
   delivery: { delivered_at: string; received_by_name: string | null; status: string };
   plan: { code: string; name: string | null };
-  lines: Array<{
-    line_no: number;
-    sku_code: string;
-    product: string;
-    variant: string | null;
-    qty: number;
-    unit_price_paisa: number;
-    line_total_paisa: number;
-  }>;
+  lines: InvoiceLine[];
   totals: { subtotal_paisa: number; discount_paisa: number; total_paisa: number };
+  total_qty?: number;
+  notes?: string | null;
+  payment_instructions?: string | null;
+  acknowledgement?: Acknowledgement | null;
+  paid_paisa?: number;
+  outstanding_paisa?: number;
   schedule: Array<{ no: number; of: number; due_on: string; pct: number; amount_paisa: number }>;
   receipts: Array<{ number: string; issued_at: string; amount_paisa: number }>;
   notices: Notice[];

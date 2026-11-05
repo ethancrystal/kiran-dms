@@ -133,7 +133,8 @@ export function Acknowledgement({
             </button>
           </p>
           <label>
-            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /> I have read the statement above
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /> I have read the statement
+            above
           </label>
           <p>
             <button type="button" disabled={!canSign} onClick={() => void sign()}>

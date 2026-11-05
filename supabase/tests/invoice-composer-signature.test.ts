@@ -156,13 +156,17 @@ const fire: Step = ["postgres", "set constraints all immediate;"];
 const ok = (scid: string, dcid: string, who: Persona = "manager"): Step[] => [sign(id(), scid), approve(scid, dcid, who)];
 /** The office records the salon's signed acknowledgement of everything left, then delivers it. */
 const officeSigned = (ocid: string, dcid: string): Step[] => [
-  ["manager", `select app.office_attach_signature('${id()}', ${oid(ocid)}, null, 'signed', 'Ayesha Khan', 'Owner', '${png()}', null);`],
+  [
+    "manager",
+    `select app.office_attach_signature('${id()}', ${oid(ocid)}, null, 'signed', 'Ayesha Khan', 'Owner', '${png()}', null);`,
+  ],
   ["manager", `select (app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha Khan')).number;`],
 ];
 /** Notes an id (read as postgres) in a transaction-local setting, so a later step under any role can use it. */
 const note = (name: string, idSql: string): Step => ["postgres", `select set_config('t.${name}', (${idSql})::text, true);`];
 const noted = (name: string) => `current_setting('t.${name}')::uuid`;
-const invoiceOf = (ocid: string) => `(select id from public.invoice where order_id = ${oid(ocid)} order by issued_at desc limit 1)`;
+const invoiceOf = (ocid: string) =>
+  `(select id from public.invoice where order_id = ${oid(ocid)} order by issued_at desc limit 1)`;
 
 beforeAll(async () => {
   await one(MANAGER, "select app.office_upsert_territory($1, $2)", [T_A, `[Test] Invoice A ${tag()}`]);
@@ -207,7 +211,12 @@ beforeAll(async () => {
   );
   const invite = async (salon: string) => {
     const email = `invoice.salon.${tag()}@example.test`;
-    const r = await run(MANAGER, "select app.office_invite($1, 'salon', '[Test] Salon contact', $2, $3) as r", [id(), email, salon], C);
+    const r = await run(
+      MANAGER,
+      "select app.office_invite($1, 'salon', '[Test] Salon contact', $2, $3) as r",
+      [id(), email, salon],
+      C,
+    );
     const token = (r.rows[0].r as { token: string }).token;
     const l = await newLogin({ email });
     const claims = JSON.stringify({
@@ -251,10 +260,7 @@ const docOf = async (steps: Step[]) => (await tx(steps))[0]?.d as Doc;
 describe("the draft is clearly a draft and changes nothing real", () => {
   it("the preview is marked, has no number, and its figures are the order's own in integer paisa", async () => {
     const o = id();
-    const d = await docOf([
-      order(o),
-      ["manager", `select app.office_invoice_preview(${oid(o)}) as d;`],
-    ]);
+    const d = await docOf([order(o), ["manager", `select app.office_invoice_preview(${oid(o)}) as d;`]]);
     expect(d.status).toBe("draft");
     expect(d.banner).toBe("DRAFT — NOT AN OFFICIAL INVOICE");
     expect(d.number).toBeUndefined();
@@ -269,7 +275,8 @@ describe("the draft is clearly a draft and changes nothing real", () => {
   });
 
   it("the preview of a submission shows the quantities the rep submitted, not the whole order", async () => {
-    const o = id(), s = id();
+    const o = id(),
+      s = id();
     const d = await docOf([
       order(o),
       submit(s, o, [[SKU1, 1]]),
@@ -282,28 +289,49 @@ describe("the draft is clearly a draft and changes nothing real", () => {
   });
 
   it("preparing text never changes the order, the SKU or the money, and creates no invoice or stock movement", async () => {
-    const o = id(), dc = id();
+    const o = id(),
+      dc = id();
     const rows = await tx([
       order(o),
-      ["postgres", `create temp table before as select (select count(*) from public.invoice) inv, (select count(*) from public.stock_movement) mv,
+      [
+        "postgres",
+        `create temp table before as select (select count(*) from public.invoice) inv, (select count(*) from public.stock_movement) mv,
                     (select sum(unit_price_paisa * qty) from public.sales_order_line where order_id = ${oid(o)}) tot,
-                    (select string_agg(sku_id::text, ',' order by sku_id) from public.sales_order_line where order_id = ${oid(o)}) skus;`],
-      ["manager", `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'Thank you', 'Pay within 7 days', jsonb_build_object('${SKU1}', 'Rose shade, 100 ml')) as r;`],
-      ["postgres", `select (select count(*) from public.invoice) = b.inv as no_invoice, (select count(*) from public.stock_movement) = b.mv as no_move,
+                    (select string_agg(sku_id::text, ',' order by sku_id) from public.sales_order_line where order_id = ${oid(o)}) skus;`,
+      ],
+      [
+        "manager",
+        `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'Thank you', 'Pay within 7 days', jsonb_build_object('${SKU1}', 'Rose shade, 100 ml')) as r;`,
+      ],
+      [
+        "postgres",
+        `select (select count(*) from public.invoice) = b.inv as no_invoice, (select count(*) from public.stock_movement) = b.mv as no_move,
                            (select sum(unit_price_paisa * qty) from public.sales_order_line where order_id = ${oid(o)}) = b.tot as same_money,
                            (select string_agg(sku_id::text, ',' order by sku_id) from public.sales_order_line where order_id = ${oid(o)}) = b.skus as same_skus
-                    from before b;`],
+                    from before b;`,
+      ],
     ]);
     expect(rows[0]).toMatchObject({ no_invoice: true, no_move: true, same_money: true, same_skus: true });
   });
 
   it("saved text shows in the preview; versions count up; the same client_id replays; another order with it is refused", async () => {
-    const o = id(), o2 = id(), dc = id();
+    const o = id(),
+      o2 = id(),
+      dc = id();
     const d = await docOf([
       order(o),
-      ["manager", `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'n1', 'p1', jsonb_build_object('${SKU1}', 'Rose shade')) as r;`],
-      ["manager", `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'n1', 'p1', jsonb_build_object('${SKU1}', 'Rose shade')) as r;`],
-      ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, 'n2', 'p2', jsonb_build_object('${SKU1}', 'Rose shade deluxe')) as r;`],
+      [
+        "manager",
+        `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'n1', 'p1', jsonb_build_object('${SKU1}', 'Rose shade')) as r;`,
+      ],
+      [
+        "manager",
+        `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'n1', 'p1', jsonb_build_object('${SKU1}', 'Rose shade')) as r;`,
+      ],
+      [
+        "manager",
+        `select app.office_save_invoice_draft('${id()}', ${oid(o)}, 'n2', 'p2', jsonb_build_object('${SKU1}', 'Rose shade deluxe')) as r;`,
+      ],
       ["manager", `select app.office_invoice_preview(${oid(o)}) as d;`],
     ]);
     expect(d.draft_version).toBe(2);
@@ -325,13 +353,28 @@ describe("the draft is clearly a draft and changes nothing real", () => {
     const o = id();
     const other = id();
     expect(
-      await txCode([order(o), ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, null, null, jsonb_build_object('${other}', 'x'));`]]),
+      await txCode([
+        order(o),
+        [
+          "manager",
+          `select app.office_save_invoice_draft('${id()}', ${oid(o)}, null, null, jsonb_build_object('${other}', 'x'));`,
+        ],
+      ]),
     ).toBe(BAD_INPUT);
     expect(
-      await txCode([order(o), ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, '${"x".repeat(501)}', null, '{}'::jsonb);`]]),
+      await txCode([
+        order(o),
+        ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, '${"x".repeat(501)}', null, '{}'::jsonb);`],
+      ]),
     ).toBe(BAD_INPUT);
     expect(
-      await txCode([order(o), ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, null, null, jsonb_build_object('${SKU1}', '${"y".repeat(121)}'));`]]),
+      await txCode([
+        order(o),
+        [
+          "manager",
+          `select app.office_save_invoice_draft('${id()}', ${oid(o)}, null, null, jsonb_build_object('${SKU1}', '${"y".repeat(121)}'));`,
+        ],
+      ]),
     ).toBe(BAD_INPUT);
     expect(
       await txCode([
@@ -346,15 +389,26 @@ describe("the draft is clearly a draft and changes nothing real", () => {
     const o = id();
     for (const who of ["repA", "salonA", "managerAal1", "anon"] as const) {
       expect(await txCode([order(o), [who, `select app.office_invoice_preview(${oid(o)});`]]), who).toBe(DENIED);
-      expect(await txCode([order(o), [who, `select app.office_save_invoice_draft('${id()}', ${oid(o)}, null, null, '{}'::jsonb);`]]), who).toBe(DENIED);
+      expect(
+        await txCode([order(o), [who, `select app.office_save_invoice_draft('${id()}', ${oid(o)}, null, null, '{}'::jsonb);`]]),
+        who,
+      ).toBe(DENIED);
     }
   });
 
   it("drafts are append-only, even for postgres", async () => {
     const o = id();
-    for (const stmt of ["update public.invoice_draft_version set notes = 'x'", "delete from public.invoice_draft_version", "truncate public.invoice_draft_version"]) {
+    for (const stmt of [
+      "update public.invoice_draft_version set notes = 'x'",
+      "delete from public.invoice_draft_version",
+      "truncate public.invoice_draft_version",
+    ]) {
       expect(
-        await txMessage([order(o), ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, 'a', null, '{}'::jsonb);`], ["postgres", stmt]]),
+        await txMessage([
+          order(o),
+          ["manager", `select app.office_save_invoice_draft('${id()}', ${oid(o)}, 'a', null, '{}'::jsonb);`],
+          ["postgres", stmt],
+        ]),
         stmt,
       ).toMatch(/append-only/);
     }
@@ -364,7 +418,9 @@ describe("the draft is clearly a draft and changes nothing real", () => {
 // ----------------------------------------------------------------- the acknowledgement ----
 describe("the customer's acknowledgement is bound to the exact lines and kept private", () => {
   it("a rep attaches a signed acknowledgement to its own submission; the office sees who signed, not the picture", async () => {
-    const o = id(), s = id(), a = id();
+    const o = id(),
+      s = id(),
+      a = id();
     const r = await tx([
       order(o),
       submit(s, o),
@@ -372,12 +428,21 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       ["manager", `select app.office_delivery_signature(${sid(s)}) as d;`],
     ]);
     const d = r[0].d as Doc;
-    expect(d).toMatchObject({ outcome: "signed", signatory_name: "Ayesha Khan", signatory_designation: "Owner", valid: true, has_picture: true, statement_version: 1 });
+    expect(d).toMatchObject({
+      outcome: "signed",
+      signatory_name: "Ayesha Khan",
+      signatory_designation: "Owner",
+      valid: true,
+      has_picture: true,
+      statement_version: 1,
+    });
     expect(JSON.stringify(d)).not.toMatch(/iVBOR|89504e47/i);
   });
 
   it("a replay returns the same acknowledgement; the same client_id with other content is refused", async () => {
-    const o = id(), s = id(), a = id();
+    const o = id(),
+      s = id(),
+      a = id();
     const rows = await tx([
       order(o),
       submit(s, o),
@@ -397,32 +462,52 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("refuses a missing name or role, a picture that is not a PNG, a tiny picture and bad base64", async () => {
-    const o = id(), s = id();
+    const o = id(),
+      s = id();
     const bad = async (name: string, role: string, img: string) =>
-      txCode([order(o), submit(s, o), ["repA", `select app.rep_attach_signature('${id()}', ${sid(s)}, 'signed', '${name}', '${role}', '${img}', null);`]]);
+      txCode([
+        order(o),
+        submit(s, o),
+        ["repA", `select app.rep_attach_signature('${id()}', ${sid(s)}, 'signed', '${name}', '${role}', '${img}', null);`],
+      ]);
     expect(await bad("A", "Owner", png())).toBe(BAD_INPUT);
     expect(await bad("Ayesha Khan", "", png())).toBe(BAD_INPUT);
     expect(await bad("Ayesha Khan", "Owner", Buffer.from("not a picture at all".repeat(30)).toString("base64"))).toBe(BAD_INPUT);
-    expect(await bad("Ayesha Khan", "Owner", Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.from("x")]).toString("base64"))).toBe(BAD_INPUT);
+    expect(
+      await bad(
+        "Ayesha Khan",
+        "Owner",
+        Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.from("x")]).toString("base64"),
+      ),
+    ).toBe(BAD_INPUT);
     expect(await bad("Ayesha Khan", "Owner", "!!!notbase64!!!")).toBe(BAD_INPUT);
   });
 
   it("a refusal or an inability is recorded honestly, with a reason, and has no picture", async () => {
-    const o = id(), s = id();
+    const o = id(),
+      s = id();
     const rows = await tx([
       order(o),
       submit(s, o),
-      ["repA", `select app.rep_attach_signature('${id()}', ${sid(s)}, 'refused', null, null, null, 'the owner was away and the cashier would not sign');`],
+      [
+        "repA",
+        `select app.rep_attach_signature('${id()}', ${sid(s)}, 'refused', null, null, null, 'the owner was away and the cashier would not sign');`,
+      ],
       ["manager", `select app.office_delivery_signature(${sid(s)}) as d;`],
     ]);
     expect(rows[0].d).toMatchObject({ outcome: "refused", valid: true, has_picture: false });
     expect(
-      await txCode([order(o), submit(s, o), ["repA", `select app.rep_attach_signature('${id()}', ${sid(s)}, 'refused', null, null, null, 'no');`]]),
+      await txCode([
+        order(o),
+        submit(s, o),
+        ["repA", `select app.rep_attach_signature('${id()}', ${sid(s)}, 'refused', null, null, null, 'no');`],
+      ]),
     ).toBe(BAD_INPUT);
   });
 
   it("only the submitting rep: not another rep, not the office, not a salon, not anonymous", async () => {
-    const o = id(), s = id();
+    const o = id(),
+      s = id();
     const call = (who: Persona) =>
       [who, `select app.rep_attach_signature('${id()}', ${sid(s)}, 'signed', 'Ayesha Khan', 'Owner', '${png()}', null);`] as Step;
     for (const who of ["repB", "manager", "owner", "salonA", "anon"] as const) {
@@ -431,12 +516,16 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("cannot be added once the delivery is decided", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     expect(await txCode([order(o), submit(s, o), ...ok(s, d), sign(id(), s)])).toBe(WRONG_STATE);
   });
 
   it("the picture reaches only the office, through a function that records every opening", async () => {
-    const o = id(), s = id(), a = id();
+    const o = id(),
+      s = id(),
+      a = id();
     const img = png();
     const base: Step[] = [
       order(o),
@@ -444,7 +533,10 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       sign(a, s, "repA", "Ayesha Khan", "Owner", img),
       note("sig", `select id from public.delivery_signature where client_id = '${a}'`),
     ];
-    const opened = await tx([...base, ["manager", `select app.office_signature_image(${noted("sig")}, 'checking the delivery') as b64;`]]);
+    const opened = await tx([
+      ...base,
+      ["manager", `select app.office_signature_image(${noted("sig")}, 'checking the delivery') as b64;`],
+    ]);
     expect(opened[0].b64).toBe(img);
     const log = await tx([
       ...base,
@@ -463,16 +555,22 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("no API role reads the acknowledgement tables or the picture directly", async () => {
-    const o = id(), s = id(), a = id();
+    const o = id(),
+      s = id(),
+      a = id();
     for (const who of ["repA", "manager", "owner", "salonA"] as const) {
       for (const t of ["delivery_signature", "delivery_signature_image"]) {
-        expect(await txCode([order(o), submit(s, o), sign(a, s), [who, `select * from public.${t};`]]), `${who} ${t}`).toBe(DENIED);
+        expect(await txCode([order(o), submit(s, o), sign(a, s), [who, `select * from public.${t};`]]), `${who} ${t}`).toBe(
+          DENIED,
+        );
       }
     }
   });
 
   it("a rep sees the status of its own acknowledgement, never another rep's, and no picture", async () => {
-    const o = id(), s = id(), a = id();
+    const o = id(),
+      s = id(),
+      a = id();
     const mine = await tx([order(o), submit(s, o), sign(a, s), ["repA", `select app.my_signature_status(${sid(s)}) as d;`]]);
     expect(mine[0].d).toMatchObject({ outcome: "signed", valid: true });
     expect(JSON.stringify(mine[0].d)).not.toMatch(/png|iVBOR/i);
@@ -481,7 +579,8 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("an acknowledgement for different lines does not match the submission, so it cannot pass for it", async () => {
-    const o = id(), s = id();
+    const o = id(),
+      s = id();
     const rows = await tx([
       order(o),
       submit(s, o),
@@ -498,7 +597,9 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("the rule: without the salon's signed acknowledgement the office's approval cannot make a delivery final", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     expect(await txMessage([order(o), submit(s, o), approve(s, d)])).toMatch(/signed acknowledgement of exactly these goods/);
     expect(await txCode([order(o), submit(s, o), approve(s, d)])).toBe(WRONG_STATE);
     // Not even the owner. And a refusal or an inability is recorded honestly, but it is not a signature.
@@ -507,16 +608,23 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       "repA",
       `select app.rep_attach_signature('${id()}', ${sid(s)}, '${outcome}', null, null, null, 'the cashier would not sign');`,
     ];
-    const codes = await Promise.all(["refused", "unable"].map((outcome) => txCode([order(o), submit(s, o), refusal(outcome), approve(s, d)])));
+    const codes = await Promise.all(
+      ["refused", "unable"].map((outcome) => txCode([order(o), submit(s, o), refusal(outcome), approve(s, d)])),
+    );
     expect(codes).toEqual([WRONG_STATE, WRONG_STATE]);
   });
 
   it("a refused approval leaves nothing official behind: no delivery, no invoice, no decision, the order still waits", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     const rows = await tx([
       order(o),
       submit(s, o),
-      ["manager", `do $$ begin perform app.office_approve_delivery(${sid(s)}, '${d}'); exception when sqlstate '55000' then null; end $$;`],
+      [
+        "manager",
+        `do $$ begin perform app.office_approve_delivery(${sid(s)}, '${d}'); exception when sqlstate '55000' then null; end $$;`,
+      ],
       [
         "postgres",
         `select (select count(*) from public.delivery where order_id = ${oid(o)})::int deliveries,
@@ -529,7 +637,12 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("an acknowledgement of other goods does not count, and one acknowledgement makes one delivery final, once", async () => {
-    const o = id(), s1 = id(), s2 = id(), s3 = id(), d1 = id(), d2 = id();
+    const o = id(),
+      s1 = id(),
+      s2 = id(),
+      s3 = id(),
+      d1 = id(),
+      d2 = id();
     // Signed for other goods: a signature row whose hash is not this submission's, and no other signature.
     expect(
       await txCode([
@@ -546,13 +659,21 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       ]),
     ).toBe(WRONG_STATE);
     // Used once: a first delivery used its acknowledgement; a second submission of the same goods needs its own.
-    expect(await txCode([order(o), submit(s1, o, [[SKU1, 1]]), ...ok(s1, d1), submit(s3, o, [[SKU1, 1]]), approve(s3, d2)])).toBe(WRONG_STATE);
-    expect(await txCode([order(o), submit(s1, o, [[SKU1, 1]]), ...ok(s1, d1), submit(s3, o, [[SKU1, 1]]), ...ok(s3, d2)])).toBeNull();
+    expect(await txCode([order(o), submit(s1, o, [[SKU1, 1]]), ...ok(s1, d1), submit(s3, o, [[SKU1, 1]]), approve(s3, d2)])).toBe(
+      WRONG_STATE,
+    );
+    expect(
+      await txCode([order(o), submit(s1, o, [[SKU1, 1]]), ...ok(s1, d1), submit(s3, o, [[SKU1, 1]]), ...ok(s3, d2)]),
+    ).toBeNull();
   });
 
   it("a rep-less order is delivered by the office only with the salon's signed acknowledgement of exactly those goods", async () => {
-    const o = id(), d = id();
-    const deliver = (l = "null"): Step => ["manager", `select (app.office_deliver('${d}', ${oid(o)}, '${WH}', 'Ayesha Khan', ${l})).number;`];
+    const o = id(),
+      d = id();
+    const deliver = (l = "null"): Step => [
+      "manager",
+      `select (app.office_deliver('${d}', ${oid(o)}, '${WH}', 'Ayesha Khan', ${l})).number;`,
+    ];
     const attach = (l: string, outcome = "signed"): Step => [
       "manager",
       outcome === "signed"
@@ -562,7 +683,14 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
     const noRep = (): Step => ["manager", `select app.office_create_order('${id()}', '${SALON}', 'CASH', ${lines(both)}, null);`];
     // order() names rep A; a rep-less order has no assigned rep, but the office may deliver either: the rule is the same.
     expect(await txMessage([order(o), deliver()])).toMatch(/signed acknowledgement of exactly these goods/);
-    expect(await tx([order(o), attach("null"), deliver(), ["postgres", `select status::text st from public.sales_order where id = ${oid(o)};`]])).toEqual([{ st: "delivered" }]);
+    expect(
+      await tx([
+        order(o),
+        attach("null"),
+        deliver(),
+        ["postgres", `select status::text st from public.sales_order where id = ${oid(o)};`],
+      ]),
+    ).toEqual([{ st: "delivered" }]);
     // Signed for everything, delivering only part: the goods differ.
     expect(await txCode([order(o), attach("null"), deliver(lines([[SKU1, 1]]))])).toBe(WRONG_STATE);
     // Signed for part, delivered for exactly that part.
@@ -578,7 +706,9 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       who,
       `select app.office_attach_signature('${id()}', ${oid(o)}, null, 'signed', 'Ayesha Khan', 'Owner', '${png()}', null);`,
     ];
-    const denied = await Promise.all((["repA", "salonA", "managerAal1", "anon"] as const).map((who) => txCode([order(o), attach(who)])));
+    const denied = await Promise.all(
+      (["repA", "salonA", "managerAal1", "anon"] as const).map((who) => txCode([order(o), attach(who)])),
+    );
     expect(denied).toEqual(Array(denied.length).fill(DENIED));
     const before = await tx([order(o), ["manager", `select app.office_order_signature(${oid(o)}) as d;`]]);
     expect((before[0].d as Doc).covers_everything_left).toBe(false);
@@ -589,7 +719,11 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
   });
 
   it("acknowledgement rows, pictures, openings and uses are append-only, even for postgres", async () => {
-    const o = id(), s = id(), a = id(), o2 = id(), s2 = id();
+    const o = id(),
+      s = id(),
+      a = id(),
+      o2 = id(),
+      s2 = id();
     const base: Step[] = [
       order(o),
       submit(s, o),
@@ -612,17 +746,26 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       "truncate public.delivery_signature_use",
     ];
     const messages = await Promise.all(statements.map((stmt) => txMessage([...base, ["postgres", stmt]])));
-    messages.forEach((m, i) => expect(m, statements[i]).toMatch(/append-only/));
+    messages.forEach((m, i) => {
+      expect(m, statements[i]).toMatch(/append-only/);
+    });
   });
 });
 
 // ------------------------------------------------------------------ the issued invoice ----
 describe("the issued invoice is a snapshot: complete, immutable and reprinted unchanged", () => {
   it("approval issues one invoice; its snapshot carries the customer, people, lines, totals and acknowledgement", async () => {
-    const o = id(), s = id(), a = id(), d = id(), dc = id();
+    const o = id(),
+      s = id(),
+      a = id(),
+      d = id(),
+      dc = id();
     const doc = await docOf([
       order(o),
-      ["manager", `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'Thank you for your business', 'Pay into the company account only', jsonb_build_object('${SKU1}', 'Rose shade, 100 ml')) as r;`],
+      [
+        "manager",
+        `select app.office_save_invoice_draft('${dc}', ${oid(o)}, 'Thank you for your business', 'Pay into the company account only', jsonb_build_object('${SKU1}', 'Rose shade, 100 ml')) as r;`,
+      ],
       submit(s, o),
       sign(a, s),
       ...ok(s, d),
@@ -637,28 +780,46 @@ describe("the issued invoice is a snapshot: complete, immutable and reprinted un
     expect(doc.lines).toHaveLength(2);
     const l1 = doc.lines.find((l: Doc) => l.description === "Rose shade, 100 ml");
     expect(l1).toBeTruthy();
-    expect(l1).toMatchObject({ qty: QTY_1, unit_price_paisa: SKU1_PAISA, gross_paisa: QTY_1 * SKU1_PAISA, discount_paisa: 0, line_total_paisa: QTY_1 * SKU1_PAISA, uom: "100 ml", expiry: null });
+    expect(l1).toMatchObject({
+      qty: QTY_1,
+      unit_price_paisa: SKU1_PAISA,
+      gross_paisa: QTY_1 * SKU1_PAISA,
+      discount_paisa: 0,
+      line_total_paisa: QTY_1 * SKU1_PAISA,
+      uom: "100 ml",
+      expiry: null,
+    });
     expect(doc.customer.reference).toMatch(/^[0-9A-F]{8}$/);
     expect(doc.sales_officer).toBeTruthy();
     expect(doc.delivery_person).toBeTruthy();
     expect(doc.notes).toBe("Thank you for your business");
     expect(doc.payment_instructions).toBe("Pay into the company account only");
-    expect(doc.acknowledgement).toMatchObject({ outcome: "signed", signatory_name: "Ayesha Khan", signatory_designation: "Owner", matches_delivery: true });
+    expect(doc.acknowledgement).toMatchObject({
+      outcome: "signed",
+      signatory_name: "Ayesha Khan",
+      signatory_designation: "Owner",
+      matches_delivery: true,
+    });
     expect(doc.paid_paisa).toBe(0);
     expect(doc.outstanding_paisa).toBe(ORDER_TOTAL);
     expect(JSON.stringify(doc)).not.toMatch(/supplier|cost_paisa|margin|signature_png|iVBOR/i);
   });
 
   it("the snapshot hash matches its document, and a reprint reads the same document", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     const rows = await tx([
       order(o),
       submit(s, o),
       ...ok(s, d),
       fire,
-      ["postgres", `select z.doc_hash = encode(sha256(convert_to(z.document::text, 'utf8')), 'hex') as hash_ok,
+      [
+        "postgres",
+        `select z.doc_hash = encode(sha256(convert_to(z.document::text, 'utf8')), 'hex') as hash_ok,
                            app.invoice_document_live(${invoiceOf(o)}) is not null as live_ok, z.document ->> 'number' as num
-                    from public.invoice_snapshot z where z.invoice_id = ${invoiceOf(o)};`],
+                    from public.invoice_snapshot z where z.invoice_id = ${invoiceOf(o)};`,
+      ],
     ]);
     expect(rows[0]).toMatchObject({ hash_ok: true, live_ok: true });
     const twice = await tx([
@@ -666,21 +827,29 @@ describe("the issued invoice is a snapshot: complete, immutable and reprinted un
       submit(s, o),
       ...ok(s, d),
       fire,
-      ["manager", `select (app.invoice_document(${invoiceOf(o)}) - 'receipts' - 'paid_paisa' - 'outstanding_paisa') = (app.invoice_document(${invoiceOf(o)}) - 'receipts' - 'paid_paisa' - 'outstanding_paisa') as same,
-                          (select count(*) from public.invoice where order_id = ${oid(o)})::int n;`],
+      [
+        "manager",
+        `select (app.invoice_document(${invoiceOf(o)}) - 'receipts' - 'paid_paisa' - 'outstanding_paisa') = (app.invoice_document(${invoiceOf(o)}) - 'receipts' - 'paid_paisa' - 'outstanding_paisa') as same,
+                          (select count(*) from public.invoice where order_id = ${oid(o)})::int n;`,
+      ],
     ]);
     expect(twice[0]).toMatchObject({ same: true, n: 1 });
   });
 
   it("later changes to the salon or the company profile do not alter an issued invoice", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     const rows = await tx([
       order(o),
       submit(s, o),
       ...ok(s, d),
       fire,
-      ["postgres", `update public.salon set name = 'Renamed After Issue', address = 'A new address' where id = '${SALON}';
-                    update public.app_config set value = jsonb_set(value, '{name_en}', '"Renamed Company"') where key = 'company.profile';`],
+      [
+        "postgres",
+        `update public.salon set name = 'Renamed After Issue', address = 'A new address' where id = '${SALON}';
+                    update public.app_config set value = jsonb_set(value, '{name_en}', '"Renamed Company"') where key = 'company.profile';`,
+      ],
       ["manager", `select app.invoice_document(${invoiceOf(o)}) as d;`],
     ]);
     const doc = rows[0].d as Doc;
@@ -690,24 +859,40 @@ describe("the issued invoice is a snapshot: complete, immutable and reprinted un
   });
 
   it("snapshots are append-only, even for postgres", async () => {
-    const o = id(), s = id(), d = id();
-    for (const stmt of ["update public.invoice_snapshot set doc_hash = 'x'", "delete from public.invoice_snapshot", "truncate public.invoice_snapshot"]) {
+    const o = id(),
+      s = id(),
+      d = id();
+    for (const stmt of [
+      "update public.invoice_snapshot set doc_hash = 'x'",
+      "delete from public.invoice_snapshot",
+      "truncate public.invoice_snapshot",
+    ]) {
       expect(await txMessage([order(o), submit(s, o), ...ok(s, d), fire, ["postgres", stmt]]), stmt).toMatch(/append-only/);
     }
   });
 
   it("a part delivery invoices only the quantities delivered, in integer paisa, and numbers do not skip", async () => {
-    const o = id(), s1 = id(), s2 = id(), d1 = id(), d2 = id();
+    const o = id(),
+      s1 = id(),
+      s2 = id(),
+      d1 = id(),
+      d2 = id();
     const rows = await tx([
       order(o),
       submit(s1, o, [[SKU1, 1]]),
       ...ok(s1, d1),
-      submit(s2, o, [[SKU1, 2], [SKU2, QTY_2]]),
+      submit(s2, o, [
+        [SKU1, 2],
+        [SKU2, QTY_2],
+      ]),
       ...ok(s2, d2),
       fire,
-      ["postgres", `select i.number, i.total_paisa, z.document ->> 'total_qty' qty
+      [
+        "postgres",
+        `select i.number, i.total_paisa, z.document ->> 'total_qty' qty
                     from public.invoice i join public.invoice_snapshot z on z.invoice_id = i.id
-                    where i.order_id = ${oid(o)} order by i.issued_at, i.number;`],
+                    where i.order_id = ${oid(o)} order by i.issued_at, i.number;`,
+      ],
     ]);
     expect(rows).toHaveLength(2);
     expect(rows[0].total_paisa).toBe(String(SKU1_PAISA));
@@ -718,34 +903,52 @@ describe("the issued invoice is a snapshot: complete, immutable and reprinted un
   });
 
   it("a rep's submission and acknowledgement issue no invoice and move no sale; only the office's approval does", async () => {
-    const o = id(), s = id(), a = id(), d = id();
+    const o = id(),
+      s = id(),
+      a = id(),
+      d = id();
     const rows = await tx([
       order(o),
       submit(s, o),
       sign(a, s),
-      ["postgres", `select (select count(*) from public.invoice where order_id = ${oid(o)})::int inv,
+      [
+        "postgres",
+        `select (select count(*) from public.invoice where order_id = ${oid(o)})::int inv,
                            (select count(*) from public.stock_movement where kind = 'sale' and source_id in (select id from public.delivery where order_id = ${oid(o)}))::int sales,
-                           (select status::text from public.sales_order where id = ${oid(o)}) st;`],
+                           (select status::text from public.sales_order where id = ${oid(o)}) st;`,
+      ],
     ]);
     expect(rows[0]).toMatchObject({ inv: 0, sales: 0, st: "confirmed" });
     for (const who of ["repA", "repB", "salonA", "managerAal1", "anon"] as const) {
       expect(await txCode([order(o), submit(s, o), approve(s, d, who)]), who).toBe(DENIED);
     }
-    const after = await tx([order(o), submit(s, o), sign(a, s), approve(s, d), fire, ["postgres", `select count(*)::int n from public.invoice where order_id = ${oid(o)};`]]);
+    const after = await tx([
+      order(o),
+      submit(s, o),
+      sign(a, s),
+      approve(s, d),
+      fire,
+      ["postgres", `select count(*)::int n from public.invoice where order_id = ${oid(o)};`],
+    ]);
     expect(after[0].n).toBe(1);
   });
 
   it("a rejected delivery keeps its submission, its acknowledgement and its decision", async () => {
-    const o = id(), s = id(), a = id();
+    const o = id(),
+      s = id(),
+      a = id();
     const rows = await tx([
       order(o),
       submit(s, o),
       sign(a, s),
       ["manager", `select (app.office_reject_delivery(${sid(s)}, '${id()}', 'wrong shade delivered')).outcome;`],
-      ["postgres", `select (select count(*) from public.delivery_submission where id = ${sid(s)})::int subs,
+      [
+        "postgres",
+        `select (select count(*) from public.delivery_submission where id = ${sid(s)})::int subs,
                            (select count(*) from public.delivery_signature where submission_id = ${sid(s)})::int sigs,
                            (select count(*) from public.delivery_submission_decision where submission_id = ${sid(s)} and outcome = 'rejected')::int dec,
-                           (select count(*) from public.invoice where order_id = ${oid(o)})::int inv;`],
+                           (select count(*) from public.invoice where order_id = ${oid(o)})::int inv;`,
+      ],
     ]);
     expect(rows[0]).toMatchObject({ subs: 1, sigs: 1, dec: 1, inv: 0 });
   });
@@ -762,7 +965,9 @@ describe("a salon reads its own invoices only", () => {
   ];
 
   it("salon A lists and opens its invoice; salon B sees none of it", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     const mine = await tx([
       ...issued(o, s, d),
       ["salonA", `select count(*)::int n, max(total_paisa) total from app.salon_my_invoices();`],
@@ -783,7 +988,9 @@ describe("a salon reads its own invoices only", () => {
   });
 
   it("a rep, the office and anonymous have no salon view; the old document function still serves the office", async () => {
-    const o = id(), s = id(), d = id();
+    const o = id(),
+      s = id(),
+      d = id();
     for (const who of ["repA", "manager", "anon"] as const) {
       expect(await txCode([...issued(o, s, d), [who, `select app.salon_my_invoices();`]]), who).toBe(DENIED);
       expect(await txCode([...issued(o, s, d), [who, `select app.salon_invoice_document(${noted("inv")});`]]), who).toBe(DENIED);

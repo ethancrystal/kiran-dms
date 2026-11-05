@@ -1,8 +1,8 @@
 "use client";
 import { use, useCallback, useEffect, useState } from "react";
+import { type AckLine, Acknowledgement, type AckResult } from "@/components/acknowledgement";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
-import { Acknowledgement, type AckLine, type AckResult } from "@/components/acknowledgement";
 import { label, position } from "@/lib/salons";
 
 type Order = { order_id: string; salon_id: string; salon_name: string | null; status: string; total_paisa: number };
@@ -165,7 +165,7 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
           {ACK_TEXT[ackResult]}
         </p>
       )}
-      {sent && (ackResult !== null || !ack) && (
+      {sent && (
         <div className="card">
           <p className="ok" data-testid="delivery-sent">
             {SENT}
