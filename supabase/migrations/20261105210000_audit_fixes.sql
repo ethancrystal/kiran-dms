@@ -12,10 +12,11 @@
 --            reads nothing and writes nothing.
 --   H7       app.office_override_stage: a manager moving a salon out of stage blocked is held to the
 --            CTL-08 monthly cap, and every move into or out of blocked writes its credit_event.
---   H2       app.request_approval sends an adjustment request on a stock location to the owner when it
---            is above approval.stock_adjustment.owner_above (the same rule app.post_adjustment applies
---            when it is used), so a missing-goods request is never approved by someone whose approval
---            cannot be posted. A malformed payload goes to the owner (fail closed).
+--   H2       app.office_adjustment_checker says which checker an adjustment needs (the rule
+--            app.post_adjustment applies when it is used: the owner above approval.stock_adjustment.
+--            owner_above), so the office pages ask the right checker when they raise the request and a
+--            missing-goods request is no longer approved by someone whose approval cannot be posted.
+--            app.request_approval and app.post_adjustment are unchanged (the posting check stays the gate).
 --   D-45     the owner's own stock adjustment posts at once, with a reason, through the new append-only
 --            public.owner_stock_adjustment (app.owner_adjust_stock for a warehouse or bag;
 --            app.office_resolve_pending for goods the owner settles as missing). The owner's own
@@ -194,47 +195,18 @@ language sql stable security definer set search_path = '' as $$
     where k.id = p_sku_id), true)
 $$;
 
-create or replace function app.request_approval(
-  p_client_id uuid, p_kind public.approval_kind, p_subject_type text, p_subject_id uuid,
-  p_payload jsonb, p_reason text, p_checker_role public.app_role default 'manager')
-returns control.approval_request
-language plpgsql security definer set search_path = '' as $$
-declare
-  v_role public.app_role := app.assert_actor_ready();
-  v      control.approval_request;
-  v_checker public.app_role := p_checker_role;
+-- H2: which checker an adjustment of this SKU and quantity needs, for the office pages to ask when they
+-- raise the request (Stock: opening stock; Delivery approvals: goods missing). Owner or manager at AAL2.
+-- app.post_adjustment applies the same rule when the approval is used, so it stays the gate.
+create function app.office_adjustment_checker(p_sku_id uuid, p_qty_delta integer)
+returns public.app_role
+language plpgsql stable security definer set search_path = '' as $$
 begin
-  select * into v from control.approval_request where client_id = p_client_id;
-  if v.id is not null then
-    if v.maker_id = auth.uid() then return v; end if;        -- idempotent replay
-    raise exception using errcode = '23505', message = 'client_id already used';
+  perform app.assert_office();
+  if p_qty_delta is null or p_qty_delta = 0 then
+    raise exception using errcode = '22023', message = 'an adjustment is a quantity up or down';
   end if;
-  if v_role = 'rep' and p_kind not in ('discount', 'return_accept', 'payment_reversal') then
-    perform app.raise_denied('reps may only request discounts, return acceptance or payment reversals');
-  end if;
-  if v_checker not in ('manager', 'owner') then v_checker := 'manager'; end if;
-  -- Owner-only decisions (doc 06 §2, doc 13 §9): write-offs always; anything a manager makes
-  -- that a manager would otherwise check is still fine (maker ≠ checker is per person).
-  if p_kind = 'write_off' then v_checker := 'owner'; end if;
-  -- H2 (P1-30): a stock adjustment above the owner threshold needs the owner, whatever the caller asked,
-  -- because app.post_adjustment refuses to post it otherwise. Checked in order, so nothing is cast
-  -- before its shape is known.
-  if p_kind = 'adjustment' and p_subject_type = 'stock_location' then
-    v_checker := case
-      when coalesce(jsonb_typeof(p_payload -> 'qty_delta'), '') <> 'number' then 'owner'
-      when coalesce(p_payload ->> 'qty_delta', '') !~ '^-?[0-9]{1,9}$' then 'owner'
-      when coalesce(p_payload ->> 'sku_id', '') !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then 'owner'
-      when app.adjustment_needs_owner((p_payload ->> 'sku_id')::uuid, (p_payload ->> 'qty_delta')::bigint) then 'owner'
-      else v_checker end::public.app_role;
-  end if;
-  perform app.set_purpose('approval requested: ' || p_kind::text);
-  insert into control.approval_request
-    (client_id, kind, subject_type, subject_id, payload, maker_id, checker_role_required, reason)
-  values
-    (p_client_id, p_kind, p_subject_type, p_subject_id, coalesce(p_payload, '{}'::jsonb),
-     auth.uid(), v_checker, p_reason)
-  returning * into v;
-  return v;
+  return case when app.adjustment_needs_owner(p_sku_id, p_qty_delta) then 'owner' else 'manager' end::public.app_role;
 end $$;
 
 -- =============================================================================
@@ -1648,7 +1620,7 @@ revoke all on function
   from public, anon, authenticated, service_role;
 
 revoke all on function
-  app.owner_adjust_stock(uuid, uuid, uuid, integer, text),
+  app.owner_adjust_stock(uuid, uuid, uuid, integer, text), app.office_adjustment_checker(uuid, integer),
   app.office_pending_stock(), app.office_pending_approvals(),
   app.office_reverse_payment(uuid, uuid, text), app.office_salon_payments(uuid),
   app.office_cash_cap_reps(),
@@ -1658,7 +1630,7 @@ revoke all on function
   app.office_overview_counts(), app.office_overview_rows()
   from public, anon, authenticated, service_role;
 grant execute on function
-  app.owner_adjust_stock(uuid, uuid, uuid, integer, text),
+  app.owner_adjust_stock(uuid, uuid, uuid, integer, text), app.office_adjustment_checker(uuid, integer),
   app.office_pending_stock(), app.office_pending_approvals(),
   app.office_reverse_payment(uuid, uuid, text), app.office_salon_payments(uuid),
   app.office_cash_cap_reps(),

@@ -317,24 +317,34 @@ describe("H7: the manager's stage unblock respects the CTL-08 cap and writes its
 
 // =============================================================================
 describe("H2: an adjustment request goes to the checker who can approve it", () => {
-  const req = (m: string, delta: number | string, sku = SKU): Step => [
+  const req = (m: string, delta: number, sku = SKU): Step => [
     "manager",
-    `select '${m}' as mark, (app.request_approval(gen_random_uuid(), 'adjustment', 'stock_location', '${WH}',
-       jsonb_build_object('sku_id', '${sku}', 'qty_delta', ${delta}), 'audit test count', 'manager')).checker_role_required::text as c;`,
+    `select '${m}' as mark, app.office_adjustment_checker('${sku}', ${delta})::text as c;`,
   ];
-  it("above the threshold (11 units, or over Rs 10,000) the owner; within it the manager; a malformed payload the owner", async () => {
-    const r = await tx([
-      req("above", ABOVE_UNITS),
-      req("at", AT_UNITS),
-      req("small", SMALL),
-      req("text", "'x'::text"),
-      req("unknown", SMALL, id()),
-    ]);
+  it("above the threshold (11 units, or over Rs 10,000) the owner; within it the manager; an unknown SKU the owner", async () => {
+    const r = await tx([req("above", ABOVE_UNITS), req("at", AT_UNITS), req("small", SMALL), req("unknown", SMALL, id())]);
     expect(r.above[0].c).toBe("owner");
     expect(r.at[0].c).toBe("manager"); // 10 units at Rs 1,000 is Rs 10,000: not over either line
     expect(r.small[0].c).toBe("manager");
-    expect(r.text[0].c).toBe("owner");
     expect(r.unknown[0].c).toBe("owner");
+  });
+
+  it("the same rule as posting: a manager's request it names the owner for cannot be posted on a manager's approval", async () => {
+    const cid = id();
+    const ask: Step = [
+      "manager",
+      `select app.request_approval('${cid}', 'adjustment', 'stock_location', '${WH}',
+         jsonb_build_object('sku_id', '${SKU}', 'qty_delta', ${-ABOVE_UNITS}), 'opening stock count',
+         app.office_adjustment_checker('${SKU}', ${-ABOVE_UNITS}));`,
+    ];
+    const rid = `(select id from control.approval_request where client_id = '${cid}')`;
+    const r = await tx([
+      ask,
+      ["owner", `select app.decide_approval(${rid}, true, 'counted and checked');`],
+      mark("m", `(app.office_post_adjustment(gen_random_uuid(), ${rid})).qty as q`, "manager"),
+    ]);
+    expect(r.m[0].q).toBe(-ABOVE_UNITS);
+    expect(await txCode([["repA", `select app.office_adjustment_checker('${SKU}', ${SMALL});`]])).toBe(DENIED);
   });
 });
 
