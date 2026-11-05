@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import type { Approval } from "@/lib/approvals";
@@ -16,7 +17,7 @@ type Location = {
   active: boolean;
 };
 type Person = { id: string; full_name: string; role: string; status: string };
-type Sku = { id: string; code: string; variant: string | null };
+type Sku = { id: string; code: string; variant: string | null; active: boolean; list_price_paisa: number | null };
 type OnHand = { location_id: string; sku_id: string; on_hand: number };
 type Issue = {
   id: string;
@@ -77,9 +78,7 @@ export default function Stock() {
             .order("name"),
         ),
         rows<Person>(db().from("user_profile").select("id, full_name, role, status").order("full_name")),
-        rows<Sku>(
-          db().from("sku").select("id, code, variant").eq("active", true).not("list_price_paisa", "is", null).order("code"),
-        ),
+        rows<Sku>(db().from("sku").select("id, code, variant, active, list_price_paisa").order("code")),
         rpc<OnHand[]>("stock_on_hand", { p_location_id: null }),
         rows<Issue>(
           db()
@@ -119,6 +118,8 @@ export default function Stock() {
     const s = skus.find((x) => x.id === id);
     return s ? `${s.code}${s.variant ? ` ${s.variant}` : ""}` : "Unknown SKU";
   };
+  // Only an active, priced SKU can be asked for or issued; a return names whatever the bag holds.
+  const issuable = skus.filter((s) => s.active && s.list_price_paisa !== null);
   const warehouses = locations.filter((l) => l.kind === "warehouse" && l.active);
   const bags = locations.filter((l) => l.kind === "rep_bag" && l.active);
   const repsWithoutBag = people.filter(
@@ -133,6 +134,9 @@ export default function Stock() {
       <p className="muted">
         Stock moves only through the database: opening stock by an approved adjustment, and stock to a rep&apos;s bag only when
         the rep confirms the same count.
+      </p>
+      <p>
+        <Link href="/office/stock/levels">Availability, low stock, reorder points and counts</Link>
       </p>
       {notice && <output className="ok">{notice}</output>}
       <ListState loading={loading} error={error} empty={false} emptyText="" />
@@ -201,7 +205,7 @@ export default function Stock() {
               A manager asks for an adjustment; the owner approves it on Approvals (nobody approves their own request), then it is
               posted here.
             </p>
-            <OpeningStock warehouses={warehouses} skus={skus} onDone={done} />
+            <OpeningStock warehouses={warehouses} skus={issuable} onDone={done} />
             {adjustments.length > 0 && (
               <ul className="plain">
                 {adjustments.map((a) => (
@@ -217,7 +221,20 @@ export default function Stock() {
 
           <section aria-labelledby="issue-h">
             <h2 id="issue-h">Issue stock to a rep&apos;s bag</h2>
-            <IssueForm warehouses={warehouses} bags={bags} skus={skus} personName={personName} onDone={done} />
+            <IssueForm warehouses={warehouses} bags={bags} skus={issuable} personName={personName} onDone={done} />
+          </section>
+
+          <section aria-labelledby="return-h">
+            <h2 id="return-h">Take stock back from a rep&apos;s bag</h2>
+            <p className="muted">The rep counts what it hands back. Nothing moves until the rep confirms the same count.</p>
+            <ReturnForm
+              warehouses={warehouses}
+              bags={bags}
+              onHand={onHand}
+              skuName={skuName}
+              personName={personName}
+              onDone={done}
+            />
           </section>
 
           <section aria-labelledby="issues-h">
@@ -228,8 +245,17 @@ export default function Stock() {
               <ul className="plain">
                 {issues.map((i) => (
                   <li key={i.id} data-testid="stock-issue">
-                    <span className="badge">{label(i.status)}</span> {locName(i.warehouse_id)}{" "}
-                    {i.direction === "to_rep" ? "to" : "from"} {locName(i.bag_id)}: {linesText(i.lines)}
+                    <span className="badge">{label(i.status)}</span>{" "}
+                    {i.direction === "to_rep" ? (
+                      <>
+                        {locName(i.warehouse_id)} to {locName(i.bag_id)}
+                      </>
+                    ) : (
+                      <>
+                        Return from {locName(i.bag_id)} to {locName(i.warehouse_id)}
+                      </>
+                    )}
+                    : {linesText(i.lines)}
                     {i.status === "disputed" && <> · the rep counted {linesText(i.counted_lines) || "nothing"}</>}
                     <br />
                     <span className="muted">
@@ -590,6 +616,105 @@ function IssueForm({
       <FormError error={error} />
       <button type="submit" className="inline" disabled={busy}>
         Propose the issue
+      </button>
+    </form>
+  );
+}
+
+function ReturnForm({
+  warehouses,
+  bags,
+  onHand,
+  skuName,
+  personName,
+  onDone,
+}: {
+  warehouses: Array<{ id: string; name: string }>;
+  bags: Location[];
+  onHand: OnHand[];
+  skuName: (id: string) => string;
+  personName: (id: string | null) => string;
+  onDone: Done;
+}) {
+  const [warehouse, setWarehouse] = useState("");
+  const [bag, setBag] = useState("");
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { key, renew } = useKey();
+  const held = onHand.filter((h) => h.location_id === bag);
+  return (
+    <form
+      aria-label="Take stock back from a bag"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setError(null);
+        const typed = held.filter((h) => (qty[h.sku_id] ?? "").trim() !== "");
+        const parsed = typed.map((h) => ({ sku_id: h.sku_id, qty: Number(qty[h.sku_id]) }));
+        if (parsed.length === 0 || parsed.some((l) => !Number.isInteger(l.qty) || l.qty <= 0)) {
+          setError("Type a whole quantity above 0 for at least one line.");
+          return;
+        }
+        setBusy(true);
+        try {
+          await rpc("office_propose_stock_issue", {
+            p_client_id: key,
+            p_direction: "to_warehouse",
+            p_warehouse_id: warehouse || null,
+            p_bag_id: bag || null,
+            p_lines: parsed,
+          });
+          renew();
+          setQty({});
+          await onDone("Return proposed. Nothing moves until the rep confirms the same count.");
+        } catch (err) {
+          setError((err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label htmlFor="return-bag">Take back from the bag of</label>
+      <select
+        id="return-bag"
+        value={bag}
+        onChange={(e) => {
+          setBag(e.target.value);
+          setQty({});
+        }}
+        required
+      >
+        <option value="">Choose a rep&apos;s bag</option>
+        {bags.map((b) => (
+          <option key={b.id} value={b.id}>
+            {personName(b.owner_user_id)} · {b.name}
+          </option>
+        ))}
+      </select>
+      <label htmlFor="return-warehouse">Into warehouse</label>
+      <select id="return-warehouse" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} required>
+        <option value="">Choose a warehouse</option>
+        {warehouses.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.name}
+          </option>
+        ))}
+      </select>
+      {bag && held.length === 0 && <p className="muted">This bag holds nothing.</p>}
+      {held.map((h) => (
+        <div key={h.sku_id}>
+          <label htmlFor={`return-qty-${h.sku_id}`}>Units back of {skuName(h.sku_id)}</label>
+          <input
+            id={`return-qty-${h.sku_id}`}
+            inputMode="numeric"
+            value={qty[h.sku_id] ?? ""}
+            onChange={(e) => setQty((all) => ({ ...all, [h.sku_id]: e.target.value }))}
+          />
+        </div>
+      ))}
+      <FormError error={error} />
+      <button type="submit" className="inline" disabled={busy}>
+        Propose the return
       </button>
     </form>
   );

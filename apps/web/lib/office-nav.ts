@@ -34,6 +34,7 @@ export const OFFICE_NAV: readonly NavGroup[] = [
     items: [
       { href: "/office/products", label: "Products" },
       { href: "/office/stock", label: "Stock" },
+      { href: "/office/stock/levels", label: "Stock levels" },
     ],
   },
   {
@@ -52,6 +53,7 @@ export const OFFICE_NAV: readonly NavGroup[] = [
       { href: "/office/team", label: "Team" },
       { href: "/office/devices", label: "Devices" },
       { href: "/office/reps", label: "Rep performance" },
+      { href: "/office/routes", label: "Routes" },
     ],
   },
 ];
