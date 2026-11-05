@@ -1017,8 +1017,10 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
 // Slice 2 (P1-19; D-37, D-39): the manager adds a [Dummy] product and SKU on Products, sets its list
 // price with a reason, gives a salon its own lower price on the salon page, and makes an order for that
 // salon with no price typed: the database takes the salon's price, and because it is below list the
-// order waits for a discount approval (OQ-33 default). No picture is uploaded: this stack runs without
-// storage-api, so the picture path is covered by the database tests only.
+// order waits for a discount approval (OQ-33 default). The manager also uploads a picture: the stack runs the
+// storage service, so the upload and the signed read go through the bucket's real policies.
+// The smallest valid PNG (one transparent pixel), for the picture upload.
+const ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const CATALOGUE_LIST_RS = 1000;
 const CATALOGUE_SALON_RS = 900;
 const PAISA_PER_RUPEE = 100;
@@ -1044,6 +1046,19 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   const card = page.getByRole("region", { name: `Product ${productName}` });
   await expect(card).toContainText("[Dummy] A shade for the stack test.");
   await expect(card).toContainText("No picture");
+  // A picture: a real 1 x 1 PNG, uploaded through the page, stored in the private bucket and shown through a signed URL.
+  await card
+    .getByLabel("Add a picture")
+    .setInputFiles({ name: "shade.png", mimeType: "image/png", buffer: Buffer.from(ONE_PIXEL_PNG, "base64") });
+  await card.getByRole("button", { name: "Upload picture" }).click();
+  await expect(page.getByText(`Picture of ${productName} saved.`)).toBeVisible();
+  const picture = page.getByRole("region", { name: `Product ${productName}` }).getByRole("img", { name: productName });
+  await expect(picture).toBeVisible();
+  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  await page.reload();
+  await expect(
+    page.getByRole("region", { name: `Product ${productName}` }).getByRole("img", { name: productName }),
+  ).toBeVisible();
   const addSku = card.getByRole("form", { name: `Add a SKU to ${productName}` });
   await addSku.getByLabel("SKU code").fill(code);
   await addSku.getByLabel("Variant").fill("[Dummy] Shade 7");
@@ -1090,6 +1105,62 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   await page.reload();
   const row = page.getByRole("row").filter({ hasText: seed.catalogueSalon.name });
   await expect(row).toContainText(salonPrice);
+});
+
+// ADM-01: on a fresh database nothing else creates a product group, and a product needs one. Groups are
+// config, owner only in doc 06 section 2. The owner's changes survive a reload and reach the Add a product
+// choices; the database's refusal of a repeated name is shown; a manager sees the list but no controls.
+test("the owner adds, edits and deactivates a product group, and a product can use it (ADM-01)", async ({ page }) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const name = `[Dummy] Group ${Date.now()}`;
+  await officeSignIn(page, owner);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Products", exact: true }).click();
+
+  const add = page.getByRole("form", { name: "New product group" });
+  await add.getByLabel("New group name").fill(name);
+  await add.getByLabel("Default cycle (days").fill("3.5");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).toContainText("whole number of days");
+  // The database's refusal replaces the page's own message, so this cannot pass on the stale alert above.
+  await add.getByLabel("Default cycle (days").fill("400");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).not.toContainText("whole number of days");
+  await expect(add.getByRole("alert")).toBeVisible();
+  await add.getByLabel("Default cycle (days").fill("21");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(page.getByText(`Group ${name} added.`)).toBeVisible();
+  await page.reload();
+  const row = page.getByRole("listitem", { name: `Group ${name}` });
+  await expect(row).toContainText("21 days");
+  await expect(page.locator("#new-group option", { hasText: name })).toHaveCount(1);
+
+  await add.getByLabel("New group name").fill(name);
+  await add.getByLabel("Default cycle (days").fill("30");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).toBeVisible();
+
+  await row.getByRole("button", { name: `Edit ${name}` }).click();
+  await row.getByLabel("Default cycle (days)").fill("30");
+  await row.getByRole("button", { name: "Save group" }).click();
+  await expect(page.getByText(`${name} saved.`)).toBeVisible();
+  await page.reload();
+  await expect(row).toContainText("30 days");
+
+  await row.getByRole("button", { name: `Deactivate ${name}` }).click();
+  await expect(row).toContainText("Inactive");
+  await expect(page.locator("#new-group option", { hasText: name })).toHaveCount(0);
+  await row.getByRole("button", { name: `Activate ${name}` }).click();
+  await expect(page.locator("#new-group option", { hasText: name })).toHaveCount(1);
+});
+
+test("a manager sees the product groups but no controls for them (ADM-01, doc 06 section 2)", async ({ page }) => {
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Products", exact: true }).click();
+  await expect(page.getByText("Only the owner adds or changes product groups")).toBeVisible();
+  await expect(page.getByRole("listitem", { name: `Group ${seed.productGroup.name}` })).toBeVisible();
+  await expect(page.getByRole("form", { name: "New product group" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `Edit ${seed.productGroup.name}` })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `Deactivate ${seed.productGroup.name}` })).toHaveCount(0);
 });
 
 // Slice 6 (P1-23; D-34, D-41): the salon invited in the slice 1 journey (suspended at its end, so the
