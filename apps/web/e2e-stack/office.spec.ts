@@ -575,6 +575,7 @@ async function signOnScreen(page: Page) {
   await expect(ack).toBeVisible();
   await ack.getByLabel("Name of the person signing").fill("Ayesha Khan");
   await ack.getByLabel("Their role at the salon").fill("Owner");
+  await ack.getByTestId("signature-pad").scrollIntoViewIfNeeded();
   const box = await ack.getByTestId("signature-pad").boundingBox();
   if (!box) throw new Error("the signature area is not on the page");
   const stroke = [

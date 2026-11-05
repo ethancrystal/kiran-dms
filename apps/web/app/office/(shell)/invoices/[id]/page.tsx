@@ -78,7 +78,7 @@ function Invoice({ id }: { id: string }) {
   };
 
   return (
-    <article>
+    <div>
       <p className="row no-print">
         <Link href="/office/invoices">Back to invoices</Link>
         {refs && <Link href={`/office/orders/${refs.order_id}`}>Open the order</Link>}
@@ -117,6 +117,6 @@ function Invoice({ id }: { id: string }) {
           </ul>
         )}
       </section>
-    </article>
+    </div>
   );
 }

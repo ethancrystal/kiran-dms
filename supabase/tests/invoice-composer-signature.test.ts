@@ -586,9 +586,9 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
       submit(s, o),
       [
         "postgres",
-        `insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_fingerprint, outcome,
+        `insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_hash, outcome,
             signatory_name, signatory_designation, statement_version, statement_text, lines_hash, signature_size, signature_hash, evidence_hash)
-         select '${id()}', ${sid(s)}, order_id, salon_id, rep_id, 'dev', 'signed', 'Ayesha Khan', 'Owner', 1, 'old', repeat('0', 64), 300, repeat('1', 64), repeat('2', 64)
+         select '${id()}', ${sid(s)}, order_id, salon_id, rep_id, repeat('3', 64), 'signed', 'Ayesha Khan', 'Owner', 1, 'old', repeat('0', 64), 300, repeat('1', 64), repeat('2', 64)
          from public.delivery_submission where id = ${sid(s)};`,
       ],
       ["manager", `select app.office_delivery_signature(${sid(s)}) as d;`],
@@ -650,9 +650,9 @@ describe("the customer's acknowledgement is bound to the exact lines and kept pr
         submit(s2, o, [[SKU1, 2]]),
         [
           "postgres",
-          `insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_fingerprint, outcome,
+          `insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_hash, outcome,
              signatory_name, signatory_designation, statement_version, statement_text, lines_hash, signature_size, signature_hash, evidence_hash)
-           select '${id()}', ${sid(s2)}, order_id, salon_id, rep_id, 'dev', 'signed', 'Ayesha Khan', 'Owner', 1, 'old', repeat('0', 64), 300, repeat('1', 64), repeat('2', 64)
+           select '${id()}', ${sid(s2)}, order_id, salon_id, rep_id, repeat('3', 64), 'signed', 'Ayesha Khan', 'Owner', 1, 'old', repeat('0', 64), 300, repeat('1', 64), repeat('2', 64)
            from public.delivery_submission where id = ${sid(s2)};`,
         ],
         approve(s2, d2),

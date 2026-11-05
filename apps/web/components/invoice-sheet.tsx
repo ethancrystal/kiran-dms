@@ -52,7 +52,7 @@ export function InvoiceSheet({ doc, signatureImage }: { doc: InvoiceDocument; si
           {c.tax_registration && <div>Tax registration: {c.tax_registration}</div>}
         </div>
         <div className="inv-title">
-          <h1>{draft ? "Invoice (draft)" : "Invoice"}</h1>
+          <h1>{draft ? "Invoice (draft)" : `Invoice ${doc.number}`}</h1>
           <div data-testid="doc-number">{draft ? "No number until it is issued" : doc.number}</div>
         </div>
       </header>

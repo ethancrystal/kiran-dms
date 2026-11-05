@@ -54,7 +54,7 @@ create table public.delivery_signature (
   order_id              uuid not null references public.sales_order (id),
   salon_id              uuid not null references public.salon (id),
   rep_id                uuid not null references public.user_profile (id),     -- who recorded it: the delivering rep, or the office user
-  device_fingerprint    text not null,
+  device_hash           text not null,                                       -- sha-256 of the device id; the raw id is never stored (B-16)
   outcome               text not null check (outcome in ('signed', 'refused', 'unable')),
   signatory_name        text check (length(btrim(signatory_name)) between 2 and 80),
   signatory_designation text check (length(btrim(signatory_designation)) between 2 and 80),
@@ -194,7 +194,7 @@ declare
   v_hash  text;
   v_lines text;
   v_now   timestamptz := now();
-  v_dev   text := coalesce(app.request_device_id(), 'unknown');
+  v_dev   text := encode(sha256(convert_to(coalesce(app.request_device_id(), 'unknown'), 'utf8')), 'hex');   -- never the raw id
 begin
   if v_role <> 'rep' then perform app.raise_denied('only the delivering rep attaches the customer''s acknowledgement'); end if;
   if p_client_id is null then
@@ -237,7 +237,7 @@ begin
     raise exception using errcode = '22023', message = 'say in a few words why the salon did not sign (5 to 300 characters)';
   end if;
   perform app.set_purpose('customer acknowledgement of receipt');
-  insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_fingerprint, outcome,
+  insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_hash, outcome,
       signatory_name, signatory_designation, statement_version, statement_text, lines_hash, signature_size, signature_hash,
       evidence_hash, note, signed_at)
   values (p_client_id, sub.id, sub.order_id, sub.salon_id, auth.uid(), v_dev, p_outcome,
@@ -326,7 +326,7 @@ declare
   v_hash  text;
   v_lh    text;
   v_now   timestamptz := now();
-  v_dev   text := coalesce(app.request_device_id(), 'office');
+  v_dev   text := encode(sha256(convert_to(coalesce(app.request_device_id(), 'office'), 'utf8')), 'hex');   -- never the raw id
 begin
   if p_client_id is null then
     raise exception using errcode = '22023', message = 'an acknowledgement needs a client_id (idempotency key, H-08)';
@@ -380,7 +380,7 @@ begin
     raise exception using errcode = '22023', message = 'say in a few words why the salon did not sign (5 to 300 characters)';
   end if;
   perform app.set_purpose('customer acknowledgement of receipt (office delivery)');
-  insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_fingerprint, outcome,
+  insert into public.delivery_signature (client_id, submission_id, order_id, salon_id, rep_id, device_hash, outcome,
       signatory_name, signatory_designation, statement_version, statement_text, lines_hash, signature_size, signature_hash,
       evidence_hash, note, signed_at)
   values (p_client_id, null, o.id, o.salon_id, auth.uid(), v_dev, p_outcome,
