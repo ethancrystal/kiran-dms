@@ -34,7 +34,7 @@ Pay structure (proposal, to be set by the owner): modest fixed salary + commissi
 
 ## 4. Rules every rep signs (and the app enforces)
 
-1. **No paper receipts, ever.** Only the system's numbered receipt sent to the salon's registered WhatsApp/SMS is valid. Invoices say so in Urdu and English. A rep handing out any other receipt is dismissed.
+1. **No paper receipts, ever.** Only the system's numbered receipt sent to the salon's registered WhatsApp/SMS is valid. Invoices and receipts say so in English only (MJ, 2026-11-05; the interface and the system-generated documents are English only). A rep handing out any other receipt is dismissed.
 2. **Record payment at the salon, immediately.** The app captures GPS and time; recording far from the salon or hours later is flagged (CTL-02).
 3. **Cash is Kiran's from the moment it is received.** It is handed over the same day; the rep acknowledges the counted figure in their own app (CTL-03). Variance is the rep's responsibility.
 4. **Stock in the bag is Kiran's.** Daily close must match. Shortfalls are recovered from commission (policy) and investigated.
