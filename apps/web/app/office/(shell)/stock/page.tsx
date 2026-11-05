@@ -165,6 +165,7 @@ export default function Stock() {
                     <td data-label="Rep">{personName(l.owner_user_id)}</td>
                     <td data-label="Bag value limit">
                       {l.bag_value_limit_paisa === null ? "" : rupees(Number(l.bag_value_limit_paisa))}
+                      {myRole === "owner" && l.kind === "rep_bag" && <BagLimit bag={l} onDone={done} />}
                     </td>
                     <td data-label="Active">{l.active ? "yes" : "no"}</td>
                   </tr>
@@ -355,6 +356,67 @@ function AddWarehouse({ onDone }: { onDone: Done }) {
         Add warehouse
       </button>
       <FormError error={error} />
+    </form>
+  );
+}
+
+// FLOW-17, M9 (P1-30): the owner changes a rep bag's value limit with a reason (app.owner_set_bag_limit,
+// owner only, A-08). A stock issue that would take the bag past it is refused by the database.
+function BagLimit({ bag, onDone }: { bag: Location; onDone: Done }) {
+  const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!open)
+    return (
+      <button type="button" className="inline link" onClick={() => setOpen(true)}>
+        Change limit
+      </button>
+    );
+  return (
+    <form
+      aria-label={`Change the value limit of ${bag.name}`}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setError(null);
+        const paisa = toPaisa(limit);
+        if (paisa === null) return setError("Enter the limit in rupees, for example 75000.");
+        setBusy(true);
+        try {
+          await rpc("owner_set_bag_limit", {
+            p_location_id: bag.id,
+            p_bag_value_limit_paisa: paisa,
+            p_reason: reason.trim(),
+          });
+          setOpen(false);
+          setLimit("");
+          setReason("");
+          await onDone(`The value limit of ${bag.name} is now ${rupees(paisa)}.`);
+        } catch (err) {
+          setError((err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label>
+        New value limit (Rs)
+        <input inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} required />
+      </label>
+      <label>
+        Why change the limit
+        <input value={reason} onChange={(e) => setReason(e.target.value)} minLength={REASON_MIN} maxLength={300} required />
+      </label>
+      <FormError error={error} />
+      <div className="row">
+        <button type="submit" className="inline" disabled={busy}>
+          Save limit
+        </button>
+        <button type="button" className="inline link" onClick={() => setOpen(false)} disabled={busy}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

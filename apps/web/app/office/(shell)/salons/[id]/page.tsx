@@ -3,6 +3,8 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
+import { SalonContact } from "@/components/salon-contact";
+import { SalonCredit } from "@/components/salon-credit";
 import { SalonPayments } from "@/components/salon-payments";
 import { Timeline } from "@/components/timeline";
 import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
@@ -130,12 +132,11 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         </p>
       )}
 
-      <section className="card" aria-labelledby="contact-h">
-        <h2 id="contact-h">Primary contact</h2>
-        <p>{contact ? `${contact.name ?? "No name"} · ${contact.phone}` : "No phone recorded."}</p>
-      </section>
+      <SalonContact key={contact?.phone ?? "none"} salonId={id} contact={contact} onDone={done} />
 
       <RepAssignment salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
+
+      <SalonCredit salonId={id} stageBlocked={salon.stage === "blocked"} />
 
       <SalonPrices salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
 

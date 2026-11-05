@@ -82,7 +82,10 @@ export default function People() {
   return (
     <>
       <h1>People</h1>
-      <p className="muted">Invite reps and salons here. The owner adds owners and managers, and offboards people, on Team.</p>
+      <p className="muted">
+        Invite reps and salons here. The owner adds managers and offboards people on Team. A person&apos;s role cannot be changed
+        in the app.
+      </p>
       {notice && <output className="ok">{notice}</output>}
       <InviteForm onInvited={load} />
 

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
+import { OfficeAddSalon } from "@/components/office-add-salon";
 import { db, rows } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 
@@ -13,6 +14,7 @@ type Row = {
   name: string | null;
   type: string;
   stage: string;
+  approval_status: string;
   area: { name: string; territory: { name: string } | null } | null;
 };
 
@@ -36,7 +38,7 @@ export default function OfficeSalons() {
     try {
       let q = db()
         .from("salon")
-        .select("id, name, type, stage, area:area_id(name, territory:territory_id(name))")
+        .select("id, name, type, stage, approval_status, area:area_id(name, territory:territory_id(name))")
         .order("name", { nullsFirst: false })
         .order("id")
         .range(page * PAGE, page * PAGE + PAGE);
@@ -61,6 +63,7 @@ export default function OfficeSalons() {
       <p>
         <Link href="/office/salons/approvals">Salon approvals</Link>
       </p>
+      <OfficeAddSalon />
       <form
         className="inline-form"
         onSubmit={(e) => {
@@ -117,6 +120,9 @@ export default function OfficeSalons() {
                 <td data-label="Type">{label(s.type)}</td>
                 <td data-label="Stage">
                   <span className="badge">{label(s.stage)}</span>
+                  {s.approval_status !== "approved" && (
+                    <span className={`badge ${s.approval_status}`}> {label(s.approval_status)}</span>
+                  )}
                 </td>
               </tr>
             ))}
