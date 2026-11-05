@@ -15,7 +15,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fx, MANAGER, OWNER, REP_A, run } from "./helpers/db";
+import { approveSalon, fx, MANAGER, OWNER, REP_A, run } from "./helpers/db";
 import { legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
@@ -183,6 +183,10 @@ beforeAll(async () => {
     PIN_LAT,
     PIN_LNG,
   ]);
+  // D-35: a salon a rep creates is pending until the office approves it; orders on it wait for that.
+  await approveSalon(SALON);
+  await approveSalon(SALON_NOPIN);
+  await approveSalon(SALON_B);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Approval colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Approval colour')", [PRODUCT, GROUP]);
   await inSeries([SKU1, SKU2, SKU3], (s) =>
