@@ -83,6 +83,11 @@ const CARD_TEXT = "[Test] 2 bottles of shade 5";
 const CARD_QTY = 2;
 let journeySalon = "";
 let repPhone: Awaited<ReturnType<BrowserContext["storageState"]>> | null = null;
+// Slice 6 (P1-23): the salon invited in the slice 1 journey, its address and its signed-in session
+// (an emailed-code session, which the salon functions require), kept for the portal journey: the
+// local stack sends at most 2 e-mails an hour, so no second salon signs in.
+let portalSalon = { name: "", email: "" };
+let salonPhone: Awaited<ReturnType<BrowserContext["storageState"]>> | null = null;
 
 test.describe.configure({ mode: "serial" });
 
@@ -657,6 +662,8 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
   await expect(page.getByText("[Test] Salon Owner is now suspended.")).toBeVisible();
   await guest.goto("/salon");
   await expect(guest.getByRole("alert").filter({ hasText: "no active salon account" })).toBeVisible();
+  portalSalon = { name: salonName, email: salonEmail };
+  salonPhone = await guest.context().storageState();
 
   // Salon approvals: the seeded proposal is approved with Rep One at 2.5%.
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Salon approvals", exact: true }).click();
@@ -749,6 +756,87 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   await page.reload();
   const row = page.getByRole("row").filter({ hasText: seed.catalogueSalon.name });
   await expect(row).toContainText(salonPrice);
+});
+
+// Slice 6 (P1-23; D-34, D-41): the salon invited in the slice 1 journey (suspended at its end, so the
+// manager reactivates it first) sends a request from its portal; the manager converts it with one click
+// on the Requests queue; the salon sees the order. The salon has no own price, so the database prices the
+// seeded SKU at list: 2 x Rs 1,500 = Rs 3,000, a CASH order, confirmed at once.
+const PORTAL_QTY = 2;
+const PORTAL_NOTE = "[Test] for Saturday's brides";
+
+test("a salon sends a request, the manager converts it in one click, and the salon sees its order (P1-23)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  expect(salonPhone, "the slice 1 journey kept the invited salon's signed-in session").not.toBeNull();
+  const total = rupees(seed.sku.list_price_paisa * PORTAL_QTY);
+  await officeSignIn(page, manager);
+  const nav = page.getByRole("navigation", { name: "Office" });
+
+  // The salon account the slice 1 journey suspended is made active again.
+  await nav.getByRole("link", { name: "People", exact: true }).click();
+  const members = page.locator("section", { has: page.getByRole("heading", { name: "Salon accounts" }) });
+  const member = members.getByRole("row").filter({ hasText: portalSalon.email });
+  await expect(member).toContainText("suspended");
+  await member.getByRole("button", { name: "Reactivate" }).click();
+  await member.getByLabel("Reason").fill("test: back for the portal");
+  await member.getByRole("button", { name: "Reactivate" }).last().click();
+  await expect(page.getByText("[Test] Salon Owner is now active.")).toBeVisible();
+
+  // The salon: its catalogue at the database's price, a basket, a request that survives a reload.
+  const salonContext = await browser.newContext({ storageState: salonPhone ?? undefined });
+  const salon = await salonContext.newPage();
+  await salon.goto("/salon");
+  await expect(salon.getByRole("heading", { name: portalSalon.name })).toBeVisible();
+  await expect(salon.getByTestId(`price-${seed.sku.code}`)).toHaveText(rupees(seed.sku.list_price_paisa));
+  await salon.getByLabel(`Quantity of ${seed.sku.code} to add`).fill(String(PORTAL_QTY));
+  await salon.getByRole("button", { name: `Add ${seed.sku.code} to the basket` }).click();
+  await expect(salon.getByTestId("basket-estimate")).toContainText(total);
+  await salon.getByLabel("A note for the office (optional)").fill(PORTAL_NOTE);
+  await salon.getByRole("button", { name: "Send request" }).click();
+  await expect(salon.getByText("Request sent. The office will make the order from it.")).toBeVisible();
+  const request = salon.getByTestId("salon-request").filter({ hasText: PORTAL_NOTE });
+  await expect(request).toContainText("Waiting for the office");
+  await expect(request).toContainText(`${PORTAL_QTY} × ${seed.sku.code}`);
+  await salon.reload();
+  await expect(request).toContainText("Waiting for the office");
+  // The salon reaches no office page.
+  await salon.goto("/office/orders");
+  await expect(salon.getByRole("navigation", { name: "Office" })).toHaveCount(0);
+
+  // The manager: the salon's request is in the Requests queue with its lines and the database's total.
+  await nav.getByRole("link", { name: "Orders", exact: true }).click();
+  const queued = page.getByTestId("request").filter({ hasText: PORTAL_NOTE });
+  await expect(queued).toContainText("Salon request");
+  await expect(queued).toContainText(portalSalon.name);
+  await expect(queued).toContainText(`${total} at these prices`);
+  await queued.getByRole("button", { name: "Convert to order", exact: true }).click();
+  await expect(
+    page.getByText(
+      `Order created for ${portalSalon.name} from the request of the salon ${portalSalon.name}: confirmed · ${total}.`,
+    ),
+  ).toBeVisible();
+  await expect(page.getByTestId("request").filter({ hasText: PORTAL_NOTE })).toHaveCount(0);
+  const row = page.getByRole("row").filter({ hasText: portalSalon.name });
+  await expect(row).toContainText("salon portal");
+  await expect(row).toContainText(total);
+  await page.reload();
+  await expect(page.getByRole("row").filter({ hasText: portalSalon.name })).toContainText("confirmed");
+
+  // The salon sees its request made into an order, and the order, after a reload.
+  await salon.goto("/salon");
+  await expect(salon.getByTestId("salon-request").filter({ hasText: PORTAL_NOTE })).toContainText("Made into an order");
+  const order = salon.getByTestId("salon-order").filter({ hasText: `${PORTAL_QTY} × ${seed.sku.code}` });
+  await expect(order).toContainText("confirmed");
+  await expect(order).toContainText(total);
+  await expect(order).toContainText("from your request");
+  // A reviewed request can no longer be edited or cancelled: the page offers neither.
+  await expect(
+    salon.getByTestId("salon-request").filter({ hasText: PORTAL_NOTE }).getByRole("button", { name: "Edit request" }),
+  ).toHaveCount(0);
+  await salonContext.close();
 });
 
 // Slice 3 (P1-20; D-40): the manager keeps the basic investor ledger, typing every amount; the page
