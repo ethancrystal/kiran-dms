@@ -54,9 +54,7 @@ export default function MyHandovers() {
       <p>
         <a href="/app">← Today</a>
       </p>
-      <h1>
-        Cash handover · <span lang="ur">نقد حوالگی</span>
-      </h1>
+      <h1>Cash handover</h1>
       {cash !== null && (
         <p>
           Cash you should have: <strong data-testid="my-cash">{rupees(cash)}</strong>
@@ -136,7 +134,7 @@ function Answer({ handoverId, onDone }: { handoverId: string; onDone: (message: 
       {!disputing ? (
         <div className="row">
           <button type="button" disabled={busy} onClick={() => send(true)}>
-            The count is right · <span lang="ur">درست ہے</span>
+            The count is right
           </button>
           <button type="button" className="inline danger" disabled={busy} onClick={() => setDisputing(true)}>
             I disagree

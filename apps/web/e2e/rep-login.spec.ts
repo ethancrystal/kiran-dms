@@ -3,10 +3,10 @@ import { expect, test } from "@playwright/test";
 // Rep sign-in on the phone doc 01 assumes (SPEC.md §3 J1, §5). No real auth server: the one
 // request the page makes is intercepted.
 
-test("the rep sign-in page fits a small phone and carries Urdu labels (NFR-03)", async ({ page }) => {
+test("the rep sign-in page fits a small phone and is English only (D-42)", async ({ page }) => {
   await page.goto("/app/login");
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  await expect(page.locator('[lang="ur"]').first()).toBeVisible();
+  await expect(page.locator('[lang="ur"]')).toHaveCount(0);
   const email = page.getByLabel(/Email/);
   await expect(email).toHaveAttribute("type", "email");
   await expect(email).toHaveAttribute("inputmode", "email");
