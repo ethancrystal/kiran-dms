@@ -915,7 +915,10 @@ describe("REP-03, FLOW-06, FLOW-18: the rep's orders", () => {
 
   it("an order held over the credit limit carries its hold code for the rep", async () => {
     const big = id();
-    const r = await tx([order(big, QTY * TWO), mark("h", `t.status::text s, t.hold_credit from app.my_territory_order(${orderOf(big)}) t`, "repA")]);
+    const r = await tx([
+      order(big, QTY * TWO),
+      mark("h", `t.status::text s, t.hold_credit from app.my_territory_order(${orderOf(big)}) t`, "repA"),
+    ]);
     expect(r.h[0].s).toBe("draft");
     expect(r.h[0].hold_credit).toBe("over_limit");
   });
@@ -927,7 +930,10 @@ describe("REP-03, FLOW-06, FLOW-18: the rep's orders", () => {
       order(mine),
       ...others.map((o) => order(o, 1, null)),
       mark("list", `jsonb_agg(t.order_id order by t.ordinality) as ids from app.my_territory_orders() with ordinality t`, "repA"),
-      mark("ids", `jsonb_build_object('mine', ${orderOf(mine)}, 'others', jsonb_build_array(${others.map(orderOf).join(", ")})) as x`),
+      mark(
+        "ids",
+        `jsonb_build_object('mine', ${orderOf(mine)}, 'others', jsonb_build_array(${others.map(orderOf).join(", ")})) as x`,
+      ),
     ]);
     const list = r.list[0].ids as string[];
     const x = r.ids[0].x as { mine: string; others: string[] };
@@ -971,11 +977,26 @@ describe("REP-09: the rep's own collections", () => {
       order(o),
       deliver(o),
       repCash(p, UNIT),
-      mark("before", `c.receipt_number, c.reversed, c.amount_paisa, c.method::text m from app.my_collections('${SALON}') c
-                      where c.payment_id = (select id from public.payment where client_id = '${p}')`, "repA"),
-      ["manager", `select app.office_reverse_payment('${id()}', (select id from public.payment where client_id = '${p}'), 'recorded against the wrong salon');`],
-      mark("after", `c.reversed from app.my_collections(null) c where c.payment_id = (select id from public.payment where client_id = '${p}')`, "repA"),
-      mark("b", `(select count(*)::int from app.my_collections(null) c where c.payment_id = (select id from public.payment where client_id = '${p}')) as k`, "repB"),
+      mark(
+        "before",
+        `c.receipt_number, c.reversed, c.amount_paisa, c.method::text m from app.my_collections('${SALON}') c
+                      where c.payment_id = (select id from public.payment where client_id = '${p}')`,
+        "repA",
+      ),
+      [
+        "manager",
+        `select app.office_reverse_payment('${id()}', (select id from public.payment where client_id = '${p}'), 'recorded against the wrong salon');`,
+      ],
+      mark(
+        "after",
+        `c.reversed from app.my_collections(null) c where c.payment_id = (select id from public.payment where client_id = '${p}')`,
+        "repA",
+      ),
+      mark(
+        "b",
+        `(select count(*)::int from app.my_collections(null) c where c.payment_id = (select id from public.payment where client_id = '${p}')) as k`,
+        "repB",
+      ),
     ]);
     expect(String(r.before[0].receipt_number)).toMatch(RECEIPT);
     expect(r.before[0].reversed).toBe(false);

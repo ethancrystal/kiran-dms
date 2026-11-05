@@ -43,6 +43,8 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 | PIP-12 | Active-workday representative location samples linked to an open rep_day; validate caller/device/coordinates/accuracy/time, expose current/stale state only to authorized office roles, and stop accepting samples after close/revocation | M | 2 |
 | PIP-13 | Office map shows permitted current representative positions and approved history; salon users never see rep GPS. Ping cadence, background mode and retention follow OQ-32 | M | 2 |
 
+*PIP-09 on screen (P1-30, audit REP-01 and FLOW-04; not verified):* the office home lists the rep days from earlier Karachi dates that are still open ("Rep days left open", office RLS on `rep_day`) and closes one with a reason through `app.office_force_close_rep_day`; the rep's day page shows the stuck day instead of the check-in form and says only the office can close it. A day still open past Karachi midnight follows the same path (B-31 (c) is still MJ's; the rule is unchanged). The handover condition of PIP-09 is still not built.
+
 ### MAP — Map prospecting and online discovery
 
 The rep's map is the primary prospecting tool. It shows the rep's territory with every known salon as a pin, lets the rep drop and annotate new pins in the field, and — with one tap — pulls every online-listed salon, parlor, barber, hair studio or beauty business within a radius of the rep's **live GPS position** so nothing in the area is missed.
@@ -220,6 +222,8 @@ How PIP-03, INV-04, INV-05 (the office's view), INV-06, CTL-05 (spot checks, ret
 | ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans (commission rates: owner or manager, D-31) | M/S | 1–2 |
 | ADM-02 | Company profile for documents (name, logo, address, phone) | M | 1 |
 | ADM-03 | Numbering sequences for invoices and receipts (gapless, per financial year starting 1 July) | M | 1 |
+
+*ADM-01 and ADM-02 in part (P1-30, audit FLOW-14; not verified):* `/office/settings` (owner only; linked from Team) changes existing `app_config` keys through `app.owner_set_config` with a reason: the company profile's text fields (merged, so other fields stay), the bank accounts printed on invoices, and the numeric limits and thresholds (sent as JSON numbers; money in paisa). Installment templates, credit rules and product groups stay read-only there. Logo, address and phone on the profile are not built (no such keys yet).
 
 ### AGT — Independent agents (D-15 to D-17)
 
