@@ -41,6 +41,9 @@ const CYCLE_DAYS = 30;
 const SKU_SIZE_ML = 100;
 const sku = { id: randomUUID(), code: `DUMMY-${tag.toUpperCase()}`, list_price_paisa: SKU_PRICE_PAISA };
 const pendingSalon = { id: randomUUID(), name: `[Test] Proposed salon ${tag}`, area: "" };
+// Slice 4 (D-32): units of the SKU loaded into Rep One's bag, and the warehouse they came from.
+const BAG_QTY = 6;
+const warehouse = { id: randomUUID(), name: `[Test] Warehouse ${tag}` };
 
 const c = new pg.Client({ connectionString: url });
 await c.connect();
@@ -95,10 +98,12 @@ try {
   // newcomer has a sign-in but no profile: the tests add it through the Team page. invitee too: the
   // tests invite it as a rep on the People page.
 
-  // Rep One has a bag (owner only, A-08), empty of stock: the evening count then has a bag to
-  // close, so check-out depends on the daily close being sent (B-35, INV-05). Rep Two has none.
+  // Rep One has a bag (owner only, A-08): the evening count then has a bag to close, so check-out
+  // depends on the daily close being sent (B-35, INV-05). Rep Two has none. The bag's pending-delivery
+  // location comes with it (D-32, migration 20261105130100).
+  const bagId = randomUUID();
   await as(people.owner.id, "aal2", null, "select app.office_create_location($1, 'rep_bag', '[Test] Rep One bag', $2, 1000000)", [
-    randomUUID(),
+    bagId,
     people.rep.id,
   ]);
 
@@ -130,6 +135,24 @@ try {
     "[Test] e2e list price",
   ]);
 
+  // Slice 4 (D-32): a warehouse, and BAG_QTY of the SKU in Rep One's bag, so the rep can hand goods
+  // over and the office can return rejected goods. No office stock screen exists, so the opening
+  // receipt and the issue to the bag are written as postgres, the way the database tests do.
+  await as(people.owner.id, "aal2", null, "select app.office_create_location($1, 'warehouse', $2)", [
+    warehouse.id,
+    warehouse.name,
+  ]);
+  await c.query(
+    `insert into public.stock_movement (client_id, sku_id, qty, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, 'receipt', $4)`,
+    [sku.id, BAG_QTY, warehouse.id, people.owner.id],
+  );
+  await c.query(
+    `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, $4, 'issue_to_rep', $5)`,
+    [sku.id, BAG_QTY, warehouse.id, bagId, people.owner.id],
+  );
+
   // Slice 1 (D-35, D-39): a territory and area for a salon the manager creates while inviting it,
   // and a salon a rep proposed, waiting on Salon approvals. Nothing in the app makes a pending salon
   // until slice 7, so it is written here as postgres, the way the database tests do.
@@ -151,5 +174,5 @@ try {
   await c.end();
 }
 
-writeFileSync(out, JSON.stringify({ password, people, sku, pendingSalon }, null, 2));
+writeFileSync(out, JSON.stringify({ password, people, sku, pendingSalon, warehouse, bagQty: BAG_QTY }, null, 2));
 console.log(`seeded ${Object.keys(people).length} synthetic people into the local stack -> ${out}`);
