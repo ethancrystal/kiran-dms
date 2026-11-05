@@ -80,7 +80,7 @@ type Account = {
     remaining_paisa: number;
     status: string;
   }>;
-  payments: Array<{ receipt_number: string; paid_at: string; method: string; amount_paisa: number }>;
+  payments: Array<{ receipt_number: string; paid_at: string; method: string; amount_paisa: number; reversed?: boolean }>;
 };
 type Portal = { me: Me; account: Account; catalogue: Item[]; requests: Request[]; orders: Order[] };
 type State = { kind: "loading" } | { kind: "none" } | { kind: "ready"; data: Portal } | { kind: "error"; message: string };
@@ -578,7 +578,7 @@ function Orders({ orders }: { orders: Order[] }) {
   );
 }
 
-/** Payments the office or a rep recorded, with the receipt number the system issued. */
+/** Payments the office or a rep recorded, with the receipt number the system issued; a reversed one is marked (D-48). */
 function Payments({ account }: { account: Account }) {
   return (
     <section className="card" aria-labelledby="payments-h">
@@ -598,7 +598,10 @@ function Payments({ account }: { account: Account }) {
             {account.payments.map((p) => (
               <tr key={p.receipt_number}>
                 <td data-label="Date">{when(p.paid_at)}</td>
-                <td data-label="Receipt">{p.receipt_number}</td>
+                <td data-label="Receipt">
+                  {p.receipt_number}
+                  {p.reversed && <span className="badge"> Reversed by the office</span>}
+                </td>
                 <td data-label="Method">{label(p.method)}</td>
                 <td data-label="Amount">{rupees(Number(p.amount_paisa))}</td>
               </tr>

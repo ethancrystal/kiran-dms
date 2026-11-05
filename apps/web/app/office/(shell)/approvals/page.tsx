@@ -22,6 +22,33 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 // P1-30: the maker withdraws its own pending request (app.cancel_approval); a manager sees no buttons on a
 // request that needs the owner (the database refuses it anyway, audit M2); requests refused in the last
 // 14 days are listed apart with the checker's reason (app.office_refused_approvals), so the maker sees the outcome.
+/** What the viewer can do with a pending request: withdraw its own, wait for the owner, or decide it. */
+function rowMode(a: Approval, role: Role | null): "mine" | "owner-only" | "decide" {
+  if (a.made_by_me) return "mine";
+  if (a.checker_role_required === "owner" && role !== "owner") return "owner-only";
+  return "decide";
+}
+
+/** The maker's line. H1: nobody can decide the owner's own owner-level request; D-45 gives the owner a direct way. */
+function MakerNote({ a, role }: { a: Approval; role: Role | null }) {
+  if (role !== "owner" || a.checker_role_required !== "owner") {
+    return <p className="muted">You asked for this; another office user decides it.</p>;
+  }
+  if (a.kind === "adjustment") {
+    return (
+      <p className="muted">
+        Only another owner could decide this, so it would wait. Withdraw it; your own stock goes in at once on the{" "}
+        <Link href="/office/stock">Stock page</Link> (D-45).
+      </p>
+    );
+  }
+  return (
+    <p className="muted">
+      Only another owner could decide this, so it would wait. Withdraw it; your own orders take their discount at once (D-45).
+    </p>
+  );
+}
+
 export default function Approvals() {
   const [items, setItems] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,9 +140,9 @@ export default function Approvals() {
                 {a.reason} · asked by {a.maker_name} · {when(a.created_at)} · needs{" "}
                 {a.checker_role_required === "owner" ? "the owner" : "an owner or a manager"}
               </p>
-              {a.made_by_me ? (
+              {rowMode(a, role) === "mine" && (
                 <>
-                  <p className="muted">You asked for this; another office user decides it.</p>
+                  <MakerNote a={a} role={role} />
                   <div className="row">
                     <ConfirmAction
                       label="Withdraw"
@@ -127,9 +154,9 @@ export default function Approvals() {
                     />
                   </div>
                 </>
-              ) : a.checker_role_required === "owner" && role !== "owner" ? (
-                <p className="muted">Waiting for the owner.</p>
-              ) : (
+              )}
+              {rowMode(a, role) === "owner-only" && <p className="muted">Waiting for the owner.</p>}
+              {rowMode(a, role) === "decide" && (
                 <div className="row">
                   <ConfirmAction
                     label="Approve"
