@@ -164,7 +164,7 @@ The existing public staff identity model remains owner/manager/rep. Do not add s
 
 ## Approved, not built (doc 16, D-33 to D-41)
 
-These tables and columns extend the existing model. MJ approved them in `docs/superpowers/specs/2026-11-05-reps-salons-catalogue-investors-design.md` section 4; the slice 1 rows are in migration 20261105100000 and the slice 2 rows in migration 20261105110000 (marked built below, not verified), the rest are in no migration yet, and a migration in the repository does not mean it is applied anywhere. Every new table has forced RLS, the audit trigger, and writes only through `security definer` `app.*` functions with a pinned `search_path`, `client_id` idempotency, the actor from the session and money in paisa. Salons read only through `app.salon_*` functions that resolve the salon from the active membership and return allow-listed fields. No duplicate tables: the entities below extend the canonical ones.
+These tables and columns extend the existing model. MJ approved them in `docs/superpowers/specs/2026-11-05-reps-salons-catalogue-investors-design.md` section 4; the slice 1 rows are in migration 20261105100000 and the slice 2 rows in migration 20261105110000 and the slice 3 rows in migration 20261105120000 (marked built below, not verified), the rest are in no migration yet, and a migration in the repository does not mean it is applied anywhere. Every new table has forced RLS, the audit trigger, and writes only through `security definer` `app.*` functions with a pinned `search_path`, `client_id` idempotency, the actor from the session and money in paisa. Salons read only through `app.salon_*` functions that resolve the salon from the active membership and return allow-listed fields. No duplicate tables: the entities below extend the canonical ones.
 
 | Entity or addition | What | Notes |
 |---|---|---|
@@ -181,14 +181,14 @@ These tables and columns extend the existing model. MJ approved them in `docs/su
 | **Delivery approval tables** | As in the delivery plan (D-32) | Slice 4 |
 | **rep_commission_rate** | Rate per rep and salon, with a rep default | **Append-only** (D-38). `commission_rep_id` and `commission_rate_bp` are stamped at delivery approval |
 | **commission_payment** | Payments and reversals; owed is earned minus paid | **Append-only** (D-38, FLD-06) |
-| **investor**, **investment** | People and their investments | `investment` is **append-only** (D-40, CAP-01) |
-| **investor_profit_decision**, **investor_payout** | Decisions typed by the office; payouts and reversals with reasons | **Append-only**. Totals derived; no formula; not posted to cash (D-40, CAP-02, CAP-03) |
+| **investor**, **investment** | People and their investments | Built, migration 20261105120000 (slice 3). `investor`: id, client_id (unique per creator), full_name, phone, note, status (`active`/`closed`), created_by, created_at, updated_at; never deleted, identity immutable. `investment` is **append-only** (D-40, CAP-01): id, client_id, investor_id, amount_paisa, invested_on, note, reverses_id, reason, recorded_by, created_at |
+| **investor_profit_decision**, **investor_payout** | Decisions typed by the office; payouts and reversals with reasons | Built, migration 20261105120000. **Append-only**. Both belong to one investment; a payout has kind (`profit`/`principal`), method (`cash`/`bank`/`other`) and reference. A reversal row names the row it reverses (unique `reverses_id`), is its exact negative and carries a reason. Totals derived; no formula; not posted to cash (D-40, CAP-02, CAP-03) |
 
 The functions reused rather than duplicated are `app.build_order`, `app.office_create_order`, `app.evaluate_order`, `app.office_upsert_product`, `app.office_upsert_sku`, the payments and receivables functions and `app.office_open_cards`.
 
 ## Invariants the database must enforce
 
-1. **Append-only tables**: `visit`, `salon_note`, `discovery_run`, `stage_event`, `credit_event`, `payment`, `payment_allocation`, `cash_ledger_entry`, `stock_movement`, `stock_count`, `demand_signal`, `audit_event`, `invoice`, `receipt`, `sales_order_line`, `delivery`, `delivery_line`, `phone_reveal`, `order_intake_card`, `order_intake_card_close`, and the `route` row (its stops are the only part that changes). Grant `INSERT` + `SELECT` only; corrections are reversing rows. The tables marked append-only in the section above join this list when they are built.
+1. **Append-only tables**: `visit`, `salon_note`, `discovery_run`, `stage_event`, `credit_event`, `payment`, `payment_allocation`, `cash_ledger_entry`, `stock_movement`, `stock_count`, `demand_signal`, `audit_event`, `invoice`, `receipt`, `sales_order_line`, `delivery`, `delivery_line`, `phone_reveal`, `order_intake_card`, `order_intake_card_close`, `investment`, `investor_profit_decision`, `investor_payout`, and the `route` row (its stops are the only part that changes). Grant `INSERT` + `SELECT` only; corrections are reversing rows. The tables marked append-only in the section above join this list when they are built.
 2. **Balances are derived**: a salon's receivable = Σ invoices − Σ allocations − Σ credit notes; a rep's cash = Σ cash_ledger entries for that holder; stock at a location = Σ movements. A nightly job recomputes and compares with any cached figures.
 3. **Custody chain closure**: every cash `in` to a rep has a `payment`; every rep `out` has a `handover`; every office `out` has a `bank_deposit`; every `bank_deposit` must match a `bank_statement_line` within 3 working days or it is an open exception.
 4. **Credit gate**: an installment order moves to `confirmed` only if the salon is not blocked (`salon_credit.blocked`, or its stage is `blocked`), its plan is within `plan_eligibility`, and `exposure + total ≤ credit_limit_paisa`, or the office releases the hold (a `credit_event` of kind `order_override`, within the manager cap). A cash order is never credit-checked, even for a blocked salon (doc 09 §2; MJ, ACTIVITY L-0163).
@@ -203,7 +203,7 @@ The functions reused rather than duplicated are `app.build_order`, `app.office_c
 
 ## Derived views (examples)
 
-Specified by the approved rules, not built: a commission view (earned from invoices, paid from `commission_payment`, owed as the difference) and investor totals, both derived, never stored (invariant 2).
+Specified by the approved rules, not built: a commission view (earned from invoices, paid from `commission_payment`, owed as the difference), derived, never stored (invariant 2). Investor totals are built (slice 3) as office functions, not views, derived and never stored: `app.office_investors()` (each investor and one totals row), `app.office_investor_investments(investor)` and `app.office_investor_statement(investor, from, to)` (running principal outstanding and profit owed, worked out over the whole history).
 
 - `v_salon_balance` — receivable, overdue amount, oldest due date, next installment.
 - `v_rep_cash_position` — cash in hand now, expected handover today.

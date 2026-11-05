@@ -226,6 +226,8 @@ The following remain owner decisions and are recorded in doc 12:
 
 Do not implement live payout or guaranteed-return behavior until these decisions are documented and approved. Legal, tax and accounting treatment must be reviewed by appropriately qualified advisers in Pakistan before live use.
 
+Note (slice 3, P1-20, D-40): the basic office ledger built in migration 20261105120000 is not the agreement, allocation, batch or settlement model above. It records investors, investments, profit amounts the owner or manager decided and typed, payouts the office says it made (profit or principal, kept apart, rule 8) and reversals with reasons. It calculates no share, profit or return, moves no money, posts nothing to cash, receivables or sales, and has no investor login. The decisions listed in this section, other than those D-40 answers for the basic ledger (OQ-24, OQ-25, OQ-29, OQ-30), stay open.
+
 ## 7. Security and privacy model
 
 The existing security plan remains binding. New domain access must be designed into RLS, RPCs and tests before UI work.
@@ -275,6 +277,8 @@ Owner-created Agent → agent catalogue → agent price and available quantity �
 ### J5 — Investor contribution and batch settlement (proposed until decisions are approved)
 
 Agreement → contribution received/reconciled → capital allocation → approved product batch and purchases → inventory receipt → sales and collections → COGS/expenses/returns reconciled → provisional result → agreement-based calculation → required approvals → principal repayment and profit distribution as separate entries → Investor's own statement.
+
+Built so far (slice 3, D-40): only the office's part, without the batch, calculation or approval steps. The owner or manager records the investment, types the profit decided, records principal returned and profit paid as separate entries, and reads each investor's statement with running balances; the investor has no login.
 
 ### J6 — Owner / Manager business control
 
