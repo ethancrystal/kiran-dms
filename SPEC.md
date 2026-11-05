@@ -85,6 +85,7 @@ Each journey is accepted only when every line under it is shown by a test or, wh
 3. Monthly sales through agents are reported in rupees (D-21).
 4. Lost demand by SKU and reason shows what the supplier shortage cost (DEM-03, D-18).
 5. A new rep can be invited by the owner or manager (SEC-16, SEC-17), onboarded and working the route (visits, order cards and collections; reps do not place orders, D-30, ORD-14, ACTIVITY L-0374) within **one working day**; offboarding takes under 10 minutes from one screen (doc 01 system goal 1 as amended by D-30, SEC-08).
+6. The owner or manager opens Investors: each investor's invested, principal outstanding, profit decided, paid and owed, and the totals, all derived from amounts the office typed; nothing is calculated and nothing is posted to cash (CAP-01 to 03, D-40).
 
 **J6 — A salon sends a repeat order request** ([doc 15](docs/15-field-sales-distribution-engineering-plan.md))
 1. The office invites the salon; the salon user signs in with the emailed code. The server resolves the salon from active membership, not a client-supplied ID (SAL-11, SEC-13/14, SEC-16).
@@ -126,7 +127,7 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 | Commission (D-31, D-38): a rate per rep and salon with a rep default, set and changed by the owner or manager for future invoices only; earned on the delivered and invoiced value of orders with an assigned rep; payment records with reversals; owed is earned minus paid; date-range areas for the rep and the office | CTL-13, FLD-01 (default rate), FLD-03, FLD-06 | built in slice 5 (migration 20261105140000): `supabase/tests/commission.test.ts` and one real-stack browser journey in `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-22 |
 | Invitations, salon membership, salon approval, rep assignment and reachability; People and approvals screens (D-35, D-36, D-39) | SEC-13, 16, 17; SAL-11, 13, 14 | database role tests and browser journey (completion design §7) | P1-18 |
 | Product pictures and descriptions, manager prices, per-salon prices (D-37, D-39) | INV-13, ORD-07 | database role tests and browser journey | P1-19 |
-| Basic investor ledger, office only, no engine (D-40) | CAP-01 to 03 | database role tests and browser journey | P1-20 |
+| Basic investor ledger, office only, no engine (D-40): investors, investments, typed profit decisions, payouts and reversals; Investors pages (`/office/investors`) | CAP-01 to 03 | `investors.test.ts`, RLS matrix, `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-20 |
 | Requests queue with lines; salon portal (D-34, D-41) | ORD-01, 11 to 15; SAL-12; SEC-14, 15 | salon isolation tests and browser journey | P1-23 |
 | Rep read-only, salon proposals, timelines; the end-to-end journey in CI (D-35, D-39) | SAL-05, 09, 13 | end-to-end browser test (completion design §7) | P1-24 |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | P1-08 |

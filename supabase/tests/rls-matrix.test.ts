@@ -817,6 +817,46 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Price history and per-salon prices (migration 20261105110000, slice 2, D-37, D-39): the office
+  // reads both; no rep reads them (salons get their own prices through slice 6's functions).
+  ...(["public.sku_price_change", "public.salon_sku_price"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: "reason",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
+  // Investor ledger (migration 20261105120000, slice 3, D-40): the office reads all four tables; no rep,
+  // AAL1 office session or anon reads any row, and there is no investor login.
+  ...(["public.investor", "public.investment", "public.investor_profit_decision", "public.investor_payout"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.investor" ? "full_name" : "note",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   // Commission default rates and payments (migration 20261105140000, slice 5, P1-22, D-38): the office
   // reads all; a rep reads its own through app.my_commission only, and a salon reads nothing.
   ...(["public.rep_commission_rate", "public.commission_payment"] as const).map(

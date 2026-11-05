@@ -204,10 +204,15 @@ describe("§7.6 backdated client timestamps", () => {
     // as evidence only, in submitted_at_client, next to the server's submitted_at.
     // Migration 20261105140000 (slice 5, P1-22; L-0144): my_commission(p_from, p_to), office_commission(p_rep_id,
     // p_from, p_to) and office_commission_reps(p_from, p_to) take a date range to read; they write nothing.
+    // Migration 20261105120000 (slice 3, P1-20, D-40; standing approval L-0144): office_add_investment(p_invested_on),
+    // office_decide_profit(p_decided_on) and office_record_payout(p_paid_on) take an office-entered business date that
+    // may not be in the future (Karachi) and is kept next to the server's created_at; reversals are dated by the server.
+    // office_investor_statement(p_from, p_to) is a read filter. investors.test.ts proves the future refusal.
     expect(rows.map((x) => x.f)).toEqual([
-      "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_commission", "app.my_route",
-      "app.office_commission", "app.office_commission_reps",
-      "app.office_propose_stock_issue", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
+      "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_commission",
+      "app.my_route", "app.office_add_investment", "app.office_commission", "app.office_commission_reps",
+      "app.office_decide_profit", "app.office_investor_statement", "app.office_propose_stock_issue",
+      "app.office_record_payout", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
       "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out", "app.rep_record_payment",
       "app.rep_reorder_route", "app.rep_submit_delivery"]);
   });

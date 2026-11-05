@@ -340,6 +340,8 @@ describe("direct writes are refused to every application role (H-06, H-08)", () 
     "delivery",
     "delivery_line",
     "invoice",
+    "sku_price_change",
+    "salon_sku_price",
   ];
   const PERSONAS: Array<[string, Who]> = [
     ["rep A", { as: "repA" }],
@@ -556,6 +558,11 @@ describe("who may call what (H-15, SEC-01, SEC-03, doc 06 §2)", () => {
     `select app.office_post_adjustment('${id()}', '${id()}')`,
     `select app.office_set_reorder_point('${SKU1}', 5)`,
     `select app.office_upsert_sku('${id()}', '${PRODUCT}', 'T-X-1', 'v', 'ml', 100)`,
+    `select app.office_upsert_product('${PRODUCT}', '${GROUP}', 'x', 'x', true, 'x', null)`,
+    `select app.office_set_sku_price('${id()}', '${SKU1}', 1, 'xxx')`,
+    `select app.office_set_salon_price('${id()}', '${SALON_A}', '${SKU1}', 1, 'xxx')`,
+    `select * from app.office_salon_prices('${SALON_A}')`,
+    `select * from app.office_catalogue()`,
     `select app.office_deliver('${id()}', '${id()}', '${WH}', 'Name')`,
     `select app.move_stage('${SALON_A}', 'trial', 'manual', 'x')`,
     `select app.write_credit('${SALON_A}', 'owner_set', 'INST4', 99999999, false, 'x')`,

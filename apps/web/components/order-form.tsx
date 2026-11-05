@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { rupees, toPaisa } from "@/lib/money";
+import { signedImageUrls } from "@/lib/product-images";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 
@@ -30,8 +31,10 @@ type Sku = {
   code: string;
   variant: string;
   list_price_paisa: number;
-  product: { name: string } | null;
+  product: { name: string; image_path: string | null } | null;
 };
+/** A salon's own price for a SKU, from app.office_salon_prices (D-37); only SKUs that have one. */
+type SalonPrice = { sku_id: string; salon_price_paisa: number | null };
 type Rep = { id: string; full_name: string };
 type RepLink = { rep: { id: string; full_name: string; role: string; status: string } | null };
 type Line = { key: string; skuId: string; qty: string; price: string };
@@ -50,7 +53,10 @@ const SKU_LIMIT = 1000;
 const QTY_MAX = 10_000;
 
 const newLine = (): Line => ({ key: crypto.randomUUID(), skuId: "", qty: "1", price: "" });
-const skuText = (s: Sku) => `${s.code} · ${s.product?.name ?? "Product"} ${s.variant} · ${rupees(Number(s.list_price_paisa))}`;
+const skuText = (s: Sku, salonPrice: number | undefined) =>
+  `${s.code} · ${s.product?.name ?? "Product"} ${s.variant} · ${rupees(Number(s.list_price_paisa))}${
+    salonPrice === undefined ? "" : ` · salon price ${rupees(salonPrice)}`
+  }`;
 
 /**
  * The reps who may deliver an order for this salon (R4, A-16): its directly assigned rep when it has
@@ -124,6 +130,9 @@ export function OrderForm({
   const [repsLoading, setRepsLoading] = useState(false);
   const [repId, setRepId] = useState(card?.rep_id ?? "");
   const [repNote, setRepNote] = useState<string | null>(null);
+  // The salon's own prices by SKU (read from the database; it also applies them, app.build_order).
+  const [salonPrices, setSalonPrices] = useState<Record<string, number>>({});
+  const [pictures, setPictures] = useState<Record<string, string>>({});
   const [plan, setPlan] = useState("CASH");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [busy, setBusy] = useState(false);
@@ -153,7 +162,7 @@ export function OrderForm({
           rows<Sku>(
             db()
               .from("sku")
-              .select("id, code, variant, list_price_paisa, product:product_id(name)")
+              .select("id, code, variant, list_price_paisa, product:product_id(name, image_path)")
               .eq("active", true)
               .not("list_price_paisa", "is", null)
               .order("code")
@@ -162,12 +171,33 @@ export function OrderForm({
         ]);
         setSalons(s);
         setSkus(k);
+        // Pictures are a help, not a requirement: a storage failure shows "no picture", not an error.
+        setPictures(await signedImageUrls(k.map((x) => x.product?.image_path)));
       } catch (e) {
         setLoadError((e as Error).message);
       }
     };
     void read();
   }, [card]);
+
+  // The salon's own prices (D-37). Shown on the lines; the database applies them to a line sent with no price.
+  useEffect(() => {
+    setSalonPrices({});
+    if (!salonId) return;
+    const read = async () => {
+      try {
+        const sheet = (await rpc<SalonPrice[]>("office_salon_prices", { p_salon_id: salonId })) ?? [];
+        setSalonPrices(
+          Object.fromEntries(
+            sheet.flatMap((r) => (r.salon_price_paisa === null ? [] : [[r.sku_id, Number(r.salon_price_paisa)]])),
+          ),
+        );
+      } catch (e) {
+        setLoadError((e as Error).message);
+      }
+    };
+    void read();
+  }, [salonId]);
 
   // The salon's territory reps; the card's rep stays selected only when it is one of them.
   useEffect(() => {
@@ -258,7 +288,9 @@ export function OrderForm({
       )}
 
       <h3>Lines</h3>
-      {skus.length === 0 && <p className="muted">No active, priced products yet. The owner sets prices.</p>}
+      {skus.length === 0 && (
+        <p className="muted">No active, priced products yet. The owner or a manager sets prices on Products.</p>
+      )}
       {lines.map((l, n) => (
         <fieldset key={l.key} className="inline-form">
           <legend>Line {n + 1}</legend>
@@ -267,10 +299,16 @@ export function OrderForm({
             <option value="">Choose a product</option>
             {skus.map((s) => (
               <option key={s.id} value={s.id}>
-                {skuText(s)}
+                {skuText(s, salonPrices[s.id])}
               </option>
             ))}
           </select>
+          <LinePicture sku={skus.find((s) => s.id === l.skuId)} pictures={pictures} />
+          {l.skuId && salonPrices[l.skuId] !== undefined && (
+            <p className="muted" data-testid={`salon-price-${n + 1}`}>
+              This salon&apos;s price: {rupees(salonPrices[l.skuId])}
+            </p>
+          )}
           <label htmlFor={`qty-${l.key}`}>Quantity {n + 1}</label>
           <input
             id={`qty-${l.key}`}
@@ -287,7 +325,7 @@ export function OrderForm({
             id={`price-${l.key}`}
             inputMode="decimal"
             autoComplete="off"
-            placeholder="List price"
+            placeholder={l.skuId && salonPrices[l.skuId] !== undefined ? "Salon price" : "List price"}
             value={l.price}
             onChange={(e) => setLine(l.key, { price: e.target.value })}
             maxLength={PRICE_MAX_CHARS}
@@ -305,7 +343,8 @@ export function OrderForm({
         </button>
       )}
       <p className="muted">
-        Leave the price empty to sell at the list price. A lower price is a discount the database may send for approval.
+        Leave the price empty to sell at the salon&apos;s price, or the list price when it has none. A price below the list price
+        is a discount the database may send for approval.
       </p>
 
       <label htmlFor="order-plan">Plan</label>
@@ -356,6 +395,14 @@ export function OrderForm({
       </div>
     </form>
   );
+}
+
+/** A small picture of the line's product, when it has one and storage gave a link. */
+function LinePicture({ sku, pictures }: { sku: Sku | undefined; pictures: Record<string, string> }) {
+  const path = sku?.product?.image_path;
+  const url = path ? pictures[path] : undefined;
+  if (!url) return null;
+  return <img className="thumb small" src={url} alt={sku?.product?.name ?? "Product"} />;
 }
 
 /** The order the database made, in words: its status, total and any hold that keeps it in draft. */
