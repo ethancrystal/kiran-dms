@@ -1146,6 +1146,8 @@ test("a manager sees the product groups but no controls for them (ADM-01, doc 06
   await expect(page.getByRole("form", { name: "New product group" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: `Edit ${seed.productGroup.name}` })).toHaveCount(0);
   await expect(page.getByRole("button", { name: `Deactivate ${seed.productGroup.name}` })).toHaveCount(0);
+});
+
 // Slice 6 (P1-23; D-34, D-41): the salon invited in the slice 1 journey (suspended at its end, so the
 // manager reactivates it first) sends a request from its portal; the manager converts it with one click
 // on the Requests queue; the salon sees the order. The salon has no own price, so the database prices the
