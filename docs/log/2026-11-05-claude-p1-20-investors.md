@@ -66,4 +66,5 @@ Security checklist (tick honestly):
 [x] Tests actually run; real results recorded (H-23, H-24)
 
 Concerns: slice 2 (P1-19, pull request 57, migration 20261105110000) is not on main. If this branch merges first, a database that already has 20261105120000 will refuse the older 20261105110000 under the Supabase CLI; merge slice 2 first or renumber. Both change the verifier allowlist, the RLS matrix, the office nav, the board and docs, so the second to merge resolves conflicts. Doc 14 section 6.1 asks for adviser review before live use; OQ-23, OQ-26, OQ-27 and OQ-28 stay open.
+Addition, on 7cb341d: node scripts/activity-log-check.mjs origin/main: OK (1 new log entry, 17 changed files; owner terms checked: 0, the secret is not set locally). pnpm agent:preflight: PREFLIGHT OK, worktree clean.
 **Next / needs:** CI on the pull request, especially the e2e-stack job. MJ: the rulings above (reopening, the investment-reversal rule, per-investment decisions and payouts, OQ-34 default) and the merge order with slice 2. Then slice 4 (P1-21).
