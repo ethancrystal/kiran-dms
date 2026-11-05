@@ -90,9 +90,7 @@ export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMo
 
   return (
     <section className="card" aria-labelledby="money-h">
-      <h2 id="money-h">
-        Account · <span lang="ur">حساب</span>
-      </h2>
+      <h2 id="money-h">Account</h2>
       {loading && (
         <p className="muted" aria-busy="true">
           Loading…
@@ -196,9 +194,7 @@ function PaymentForm({
         }
       }}
     >
-      <h3>
-        Record a payment · <span lang="ur">ادائیگی درج کریں</span>
-      </h3>
+      <h3>Record a payment</h3>
       <fieldset className="inline-form">
         <legend>Method</legend>
         <label>

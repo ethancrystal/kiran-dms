@@ -121,9 +121,7 @@ export function RepDay() {
       {notice && <output className="ok">{notice}</output>}
 
       <section className="card" aria-labelledby="terr-h">
-        <h2 id="terr-h">
-          Your territory · <span lang="ur">آپ کا علاقہ</span>
-        </h2>
+        <h2 id="terr-h">Your territory</h2>
         {territories.length === 0 ? (
           <p className="muted">No territory is assigned to you yet. Ask your manager.</p>
         ) : (
@@ -135,7 +133,7 @@ export function RepDay() {
 
       {!day && (
         <CountForm
-          title="Check in · چیک اِن"
+          title="Check in"
           help="Count what is in your bag before you start. Enter what you see, not what you expect."
           bag={bag}
           button="Check in"
@@ -177,9 +175,7 @@ export function RepDay() {
           </div>
 
           <section aria-labelledby="route-h">
-            <h2 id="route-h">
-              Today&apos;s route · <span lang="ur">آج کا راستہ</span>
-            </h2>
+            <h2 id="route-h">Today&apos;s route</h2>
             {route.length === 0 ? (
               <p className="muted">No stops yet. Add salons from the due list below.</p>
             ) : (
@@ -232,9 +228,7 @@ export function RepDay() {
           </section>
 
           <section aria-labelledby="due-h">
-            <h2 id="due-h">
-              Due for a visit · <span lang="ur">آج جانا ہے</span>
-            </h2>
+            <h2 id="due-h">Due for a visit</h2>
             {due.length === 0 ? (
               <p className="muted">Nothing is due in your territory.</p>
             ) : (
@@ -347,7 +341,7 @@ function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) =
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)}>
-        Finish the day · <span lang="ur">دن ختم کریں</span>
+        Finish the day
       </button>
     );
   return (

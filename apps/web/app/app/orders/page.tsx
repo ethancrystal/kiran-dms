@@ -67,9 +67,7 @@ export default function TerritoryOrders() {
       <p>
         <a href="/app">← Today</a>
       </p>
-      <h1>
-        Orders · <span lang="ur">آرڈرز</span>
-      </h1>
+      <h1>Orders</h1>
       <p className="muted">
         Orders are made by the office, often from your order cards. To ask for one, save New Order Details on the salon&apos;s
         page.
