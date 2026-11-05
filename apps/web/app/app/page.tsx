@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { RepMonth } from "@/components/rep-month";
 import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
 
 type Session = {
@@ -75,6 +76,7 @@ export default function RepHome() {
           )}
         </div>
       )}
+      {state.kind === "ready" && state.session.device_status === "approved" && <RepMonth />}
       {state.kind === "ready" && state.session.device_status === "approved" && (
         <>
           <a className="btn" href="/app/day">

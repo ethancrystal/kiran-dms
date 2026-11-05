@@ -196,7 +196,7 @@ How the office reaches ORD-02, ORD-03, ORD-04 for rep-less orders, CTL-05, CTL-0
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| RPT-01 | Owner dashboard (mobile-first): today's sales, today's collections, cash in reps' hands, overdue total, low-stock count, reps checked in | M | 1 |
+| RPT-01 | Owner dashboard (mobile-first): today's sales, today's collections, cash in reps' hands, overdue total, low-stock count, reps checked in. A first part is built in slice 9 (P1-26, D-43, not verified): the office home with orders placed this week, waiting to be delivered, delivered and needs-your-attention, and Rep performance; the figures named here are not all on it yet | M | 1 |
 | RPT-02 | Receivables ageing; sales by territory/product/salon type; stock by location | M | 1 |
 | RPT-03 | Pipeline funnel and stage movement | S | 2 |
 | RPT-04 | Margin reports (vault-gated) | S | 2 |

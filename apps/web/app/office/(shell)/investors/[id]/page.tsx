@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
+import { InvestorMonth } from "@/components/investor-month";
 import {
   type InvestmentRow,
   type InvestorRow,
@@ -125,6 +126,8 @@ export default function InvestorPage({ params }: { params: Promise<{ id: string 
           </dl>
         </section>
       )}
+
+      <InvestorMonth investorId={id} version={version} canDecide={active && open.length > 0} />
 
       <section className="card" aria-labelledby="inv-h">
         <h2 id="inv-h">Investments</h2>
@@ -301,6 +304,7 @@ function DecideProfit({ investments, onDone }: { investments: InvestmentRow[]; o
   return (
     <form
       className="card"
+      id="decide-profit"
       aria-label="Decide profit"
       onSubmit={f.submit(async (paisa) => {
         await rpc("office_decide_profit", {
