@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { MyCollections } from "@/components/my-collections";
 import { rupees } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
 
@@ -116,6 +117,7 @@ export default function MyHandovers() {
           )}
         </section>
       ))}
+      <MyCollections />
     </main>
   );
 }

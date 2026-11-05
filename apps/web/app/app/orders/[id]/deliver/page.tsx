@@ -1,6 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useState } from "react";
 import { rupees } from "@/lib/money";
+import { STATUS_TEXT } from "@/lib/overview";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, position } from "@/lib/salons";
 
@@ -42,11 +43,12 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
     setError(null);
     try {
       const [orders, remaining, mine] = await Promise.all([
-        rpc<Order[]>("my_territory_orders"),
+        // REP-03 (P1-30): this one order by id, so it is found however many newer orders the territory has.
+        rpc<Order[]>("my_territory_order", { p_order_id: id }),
         rpc<Remaining[]>("order_remaining", { p_order_id: id }),
         rpc<Submission[]>("my_submissions"),
       ]);
-      const o = (orders ?? []).find((x) => x.order_id === id) ?? null;
+      const o = (orders ?? [])[0] ?? null;
       const open = (remaining ?? []).filter((r) => r.remaining > 0);
       const found =
         open.length === 0
@@ -122,7 +124,7 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
       {order && (
         <p>
           <strong>{order.salon_name ?? "Unnamed salon"}</strong> · {rupees(Number(order.total_paisa))} ·{" "}
-          <span className="badge">{label(order.status)}</span>
+          <span className="badge">{order.status === "draft" ? STATUS_TEXT.draft : label(order.status)}</span>
         </p>
       )}
       {sent && (

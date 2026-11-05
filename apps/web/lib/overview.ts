@@ -111,6 +111,25 @@ export const STATUS_TEXT: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+/** A payment plan in plain words. */
+export const PLAN_TEXT: Record<string, string> = { CASH: "Cash", INST2: "2 installments", INST4: "4 installments" };
+
+/** Why an order is on hold, for the rep (P1-30, FLOW-18, REP-17): the order's own hold codes in plain words. */
+export const REP_HOLD_TEXT: Record<string, string> = {
+  blocked: "The salon's credit is blocked.",
+  plan_not_allowed: "This payment plan is not allowed for the salon yet.",
+  over_limit: "The salon has reached its credit limit.",
+  pending: "A discount is waiting for approval.",
+  rejected: "The discount was refused.",
+};
+
+/** What a salon's held order waits for (app.salon_my_orders waiting_on; AUTH-10): no figure, no office text. */
+export const SALON_WAITING_TEXT: Record<string, string> = {
+  price_approval: "Waiting for the office to approve the price.",
+  credit_check: "Waiting for the office to check the payment terms.",
+  office_check: "Waiting for the office to check it.",
+};
+
 const DAYS_TEXT: Record<number, string> = { 0: "since today", 1: "1 day" };
 
 /** "since today", "1 day", "3 days". */

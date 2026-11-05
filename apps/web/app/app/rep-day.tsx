@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { day as shortDay, karachiToday } from "@/lib/overview";
+import { karachiToday, day as shortDay } from "@/lib/overview";
 import { db, rows, rpc } from "@/lib/rpc";
 
 type Day = {

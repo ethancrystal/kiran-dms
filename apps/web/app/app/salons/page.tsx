@@ -58,6 +58,12 @@ export default function Salons() {
             <span className="muted">{s.area_name}</span>
             <br />
             <span className="badge">{label(s.stage)}</span> <span className="badge">{label(s.type)}</span>
+            {s.approval_status !== "approved" && (
+              <span className="badge" data-testid="salon-approval">
+                {" "}
+                {s.approval_status === "pending" ? "proposed: waiting for the office" : "not approved by the office"}
+              </span>
+            )}
             {s.phone_masked && <span className="muted"> · {s.phone_masked}</span>}
           </li>
         ))}

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LinePicker, newPick, type PickLine, picksPayload } from "@/components/request-lines";
 import { rupees } from "@/lib/money";
+import { SALON_WAITING_TEXT } from "@/lib/overview";
 import { signedImageUrls } from "@/lib/product-images";
 import { rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
@@ -63,6 +64,8 @@ type Order = {
   total_paisa: number;
   from_request: boolean;
   lines: OrderLine[];
+  /** AUTH-10 (P1-30): what an order on hold waits for, in one fixed word; null otherwise. */
+  waiting_on: string | null;
 };
 type Account = {
   balance: {
@@ -83,7 +86,11 @@ type Account = {
   payments: Array<{ receipt_number: string; paid_at: string; method: string; amount_paisa: number; reversed?: boolean }>;
 };
 type Portal = { me: Me; account: Account; catalogue: Item[]; requests: Request[]; orders: Order[] };
-type State = { kind: "loading" } | { kind: "none" } | { kind: "ready"; data: Portal } | { kind: "error"; message: string };
+type State =
+  | { kind: "loading" }
+  | { kind: "none"; status: string | null }
+  | { kind: "ready"; data: Portal }
+  | { kind: "error"; message: string };
 type BasketLine = { skuId: string; qty: string };
 
 // Characters of an order id shown to the salon: enough to quote it to the office.
@@ -101,6 +108,11 @@ const REQUEST_STATUS: Record<Request["status"], string> = {
   dismissed: "Rejected",
   cancelled: "Cancelled",
 };
+// AUTH-09 (P1-30): the account's own status (app.salon_login_status); the office's reason is not shown.
+const ACCOUNT_STATE: Record<string, string> = {
+  suspended: "This salon account is suspended by the office. Contact the office to have it reactivated.",
+  revoked: "This salon account is closed. If the office sends you a new invitation, open its link.",
+};
 const itemText = (i: Item) => `${i.code} · ${i.product_name} ${i.variant} · ${rupees(Number(i.price_paisa))}`;
 
 // The salon portal (D-34, D-41; spec section 5). Every figure, price and list comes from an app.salon_*
@@ -117,7 +129,9 @@ export default function SalonHome() {
     try {
       const me = await rpc<Me | null>("salon_me");
       if (!me) {
-        setState({ kind: "none" });
+        // AUTH-09 (P1-30): a suspended or closed account is told so, not "no account".
+        const own = await rpc<{ membership_status: string } | null>("salon_login_status");
+        setState({ kind: "none", status: own?.membership_status ?? null });
         return;
       }
       const [account, catalogue, requests, orders] = await Promise.all([
@@ -160,8 +174,9 @@ export default function SalonHome() {
         </p>
       )}
       {state.kind === "none" && (
-        <p className="error" role="alert">
-          This login has no active salon account. If the office sent you an invitation, open its link; otherwise ask the office.
+        <p className="error" role="alert" data-testid="salon-account-state">
+          {ACCOUNT_STATE[state.status ?? ""] ??
+            "This login has no active salon account. If the office sent you an invitation, open its link; otherwise ask the office."}
         </p>
       )}
       {state.kind === "ready" && (
@@ -566,7 +581,14 @@ function Orders({ orders }: { orders: Order[] }) {
                 </td>
                 <td data-label="Products">{o.lines.map((l) => `${l.qty} × ${l.code}`).join(", ")}</td>
                 <td data-label="Status">
-                  <span className="badge">{label(o.status)}</span>
+                  <span className="badge">{o.status === "draft" ? "on hold" : label(o.status)}</span>
+                  {o.status === "draft" && (
+                    <span className="muted" data-testid="order-waiting">
+                      {" "}
+                      {SALON_WAITING_TEXT[o.waiting_on ?? ""] ?? SALON_WAITING_TEXT.office_check}
+                    </span>
+                  )}
+                  {o.status === "cancelled" && <span className="muted"> Cancelled by the office. Ask the office why.</span>}
                 </td>
                 <td data-label="Total">{rupees(Number(o.total_paisa))}</td>
               </tr>
