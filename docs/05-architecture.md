@@ -2,7 +2,7 @@
 
 ## Build vs. buy, briefly
 
-Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo, FMCG "DMS" products). None of them gives, out of the box, the combination Kiran needs: a sealed supplier compartment enforced in the database, two-party cash custody with daily zero-variance reconciliation, installment plans with credit gating at the point of sale, an offline-first Urdu-friendly rep app, and a pipeline engine driven by salon re-order cycles. Bolting those onto a generic ERP costs more than building a focused system — and MJ is the developer. Decision: **build**, on a managed Postgres platform so that security primitives (auth, RLS, storage policies, backups) are inherited rather than hand-rolled. Accounting stays out of scope; exports feed an accountant or, later, an accounting package.
+Off-the-shelf options exist (generic CRMs, open-source ERPs such as ERPNext/Odoo, FMCG "DMS" products). None of them gives, out of the box, the combination Kiran needs: a sealed supplier compartment enforced in the database, two-party cash custody with daily zero-variance reconciliation, installment plans with credit gating at the point of sale, an offline-first rep app, and a pipeline engine driven by salon re-order cycles. Bolting those onto a generic ERP costs more than building a focused system — and MJ is the developer. Decision: **build**, on a managed Postgres platform so that security primitives (auth, RLS, storage policies, backups) are inherited rather than hand-rolled. Accounting stays out of scope; exports feed an accountant or, later, an accounting package.
 
 ## Stack
 
@@ -135,7 +135,7 @@ Assume ≤ 10 reps, ≤ 3,000 salons, ~300 visits/day, ~150 payments/day, ~50 or
 kiran-dms/
   apps/web/                 Next.js (routes: /app for reps, /office for owner/manager)
   packages/db/              SQL migrations, RLS policies, functions, seed, policy tests
-  packages/shared/          Types (generated from DB), validation schemas, i18n strings (en, ur)
+  packages/shared/          Types (generated from DB), validation schemas
   supabase/functions/       Edge functions: whatsapp, sms, pdf, bank-import, digest, export
   docs/                     This planning set
 ```

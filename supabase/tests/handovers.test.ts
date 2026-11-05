@@ -13,6 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { approveSalon, errorOf, fx, MANAGER, OWNER, run, sqlstate, type Who } from "./helpers/db";
+import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -93,9 +94,15 @@ const collected = (amount = COLLECTED): Step[] => {
       "manager",
       `select app.office_create_order('${ocid}', '${SALON}', 'INST4', '${JSON.stringify([{ sku_id: SKU, qty: INST4_QTY }])}'::jsonb, '${fx.repA.id}');`,
     ],
+    // A rep's delivery (D-32): rep A submits it and the manager approves it.
     [
-      "repA",
-      `select app.rep_deliver('${dcid}', (select id from public.sales_order where client_id = '${ocid}'), 'Ayesha at the counter', 24.9, 67.1);`,
+      "postgres",
+      submitApproveSql(asUser, {
+        clientId: dcid,
+        orderExpr: `(select id from public.sales_order where client_id = '${ocid}')`,
+        rep: "repA",
+        approver: "manager",
+      }),
     ],
     pay(amount),
   ];
