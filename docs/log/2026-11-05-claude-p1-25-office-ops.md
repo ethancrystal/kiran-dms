@@ -64,3 +64,4 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 **Next / needs:** CI on a pull request (MJ decides when to push), above all the e2e-stack job with the new journey. MJ: B-42; confirm A-18 (open); the blind count ruling. A later forward migration extends the timeline maps to the slice 4 and 5 tables (checklist section 1).
+Addition, final checks on 37ec8b0: node scripts/activity-log-check.mjs origin/main: OK (2 new log entries, this one and slice 7's, which is not on main yet; 47 changed files; owner terms checked: 0, the secret is not set locally). pnpm agent:preflight: PREFLIGHT OK, worktree clean.
