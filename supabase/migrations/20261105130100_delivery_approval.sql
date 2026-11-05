@@ -631,3 +631,150 @@ revoke all on function
 grant execute on function
   app.rep_submit_delivery(uuid, uuid, text, numeric, numeric, jsonb, boolean, timestamptz), app.my_submissions()
   to authenticated;
+
+-- =============================================================================
+-- Office approval (plan Task 4)
+-- =============================================================================
+-- The owner or a manager (AAL2) approves a rep's submission. In one transaction app.finalise_delivery
+-- re-checks the order, what is left and the stock in the rep's pending location, writes the delivery
+-- (the rep as deliverer, the submission's day and GPS), the sale movement out of pending, the invoice
+-- (with its installments, by trigger) and the order status; then the decision is recorded. All or
+-- nothing (Decision 2): a wrong quantity is rejected and resubmitted. The rep's later suspension, move
+-- or check-out does not block approval (Decision 9). Idempotent on client_id: the same caller and
+-- submission get the same invoice back, including a retry that waited on the submission lock.
+create function app.office_approve_delivery(p_submission_id uuid, p_client_id uuid)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_office();
+  s      public.delivery_submission;
+  x      public.delivery_submission_decision;
+  inv    public.invoice;
+begin
+  if p_client_id is null then
+    raise exception using errcode = '22023', message = 'an approval needs a client_id (idempotency key, H-08)';
+  end if;
+  select * into x from public.delivery_submission_decision where client_id = p_client_id;
+  if x.id is not null then
+    if x.submission_id = p_submission_id and x.decided_by = auth.uid() and x.outcome = 'approved' then
+      return (select i from public.invoice i where i.delivery_id = x.delivery_id);   -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  select * into s from public.delivery_submission where id = p_submission_id for update;
+  if s.id is null then raise exception using errcode = '22023', message = 'unknown delivery submission'; end if;
+  -- A concurrent call with this client_id may have decided while this one waited on the lock.
+  select * into x from public.delivery_submission_decision where client_id = p_client_id;
+  if x.id is not null then
+    if x.submission_id = p_submission_id and x.decided_by = auth.uid() and x.outcome = 'approved' then
+      return (select i from public.invoice i where i.delivery_id = x.delivery_id);   -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  -- Roles normally make this impossible; app.owner_set_role can promote a rep with a submission queued.
+  if s.rep_id = auth.uid() then perform app.raise_denied('the approver cannot be the rep who submitted (SEC-11)'); end if;
+  if exists (select 1 from public.delivery_submission_decision d where d.submission_id = s.id) then
+    raise exception using errcode = '55000', message = 'this delivery submission is already decided';
+  end if;
+  inv := app.finalise_delivery(s.client_id, s.order_id, app.pending_location_of(s.rep_id), s.lines, s.received_by_name,
+                               s.lat, s.lng, s.mock_location, s.submitted_at_client, s.rep_day_id, s.rep_id, 'rep');
+  -- Written only now, after app.finalise_delivery has taken the per-salon payment lock (M1).
+  perform app.set_purpose('delivery submission approved');
+  insert into public.delivery_submission_decision (client_id, submission_id, outcome, delivery_id, decided_by)
+  values (p_client_id, s.id, 'approved', inv.delivery_id, auth.uid());
+  return inv;
+end $$;
+
+-- The office's queue: undecided submissions, oldest first, up to 200, with the order's prices.
+create function app.office_pending_deliveries()
+returns table (submission_id uuid, order_id uuid, salon_id uuid, salon_name text, rep_id uuid, rep_name text, lines jsonb,
+               total_paisa bigint, received_by_name text, distance_from_pin_m integer, mock_location boolean, flags jsonb,
+               submitted_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.assert_office();
+  return query
+  select s.id, s.order_id, s.salon_id, sa.name, s.rep_id, u.full_name,
+         (select jsonb_agg(jsonb_build_object('sku_id', k.id, 'code', k.code, 'variant', k.variant, 'qty', (e ->> 'qty')::integer,
+                                              'unit_price_paisa', ol.unit_price_paisa) order by k.code)
+          from jsonb_array_elements(s.lines) e
+          join public.sku k on k.id = (e ->> 'sku_id')::uuid
+          join public.sales_order_line ol on ol.order_id = s.order_id and ol.sku_id = k.id),
+         (select coalesce(sum((e ->> 'qty')::bigint * ol.unit_price_paisa), 0)::bigint
+          from jsonb_array_elements(s.lines) e
+          join public.sales_order_line ol on ol.order_id = s.order_id and ol.sku_id = (e ->> 'sku_id')::uuid),
+         s.received_by_name, s.distance_from_pin_m, s.mock_location, s.flags, s.submitted_at
+  from public.delivery_submission s
+  join public.salon sa on sa.id = s.salon_id
+  join public.user_profile u on u.id = s.rep_id
+  where not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)
+  order by s.submitted_at, s.id
+  limit 200;
+end $$;
+
+-- app.office_deliver above, with one refusal (Review Focus 3): while a rep's submission of the order
+-- waits for a decision, the office cannot deliver the order from the warehouse, or the goods in pending
+-- custody would be stranded. The order row is locked first, as a submission takes the same lock.
+create or replace function app.office_deliver(
+  p_client_id uuid, p_order_id uuid, p_warehouse_id uuid, p_received_by_name text,
+  p_lines jsonb default null, p_lat numeric default null, p_lng numeric default null)
+returns public.invoice
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_office();
+  d      public.delivery;
+begin
+  select * into d from public.delivery where client_id = p_client_id;
+  if d.id is not null then
+    if d.order_id = p_order_id and d.delivered_by = auth.uid() then
+      return (select i from public.invoice i where i.delivery_id = d.id);          -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if not exists (select 1 from public.stock_location l where l.id = p_warehouse_id and l.kind = 'warehouse' and l.active) then
+    raise exception using errcode = '22023', message = 'the office delivers from an active warehouse';
+  end if;
+  perform 1 from public.sales_order o where o.id = p_order_id for update;
+  if exists (select 1 from public.delivery_submission s where s.order_id = p_order_id
+               and not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)) then
+    raise exception using errcode = '55000', message = 'this order has a delivery waiting for approval';
+  end if;
+  return app.finalise_delivery(p_client_id, p_order_id, p_warehouse_id, p_lines, p_received_by_name, p_lat, p_lng, false,
+                               null, null, auth.uid(), v_role);
+end $$;
+
+-- Migration 20261104090000's app.cancel_order with one refusal, after the row lock (Review Focus 3):
+-- an order with a delivery waiting for approval is not cancelled. The refusal comes after the
+-- who-may-cancel test (the plan put it before), so a caller who may not cancel the order learns
+-- nothing about its submissions; the office still gets 55000.
+create or replace function app.cancel_order(p_order_id uuid, p_reason text) returns public.sales_order
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role public.app_role := app.assert_actor_ready();
+  o      public.sales_order;
+begin
+  perform app.assert_reason(p_reason);
+  select * into o from public.sales_order where id = p_order_id for update;
+  if o.id is null then raise exception using errcode = '22023', message = 'unknown order'; end if;
+  if o.status = 'cancelled' then return o; end if;                          -- replay
+  if not (app.is_office() and o.status in ('draft', 'confirmed'))
+     and not (v_role = 'rep' and coalesce(o.rep_id = auth.uid(), false) and o.status = 'draft') then
+    perform app.raise_denied('a rep cancels only its own draft; the office cancels before delivery (ORD-03)');
+  end if;
+  if exists (select 1 from public.delivery_submission s where s.order_id = o.id
+               and not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)) then
+    raise exception using errcode = '55000', message = 'this order has a delivery waiting for approval';
+  end if;
+  perform app.set_purpose('order cancelled: ' || p_reason);
+  update control.approval_request
+     set status = 'cancelled', decided_at = now(), decision_reason = 'order cancelled: ' || left(p_reason, 200)
+   where id = o.discount_approval_id and status = 'pending';
+  update public.sales_order
+     set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_reason = left(p_reason, 300)
+   where id = o.id returning * into o;
+  return o;
+end $$;
+
+revoke all on function app.office_approve_delivery(uuid, uuid), app.office_pending_deliveries()
+  from public, anon, authenticated, service_role;
+grant execute on function app.office_approve_delivery(uuid, uuid), app.office_pending_deliveries() to authenticated;

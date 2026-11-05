@@ -671,3 +671,354 @@ describe("a rep's delivery is a submission: goods to pending, nothing official c
   });
 });
 
+// -------------------------------------------------------------- Task 4: approval ----
+const ALREADY_DECIDED = "already decided";
+const WHO_SUBMITTED = "who submitted";
+const WAITING = "waiting for approval";
+const NUMBER_SUFFIX = 6;
+const AUDITED_TABLES = 4; // submission, decision, delivery, invoice
+const invoiceNo = (n: unknown) => Number(String(n).slice(-NUMBER_SUFFIX));
+const record = (ocid: string, scid: string, approver: string): Step => [
+  "postgres",
+  `select dl.delivered_by = '${fx.repA.id}' rep_delivered, dl.delivered_by_role::text role,
+          dl.rep_day_id = s.rep_day_id same_day, dl.lat = s.lat and dl.lng = s.lng same_gps,
+          dl.from_location_id = ${PENDING_A} from_pending, dl.client_id = s.client_id same_client,
+          (select count(*)::int from public.stock_movement m where m.kind = 'sale' and m.source_id = dl.id
+             and m.from_location_id = ${PENDING_A} and m.actor_id = '${approver}') sales,
+          ${deltas},
+          i.issued_by = '${approver}' issued_by_approver, i.delivered_by = '${fx.repA.id}' delivered_by_rep,
+          i.commission_rep_id = '${fx.repA.id}' commission_rep, i.rep_id = '${fx.repA.id}' invoice_rep,
+          i.number ~ '^INV-[0-9]{2}-[0-9]{6}$' numbered, i.total_paisa::int total,
+          (select sum(x.amount_due_paisa)::int from public.installment x where x.invoice_id = i.id) installments,
+          o.status::text status, x.outcome, x.delivery_id = dl.id decision_delivery, x.decided_by = '${approver}' decided_by,
+          (select count(distinct e.table_name)::int from control.audit_event e
+            where (e.table_name, e.row_id) in (('public.delivery_submission', s.id::text), ('public.delivery_submission_decision', x.id::text),
+                                               ('public.delivery', dl.id::text), ('public.invoice', i.id::text))) audited
+   from public.delivery_submission s
+   join public.delivery_submission_decision x on x.submission_id = s.id
+   join public.delivery dl on dl.id = x.delivery_id
+   join public.invoice i on i.delivery_id = dl.id
+   join public.sales_order o on o.id = s.order_id
+   where s.client_id = '${scid}' and o.client_id = '${ocid}';`,
+];
+const counts = (ocid: string): Step => [
+  "postgres",
+  `select (select count(*)::int from public.delivery d where d.order_id = ${oid(ocid)}) deliveries,
+          (select count(*)::int from public.invoice i where i.order_id = ${oid(ocid)}) invoices,
+          (select count(*)::int from public.installment x join public.invoice i on i.id = x.invoice_id where i.order_id = ${oid(ocid)}) installments,
+          (select count(*)::int from public.delivery_submission_decision x join public.delivery_submission s on s.id = x.submission_id
+            where s.order_id = ${oid(ocid)}) decisions;`,
+];
+
+describe("the office approves a submission: the official record is written once (D-32)", () => {
+  it("manager and owner approve: the whole official record appears once", async () => {
+    const approvers = [
+      ["manager", fx.manager.id],
+      ["owner", fx.owner.id],
+    ] as const;
+    const got = await inSeries(approvers, async ([who, uid]) => {
+      const o = id(),
+        s = id();
+      const [r] = await tx([order(o, [[SKU1, HANDED]]), baseline, submit(s, o), approve(s, id(), who), record(o, s, uid)]);
+      return r;
+    });
+    const expected = {
+      rep_delivered: true,
+      role: "rep",
+      same_day: true,
+      same_gps: true,
+      from_pending: true,
+      same_client: true,
+      sales: 1,
+      bag1: -HANDED,
+      pend1: 0,
+      bag2: 0,
+      pend2: 0,
+      issued_by_approver: true,
+      delivered_by_rep: true,
+      commission_rep: true,
+      invoice_rep: true,
+      numbered: true,
+      total: HANDED * SKU1_PAISA,
+      installments: HANDED * SKU1_PAISA,
+      status: "delivered",
+      outcome: "approved",
+      decision_delivery: true,
+      decided_by: true,
+      audited: AUDITED_TABLES,
+    };
+    expect(got).toEqual([expected, expected]);
+  });
+
+  it("a submission for part of the order moves only those quantities (spec section 7, Decision 2)", async () => {
+    const o = id(),
+      s1 = id(),
+      s2 = id();
+    const [r] = await tx([
+      order(o, [[SKU1, ORDER_OF_THREE]]),
+      submit(s1, o, [[SKU1, HANDED]]),
+      approve(s1, id()),
+      [
+        "postgres",
+        `create temp table mid on commit drop as
+         select o.status::text status, (select sum(x.remaining)::int from app.order_lines_left(o.id) x) remaining,
+                (select i.total_paisa::int from public.invoice i where i.order_id = o.id) total
+         from public.sales_order o where o.client_id = '${o}';`,
+      ],
+      submit(s2, o),
+      approve(s2, id()),
+      [
+        "postgres",
+        `select (select row_to_json(mid) from mid) mid, o.status::text status,
+                (select array_agg(i.total_paisa::int order by i.total_paisa desc) from public.invoice i where i.order_id = o.id) totals
+         from public.sales_order o where o.client_id = '${o}';`,
+      ],
+    ]);
+    expect(r).toEqual({
+      mid: { status: "partially_delivered", remaining: ORDER_OF_THREE - HANDED, total: HANDED * SKU1_PAISA },
+      status: "delivered",
+      totals: [HANDED * SKU1_PAISA, (ORDER_OF_THREE - HANDED) * SKU1_PAISA],
+    });
+  });
+
+  it("duplicate approvals create nothing twice", async () => {
+    const o = id(),
+      s = id(),
+      d = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      approve(s, d),
+      ["postgres", `create temp table first on commit drop as select id from public.invoice where order_id = ${oid(o)};`],
+      approve(s, d),
+      [
+        "postgres",
+        `select (select id from first) = (select x.id from public.invoice x where x.order_id = ${oid(o)}) same;`,
+      ],
+      counts(o),
+    ]);
+    expect(r).toEqual({ deliveries: 1, invoices: 1, installments: 1, decisions: 1 });
+    const again = await inSeries(
+      [
+        [approve(s, id())],
+        [approve(s, id(), "owner")],
+      ] as Step[][],
+      (steps) => failOf([order(o, [[SKU1, HANDED]]), submit(s, o), approve(s, d), ...steps]),
+    );
+    expect(again.map(([c, m]) => [c, m?.includes(ALREADY_DECIDED)])).toEqual([
+      [WRONG_STATE, true],
+      [WRONG_STATE, true],
+    ]);
+    const p = id(),
+      s2 = id();
+    expect(
+      await txCode([order(o, [[SKU1, HANDED]]), order(p, [[SKU2, 1]]), submit(s, o), submit(s2, p), approve(s, d), approve(s2, d)]),
+    ).toBe(DUPLICATE);
+  });
+
+  it("a replay that arrives after the decision returns the same invoice", async () => {
+    const o = id(),
+      s = id(),
+      d = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      approve(s, d),
+      ["postgres", "create temp table n on commit drop as select count(*)::int c from control.audit_event;"],
+      ["manager", `select (app.office_approve_delivery(${sid(s)}, '${d}')).id = (select id from public.invoice where order_id = ${oid(o)}) same;`],
+      ["postgres", "select (select count(*)::int from control.audit_event) - (select c from n) new_audit_rows;"],
+    ]);
+    expect(r).toEqual({ new_audit_rows: 0 });
+  });
+
+  it("who may approve", async () => {
+    const o = id(),
+      s = id();
+    const base = [order(o, [[SKU1, HANDED]]), submit(s, o)];
+    const callers = ["repA", "repB", "managerAal1", "ownerAal1", "suspended"] as const;
+    const codes = await inSeries(callers, (who) => txCode([...base, approve(s, id(), who)]));
+    expect(codes).toEqual(callers.map(() => DENIED));
+    expect(await txCode([...base, approve(s, id(), "anon")])).toBe(DENIED);
+    expect(await txCode([...base, ["manager", `select app.office_approve_delivery('${id()}', '${id()}');`]])).toBe(BAD_INPUT);
+    expect(await txCode([...base, ["manager", `select app.office_approve_delivery(${sid(s)}, null);`]])).toBe(BAD_INPUT);
+  });
+
+  it("a rep promoted after submitting cannot approve its own submission", async () => {
+    const o = id(),
+      s = id();
+    const promoted: Step[] = [
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      ["owner", `select app.owner_set_role('${fx.repA.id}', 'manager', 'test: promoted with a submission queued');`],
+      [
+        "postgres",
+        `select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal2" })}', true);
+         set local role authenticated;
+         select app.office_approve_delivery(${sid(s)}, '${id()}');`,
+      ],
+    ];
+    const [code, msg] = await failOf(promoted);
+    expect([code, msg?.includes(WHO_SUBMITTED)]).toEqual([DENIED, true]);
+    const [r] = await tx([...promoted.slice(0, -1), approve(s, id(), "owner"), counts(o)]);
+    expect(r).toEqual({ deliveries: 1, invoices: 1, installments: 1, decisions: 1 });
+  });
+
+  it("a rep cannot reach the official writes", async () => {
+    const o = id();
+    const base = [order(o, [[SKU1, 1]])];
+    const writes = [
+      `insert into public.delivery (client_id, order_id, salon_id, from_location_id, delivered_by, delivered_by_role, rep_day_id, status, received_by_name, lat, lng)
+       values (gen_random_uuid(), ${oid(o)}, '${SALON}', ${BAG_A}, '${fx.repA.id}', 'rep', (select id from public.rep_day where rep_id = '${fx.repA.id}' and day = ${TODAY}), 'full', 'Ayesha', 1, 1);`,
+      `insert into public.invoice (number, delivery_id, order_id, salon_id, plan, subtotal_paisa, discount_paisa, total_paisa, issued_by)
+       values ('INV-99-000001', gen_random_uuid(), ${oid(o)}, '${SALON}', 'CASH', 1, 0, 1, '${fx.repA.id}');`,
+      `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, kind, actor_id)
+       values (gen_random_uuid(), '${SKU1}', 1, ${BAG_A}, 'sale', '${fx.repA.id}');`,
+      `update public.sales_order set status = 'delivered' where id = ${oid(o)};`,
+      `select app.finalise_delivery('${id()}', ${oid(o)}, ${BAG_A}, null, 'Ayesha', 1, 1, false, null, null, '${fx.repA.id}', 'rep');`,
+    ];
+    const codes = await inSeries(writes, (sql) => txCode([...base, ["repA", sql]]));
+    expect(codes).toEqual(writes.map(() => DENIED));
+  });
+
+  it("a refused approval writes nothing and takes no invoice number", async () => {
+    const o = id(),
+      s = id(),
+      a = id(),
+      b = id();
+    const [r] = await tx([
+      order(a, [[SKU2, 1]]),
+      order(o, [[SKU1, HANDED]]),
+      order(b, [[SKU2, 1]]),
+      submit(s, o),
+      officeDeliver(id(), a),
+      // The goods leave the pending location behind the office's back, so the approval must fail.
+      [
+        "postgres",
+        `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, actor_id)
+         values (gen_random_uuid(), '${SKU1}', ${HANDED}, ${PENDING_A}, '${WH}', 'transfer', '${fx.manager.id}');`,
+      ],
+      [
+        "manager",
+        `do $t$ begin perform app.office_approve_delivery(${sid(s)}, '${id()}'); exception when check_violation then null; end $t$;`,
+      ],
+      officeDeliver(id(), b),
+      [
+        "postgres",
+        `select (select count(*)::int from public.invoice where order_id = ${oid(o)}) invoices,
+                (select count(*)::int from public.delivery_submission_decision where submission_id = ${sid(s)}) decisions,
+                (select array_agg(number order by number) from public.invoice where order_id in (${oid(a)}, ${oid(b)})) numbers;`,
+      ],
+    ]);
+    const numbers = r.numbers as string[];
+    expect([r.invoices, r.decisions, invoiceNo(numbers[1]) - invoiceNo(numbers[0])]).toEqual([0, 0, 1]);
+    const [code, msg] = await failOf([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      [
+        "postgres",
+        `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, actor_id)
+         values (gen_random_uuid(), '${SKU1}', ${HANDED}, ${PENDING_A}, '${WH}', 'transfer', '${fx.manager.id}');`,
+      ],
+      approve(s, id()),
+    ]);
+    expect([code, msg?.includes("insufficient stock at the delivery location")]).toEqual([CHECK, true]);
+  });
+
+  it("approval works after the rep has checked out (Review Focus 2)", async () => {
+    const o = id(),
+      s = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      ["repA", `select app.record_count('${id()}', ${BAG_A}, 'daily_close', '[]'::jsonb); select app.rep_check_out();`],
+      approve(s, id()),
+      [
+        "postgres",
+        `select d.rep_day_id = s.rep_day_id same_day, rd.status::text day_status
+         from public.delivery d join public.delivery_submission s on s.client_id = d.client_id join public.rep_day rd on rd.id = d.rep_day_id
+         where s.client_id = '${s}';`,
+      ],
+    ]);
+    expect(r).toEqual({ same_day: true, day_status: "closed" });
+  });
+
+  it("approval survives suspension and reassignment (Review Focus 2)", async () => {
+    const o = id(),
+      s = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      ["manager", `select app.office_end_territory('${fx.repA.id}', '${T_A}', 'test: moved away');`],
+      ["owner", `select app.owner_set_status('${fx.repA.id}', 'suspended', 'test: suspended with a submission queued');`],
+      approve(s, id()),
+      ["postgres", `select commission_rep_id = '${fx.repA.id}' commission_rep, delivered_by = '${fx.repA.id}' delivered_by_rep from public.invoice where order_id = ${oid(o)};`],
+    ]);
+    expect(r).toEqual({ commission_rep: true, delivered_by_rep: true });
+  });
+
+  it("an undecided submission blocks cancel and office delivery (Review Focus 3)", async () => {
+    const o = id(),
+      s = id();
+    const waiting = [order(o, [[SKU1, HANDED]]), submit(s, o)];
+    const blocked = await inSeries(
+      [
+        ["manager", `select app.cancel_order(${oid(o)}, 'test: cancel while waiting');`],
+        officeDeliver(id(), o),
+      ] as Step[],
+      (step) => failOf([...waiting, step]),
+    );
+    expect(blocked.map(([c, m]) => [c, m?.includes(WAITING)])).toEqual([
+      [WRONG_STATE, true],
+      [WRONG_STATE, true],
+    ]);
+    // After a rejection both behave as today: the office may cancel the order, or deliver it.
+    const [cancelled] = await tx([
+      ...waiting,
+      reject(s, id()),
+      ["manager", `select (app.cancel_order(${oid(o)}, 'test: cancel after rejection')).status::text status;`],
+    ]);
+    expect(cancelled).toEqual({ status: "cancelled" });
+    const [delivered] = await tx([...waiting, reject(s, id()), officeDeliver(id(), o), ["postgres", `select status::text status from public.sales_order where id = ${oid(o)};`]]);
+    expect(delivered).toEqual({ status: "delivered" });
+    // After approval the order is delivered: cancelling refuses as it does for any delivered order.
+    expect(await txCode([...waiting, approve(s, id()), ["manager", `select app.cancel_order(${oid(o)}, 'test: too late');`]])).toBe(DENIED);
+  });
+
+  it("the approvals queue lists undecided submissions oldest first", async () => {
+    const o = id(),
+      p = id(),
+      s1 = id(),
+      s2 = id();
+    // No outer order by: the rows come back in the function's own order, submitted_at then id. Both
+    // rows are written in one rolled-back transaction, so their submitted_at (now()) ties and the id
+    // decides; the test therefore checks the function's order against (submitted_at, id).
+    const queue = (scids: string[]): Step => [
+      "manager",
+      `select submission_id::text sub, rep_name, total_paisa::int total, flags, received_by_name, mock_location
+       from app.office_pending_deliveries() where submission_id in (${scids.map(sid).join(", ")});`,
+    ];
+    const both = await tx([
+      order(o, [[SKU1, HANDED]]),
+      order(p, [[SKU2, 1]], SALON_NOPIN),
+      submit(s1, o),
+      submit(s2, p),
+      queue([s1, s2]),
+    ]);
+    expect(both.map((x) => x.sub)).toEqual(both.map((x) => String(x.sub)).sort());
+    expect(both.map(({ sub: _sub, ...rest }) => rest).sort((x, y) => Number(x.total) - Number(y.total))).toEqual([
+      { rep_name: "[Test] Rep A", total: SKU2_PAISA, flags: ["distance_unknown"], received_by_name: "Ayesha at the counter", mock_location: false },
+      { rep_name: "[Test] Rep A", total: HANDED * SKU1_PAISA, flags: [], received_by_name: "Ayesha at the counter", mock_location: false },
+    ]);
+    const left = await tx([
+      order(o, [[SKU1, HANDED]]),
+      order(p, [[SKU2, 1]], SALON_NOPIN),
+      submit(s1, o),
+      submit(s2, p),
+      approve(s1, id()),
+      queue([s1, s2]),
+    ]);
+    expect(left.map((x) => x.total)).toEqual([SKU2_PAISA]);
+    expect(await txCode([["repA", "select * from app.office_pending_deliveries();"]])).toBe(DENIED);
+  });
+});
+
