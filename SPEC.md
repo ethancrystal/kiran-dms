@@ -128,7 +128,7 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 | Invitations, salon membership, salon approval, rep assignment and reachability; People and approvals screens (D-35, D-36, D-39) | SEC-13, 16, 17; SAL-11, 13, 14 | database role tests and browser journey (completion design §7) | P1-18 |
 | Product pictures and descriptions, manager prices, per-salon prices (D-37, D-39) | INV-13, ORD-07 | database role tests and browser journey | P1-19 |
 | Basic investor ledger, office only, no engine (D-40): investors, investments, typed profit decisions, payouts and reversals; Investors pages (`/office/investors`) | CAP-01 to 03 | `investors.test.ts`, RLS matrix, `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-20 |
-| Requests queue with lines; salon portal (D-34, D-41) | ORD-01, 11 to 15; SAL-12; SEC-14, 15 | salon isolation tests and browser journey | P1-23 |
+| Requests queue with lines; salon portal (D-34, D-41): rep cards and salon requests with lines (never prices), edits as versions, cancel before review; one-click convert on `/office/orders` (channel `salon_portal` for a salon's request); `/salon` with catalogue, basket, requests, orders, balance and payments | ORD-01, 11 to 15; SAL-12; SEC-14, 15 | `requests-portal.test.ts`, `order-cards.test.ts`, RLS matrix, `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-23 |
 | Rep read-only, salon proposals, timelines; the end-to-end journey in CI (D-35, D-39) | SAL-05, 09, 13 | end-to-end browser test (completion design §7) | P1-24 |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | P1-08 |
 | Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
@@ -188,7 +188,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 | `docs/` | Planning set 00–16 (doc 16 is authoritative for business rules), `ACTIVITY.md` (protocol, status board, blockers), `log/` (one file per log entry; `log/archive.md` is frozen), `diagrams/`, `runbooks/` |
 | `supabase/migrations/` | Forward-only SQL: schemas, tables, RLS, `app.*` functions, guards. One file per task, never edited after merge |
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
-| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. `app/salon/` is the salon's account page (slice 1); the salon customer portal comes in slice 6 (Phase 1 in doc 11 since D-41). `app/invite/` is the invitation page, the only one that creates a login (D-39) |
+| `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. `app/salon/` is the salon customer portal (slice 1 account page; catalogue, basket, requests, orders, balance and payments in slice 6, Phase 1 in doc 11 since D-41). `app/invite/` is the invitation page, the only one that creates a login (D-39) |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes to no database |
 | `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |

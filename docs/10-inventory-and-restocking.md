@@ -20,7 +20,7 @@ Consumables        [Dummy] Foils, caps, gloves      per pack
 
 Each SKU will carry: Kiran label, variant name, **size (ml/L or g/kg)**, **net weight**, pack type, units per carton, barcode if present, and shelf life — fields exist for all of these; the values come from MJ.
 
-Approved, not built (D-37, D-39, D-41): the owner or manager adds products with a picture and a description (INV-13) and sets SKU and per-salon prices with a reason (ORD-07). All salons see the same active catalogue, each with its own price; stock is not shown to salons in the current work (INV-12, Phase 2). Cost is never on these screens.
+Approved, not built (D-37, D-39, D-41): the owner or manager adds products with a picture and a description (INV-13) and sets SKU and per-salon prices with a reason (ORD-07). All salons see the same active catalogue, each with its own price; stock is not shown to salons in the current work (INV-12, Phase 2). Cost is never on these screens. The salon's catalogue is built in slice 6 (`app.salon_catalogue`, migration 20261105150000, not verified): active SKUs of active products with a list price, picture path, description and the salon's own price else list; no stock, location or cost. A salon request reserves no stock: stock moves only when the office's order is delivered.
 
 - `product_group.default_cycle_days` seeds the repeat-cycle engine (doc 02) — e.g., Color 21, Developer 21, Shampoo 30, Treatment 30, Styling 45.
 - `product.brand_label` is Kiran's public name; the supplier never appears (doc 07).
