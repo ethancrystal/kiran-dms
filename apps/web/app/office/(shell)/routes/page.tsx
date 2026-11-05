@@ -235,7 +235,7 @@ export default function OfficeRoutes() {
           ))}
         </select>
         <label htmlFor="route-day">Route day</label>
-        <input id="route-day" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+        <input id="route-day" type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
       </div>
       {notice && <output className="ok">{notice}</output>}
       <ListState

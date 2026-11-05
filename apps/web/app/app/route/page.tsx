@@ -116,7 +116,13 @@ export default function MyRoute() {
       </p>
       <h1>My route</h1>
       <label htmlFor="my-route-day">Day of the route</label>
-      <input id="my-route-day" type="date" min={karachiToday()} value={day} onChange={(e) => setDay(e.target.value)} />
+      <input
+        id="my-route-day"
+        type="date"
+        min={karachiToday()}
+        value={day}
+        onChange={(e) => e.target.value && setDay(e.target.value)}
+      />
       {notice && <output className="ok">{notice}</output>}
       {error && (
         <p className="error" role="alert">
