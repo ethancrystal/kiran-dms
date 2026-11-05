@@ -38,9 +38,7 @@ export default function MyAccount() {
       <p>
         <a href="/app">← Today</a>
       </p>
-      <h1>
-        My account · <span lang="ur">میرا اکاؤنٹ</span>
-      </h1>
+      <h1>My account</h1>
       {loading && (
         <p className="muted" aria-busy="true">
           Loading…

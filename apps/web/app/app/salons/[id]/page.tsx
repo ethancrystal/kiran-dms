@@ -158,9 +158,7 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
       <MoneySection salonId={id} mode="rep" />
 
       <section aria-labelledby="notes-h">
-        <h2 id="notes-h">
-          Notes · <span lang="ur">نوٹس</span>
-        </h2>
+        <h2 id="notes-h">Notes</h2>
         <NoteForm salonId={id} onDone={() => done("Note added.")} />
         {notes.length === 0 ? (
           <p className="muted">No notes yet.</p>
@@ -268,9 +266,7 @@ function VisitForm({ salonId, onDone }: { salonId: string; onDone: (outcome: str
         }
       }}
     >
-      <h2>
-        Record a visit · <span lang="ur">دورہ درج کریں</span>
-      </h2>
+      <h2>Record a visit</h2>
       <label htmlFor="outcome">Outcome</label>
       <select id="outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
         {VISIT_OUTCOMES.map((o) => (
