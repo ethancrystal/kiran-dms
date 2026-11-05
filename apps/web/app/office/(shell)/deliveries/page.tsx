@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
+import { SubmissionSignature } from "@/components/submission-signature";
 import { rupees } from "@/lib/money";
 import { db, mySession, type Role, rows, rpc } from "@/lib/rpc";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -88,6 +89,12 @@ export default function DeliveryApprovals() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  // Which waiting deliveries have the salon's valid signed acknowledgement (D-49): only those can be approved.
+  const [signed, setSigned] = useState<Record<string, boolean>>({});
+  const markSigned = useCallback(
+    (id: string, ok: boolean) => setSigned((all) => (all[id] === ok ? all : { ...all, [id]: ok })),
+    [],
+  );
   const [qty, setQty] = useState<Record<string, string>>({});
   const [warehouse, setWarehouse] = useState<Record<string, string>>({});
   const clientIds = useClientIds();
@@ -179,8 +186,19 @@ export default function DeliveryApprovals() {
                     {when(w.submitted_at)}
                     {w.flags.length > 0 && <> · flags: {w.flags.map((f) => FLAG_TEXT[f] ?? f).join(", ")}</>}
                   </span>
+                  <SubmissionSignature
+                    submissionId={w.submission_id}
+                    orderId={w.order_id}
+                    onStatus={(ok) => markSigned(w.submission_id, ok)}
+                  />
                   <div className="row">
-                    <button type="button" className="inline" onClick={() => void approve(w)}>
+                    <button
+                      type="button"
+                      className="inline"
+                      disabled={signed[w.submission_id] !== true}
+                      title={signed[w.submission_id] === true ? undefined : "Needs the salon's signed acknowledgement first"}
+                      onClick={() => void approve(w)}
+                    >
                       Approve delivery
                     </button>
                     <ConfirmAction

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { InvoiceList, ReceiptList } from "@/components/document-lists";
 import { MoneySection } from "@/components/money-section";
 import { SalonContact } from "@/components/salon-contact";
 import { SalonCredit } from "@/components/salon-credit";
@@ -46,6 +47,8 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 export default function OfficeSalon({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [salon, setSalon] = useState<Salon | null>(null);
+  // Bumped when a payment is recorded, so the receipts list below reads the database again.
+  const [docsVersion, setDocsVersion] = useState(0);
   const [areas, setAreas] = useState<Area[]>([]);
   const [contact, setContact] = useState<Contact | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -146,7 +149,10 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         key={`money-${balanceVersion}`}
         salonId={id}
         mode="office"
-        onRecorded={() => setPaymentsVersion((v) => v + 1)}
+        onRecorded={() => {
+          setPaymentsVersion((v) => v + 1);
+          setDocsVersion((v) => v + 1);
+        }}
       />
 
       <SalonPayments
@@ -155,8 +161,16 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         onReversed={(message) => {
           setNotice(message);
           setBalanceVersion((v) => v + 1);
+          setDocsVersion((v) => v + 1);
         }}
       />
+
+      <section className="card" key={docsVersion}>
+        <h2>Invoices</h2>
+        <InvoiceList salonId={id} />
+        <h2>Receipts</h2>
+        <ReceiptList salonId={id} />
+      </section>
 
       <section className="card" aria-labelledby="stage-h">
         <h2 id="stage-h">Change stage</h2>

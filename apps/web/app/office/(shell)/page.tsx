@@ -332,7 +332,9 @@ export default async function OfficeHome() {
             <tbody>
               {delivered.map((r) => (
                 <tr key={r.invoice_id ?? r.order_id} data-testid="delivered-row">
-                  <td>{r.invoice_number}</td>
+                  <td>
+                    {r.invoice_id ? <Link href={`/office/invoices/${r.invoice_id}`}>{r.invoice_number}</Link> : r.invoice_number}
+                  </td>
                   <td>
                     <Link href={`/office/salons/${r.salon_id}`}>{r.salon_name}</Link>
                   </td>

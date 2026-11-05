@@ -19,6 +19,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, run, sqlstate } from "./helpers/db";
 import { type Login, type Method, newLogin, quote, tag, uuid } from "./helpers/invite";
+import { signOrderSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -920,7 +921,10 @@ describe("the salon's account and payments", () => {
          values (gen_random_uuid(), '${SKU_1}', ${STOCK}, '${wh}', 'receipt', '${fx.manager.id}'),
                 (gen_random_uuid(), '${SKU_2}', ${STOCK}, '${wh}', 'receipt', '${fx.manager.id}');`,
       ],
-      ["manager", `select (app.office_deliver(gen_random_uuid(), ${ORDER(oid)}, '${wh}', '[Test] Receiver')).number;`],
+      [
+        "manager",
+        `${signOrderSql(oid, ORDER(oid))} select (app.office_deliver(gen_random_uuid(), ${ORDER(oid)}, '${wh}', '[Test] Receiver')).number;`,
+      ],
       [
         "manager",
         `select (app.office_record_payment('${pay}', '${SALON_B}', ${PAYMENT}, '[Test] Bank', 'REF-${tag()}')).number;`,

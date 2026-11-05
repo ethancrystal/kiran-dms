@@ -950,6 +950,47 @@ const MATRIX: Row[] = [
       },
     }),
   ),
+  // Invoice drafts, issue snapshots, signature openings and the uses of acknowledgements (migration 20261105220000, P1-31, D-49):
+  // the office reads them; no rep, salon, AAL1 office session or anon reads any row.
+  ...(
+    [
+      ["public.invoice_draft_version", "notes"],
+      ["public.invoice_snapshot", "doc_hash"],
+      ["public.delivery_signature_access", "purpose"],
+      ["public.delivery_signature_use", "used_at"],
+    ] as const
+  ).map(
+    ([table, writeCol]): Row => ({
+      table,
+      writeCol,
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
+  // The acknowledgement and its picture: no API role has any grant. The office reads them through functions only, and a
+  // rep sees only the status of its own, through app.my_signature_status.
+  ...(
+    [
+      ["public.delivery_signature", "note"],
+      ["public.delivery_signature_image", "png"],
+    ] as const
+  ).map(
+    ([table, writeCol]): Row => ({
+      table,
+      writeCol,
+      select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])) as Row["select"],
+    }),
+  ),
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",

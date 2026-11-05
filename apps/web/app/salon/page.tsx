@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LinePicker, newPick, type PickLine, picksPayload } from "@/components/request-lines";
+import { SalonInvoices } from "@/components/salon-invoices";
 import { rupees } from "@/lib/money";
 import { SALON_WAITING_TEXT } from "@/lib/overview";
 import { signedImageUrls } from "@/lib/product-images";
@@ -202,6 +203,7 @@ export default function SalonHome() {
           />
           <Requests requests={state.data.requests} catalogue={state.data.catalogue} onChanged={done} />
           <Orders orders={state.data.orders} />
+          <SalonInvoices />
           <Payments account={state.data.account} />
         </>
       )}

@@ -55,7 +55,7 @@ export default function RepPerformance() {
             {reps.map((r) => (
               <tr key={r.rep_id} data-testid="rep-month-row">
                 <td>
-                  {r.full_name}
+                  <Link href={`/office/reps/${r.rep_id}`}>{r.full_name}</Link>
                   {r.status !== "active" && <span className="badge suspended"> {r.status}</span>}
                 </td>
                 <td>
