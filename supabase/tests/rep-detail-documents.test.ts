@@ -61,7 +61,17 @@ const SKU_CODE = `T-DTL-${tag().toUpperCase()}`;
 const ROMAN_URDU_NOTE = "salon wali ne kaha agle hafte aana";
 let salonLogin: Login;
 
-type Persona = "repE" | "repF" | "repEWrongDevice" | "manager" | "managerAal1" | "owner" | "ownerAal1" | "suspended" | "anon" | "salon";
+type Persona =
+  | "repE"
+  | "repF"
+  | "repEWrongDevice"
+  | "manager"
+  | "managerAal1"
+  | "owner"
+  | "ownerAal1"
+  | "suspended"
+  | "anon"
+  | "salon";
 const who = (k: Persona) => {
   if (k === "anon") return `reset role; select set_config('request.jwt.claims', '{"role":"anon"}', true); set local role anon;`;
   if (k === "salon") return asLogin(salonLogin);
@@ -167,7 +177,12 @@ beforeAll(async () => {
       [S2, S2_NAME],
     ] as const,
     ([s, name]) =>
-      run(MANAGER, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual', null, $4, $5)", [s, name, AREA, PIN_LAT, PIN_LNG], C),
+      run(
+        MANAGER,
+        "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual', null, $4, $5)",
+        [s, name, AREA, PIN_LAT, PIN_LNG],
+        C,
+      ),
   );
   await run(MANAGER, "select app.office_assign_salon_rep($1, $2, $3)", [id(), S2, repF.id], C);
   await run(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Detail colour ${tag()}`], C);
@@ -195,7 +210,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await inSeries([repE, repF], (r) => run(MANAGER, "select app.office_end_territory($1, $2, 'detail tests finished')", [r.id, T], C));
+  await inSeries([repE, repF], (r) =>
+    run(MANAGER, "select app.office_end_territory($1, $2, 'detail tests finished')", [r.id, T], C),
+  );
 });
 
 // ----------------------------------------------------------------------- access ----
@@ -321,7 +338,9 @@ describe("office_rep_detail: one rep's page", () => {
     expect(j.salons.find((s) => s.salon_id === S1)).toMatchObject({ name: S1_NAME, direct: false, approval_status: "approved" });
     expect(j.salons_total).toBe(j.salons.length);
     expect([j.days, j.visits, j.cards, j.orders, j.pending, j.invoices, j.bag]).toEqual([[], [], [], [], [], [], []]);
-    expect([j.days_total, j.visits_total, j.cards_total, j.orders_total, j.pending_total, j.invoices_total]).toEqual([0, 0, 0, 0, 0, 0]);
+    expect([j.days_total, j.visits_total, j.cards_total, j.orders_total, j.pending_total, j.invoices_total]).toEqual([
+      0, 0, 0, 0, 0, 0,
+    ]);
     expect(j.has_bag).toBe(false);
   });
 
@@ -591,10 +610,7 @@ describe("the documents the new pages read", () => {
     // The ids are read as postgres first and kept in settings, because a refused persona cannot read the tables.
     const all = await txAll([
       ...steps,
-      [
-        "postgres",
-        `select set_config('t.inv', ${invoice}::text, true), set_config('t.rec', ${receipt}::text, true);`,
-      ],
+      ["postgres", `select set_config('t.inv', ${invoice}::text, true), set_config('t.rec', ${receipt}::text, true);`],
       ...(["manager", "owner", "managerAal1", "ownerAal1", "repF", "salon"] as Persona[]).map(
         (p): Step => [
           p,
@@ -605,7 +621,10 @@ describe("the documents the new pages read", () => {
       ["manager", `select 'unknown' as who, app.invoice_document('${id()}') as doc, app.receipt_document('${id()}') as rec;`],
     ]);
     const got = Object.fromEntries(marked(all, "who").map((r) => [r[0].who as string, r[0]]));
-    const numbers = ["manager", "owner"].map((p) => [(got[p].doc as { number: string }).number, (got[p].rec as { number: string }).number]);
+    const numbers = ["manager", "owner"].map((p) => [
+      (got[p].doc as { number: string }).number,
+      (got[p].rec as { number: string }).number,
+    ]);
     expect(numbers.every(([d, r]) => INVOICE_NUMBER.test(d) && RECEIPT_NUMBER.test(r))).toBe(true);
     const shut = ["managerAal1", "ownerAal1", "repF", "salon", "unknown"];
     expect(shut.map((p) => [p, got[p].doc, got[p].rec])).toEqual(shut.map((p) => [p, null, null]));
@@ -619,7 +638,10 @@ describe("the documents the new pages read", () => {
       ...steps,
       ["manager", `select 'docs' as mark, app.invoice_document(${invoice}) as doc, app.receipt_document(${receipt}) as rec;`],
     ]);
-    const { doc, rec } = marked(all, "mark")[0][0] as { doc: { notices: Array<{ en: string }> }; rec: { notices: Array<{ en: string }> } };
+    const { doc, rec } = marked(all, "mark")[0][0] as {
+      doc: { notices: Array<{ en: string }> };
+      rec: { notices: Array<{ en: string }> };
+    };
     expect(rec.notices.map((n) => n.en).join(" ")).toContain("only valid proof of payment");
     expect(doc.notices.map((n) => n.en).join(" ")).toContain("Only the numbered receipt");
     const keys = [...keysOf(doc), ...keysOf(rec)];

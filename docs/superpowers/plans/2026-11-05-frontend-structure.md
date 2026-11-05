@@ -4,6 +4,8 @@ Status: DRAFT FOR REVIEW, 2026-11-05. MJ approved the direction and the correcti
 
 Evidence base, all read on 2026-11-05: `origin/main` at e703fe3 (P1-21 delivery approval merged); branch `claude/p1-22-commission` (open PR 61); branch `claude/p1-23-portal` (built, not merged); branch `claude/p1-24-rep-readonly` (claimed only); SPEC.md; docs 03, 08, 15, 16; the two superpowers specs; the audit execution map. Page status below was checked against those trees by listing the route files and searching `apps/web` for each function name. A function that no page calls is marked "no page", but a page may exist under another name or inside a shared component (for example payment recording lives in `components/money-section.tsx`), so check the code before building.
 
+Progress note, 2026-11-05 (slice 10, P1-28, branch claude/p1-28-office-shell, implemented, not verified): F5 for the office shell (section 4: grouped, collapsible, current route marked; only working pages listed; see A-21 for placement); section 6 Rep-detail page (profile, phones, cash and commission, submissions waiting with a link to Delivery approvals, orders, invoices, cards, territories, salons, days, visits, bag; not built from section 6: payments and collections, handover history, approving from this page); F6 for the office (invoice and receipt views, Invoices list; statement views, rep and salon views and a PDF renderer are not built). S-D1's Rep-detail item is covered by a pending list and link. Status cells in section 8 are not rewritten here.
+
 ## 1. Decisions this plan rests on (already made)
 
 | Decision | Source | Effect on the frontend |
