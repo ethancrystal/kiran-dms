@@ -6,6 +6,7 @@ The same walk found other journeys that have no screen, which this task does not
 **Evidence:** Base origin/main 903cd29. Commit SHA: the commit that adds this file on branch claude/product-group-screen.
 Run before the change: `node scripts/agent-preflight.mjs` PREFLIGHT OK; `pnpm lint` exit 0 (35 warnings, 42 infos); `pnpm typecheck` exit 0.
 Run after the change: `pnpm lint` exit 0 (35 warnings, 42 infos, same as before); `pnpm typecheck` exit 0; `pnpm -C apps/web build` exit 0.
+Slice 4 (PR 59, e703fe3) merged to main during this task, so origin/main was merged into this branch with no conflicts. Run after that merge: `pnpm lint` exit 0 (35 warnings, 42 infos); `pnpm typecheck` exit 0; `node scripts/activity-log-check.mjs origin/main` OK (2 new log entries, 5 changed files), run locally where KIRAN_SENSITIVE_TERMS is empty. The build was not repeated after the merge.
 
 Not run, so nothing here is proven at runtime:
 - `pnpm db:test`, baseline: started and stopped by Claude Code because the machine was critically low on memory, with no result. ACTIVITY section 2 step 6 asks for this baseline, so it is an open gap, not a pass. This task changes no migration or database test.
