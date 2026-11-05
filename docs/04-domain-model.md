@@ -179,8 +179,8 @@ These tables and columns extend the existing model. MJ approved them in `docs/su
 | **product.image_path, product.description** | Picture and description; bucket `product-images`, office writes, signed-in read, image types, 5 MB | INV-13 |
 | **salon_sku_price** | Office-set price per salon and SKU | **Append-only**. See the table above; OQ-33 |
 | **delivery_submission**, **delivery_submission_decision**, **pending_stock_resolution** | A rep's submission (order, salon, rep, rep day, lines, receiver, GPS, distance, device, mock flag, flags, server and phone time); the office's one decision (approved with its delivery, or rejected with a reason of 5 to 500 characters); the settlement of rejected goods (returned to the bag, to a warehouse, or missing with an approved adjustment; a count note; never more than is unsettled) | **Append-only** (D-32). Built in slice 4, migration 20261105130100, not verified. `invoice.delivered_by` (who handed the goods over) and `invoice.commission_rep_id` (the order's assigned rep) are stamped in `app.finalise_delivery`, the one finalising path |
-| **rep_commission_rate** | Rate per rep and salon, with a rep default | **Append-only** (D-38). `commission_rep_id` and `commission_rate_bp` are stamped at delivery approval |
-| **commission_payment** | Payments and reversals; owed is earned minus paid | **Append-only** (D-38, FLD-06) |
+| **rep_commission_rate** | A rep's default rate: rep_id, rate_bp (0 to 10000), reason (5 to 300), set_by, set_at, seq (the latest row is current). The per rep and salon rate is not a second table: it is `salon_rep_assignment.rate_bp` (slice 1) | **Append-only** (D-38). Built in slice 5, migration 20261105140000, not verified. `invoice.commission_rate_bp` is stamped at delivery approval in `app.finalise_delivery` beside `commission_rep_id`: the salon's latest assignment rate when it names that rep and has a rate, else the rep's latest default, else 0 (0 when the order has no assigned rep); a NOT VALID check `invoice_rate_stamped` requires it on new invoices; it never changes |
+| **commission_payment** | rep_id, kind (payment or reversal), amount_paisa, reverses_id (unique: a payment is reversed once, in full), note, reason (a reversal's, 5 to 500), recorded_by, recorded_at | **Append-only** (D-38, FLD-06). Built in slice 5, not verified. A guard trigger, under a per-rep lock, refuses a payment above what is earned and unpaid and a reversal that does not mirror one payment (23514) |
 | **investor**, **investment** | People and their investments | `investment` is **append-only** (D-40, CAP-01) |
 | **investor_profit_decision**, **investor_payout** | Decisions typed by the office; payouts and reversals with reasons | **Append-only**. Totals derived; no formula; not posted to cash (D-40, CAP-02, CAP-03) |
 
@@ -203,7 +203,7 @@ The functions reused rather than duplicated are `app.build_order`, `app.office_c
 
 ## Derived views (examples)
 
-Specified by the approved rules, not built: a commission view (earned from invoices, paid from `commission_payment`, owed as the difference) and investor totals, both derived, never stored (invariant 2).
+Specified by the approved rules, not built: investor totals, derived, never stored (invariant 2). Commission figures are derived the same way (slice 5, not verified): earned is the sum over the rep's stamped invoices of floor(total_paisa x commission_rate_bp / 10000), floored per invoice; paid is payments minus reversals; owed is all-time earned minus all-time paid; `app.commission_statement` (internal) computes them for `app.my_commission` and `app.office_commission`.
 
 - `v_salon_balance` — receivable, overdue amount, oldest due date, next installment.
 - `v_rep_cash_position` — cash in hand now, expected handover today.
