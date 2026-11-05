@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, REP_A, run, type Who } from "./helpers/db";
 import { type LegacyStatus, legacyOrderSql } from "./helpers/legacy-order";
+import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -157,14 +158,22 @@ const pinOrder = (cid: string): Step => [
 const OWN_DRAFT_ONLY = "a rep cancels only its own draft; the office cancels before delivery (ORD-03)";
 const OFFICE_ONLY = "owner or manager only";
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
+// A rep's delivery (D-32): `who` submits it and the manager approves it; returns the invoice row.
 const deliver = (dcid: string, ocid: string, l: Array<[string, number]> | null = null, who: P = "repA", extra = ""): Step => [
-  who,
-  `select (app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1, ${l ? lines(l) : "null"}${extra})).*;`,
+  "postgres",
+  submitApproveSql(asUser, {
+    clientId: dcid,
+    orderExpr: oid(ocid),
+    rep: who,
+    approver: "manager",
+    lines: l ? lines(l) : null,
+    extra,
+  }),
 ];
-/** rep_deliver of the whole order by its id expression (a literal or PINNED_ORDER), as `who`. */
+/** A delivery of the whole order by its id expression (a literal or PINNED_ORDER), submitted by `who`. */
 const deliverAt = (dcid: string, orderId: string, who: P): Step => [
-  who,
-  `select (app.rep_deliver('${dcid}', ${orderId}, 'Ayesha at the counter', 24.9, 67.1, null)).id;`,
+  "postgres",
+  submitApproveSql(asUser, { clientId: dcid, orderExpr: orderId, rep: who, approver: "manager", returning: "id" }),
 ];
 
 beforeAll(async () => {
@@ -884,11 +893,11 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
   it("a delivery needs a receiver name and sane GPS; a backdated client time does not move the invoice time (H-09)", async () => {
     const o = id();
     const bad = [
-      `select app.rep_deliver('${id()}', ${oid(o)}, '', 24.9, 67.1, null);`,
-      `select app.rep_deliver('${id()}', ${oid(o)}, 'A', 24.9, 67.1, null);`,
-      `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 999, 67.1, null);`,
-      `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', null, null, null);`,
-      `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, null, null);`,
+      `select app.rep_submit_delivery('${id()}', ${oid(o)}, '', 24.9, 67.1, null);`,
+      `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'A', 24.9, 67.1, null);`,
+      `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'Ayesha at the counter', 999, 67.1, null);`,
+      `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'Ayesha at the counter', null, null, null);`,
+      `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, null, null);`,
     ];
     const results = await bad.reduce<Promise<Array<Failure | null>>>(
       async (acc, sql) => [...(await acc), await attack([officeOrder(o, [[SKU1, 1]])], [["repA", sql]])],
@@ -900,10 +909,7 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
     expect(results).toEqual([noName, noName, badLat, noGps, noGps]);
     const r = await tx([
       officeOrder(o, [[SKU1, 1]]),
-      [
-        "repA",
-        `select (app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, 67.1, null, false, '${BACKDATED}')).*;`,
-      ],
+      deliver(id(), o, null, "repA", `, false, '${BACKDATED}'`),
       [
         "postgres",
         `select abs(extract(epoch from (now() - d.delivered_at)))::int age_s, extract(year from d.delivered_at_client)::int client_year
@@ -951,7 +957,7 @@ describe("deliveries and invoices (ORD-04, ADM-03, H-06, H-11)", () => {
       officeOrder(o2, [[SKU1, 1]]),
       [
         "repA",
-        `do $$ begin perform app.rep_deliver('${id()}', ${oid(o1)}, 'Ayesha at the counter', 24.9, 67.1, null); exception when others then null; end $$;`,
+        `do $$ begin perform app.rep_submit_delivery('${id()}', ${oid(o1)}, 'Ayesha at the counter', 24.9, 67.1, null); exception when others then null; end $$;`,
       ],
       deliver(id(), o2),
       [

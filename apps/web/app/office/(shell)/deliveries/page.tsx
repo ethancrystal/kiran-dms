@@ -1,0 +1,360 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { ConfirmAction, ListState } from "@/components/confirm-action";
+import { rupees } from "@/lib/money";
+import { db, rows, rpc } from "@/lib/rpc";
+import { supabaseBrowser } from "@/lib/supabase/browser";
+
+type Line = { sku_id: string; code: string; variant: string; qty: number; unit_price_paisa: number };
+type Waiting = {
+  submission_id: string;
+  order_id: string;
+  salon_id: string;
+  salon_name: string | null;
+  rep_id: string;
+  rep_name: string;
+  lines: Line[] | null;
+  total_paisa: number;
+  received_by_name: string;
+  distance_from_pin_m: number | null;
+  mock_location: boolean;
+  flags: string[];
+  submitted_at: string;
+};
+type Unsettled = {
+  submission_id: string;
+  rep_id: string;
+  rep_name: string;
+  salon_name: string | null;
+  sku_id: string;
+  sku_code: string;
+  unsettled: number;
+  pending_location_id: string;
+  reason: string;
+  decided_at: string;
+  request_id: string | null;
+  request_status: "pending" | "approved" | null;
+  request_maker_id: string | null;
+  request_checker_role: "manager" | "owner" | null;
+};
+type Warehouse = { id: string; name: string };
+
+// The database's own minimums: app.office_reject_delivery (reason 5 to 500), app.office_resolve_pending
+// (count note 3 to 300), app.decide_approval (a decision reason of at least 3, approval_decision_shape).
+const REJECT_REASON_MIN = 5;
+const NOTE_MIN = 3;
+const FLAG_TEXT: Record<string, string> = { mock_location: "mock location", distance_unknown: "salon has no pin" };
+const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
+const rowKey = (u: Unsettled) => `${u.submission_id}:${u.sku_id}`;
+
+/** One client id per action, kept until it succeeds, so a retry replays the same write (H-08). */
+function useClientIds() {
+  const [ids, setIds] = useState<Record<string, string>>({});
+  const idFor = (key: string) => {
+    const known = ids[key];
+    if (known) return known;
+    const fresh = crypto.randomUUID();
+    setIds((all) => ({ ...all, [key]: fresh }));
+    return fresh;
+  };
+  const done = (key: string) => setIds((all) => Object.fromEntries(Object.entries(all).filter(([k]) => k !== key)));
+  return { idFor, done };
+}
+
+// Delivery approvals (D-32, spec section 6; owner or manager at AAL2). A rep's delivery is a
+// submission: the goods are in the rep's pending location and nothing official exists yet. Approve
+// writes the delivery, the sale, the invoice and its installments (app.office_approve_delivery);
+// Reject keeps the submission and leaves the goods in pending custody (app.office_reject_delivery).
+// Goods of a rejected submission are settled here (app.office_resolve_pending): back to the rep's bag,
+// to a warehouse, or as missing, which needs an approved adjustment request (app.request_approval and
+// app.decide_approval, by someone other than its maker; above the owner threshold the owner must check
+// it, Decision 3). Every rule is the database's; its refusals are shown as returned.
+export default function DeliveryApprovals() {
+  const [waiting, setWaiting] = useState<Waiting[]>([]);
+  const [unsettled, setUnsettled] = useState<Unsettled[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [me, setMe] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<Record<string, string>>({});
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [warehouse, setWarehouse] = useState<Record<string, string>>({});
+  const clientIds = useClientIds();
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const [w, u, wh, user] = await Promise.all([
+        rpc<Waiting[]>("office_pending_deliveries"),
+        rpc<Unsettled[]>("office_pending_stock"),
+        rows<Warehouse>(db().from("stock_location").select("id, name").eq("kind", "warehouse").eq("active", true).order("name")),
+        supabaseBrowser().auth.getUser(),
+      ]);
+      setWaiting(w ?? []);
+      setUnsettled(u ?? []);
+      setWarehouses(wh);
+      setMe(user.data.user?.id ?? null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  /** Runs one write; on success shows `message` and reloads. A refusal is thrown to the caller, which shows it. */
+  const act = async (key: string, write: () => Promise<unknown>, message: string) => {
+    setNotice(null);
+    await write();
+    clientIds.done(key);
+    setNotice(message);
+    await load();
+  };
+  // The approve button has no confirmation form of its own, so its refusal is shown on the row.
+  const approve = async (w: Waiting) => {
+    const key = `approve:${w.submission_id}`;
+    setRowError((all) => ({ ...all, [key]: "" }));
+    try {
+      await act(
+        key,
+        () => rpc("office_approve_delivery", { p_submission_id: w.submission_id, p_client_id: clientIds.idFor(key) }),
+        `Approved the delivery to ${w.salon_name ?? "the salon"}; the invoice is issued.`,
+      );
+    } catch (e) {
+      setRowError((all) => ({ ...all, [key]: (e as Error).message }));
+    }
+  };
+  const quantityOf = (u: Unsettled) => Number.parseInt(qty[rowKey(u)] ?? String(u.unsettled), 10);
+
+  return (
+    <main>
+      <h1>Delivery approvals</h1>
+      <p className="muted">
+        A rep&apos;s delivery becomes official only when you approve it: then the invoice and its installments appear for the
+        office and the rep.
+      </p>
+      {notice && <output className="ok">{notice}</output>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <section aria-labelledby="waiting-h">
+        <h2 id="waiting-h">Deliveries waiting for approval ({waiting.length})</h2>
+        <ListState loading={loading} error={null} empty={waiting.length === 0} emptyText="No delivery is waiting." />
+        {!loading && waiting.length > 0 && (
+          <ul className="plain">
+            {waiting.map((w) => {
+              const key = `approve:${w.submission_id}`;
+              const rejectKey = `reject:${w.submission_id}`;
+              return (
+                <li key={w.submission_id} data-testid="waiting-delivery">
+                  <strong>{w.salon_name ?? "Unnamed salon"}</strong> · {w.rep_name} · {rupees(Number(w.total_paisa))}
+                  <br />
+                  {(w.lines ?? []).map((l) => `${l.qty} × ${l.code} ${l.variant}`).join(", ")}
+                  <br />
+                  <span className="muted">
+                    Received by {w.received_by_name} ·{" "}
+                    {w.distance_from_pin_m === null ? "distance unknown" : `${w.distance_from_pin_m} m from the pin`} ·{" "}
+                    {when(w.submitted_at)}
+                    {w.flags.length > 0 && <> · flags: {w.flags.map((f) => FLAG_TEXT[f] ?? f).join(", ")}</>}
+                  </span>
+                  <div className="row">
+                    <button type="button" className="inline" onClick={() => void approve(w)}>
+                      Approve delivery
+                    </button>
+                    <ConfirmAction
+                      label="Reject delivery"
+                      confirmLabel="Reject"
+                      reasonLabel="Why it is rejected"
+                      reasonMinLength={REJECT_REASON_MIN}
+                      danger
+                      onConfirm={(reason) =>
+                        act(
+                          rejectKey,
+                          () =>
+                            rpc("office_reject_delivery", {
+                              p_submission_id: w.submission_id,
+                              p_client_id: clientIds.idFor(rejectKey),
+                              p_reason: reason,
+                            }),
+                          `Rejected the delivery to ${w.salon_name ?? "the salon"}; its goods wait to be settled.`,
+                        )
+                      }
+                    />
+                  </div>
+                  {rowError[key] && (
+                    <p className="error" role="alert">
+                      {rowError[key]}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="settle-h">
+        <h2 id="settle-h">Goods waiting to be settled ({unsettled.length})</h2>
+        <p className="muted">Goods of a rejected delivery stay in the rep&apos;s pending custody until you settle them here.</p>
+        <ListState loading={loading} error={null} empty={unsettled.length === 0} emptyText="No goods are waiting." />
+        {!loading && unsettled.length > 0 && (
+          <ul className="plain">
+            {unsettled.map((u) => {
+              const key = rowKey(u);
+              const settle = (outcome: string, note: string, extra: Record<string, unknown> = {}) =>
+                rpc("office_resolve_pending", {
+                  p_client_id: clientIds.idFor(`${outcome}:${key}`),
+                  p_submission_id: u.submission_id,
+                  p_sku_id: u.sku_id,
+                  p_qty: quantityOf(u),
+                  p_outcome: outcome,
+                  p_note: note,
+                  ...extra,
+                });
+              const canCheck = u.request_status === "pending" && u.request_maker_id !== me;
+              return (
+                <li key={key} data-testid="unsettled-goods">
+                  <strong>
+                    {u.unsettled} × {u.sku_code}
+                  </strong>{" "}
+                  · {u.rep_name} · {u.salon_name ?? "Unnamed salon"}
+                  <br />
+                  <span className="muted">
+                    Rejected {when(u.decided_at)}: {u.reason}
+                  </span>
+                  <div>
+                    <label htmlFor={`sq-${key}`}>Quantity to settle</label>
+                    <input
+                      id={`sq-${key}`}
+                      inputMode="numeric"
+                      value={qty[key] ?? String(u.unsettled)}
+                      onChange={(e) => setQty((all) => ({ ...all, [key]: e.target.value }))}
+                    />
+                  </div>
+                  <div className="row">
+                    <ConfirmAction
+                      label="Return to bag"
+                      confirmLabel="Return to the rep's bag"
+                      reasonLabel="Count note"
+                      reasonMinLength={NOTE_MIN}
+                      onConfirm={(note) =>
+                        act(`returned_to_bag:${key}`, () => settle("returned_to_bag", note), `Returned to ${u.rep_name}'s bag.`)
+                      }
+                    />
+                    <label htmlFor={`wh-${key}`}>Warehouse</label>
+                    <select
+                      id={`wh-${key}`}
+                      value={warehouse[key] ?? ""}
+                      onChange={(e) => setWarehouse((all) => ({ ...all, [key]: e.target.value }))}
+                    >
+                      <option value="">Choose a warehouse</option>
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ConfirmAction
+                      label="Return to warehouse"
+                      confirmLabel="Return to the warehouse"
+                      reasonLabel="Count note"
+                      reasonMinLength={NOTE_MIN}
+                      onConfirm={(note) =>
+                        act(
+                          `returned_to_warehouse:${key}`,
+                          () => settle("returned_to_warehouse", note, { p_warehouse_id: warehouse[key] || null }),
+                          "Returned to the warehouse.",
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="row">
+                    {!u.request_id && (
+                      <ConfirmAction
+                        label="Report missing"
+                        confirmLabel="Ask for an approved adjustment"
+                        reasonLabel="What happened to the goods"
+                        reasonMinLength={NOTE_MIN}
+                        onConfirm={(reason) =>
+                          act(
+                            `request:${key}`,
+                            () =>
+                              rpc("request_approval", {
+                                p_client_id: clientIds.idFor(`request:${key}`),
+                                p_kind: "adjustment",
+                                p_subject_type: "stock_location",
+                                p_subject_id: u.pending_location_id,
+                                p_payload: { sku_id: u.sku_id, qty_delta: -quantityOf(u), submission_id: u.submission_id },
+                                p_reason: reason,
+                              }),
+                            "Adjustment requested; another office user must check it.",
+                          )
+                        }
+                      />
+                    )}
+                    {u.request_status === "pending" && !canCheck && (
+                      <span className="muted">Adjustment requested; waiting for another office user to check it.</span>
+                    )}
+                    {canCheck && u.request_id && (
+                      <>
+                        <ConfirmAction
+                          label="Approve request"
+                          confirmLabel="Approve the adjustment"
+                          reasonLabel="Checked how"
+                          reasonMinLength={NOTE_MIN}
+                          onConfirm={(reason) =>
+                            act(
+                              `decide:${key}`,
+                              () => rpc("decide_approval", { p_request_id: u.request_id, p_approve: true, p_reason: reason }),
+                              "Adjustment approved.",
+                            )
+                          }
+                        />
+                        <ConfirmAction
+                          label="Refuse request"
+                          confirmLabel="Refuse the adjustment"
+                          reasonLabel="Why it is refused"
+                          reasonMinLength={NOTE_MIN}
+                          danger
+                          onConfirm={(reason) =>
+                            act(
+                              `decide:${key}`,
+                              () => rpc("decide_approval", { p_request_id: u.request_id, p_approve: false, p_reason: reason }),
+                              "Adjustment refused.",
+                            )
+                          }
+                        />
+                      </>
+                    )}
+                    {u.request_status === "approved" && u.request_id && (
+                      <ConfirmAction
+                        label="Settle as missing"
+                        confirmLabel="Settle as missing"
+                        reasonLabel="Count note"
+                        reasonMinLength={NOTE_MIN}
+                        danger
+                        onConfirm={(note) =>
+                          act(
+                            `missing:${key}`,
+                            () => settle("missing", note, { p_approval_id: u.request_id }),
+                            "Settled as missing with the approved adjustment.",
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </main>
+  );
+}
