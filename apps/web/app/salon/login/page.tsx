@@ -80,6 +80,19 @@ export default function SalonLogin() {
           <button type="submit" disabled={busy}>
             {busy ? "Checking…" : "Sign in"}
           </button>
+          {/* AUTH-16: a mistyped address is not a dead end; the rep sign-in and the invitation page do the same. */}
+          <button
+            type="button"
+            className="link"
+            disabled={busy}
+            onClick={() => {
+              setSent(false);
+              setCode("");
+              setError(null);
+            }}
+          >
+            Use a different email
+          </button>
         </form>
       )}
       {error && (

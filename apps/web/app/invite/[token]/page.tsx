@@ -141,9 +141,19 @@ function Details({
           </button>
         </>
       ) : (
-        <p className="error" role="alert">
-          {CLOSED[preview.status]}
-        </p>
+        <>
+          <p className="error" role="alert">
+            {CLOSED[preview.status]}
+          </p>
+          {/* AUTH-16: an accepted invitation points to the account it made, not to a dead end. */}
+          {preview.status === "redeemed" && (
+            <p>
+              <a className="btn" href={HOME[preview.kind]}>
+                {preview.kind === "rep" ? "Go to the rep app" : "Go to the salon portal"}
+              </a>
+            </p>
+          )}
+        </>
       )}
     </div>
   );
