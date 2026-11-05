@@ -1017,8 +1017,10 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
 // Slice 2 (P1-19; D-37, D-39): the manager adds a [Dummy] product and SKU on Products, sets its list
 // price with a reason, gives a salon its own lower price on the salon page, and makes an order for that
 // salon with no price typed: the database takes the salon's price, and because it is below list the
-// order waits for a discount approval (OQ-33 default). No picture is uploaded: this stack runs without
-// storage-api, so the picture path is covered by the database tests only.
+// order waits for a discount approval (OQ-33 default). The manager also uploads a picture: the stack runs the
+// storage service, so the upload and the signed read go through the bucket's real policies.
+// The smallest valid PNG (one transparent pixel), for the picture upload.
+const ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const CATALOGUE_LIST_RS = 1000;
 const CATALOGUE_SALON_RS = 900;
 const PAISA_PER_RUPEE = 100;
@@ -1044,6 +1046,19 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
   const card = page.getByRole("region", { name: `Product ${productName}` });
   await expect(card).toContainText("[Dummy] A shade for the stack test.");
   await expect(card).toContainText("No picture");
+  // A picture: a real 1 x 1 PNG, uploaded through the page, stored in the private bucket and shown through a signed URL.
+  await card
+    .getByLabel("Add a picture")
+    .setInputFiles({ name: "shade.png", mimeType: "image/png", buffer: Buffer.from(ONE_PIXEL_PNG, "base64") });
+  await card.getByRole("button", { name: "Upload picture" }).click();
+  await expect(page.getByText(`Picture of ${productName} saved.`)).toBeVisible();
+  const picture = page.getByRole("region", { name: `Product ${productName}` }).getByRole("img", { name: productName });
+  await expect(picture).toBeVisible();
+  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  await page.reload();
+  await expect(
+    page.getByRole("region", { name: `Product ${productName}` }).getByRole("img", { name: productName }),
+  ).toBeVisible();
   const addSku = card.getByRole("form", { name: `Add a SKU to ${productName}` });
   await addSku.getByLabel("SKU code").fill(code);
   await addSku.getByLabel("Variant").fill("[Dummy] Shade 7");

@@ -143,8 +143,10 @@ jobs:
       # The runner's outbound connections can take a port in the stack's range (seen: 54324, address already in use). Keep the range out of the ephemeral pool.
       - name: Reserve the Supabase ports
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
-      - name: Start Supabase (db, auth, rest, gateway, mail)
-        run: supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      # The storage service is up too, so the journey uploads a product picture and reads it back through a signed
+      # URL under the bucket's real policies (goal plan: "manager adds a product with a picture").
+      - name: Start Supabase (db, auth, rest, gateway, mail, storage)
+        run: supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       # Only the public URL and the publishable (anon) key leave the stack; no service-role key is read.
       - name: Public settings of the local stack
         run: |
