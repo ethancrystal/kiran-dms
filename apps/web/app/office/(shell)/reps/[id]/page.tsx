@@ -3,9 +3,9 @@ import Link from "next/link";
 import { use } from "react";
 import { useRpcRead } from "@/components/use-rpc-read";
 import type { CommissionStatement } from "@/lib/commission";
-import { isUuid } from "@/lib/documents";
+import { fullDay, isUuid } from "@/lib/documents";
 import { rupees } from "@/lib/money";
-import { day, monthName, when } from "@/lib/overview";
+import { monthName, when } from "@/lib/overview";
 
 type Listed<T> = T[];
 type RepDetail = {
@@ -163,7 +163,7 @@ function Detail({ repId, d }: { repId: string; d: RepDetail }) {
         {p.start_date && (
           <>
             <dt>Started</dt>
-            <dd>{day(p.start_date)}</dd>
+            <dd>{fullDay(p.start_date)}</dd>
           </>
         )}
       </dl>
@@ -285,8 +285,8 @@ function Detail({ repId, d }: { repId: string; d: RepDetail }) {
         <ul className="plain">
           {d.territories.map((t) => (
             <li key={`${t.name}-${t.from_date}`} data-testid="rep-territory">
-              {t.name} · from {day(t.from_date)}
-              {t.to_date ? ` to ${day(t.to_date)}` : " (current)"}
+              {t.name} · from {fullDay(t.from_date)}
+              {t.to_date ? ` to ${fullDay(t.to_date)}` : " (current)"}
             </li>
           ))}
         </ul>
@@ -327,7 +327,7 @@ function Detail({ repId, d }: { repId: string; d: RepDetail }) {
           <tbody>
             {d.days.map((x) => (
               <tr key={x.day} data-testid="rep-day">
-                <td>{day(x.day)}</td>
+                <td>{fullDay(x.day)}</td>
                 <td>
                   {DAY_TEXT[x.status] ?? x.status}
                   {x.close_reason && <div className="muted">{x.close_reason}</div>}

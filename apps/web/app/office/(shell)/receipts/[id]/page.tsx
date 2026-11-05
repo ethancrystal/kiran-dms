@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { use } from "react";
 import { useRpcRead } from "@/components/use-rpc-read";
-import { isUuid, METHOD_TEXT, ONLY_VALID_PROOF, type ReceiptDocument } from "@/lib/documents";
+import { fullDay, isUuid, METHOD_TEXT, ONLY_VALID_PROOF, type ReceiptDocument } from "@/lib/documents";
 import { rupees } from "@/lib/money";
-import { day, when } from "@/lib/overview";
+import { when } from "@/lib/overview";
 
 // One receipt, printable (F6; CTL-01). Everything printed is app.receipt_document's, as of this receipt:
 // the page adds nothing up. The function answers null both for an id that does not exist and for a
@@ -128,7 +128,7 @@ function Receipt({ id }: { id: string }) {
                 <td>
                   {r.seq} of {r.of}
                 </td>
-                <td>{day(r.due_on)}</td>
+                <td>{fullDay(r.due_on)}</td>
                 <td>{rupees(r.remaining_paisa)}</td>
               </tr>
             ))}

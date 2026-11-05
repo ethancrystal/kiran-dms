@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useRpcRead } from "@/components/use-rpc-read";
-import { type InvoiceDocument, isUuid, ONLY_VALID_PROOF, type ReceiptRow } from "@/lib/documents";
+import { fullDay, type InvoiceDocument, isUuid, ONLY_VALID_PROOF, type ReceiptRow } from "@/lib/documents";
 import { rupees } from "@/lib/money";
-import { day, when } from "@/lib/overview";
+import { when } from "@/lib/overview";
 import { db, rows } from "@/lib/rpc";
 
 type Refs = { order_id: string; salon_id: string };
@@ -160,7 +160,7 @@ function Invoice({ id }: { id: string }) {
               <td>
                 {s.no} of {s.of}
               </td>
-              <td>{day(s.due_on)}</td>
+              <td>{fullDay(s.due_on)}</td>
               <td>{s.pct}%</td>
               <td>{rupees(s.amount_paisa)}</td>
             </tr>

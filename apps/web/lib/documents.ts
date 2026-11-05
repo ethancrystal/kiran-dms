@@ -71,6 +71,10 @@ export type ReceiptRow = {
   total_count: number;
 };
 
+/** A database date (YYYY-MM-DD) with its year, for a document or a history that may span years. */
+export const fullDay = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
 /** How a payment was made, in plain words. */
 export const METHOD_TEXT: Record<string, string> = { cash: "Cash", bank_transfer: "Bank transfer" };
 
