@@ -184,5 +184,8 @@ try {
   await c.end();
 }
 
-writeFileSync(out, JSON.stringify({ password, people, sku, pendingSalon, catalogueSalon, productGroup, warehouse, bagQty: BAG_QTY }, null, 2));
+writeFileSync(
+  out,
+  JSON.stringify({ password, people, sku, pendingSalon, catalogueSalon, productGroup, warehouse, bagQty: BAG_QTY }, null, 2),
+);
 console.log(`seeded ${Object.keys(people).length} synthetic people into the local stack -> ${out}`);
