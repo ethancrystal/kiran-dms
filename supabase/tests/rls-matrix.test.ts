@@ -574,6 +574,42 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Delivery submissions, their decisions and pending-stock settlements (migration 20261105130100,
+  // slice 4, P1-21, D-32): the office reads all; a rep reads its own on its approved phone.
+  {
+    table: "public.delivery_submission",
+    writeCol: "received_by_name",
+    select: {
+      anon: "denied",
+      repA: `rep_id = ${me("repA")}`,
+      repAWrongDevice: "false",
+      repB: `rep_id = ${me("repB")}`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  ...(["public.delivery_submission_decision", "public.pending_stock_resolution"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.delivery_submission_decision" ? "reason" : "note",
+      select: {
+        anon: "denied",
+        repA: `submission_id in (select s.id from public.delivery_submission s where s.rep_id = ${me("repA")})`,
+        repAWrongDevice: "false",
+        repB: `submission_id in (select s.id from public.delivery_submission s where s.rep_id = ${me("repB")})`,
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   // Money in (migration 0021, P1-07 part a): installments and allocations are office-only at the
   // table (reps read them through app.salon_installments); a rep reads its own payments, their
   // receipts and its own cash rows.
@@ -828,6 +864,26 @@ const MATRIX: Row[] = [
     (table): Row => ({
       table,
       writeCol: table === "public.investor" ? "full_name" : "note",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
+  // Commission default rates and payments (migration 20261105140000, slice 5, P1-22, D-38): the office
+  // reads all; a rep reads its own through app.my_commission only, and a salon reads nothing.
+  ...(["public.rep_commission_rate", "public.commission_payment"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.rep_commission_rate" ? "rate_bp" : "amount_paisa",
       select: {
         anon: "denied",
         repA: "false",

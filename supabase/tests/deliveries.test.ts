@@ -10,6 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate, type Who } from "./helpers/db";
+import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -60,9 +61,10 @@ const order = (cid: string, l: Array<[string, number]>, salon = SALON): Step => 
   `select app.office_create_order('${cid}', '${salon}', 'CASH', ${lines(l)}, '${fx.repA.id}');`,
 ];
 const oid = (cid: string) => `(select id from public.sales_order where client_id = '${cid}')`;
+// A rep's delivery (D-32): `who` submits it and the manager approves it; returns the invoice row.
 const deliver = (dcid: string, ocid: string, l: Array<[string, number]> | null = null, who: P = "repA"): Step => [
-  who,
-  `select (app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1, ${l ? lines(l) : "null"})).*;`,
+  "postgres",
+  submitApproveSql(asUser, { clientId: dcid, orderExpr: oid(ocid), rep: who, approver: "manager", lines: l ? lines(l) : null }),
 ];
 const num = (n: unknown) => Number(String(n).slice(-6));
 
@@ -201,12 +203,12 @@ describe("delivering from the bag (ORD-04, MJ L-0163)", () => {
     const base: Step[] = [order(o, [[SKU1, 3]])];
     expect(await txError([...base, deliver(id(), o, [[SKU2, 1]])])).toMatch(/SKU of this order/);
     expect(await txError([...base, deliver(id(), o, [[SKU1, 4]])])).toMatch(/at most what is left/);
-    expect(await txError([...base, ["repA", `select app.rep_deliver('${id()}', ${oid(o)}, ' ', 24.9, 67.1);`]])).toMatch(
+    expect(await txError([...base, ["repA", `select app.rep_submit_delivery('${id()}', ${oid(o)}, ' ', 24.9, 67.1);`]])).toMatch(
       /name of the person/,
     );
-    expect(await txError([...base, ["repA", `select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha', null, null);`]])).toMatch(
-      /GPS is required/,
-    );
+    expect(
+      await txError([...base, ["repA", `select app.rep_submit_delivery('${id()}', ${oid(o)}, 'Ayesha', null, null);`]]),
+    ).toMatch(/GPS is required/);
   });
 
   it("refuses an order that is not confirmed: held, cancelled, or already delivered", async () => {
@@ -245,7 +247,7 @@ describe("delivering from the bag (ORD-04, MJ L-0163)", () => {
       // A refused delivery inside the same transaction, caught so the transaction goes on.
       [
         "repA",
-        `do $$ begin perform app.rep_deliver('${id()}', ${oid(big)}, 'Ayesha', 24.9, 67.1); exception when others then null; end $$;`,
+        `do $$ begin perform app.rep_submit_delivery('${id()}', ${oid(big)}, 'Ayesha', 24.9, 67.1); exception when others then null; end $$;`,
       ],
       deliver(id(), b),
       ["postgres", `select array_agg(number order by number) n from public.invoice where order_id in (${oid(a)}, ${oid(b)});`],

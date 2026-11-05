@@ -123,15 +123,15 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 | Orders screens: the office Orders area (`/office/orders`: create an order, the open cards queue with convert and dismiss, the order list); the rep's My cards (`/app/cards`), Orders read-only (`/app/orders`) and the New Order Details card on the salon page | ORD-01, ORD-14 | `apps/web/e2e-stack/office.spec.ts` (card to order to the rep's read-only list; CI only) | P1-06 |
 | Invoice document | ORD-05 | `invoice-document.test.ts` | P1-06 part c |
 | Money: payments, allocations, receipts (gapless numbers and the receipt document's data), cash ledger, receivables ageing, two-party handover, office cash collection | PAY-01 to 05, 07, 10, 11; CTL-01 to 04, 17 | `payments.test.ts`, `receivables-ageing.test.ts`, `handovers.test.ts`, `office-cash.test.ts`, RLS matrix, office stack browser tests | P1-07 |
-| Delivery approval (D-32): a rep's delivery becomes an immutable submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody; rejected goods stay there until the office settles them | D-32; ORD-04 (to be rewritten in PR B, L-0392) | planned in the [design spec](docs/superpowers/specs/2026-11-03-orders-delivery-commission-design.md) (§7): delivery approval DB tests, a real-stack browser journey | P1-21 |
-| Commission (D-31, D-38): a rate per rep and salon with a rep default, set and changed by the owner or manager for future invoices only; earned on the delivered and invoiced value of orders with an assigned rep; payment records with reversals; owed is earned minus paid; date-range areas for the rep and the office | CTL-13, FLD-01 (default rate), FLD-03, FLD-06 | commission DB tests and browser journey (completion design §7) | P1-22 |
+| Delivery approval (D-32): a rep's delivery becomes an immutable submission; only the owner's or manager's approval writes the delivery, the sale movement, the invoice, installments and the order status; submitted goods wait in pending-delivery stock custody; rejected goods stay there until the office settles them | D-32; ORD-04 (rewritten in slice 4) | built in slice 4 (migration 20261105130100): `supabase/tests/delivery-approval.test.ts`, the moved fixtures, and two real-stack browser journeys in `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-21 |
+| Commission (D-31, D-38): a rate per rep and salon with a rep default, set and changed by the owner or manager for future invoices only; earned on the delivered and invoiced value of orders with an assigned rep; payment records with reversals; owed is earned minus paid; date-range areas for the rep and the office | CTL-13, FLD-01 (default rate), FLD-03, FLD-06 | built in slice 5 (migration 20261105140000): `supabase/tests/commission.test.ts` and one real-stack browser journey in `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-22 |
 | Invitations, salon membership, salon approval, rep assignment and reachability; People and approvals screens (D-35, D-36, D-39) | SEC-13, 16, 17; SAL-11, 13, 14 | database role tests and browser journey (completion design §7) | P1-18 |
 | Product pictures and descriptions, manager prices, per-salon prices (D-37, D-39) | INV-13, ORD-07 | database role tests and browser journey | P1-19 |
 | Basic investor ledger, office only, no engine (D-40): investors, investments, typed profit decisions, payouts and reversals; Investors pages (`/office/investors`) | CAP-01 to 03 | `investors.test.ts`, RLS matrix, `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-20 |
 | Requests queue with lines; salon portal (D-34, D-41): rep cards and salon requests with lines (never prices), edits as versions, cancel before review; one-click convert on `/office/orders` (channel `salon_portal` for a salon's request); `/salon` with catalogue, basket, requests, orders, balance and payments | ORD-01, 11 to 15; SAL-12; SEC-14, 15 | `requests-portal.test.ts`, `order-cards.test.ts`, RLS matrix, `apps/web/e2e-stack/office.spec.ts` (CI only) | P1-23 |
 | Rep read-only, salon proposals, timelines; the end-to-end journey in CI (D-35, D-39) | SAL-05, 09, 13 | end-to-end browser test (completion design §7) | P1-24 |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | P1-08 |
-| Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
+| Offline PWA: outbox, idempotent sync, rejections | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
 | Dashboards, admin | RPT-01, 02; MSG-03; ADM-01, 02; FLD-01 | Playwright | P1-10, P1-11 |
 | Independent agents | AGT-01 to 04, 06 | DB tests + Playwright J3 | P1-15 |
 | Due-list and manual routes | PIP-03, PIP-05/06 thin | `routes.test.ts`, RLS matrix | P1-16 |
@@ -154,7 +154,7 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 |---|---|---|
 | Offline | Capture visits, order cards, payments, prospects and lost demand with no signal; sync ≤ 60 s after reconnecting | NFR-01 |
 | Cheap phone | First load ≤ 3 s on 3G after install; interactions ≤ 200 ms; rep app shell ≤ 300 KB gzipped; 3–4 year old Android, 2–3 GB RAM | NFR-02, doc 01 |
-| Language | English and Urdu (Nastaliq-safe font); Roman Urdu accepted in free text | NFR-03 |
+| Language | English only: no Urdu labels, no i18n layer (D-42). Roman Urdu stays accepted in free-text fields | NFR-03 |
 | Speed of a field action | ≤ 60 s for quick add, a visit, an order card or a tap | PIP-07, MAP-02 |
 | Cost | ≤ USD 60 a month at launch scale (≤ 10 reps, ≤ 3,000 salons) | NFR-09 |
 | Recovery | RPO ≤ 24 h, RTO ≤ 4 h | NFR-10 |
@@ -190,7 +190,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
 | `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. `app/salon/` is the salon customer portal (slice 1 account page; catalogue, basket, requests, orders, balance and payments in slice 6, Phase 1 in doc 11 since D-41). `app/invite/` is the invitation page, the only one that creates a login (D-39) |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes to no database |
-| `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
+| `packages/shared/` | Planned: DB-generated types, validation schemas |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |
 
 The business specification is [doc 16](docs/16-project-completion-goal.md). The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md), and the module-level field-sales/distribution directive in [doc 15](docs/15-field-sales-distribution-engineering-plan.md).
@@ -222,7 +222,7 @@ The business specification is [doc 16](docs/16-project-completion-goal.md). The 
 - **Time:** server time is authoritative; client times are kept in `*_client` columns.
 - **Data:** no free text that could hold supplier identity (H-27). Fixtures are `[Dummy]` / `[Test]` only, and phone numbers look like `+920000001234` (H-02 to H-04).
 
-**UI copy:** rep screens are in English with Urdu labels where reps need them. They must work on a 3–4 year old Android phone with patchy data ([doc 01](docs/01-business-context.md)).
+**UI copy:** the whole UI is in English only (D-42). They must work on a 3–4 year old Android phone with patchy data ([doc 01](docs/01-business-context.md)).
 
 ## 9. Testing strategy
 
@@ -232,7 +232,7 @@ The business specification is [doc 16](docs/16-project-completion-goal.md). The 
 | **Invariant and attack tests** | Controls hold under attack: append-only, maker ≠ checker, no negative stock, single-use approvals, territory isolation, replays | `supabase/tests/*.test.ts` | Running in CI |
 | **Schema hygiene** | Every table has RLS and an audit trigger; every SECURITY DEFINER function pins `search_path`; anon can execute nothing | `supabase/tests/schema-hygiene.test.ts` | Running in CI |
 | **Package unit tests** | Import mapping and normalisers | `packages/import/tests/` | Running in CI |
-| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline visit, order card, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen with Urdu labels, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order-card, payment and lost-demand flows are added with P1-09 |
+| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline visit, order card, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order-card, payment and lost-demand flows are added with P1-09 |
 | **Field test** | Offline capture in a basement salon with no signal (Phase 1 exit criterion 6) | Pilot, [doc 11](docs/11-roadmap.md) | Phase 1 pilot |
 
 **Rules for tests:**

@@ -99,6 +99,21 @@ export default function RepHome() {
               Orders · <span lang="ur">آرڈرز</span>
             </a>
           </p>
+          <p>
+            <a href="/app/deliveries">
+              My deliveries · <span lang="ur">میری ڈیلیوریاں</span>
+            </a>
+          </p>
+          <p>
+            <a href="/app/commission">
+              My commission · <span lang="ur">میرا کمیشن</span>
+            </a>
+          </p>
+          <p>
+            <a href="/app/account">
+              My account · <span lang="ur">میرا اکاؤنٹ</span>
+            </a>
+          </p>
         </>
       )}
     </main>

@@ -11,6 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate } from "./helpers/db";
+import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -62,8 +63,7 @@ const deliveredScript = (o: string, plan: string, l: Array<[string, number]>, re
   ${prelude}
   ${asUser("manager")}
   select app.office_create_order('${o}', '${SALON}', '${plan}', ${lines(l)}, '${fx.repA.id}');
-  ${asUser("repA")}
-  select app.rep_deliver('${id()}', ${oid(o)}, 'Ayesha at the counter', 24.9, 67.1);
+  ${submitApproveSql(asUser, { clientId: id(), orderExpr: oid(o), rep: "repA", approver: "manager" })}
   reset role;
   select set_config('kiran_test.invoice_id', ${invoiceOf(o)}::text, true);
   ${readers

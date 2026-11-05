@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import pg from "pg";
-import { rupees } from "../lib/money";
+import { percent, rupees } from "../lib/money";
 
 // Slice 1 journeys on a real local stack (execution map; J1 steps 1 to 3, J4 steps 1, 5, J5
 // steps 1, 10). Seed: scripts/e2e-stack-seed.mjs. Tests run in order and share the stack.
@@ -13,6 +13,8 @@ const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "
   people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer" | "invitee", P>;
   sku: { id: string; code: string; list_price_paisa: number };
   pendingSalon: { id: string; name: string; area: string };
+  warehouse: { id: string; name: string };
+  bagQty: number;
   catalogueSalon: { id: string; name: string };
   productGroup: { name: string };
 };
@@ -281,7 +283,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("link", { name: /Start your day/ }).click();
   await page.waitForURL(/\/app\/day$/);
   await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
-  // The rep has an empty bag (seed), so the morning count is empty; check in.
+  // The rep's bag holds seed.bagQty of the seeded SKU (slice 4), so the morning count has one line.
+  await page.getByLabel(seed.sku.code).fill(String(seed.bagQty));
   await page.getByRole("button", { name: "Check in" }).click();
   await expect(page.getByText("Checked in. Have a good day.")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Today's route/ })).toBeVisible();
@@ -399,14 +402,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByTestId("my-cash")).toHaveText("Rs 0");
   await expect(page.getByText("No handovers yet.")).toBeVisible();
 
-  await page.goto("/app/day");
-  await page.getByRole("button", { name: /Finish the day/ }).click();
-  // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
-  const closeCount = page.waitForRequest((r) => r.url().includes("/rpc/record_count") && r.method() === "POST");
-  await page.getByRole("button", { name: "Save count and check out" }).click();
-  expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
-  await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
-  await expect(page.getByText("Today's day is closed.")).toBeVisible();
+  // The day stays open: the delivery tests below need it. The evening count and check-out (J1 step
+  // 15, B-35) are the last test of this file.
   repPhone = await page.context().storageState();
 });
 
@@ -502,6 +499,287 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   await phone.goto("/app/cards");
   await expect(phone.getByRole("listitem").filter({ hasText: CARD_TEXT }).getByText("Converted", { exact: true })).toBeVisible();
   await phoneContext.close();
+});
+
+// Slice 4 (P1-21, D-32): a rep's delivery is a submission the office approves. The rep's phone is the
+// one the journey signed in (cookies and device id), with a GPS fix at the salon's pin.
+// The pin the journey's office step set on the salon.
+const PIN_LATITUDE = 24.8607;
+const PIN_LONGITUDE = 67.0011;
+const SALON_PIN = { latitude: PIN_LATITUDE, longitude: PIN_LONGITUDE };
+// A Deliver page's path ends in "/deliver": "/app/orders/1f2e/deliver" matches; "/app/orders" does not.
+// https://regex101.com/?regex=%5C%2Fdeliver%24&flavor=javascript
+const DELIVER_PATH = /\/deliver$/;
+// The office sign-in page: "/office/login" matches; "/office/deliveries" does not.
+// https://regex101.com/?regex=%5C%2Foffice%5C%2Flogin&flavor=javascript
+const OFFICE_LOGIN = /\/office\/login/;
+const RECEIVER = "[Test] Counter staff";
+const SENT_COPY = "Sent for approval. No invoice yet: the office approves first. Collect payment after approval.";
+const REJECTED_ORDER_QTY = 3;
+const REJECTED_QTY = 2;
+const REJECT_REASON = "[Test] wrong shade handed over";
+
+async function repPhoneOpen(browser: Browser) {
+  expect(repPhone, "the rep journey kept the rep's signed-in phone").not.toBeNull();
+  const ctx = await browser.newContext({
+    storageState: repPhone ?? undefined,
+    geolocation: SALON_PIN,
+    permissions: ["geolocation"],
+  });
+  return { ctx, phone: await ctx.newPage() };
+}
+
+/** Stock on hand of the seeded SKU in Rep One's bag, read on the local database (no office stock screen exists). */
+async function repBagOnHand() {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    const r = await c.query(
+      `select app.on_hand(l.id, $2)::int n from public.stock_location l where l.kind = 'rep_bag' and l.owner_user_id = $1`,
+      [rep.id, seed.sku.id],
+    );
+    return r.rows[0]?.n as number;
+  } finally {
+    await c.end();
+  }
+}
+
+/** The rep opens an order's Deliver page from its Orders list, sets the quantity handed over and sends it. */
+async function submitDelivery(phone: Page, row: ReturnType<Page["getByRole"]>, qty: number) {
+  await row.getByRole("link", { name: "Deliver this order" }).click();
+  await phone.waitForURL(DELIVER_PATH);
+  await phone.getByLabel(`Handed over: ${seed.sku.code}`).fill(String(qty));
+  await phone.getByLabel("Received by (name)").fill(RECEIVER);
+  await phone.getByRole("button", { name: "Send for approval" }).click();
+  await expect(phone.getByTestId("delivery-sent")).toHaveText(SENT_COPY);
+}
+
+test("the rep submits its assigned order and the manager approves it; the invoice appears for both (D-32)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const total = rupees(seed.sku.list_price_paisa * CARD_QTY);
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app/orders");
+  await submitDelivery(phone, phone.getByRole("listitem").filter({ hasText: journeySalon }), CARD_QTY);
+  // Nothing official yet: the order waits, and no invoice is listed.
+  await phone.goto("/app/orders");
+  const mine = phone.getByRole("listitem").filter({ hasText: journeySalon });
+  await expect(mine).toContainText("Waiting for approval");
+  await expect(mine.getByRole("link", { name: "Deliver this order" })).toHaveCount(0);
+  await phone.goto("/app/deliveries");
+  const sent = phone.getByRole("listitem").filter({ hasText: journeySalon });
+  await expect(sent).toContainText("Waiting for approval");
+  await expect(sent.getByTestId("invoice-number")).toHaveCount(0);
+
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Delivery approvals", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Delivery approvals", exact: true })).toBeVisible();
+  const waiting = page.getByTestId("waiting-delivery").filter({ hasText: journeySalon });
+  await expect(waiting).toContainText(rep.name);
+  await expect(waiting).toContainText(total);
+  await expect(waiting).toContainText(RECEIVER);
+  await waiting.getByRole("button", { name: "Approve delivery" }).click();
+  await expect(page.getByText(`Approved the delivery to ${journeySalon}; the invoice is issued.`)).toBeVisible();
+  await expect(waiting).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Orders", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: journeySalon })).toContainText("delivered");
+  await page.reload();
+  await expect(page.getByRole("row").filter({ hasText: journeySalon })).toContainText("delivered");
+
+  // The rep sees the approval and its invoice; the salon now owes the total, so a payment can be recorded.
+  await phone.goto("/app/deliveries");
+  await expect(sent).toContainText("Approved");
+  await expect(sent.getByTestId("invoice-number")).toContainText("INV-");
+  await sent.getByRole("link", { name: "See the salon's account" }).click();
+  await expect(phone.getByTestId("balance")).toHaveText(total);
+  await expect(phone.getByRole("button", { name: "Record payment" })).toBeVisible();
+  await ctx.close();
+});
+
+test("a rejected submission keeps its history and its goods wait until the office returns them (D-32)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const bagBefore = await repBagOnHand();
+  const total = rupees(seed.sku.list_price_paisa * REJECTED_ORDER_QTY);
+  // The manager makes a direct order for the journey's salon with Rep One delivering (A-16).
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByRole("button", { name: "Create New Order" }).click();
+  const form = page.getByRole("form", { name: "New order" });
+  await form.getByLabel("Salon").selectOption({ label: `${journeySalon} · [Test] Market` });
+  await form.getByLabel("Product 1").selectOption(seed.sku.id);
+  await form.getByLabel("Quantity 1").fill(String(REJECTED_ORDER_QTY));
+  await form.getByLabel("Plan").selectOption("CASH");
+  await form.getByLabel("Delivering rep").selectOption(rep.id);
+  await form.getByRole("button", { name: "Create order" }).click();
+  await expect(page.getByText(`Order created for ${journeySalon}: confirmed · ${total}.`)).toBeVisible();
+
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app/orders");
+  const order = phone.getByRole("listitem").filter({ hasText: journeySalon }).filter({ hasText: total });
+  await submitDelivery(phone, order, REJECTED_QTY);
+  expect(await repBagOnHand()).toBe(bagBefore - REJECTED_QTY);
+
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Delivery approvals", exact: true }).click();
+  const waiting = page.getByTestId("waiting-delivery").filter({ hasText: journeySalon });
+  await waiting.getByRole("button", { name: "Reject delivery" }).click();
+  await waiting.getByLabel("Why it is rejected").fill(REJECT_REASON);
+  await waiting.getByRole("button", { name: "Reject", exact: true }).click();
+  await expect(page.getByText(`Rejected the delivery to ${journeySalon}; its goods wait to be settled.`)).toBeVisible();
+  await expect(waiting).toHaveCount(0);
+  const goods = page.getByTestId("unsettled-goods").filter({ hasText: `${REJECTED_QTY} × ${seed.sku.code}` });
+  await expect(goods).toContainText(rep.name);
+  await expect(goods).toContainText(REJECT_REASON);
+
+  // History stays: the rep sees the rejection and its reason; the order is still confirmed.
+  await phone.goto("/app/deliveries");
+  const rejected = phone.getByRole("listitem").filter({ hasText: "Rejected" });
+  await expect(rejected).toContainText(REJECT_REASON);
+  await expect(rejected).toContainText(`Goods wait for the office (${REJECTED_QTY})`);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Orders", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: journeySalon }).filter({ hasText: total })).toContainText("confirmed");
+
+  // The office returns the goods to the bag with a count note; the row leaves the list.
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Delivery approvals", exact: true }).click();
+  await goods.getByRole("button", { name: "Return to bag" }).click();
+  await goods.getByLabel("Count note").fill("[Test] counted 2 at the office");
+  await goods.getByRole("button", { name: "Return to the rep's bag" }).click();
+  await expect(page.getByText(`Returned to ${rep.name}'s bag.`)).toBeVisible();
+  await expect(goods).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("unsettled-goods").filter({ hasText: journeySalon })).toHaveCount(0);
+  expect(await repBagOnHand()).toBe(bagBefore);
+  // The rep may hand the order over again.
+  await phone.goto("/app/orders");
+  await expect(order.getByRole("link", { name: "Deliver this order" })).toBeVisible();
+  await ctx.close();
+});
+
+test("Delivery approvals without a session sends the visitor to the sign-in page", async ({ browser }) => {
+  const visitor = await newPage(browser);
+  await visitor.goto("/office/deliveries");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
+});
+
+// Slice 5 (P1-22; D-31, D-38; FLD-03, FLD-06): the manager sets Rep One's default rate on Commission;
+// the rep hands over one unit of the order left confirmed above and the manager approves it, so its
+// invoice is stamped at that rate; the manager pays part of what is owed and reverses it; the rep reads
+// earned, paid and owed on its own page. Earlier invoices of Rep One were stamped before any rate was
+// set (0%), so the test reads the owed figure first and asserts only what this test adds.
+const COMMISSION_RATE = "2.5";
+const COMMISSION_RATE_BP = 250;
+const BASIS_POINTS = 10_000;
+const COMMISSION_PAY_RUPEES = "20";
+const COMMISSION_PAY_PAISA = 2_000;
+const COMMISSION_REASON = "[Test] rate agreed at hiring";
+const COMMISSION_REVERSE_REASON = "[Test] paid by mistake";
+
+/** Rep One's owed commission to date, read on the local database (the figure the pages show). */
+async function repOwedPaisa() {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    const r = await c.query(
+      "select (app.commission_earned_paisa($1, null, null) - app.commission_paid_paisa($1, null, null))::int n",
+      [rep.id],
+    );
+    return r.rows[0].n as number;
+  } finally {
+    await c.end();
+  }
+}
+
+test("commission: the manager sets the rate, an approved delivery earns at it, a payment is recorded and reversed, the rep reads it (P1-22)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const owedBefore = await repOwedPaisa();
+  const earned = Math.floor((seed.sku.list_price_paisa * COMMISSION_RATE_BP) / BASIS_POINTS);
+  const nav = () => page.getByRole("navigation", { name: "Office" });
+
+  await officeSignIn(page, manager);
+  await nav().getByRole("link", { name: "Commission", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Commission", exact: true })).toBeVisible();
+  await page.getByTestId("commission-rep").filter({ hasText: rep.name }).getByRole("button", { name: "Open" }).click();
+  await expect(page.getByRole("heading", { name: rep.name, exact: true })).toBeVisible();
+  await page.getByLabel("Rate in percent").fill(COMMISSION_RATE);
+  await page.getByLabel("Reason for the rate").fill(COMMISSION_REASON);
+  await page.getByRole("button", { name: "Set default rate" }).click();
+  await expect(page.getByText(`Default rate set to ${percent(COMMISSION_RATE_BP)} for invoices from now on.`)).toBeVisible();
+
+  // The rep hands over one unit of the order the rejection test left confirmed; the manager approves.
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app/orders");
+  const order = phone
+    .getByRole("listitem")
+    .filter({ hasText: journeySalon })
+    .filter({ hasText: rupees(seed.sku.list_price_paisa * REJECTED_ORDER_QTY) });
+  await submitDelivery(phone, order, 1);
+  await nav().getByRole("link", { name: "Delivery approvals", exact: true }).click();
+  await page
+    .getByTestId("waiting-delivery")
+    .filter({ hasText: journeySalon })
+    .getByRole("button", { name: "Approve delivery" })
+    .click();
+  await expect(page.getByText(`Approved the delivery to ${journeySalon}; the invoice is issued.`)).toBeVisible();
+  expect(await repOwedPaisa()).toBe(owedBefore + earned);
+
+  // The office sees the stamped invoice and pays part of what is owed; the figure survives a reload.
+  await nav().getByRole("link", { name: "Commission", exact: true }).click();
+  await page.getByTestId("commission-rep").filter({ hasText: rep.name }).getByRole("button", { name: "Open" }).click();
+  await expect(
+    page.getByText(`${rupees(seed.sku.list_price_paisa)} at ${percent(COMMISSION_RATE_BP)} = ${rupees(earned)}`),
+  ).toBeVisible();
+  await expect(page.getByTestId("rep-owed")).toHaveText(rupees(owedBefore + earned));
+  await page.getByLabel("Amount in rupees").fill(COMMISSION_PAY_RUPEES);
+  await page.getByLabel("Payment note").fill("[Test] cash");
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText(`Recorded a commission payment of ${rupees(COMMISSION_PAY_PAISA)}.`)).toBeVisible();
+  await expect(page.getByTestId("rep-owed")).toHaveText(rupees(owedBefore + earned - COMMISSION_PAY_PAISA));
+  expect(await repOwedPaisa()).toBe(owedBefore + earned - COMMISSION_PAY_PAISA);
+
+  // The rep reads it, read-only.
+  await phone.goto("/app/commission");
+  await expect(phone.getByTestId("owed")).toHaveText(rupees(owedBefore + earned - COMMISSION_PAY_PAISA));
+  await expect(phone.getByTestId("commission-invoice").filter({ hasText: rupees(earned) })).toContainText(
+    percent(COMMISSION_RATE_BP),
+  );
+  await expect(phone.getByTestId("commission-payment").filter({ hasText: "Paid" })).toContainText(rupees(COMMISSION_PAY_PAISA));
+  await expect(phone.getByRole("button", { name: "Record payment" })).toHaveCount(0);
+
+  // The office reverses the payment with a reason; what was paid is owed again.
+  const paid = page.getByTestId("office-commission-payment").filter({ hasText: "[Test] cash" });
+  await paid.getByRole("button", { name: "Reverse" }).click();
+  await paid.getByLabel("Why it is reversed").fill(COMMISSION_REVERSE_REASON);
+  await paid.getByRole("button", { name: "Reverse payment" }).click();
+  await expect(page.getByText(`Reversed the payment of ${rupees(COMMISSION_PAY_PAISA)}.`)).toBeVisible();
+  await expect(page.getByTestId("rep-owed")).toHaveText(rupees(owedBefore + earned));
+  await phone.reload();
+  await expect(phone.getByTestId("owed")).toHaveText(rupees(owedBefore + earned));
+  // The reversal row carries the reason; the payment row is marked as later reversed.
+  await expect(phone.getByTestId("commission-payment").filter({ hasText: COMMISSION_REVERSE_REASON })).toContainText(
+    rupees(COMMISSION_PAY_PAISA),
+  );
+  await expect(phone.getByTestId("commission-payment").filter({ hasText: "[Test] cash" })).toContainText("later reversed");
+
+  await phone.goto("/app/account");
+  await expect(phone.getByTestId("account-name")).toHaveText(rep.name);
+  await ctx.close();
+});
+
+test("Commission without a session sends the visitor to the sign-in page", async ({ browser }) => {
+  const visitor = await newPage(browser);
+  await visitor.goto("/office/commission");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
 });
 
 // Slice 1 (P1-18; D-35, D-36, D-39): the manager invites a rep and a salon on People, approves a
@@ -910,4 +1188,20 @@ test("a manager records an investor, an investment, a profit decision and a payo
   await expect(phone.getByText(name)).toHaveCount(0);
   await expect(phone.getByTestId("total-owed")).toHaveCount(0);
   await phoneContext.close();
+});
+
+// J1 step 15 and B-35, moved here from the rep journey (slice 4) so the rep's day stays open for the
+// delivery tests above. The bag holds what it holds now: the seeded quantity less the approved delivery.
+test("the rep sends the evening count and checks out (J1 step 15, B-35)", async ({ browser }) => {
+  const { ctx, phone: page } = await repPhoneOpen(browser);
+  await page.goto("/app/day");
+  await page.getByRole("button", { name: "Finish the day" }).click();
+  await page.getByLabel(seed.sku.code).fill(String(await repBagOnHand()));
+  // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
+  const closeCount = page.waitForRequest((r) => r.url().includes("/rpc/record_count") && r.method() === "POST");
+  await page.getByRole("button", { name: "Save count and check out" }).click();
+  expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
+  await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
+  await expect(page.getByText("Today's day is closed.")).toBeVisible();
+  await ctx.close();
 });

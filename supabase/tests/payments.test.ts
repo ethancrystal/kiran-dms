@@ -24,6 +24,7 @@ import {
   sqlstate,
   type Who,
 } from "./helpers/db";
+import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -146,7 +147,8 @@ const delivered = (qty: number, plan = "INST4"): Step[] => {
   const [ocid, dcid] = [id(), id()];
   return [
     ["manager", `select app.office_create_order('${ocid}', '${SALON}', '${plan}', ${lines(qty)}, '${fx.repA.id}');`],
-    ["repA", `select app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1);`],
+    // A rep's delivery (D-32): rep A submits it and the manager approves it.
+    ["postgres", submitApproveSql(asUser, { clientId: dcid, orderExpr: oid(ocid), rep: "repA", approver: "manager" })],
   ];
 };
 const GPS_NEAR = "24.9, 67.1";
@@ -264,7 +266,7 @@ describe("an uneven total (A-11)", () => {
         "manager",
         `select app.office_create_order('${ocid}', '${SALON}', 'INST4', '${JSON.stringify([{ sku_id: SKU2, qty: 1 }])}'::jsonb, '${fx.repA.id}');`,
       ],
-      ["repA", `select app.rep_deliver('${dcid}', ${oid(ocid)}, 'Ayesha at the counter', 24.9, 67.1);`],
+      ["postgres", submitApproveSql(asUser, { clientId: dcid, orderExpr: oid(ocid), rep: "repA", approver: "manager" })],
     ];
   };
 
