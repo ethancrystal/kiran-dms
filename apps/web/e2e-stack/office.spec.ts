@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import pg from "pg";
-import { rupees } from "../lib/money";
+import { percent, rupees } from "../lib/money";
 
 // Slice 1 journeys on a real local stack (execution map; J1 steps 1 to 3, J4 steps 1, 5, J5
 // steps 1, 10). Seed: scripts/e2e-stack-seed.mjs. Tests run in order and share the stack.
@@ -657,6 +657,121 @@ test("a rejected submission keeps its history and its goods wait until the offic
 test("Delivery approvals without a session sends the visitor to the sign-in page", async ({ browser }) => {
   const visitor = await newPage(browser);
   await visitor.goto("/office/deliveries");
+  await expect(visitor).toHaveURL(OFFICE_LOGIN);
+});
+
+// Slice 5 (P1-22; D-31, D-38; FLD-03, FLD-06): the manager sets Rep One's default rate on Commission;
+// the rep hands over one unit of the order left confirmed above and the manager approves it, so its
+// invoice is stamped at that rate; the manager pays part of what is owed and reverses it; the rep reads
+// earned, paid and owed on its own page. Earlier invoices of Rep One were stamped before any rate was
+// set (0%), so the test reads the owed figure first and asserts only what this test adds.
+const COMMISSION_RATE = "2.5";
+const COMMISSION_RATE_BP = 250;
+const BASIS_POINTS = 10_000;
+const COMMISSION_PAY_RUPEES = "20";
+const COMMISSION_PAY_PAISA = 2_000;
+const COMMISSION_REASON = "[Test] rate agreed at hiring";
+const COMMISSION_REVERSE_REASON = "[Test] paid by mistake";
+
+/** Rep One's owed commission to date, read on the local database (the figure the pages show). */
+async function repOwedPaisa() {
+  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
+  const c = new pg.Client({ connectionString: dbUrl });
+  await c.connect();
+  try {
+    const r = await c.query(
+      "select (app.commission_earned_paisa($1, null, null) - app.commission_paid_paisa($1, null, null))::int n",
+      [rep.id],
+    );
+    return r.rows[0].n as number;
+  } finally {
+    await c.end();
+  }
+}
+
+test("commission: the manager sets the rate, an approved delivery earns at it, a payment is recorded and reversed, the rep reads it (P1-22)", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const owedBefore = await repOwedPaisa();
+  const earned = Math.floor((seed.sku.list_price_paisa * COMMISSION_RATE_BP) / BASIS_POINTS);
+  const nav = () => page.getByRole("navigation", { name: "Office" });
+
+  await officeSignIn(page, manager);
+  await nav().getByRole("link", { name: "Commission", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Commission", exact: true })).toBeVisible();
+  await page.getByTestId("commission-rep").filter({ hasText: rep.name }).getByRole("button", { name: "Open" }).click();
+  await expect(page.getByRole("heading", { name: rep.name, exact: true })).toBeVisible();
+  await page.getByLabel("Rate in percent").fill(COMMISSION_RATE);
+  await page.getByLabel("Reason for the rate").fill(COMMISSION_REASON);
+  await page.getByRole("button", { name: "Set default rate" }).click();
+  await expect(page.getByText(`Default rate set to ${percent(COMMISSION_RATE_BP)} for invoices from now on.`)).toBeVisible();
+
+  // The rep hands over one unit of the order the rejection test left confirmed; the manager approves.
+  const { ctx, phone } = await repPhoneOpen(browser);
+  await phone.goto("/app/orders");
+  const order = phone
+    .getByRole("listitem")
+    .filter({ hasText: journeySalon })
+    .filter({ hasText: rupees(seed.sku.list_price_paisa * REJECTED_ORDER_QTY) });
+  await submitDelivery(phone, order, 1);
+  await nav().getByRole("link", { name: "Delivery approvals", exact: true }).click();
+  await page
+    .getByTestId("waiting-delivery")
+    .filter({ hasText: journeySalon })
+    .getByRole("button", { name: "Approve delivery" })
+    .click();
+  await expect(page.getByText(`Approved the delivery to ${journeySalon}; the invoice is issued.`)).toBeVisible();
+  expect(await repOwedPaisa()).toBe(owedBefore + earned);
+
+  // The office sees the stamped invoice and pays part of what is owed; the figure survives a reload.
+  await nav().getByRole("link", { name: "Commission", exact: true }).click();
+  await page.getByTestId("commission-rep").filter({ hasText: rep.name }).getByRole("button", { name: "Open" }).click();
+  await expect(
+    page.getByText(`${rupees(seed.sku.list_price_paisa)} at ${percent(COMMISSION_RATE_BP)} = ${rupees(earned)}`),
+  ).toBeVisible();
+  await expect(page.getByTestId("rep-owed")).toHaveText(rupees(owedBefore + earned));
+  await page.getByLabel("Amount in rupees").fill(COMMISSION_PAY_RUPEES);
+  await page.getByLabel("Payment note").fill("[Test] cash");
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText(`Recorded a commission payment of ${rupees(COMMISSION_PAY_PAISA)}.`)).toBeVisible();
+  await expect(page.getByTestId("rep-owed")).toHaveText(rupees(owedBefore + earned - COMMISSION_PAY_PAISA));
+  expect(await repOwedPaisa()).toBe(owedBefore + earned - COMMISSION_PAY_PAISA);
+
+  // The rep reads it, read-only.
+  await phone.goto("/app/commission");
+  await expect(phone.getByTestId("owed")).toHaveText(rupees(owedBefore + earned - COMMISSION_PAY_PAISA));
+  await expect(phone.getByTestId("commission-invoice").filter({ hasText: rupees(earned) })).toContainText(
+    percent(COMMISSION_RATE_BP),
+  );
+  await expect(phone.getByTestId("commission-payment").filter({ hasText: "Paid" })).toContainText(rupees(COMMISSION_PAY_PAISA));
+  await expect(phone.getByRole("button", { name: "Record payment" })).toHaveCount(0);
+
+  // The office reverses the payment with a reason; what was paid is owed again.
+  const paid = page.getByTestId("office-commission-payment").filter({ hasText: "[Test] cash" });
+  await paid.getByRole("button", { name: "Reverse" }).click();
+  await paid.getByLabel("Why it is reversed").fill(COMMISSION_REVERSE_REASON);
+  await paid.getByRole("button", { name: "Reverse payment" }).click();
+  await expect(page.getByText(`Reversed the payment of ${rupees(COMMISSION_PAY_PAISA)}.`)).toBeVisible();
+  await expect(page.getByTestId("rep-owed")).toHaveText(rupees(owedBefore + earned));
+  await phone.reload();
+  await expect(phone.getByTestId("owed")).toHaveText(rupees(owedBefore + earned));
+  // The reversal row carries the reason; the payment row is marked as later reversed.
+  await expect(phone.getByTestId("commission-payment").filter({ hasText: COMMISSION_REVERSE_REASON })).toContainText(
+    rupees(COMMISSION_PAY_PAISA),
+  );
+  await expect(phone.getByTestId("commission-payment").filter({ hasText: "[Test] cash" })).toContainText("later reversed");
+
+  await phone.goto("/app/account");
+  await expect(phone.getByTestId("account-name")).toHaveText(rep.name);
+  await ctx.close();
+});
+
+test("Commission without a session sends the visitor to the sign-in page", async ({ browser }) => {
+  const visitor = await newPage(browser);
+  await visitor.goto("/office/commission");
   await expect(visitor).toHaveURL(OFFICE_LOGIN);
 });
 
