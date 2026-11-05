@@ -63,7 +63,7 @@ async function record(mode: MoneyMode, a: PayArgs): Promise<Receipt> {
 // recording a payment, for the rep at the salon or for the office. The database checks who may record,
 // allocates oldest due first and issues the receipt number; this section shows what it says. Sending
 // the receipt to the salon is not built (B-08).
-export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMode }) {
+export function MoneySection({ salonId, mode, onRecorded }: { salonId: string; mode: MoneyMode; onRecorded?: () => void }) {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [due, setDue] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,6 +152,7 @@ export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMo
               mode={mode}
               onDone={async (r) => {
                 setReceipt(r);
+                onRecorded?.();
                 await load();
               }}
             />

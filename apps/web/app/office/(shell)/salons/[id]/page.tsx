@@ -44,6 +44,8 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 export default function OfficeSalon({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [salon, setSalon] = useState<Salon | null>(null);
+  // Bumped when a payment is recorded, so the receipts list below reads the database again.
+  const [docsVersion, setDocsVersion] = useState(0);
   const [areas, setAreas] = useState<Area[]>([]);
   const [contact, setContact] = useState<Contact | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -138,9 +140,9 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 
-      <MoneySection salonId={id} mode="office" />
+      <MoneySection salonId={id} mode="office" onRecorded={() => setDocsVersion((v) => v + 1)} />
 
-      <section className="card">
+      <section className="card" key={docsVersion}>
         <h2>Invoices</h2>
         <InvoiceList salonId={id} />
         <h2>Receipts</h2>

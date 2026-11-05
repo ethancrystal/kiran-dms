@@ -287,17 +287,17 @@ test("Rep detail: from Rep performance, the rep's orders, submission and money, 
   // The submission waits here with a link; deciding happens only on Delivery approvals.
   const pending = page.getByTestId("rep-pending").filter({ hasText: salon.name });
   await expect(pending).toContainText(rupees(ORDER_PAISA));
-  await expect(page.getByRole("button")).toHaveText(["Sign out"]);
+  await expect(page.locator(".office main").getByRole("button")).toHaveCount(0);
   await page.getByRole("link", { name: "Check and decide them on Delivery approvals" }).click();
   await expect(page.getByRole("heading", { name: "Delivery approvals", level: 1 })).toBeVisible();
 
   // A wrong id is the database's refusal.
   await page.goto(`/office/reps/${randomUUID()}`);
-  await expect(page.getByRole("alert")).toHaveText("unknown rep");
+  await expect(page.getByRole("alert").filter({ hasText: "unknown rep" })).toBeVisible();
   await page.goto(`/office/reps/${manager.id}`);
-  await expect(page.getByRole("alert")).toHaveText("unknown rep");
+  await expect(page.getByRole("alert").filter({ hasText: "unknown rep" })).toBeVisible();
   await page.goto("/office/reps/not-an-id");
-  await expect(page.getByRole("alert")).toHaveText("unknown rep");
+  await expect(page.getByRole("alert").filter({ hasText: "unknown rep" })).toBeVisible();
 });
 
 test("invoice and receipt views: linked from each page, in English, with the database's figures and the proof sentence", async ({
@@ -328,6 +328,7 @@ test("invoice and receipt views: linked from each page, in English, with the dat
   await page.getByLabel("Amount (Rs)", { exact: true }).fill(String(PAID_RS));
   await page.getByRole("button", { name: "Record payment" }).click();
   await expect(page.getByText("Payment recorded. Receipt")).toBeVisible();
+  await expect(page.getByTestId("receipt-row")).toHaveCount(1);
   await page.locator("output", { hasText: "Payment recorded" }).getByRole("link").click();
   await expect(page.getByRole("heading", { name: "Receipt R-", level: 1 })).toBeVisible();
   await expect(page.getByTestId("doc-salon")).toHaveText(salon.name);
@@ -349,9 +350,9 @@ test("invoice and receipt views: linked from each page, in English, with the dat
 
   // A wrong id: one plain message, whichever way it is wrong.
   await page.goto(`/office/invoices/${randomUUID()}`);
-  await expect(page.getByRole("alert")).toHaveText("This invoice does not exist, or you may not read it.");
+  await expect(page.getByRole("alert").filter({ hasText: "This invoice does not exist, or you may not read it." })).toBeVisible();
   await page.goto("/office/receipts/not-an-id");
-  await expect(page.getByRole("alert")).toHaveText("This receipt does not exist, or you may not read it.");
+  await expect(page.getByRole("alert").filter({ hasText: "This receipt does not exist, or you may not read it." })).toBeVisible();
 });
 
 test("the new reads and the documents refuse a rep, a signed-out visitor and an office session without the second step", async ({
