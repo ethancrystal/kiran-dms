@@ -28,11 +28,11 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 
 | Capability | Rep | Manager | Owner |
 |---|---|---|---|
-| See salons | Reachable salons only, read-only (a direct assignment, else territory coverage, D-36; approved, not built); phones masked in lists | All | All |
+| See salons | Reachable salons only, read-only (a direct assignment, else territory coverage, D-36; built in slice 1, migration 20261105100000, not verified); phones masked in lists | All | All |
 | Edit a salon | No, read-only (D-35; approved, not built: slice 7) | All | All |
 | Salon notes | Reachable salons | All | All |
 | Propose a new salon, pin included | Yes, stays pending (D-35; approved, not built: slice 7) | Adds approved salons directly | Same as manager |
-| Approve or reject a proposed salon; assign or change a rep; set the rate | — | Yes (D-35, D-36; approved, not built: slice 1) | Yes |
+| Approve or reject a proposed salon; assign or change a rep; set the rate | — | Yes (D-35, D-36; built in slice 1: `app.office_decide_salon`, `app.office_assign_salon_rep`, not verified) | Yes |
 | Change salon stage manually | — | With reason | With reason |
 | Log visits, deliveries, payments | Own | Own + on behalf (flagged) | Same as manager |
 | Create official sales orders (D-30, D-34) | — (submits order requests; reads relevant orders) | Yes; converts, approves or rejects rep and salon requests (lines and salon requests approved, not built: slice 6) | Same as manager |
@@ -52,7 +52,7 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | Products, pictures, descriptions, SKU prices, per-salon prices | Read | Manage; a price needs a reason and appears in the owner's digest (D-37, D-39; approved, not built: slice 2) | Manage |
 | **Installment templates, credit rules, config** | — | View | **Owner only** |
 | **Company bank account details** | — | View | **Owner only (MFA re-auth)** |
-| Reps and salons: invite, suspend, revoke | — | Yes (D-39; approved, not built: slice 1) | Yes |
+| Reps and salons: invite, suspend, revoke | — | Yes (D-39; built in slice 1: `app.office_invite`, `app.office_revoke_invitation`, `app.office_set_member_status`, not verified) | Yes |
 | **Users: create or promote an owner or manager; role changes; agent accounts; offboarding** | — | No; the database refuses (D-39) | **Owner only** |
 | Device approval for reps | — | Yes | Yes |
 | Territories, route days | — | Yes | Yes |
@@ -88,7 +88,7 @@ A Salon Customer is an external customer membership, not a fourth internal staff
 
 Customer RLS/RPC tests must prove that Salon A cannot read, update, create an order for or download documents for Salon B by changing IDs, URLs, query filters, RPC arguments or object-storage paths. Revoked/suspended memberships must fail immediately. Salon functions must not call rep functions under the salon user's identity and must not grant access to internal CRM notes, rep location, cash/bag custody, price governance, credit decision internals or other salons.
 
-These salon rows are approved, not built (D-41; slices 1 and 6). The staff roles stay owner, manager and rep; the office permission matrix is section 2 above.
+Built in slice 1 (migration 20261105100000, not verified): the membership, invitation-only, one salon per login, suspension and revocation that stop at once, and `app.salon_me` (own salon's name, address, approval and account status; it takes no salon id). The other salon rows are approved, not built (D-41; slice 6). The staff roles stay owner, manager and rep; the office permission matrix is section 2 above.
 
 ## 3. Authentication and sessions
 

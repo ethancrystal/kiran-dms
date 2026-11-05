@@ -30,6 +30,8 @@ const people = {
   rep: person("rep", "Rep One"),
   rep2: person("rep2", "Rep Two"),
   newcomer: person("newcomer", "Newcomer"),
+  // Slice 1 (D-39): a login with no profile, invited as a rep on the People page by the stack test.
+  invitee: person("invitee", "Invited Rep"),
 };
 
 // One priced product for the office order test (D-30): a [Dummy] catalogue entry (no real supplier or
@@ -38,6 +40,7 @@ const SKU_PRICE_PAISA = 150_000;
 const CYCLE_DAYS = 30;
 const SKU_SIZE_ML = 100;
 const sku = { id: randomUUID(), code: `DUMMY-${tag.toUpperCase()}`, list_price_paisa: SKU_PRICE_PAISA };
+const pendingSalon = { id: randomUUID(), name: `[Test] Proposed salon ${tag}`, area: "" };
 
 const c = new pg.Client({ connectionString: url });
 await c.connect();
@@ -89,7 +92,8 @@ try {
   await create(people.manager, "manager", "+920000000101");
   await create(people.rep, "rep", "+920000000102");
   await create(people.rep2, "rep", "+920000000103");
-  // newcomer has a sign-in but no profile: the tests add it through the Team page.
+  // newcomer has a sign-in but no profile: the tests add it through the Team page. invitee too: the
+  // tests invite it as a rep on the People page.
 
   // Rep One has a bag (owner only, A-08), empty of stock: the evening count then has a bag to
   // close, so check-out depends on the daily close being sent (B-35, INV-05). Rep Two has none.
@@ -126,6 +130,20 @@ try {
     "[Test] e2e list price",
   ]);
 
+  // Slice 1 (D-35, D-39): a territory and area for a salon the manager creates while inviting it,
+  // and a salon a rep proposed, waiting on Salon approvals. Nothing in the app makes a pending salon
+  // until slice 7, so it is written here as postgres, the way the database tests do.
+  const territory = { id: randomUUID(), name: `[Test] Seed territory ${tag}` };
+  const area = { id: randomUUID(), name: `[Test] Seed area ${tag}` };
+  await as(people.owner.id, "aal2", null, "select app.office_upsert_territory($1, $2)", [territory.id, territory.name]);
+  await as(people.owner.id, "aal2", null, "select app.office_upsert_area($1, $2, $3)", [area.id, territory.id, area.name]);
+  pendingSalon.area = `${territory.name} · ${area.name}`; // as the area pickers label it
+  await c.query(
+    `insert into public.salon (id, name, type, area_id, source, created_by, approval_status)
+     values ($1, $2, 'ladies_parlor', $3, 'map_pin', $4, 'pending')`,
+    [pendingSalon.id, pendingSalon.name, area.id, people.rep.id],
+  );
+
   // Rep Two's phone asks for approval, as the rep app does on first open.
   const device = `web-${randomUUID()}`;
   await as(people.rep2.id, "aal1", device, "select app.register_device($1, 'android', '[Test] phone')", [device]);
@@ -133,5 +151,5 @@ try {
   await c.end();
 }
 
-writeFileSync(out, JSON.stringify({ password, people, sku }, null, 2));
+writeFileSync(out, JSON.stringify({ password, people, sku, pendingSalon }, null, 2));
 console.log(`seeded ${Object.keys(people).length} synthetic people into the local stack -> ${out}`);

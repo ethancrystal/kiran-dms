@@ -58,6 +58,9 @@ export default function OfficeSalons() {
   return (
     <>
       <h1>Salons</h1>
+      <p>
+        <Link href="/office/salons/approvals">Salon approvals</Link>
+      </p>
       <form
         className="inline-form"
         onSubmit={(e) => {
