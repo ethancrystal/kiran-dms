@@ -1,18 +1,67 @@
 # 2026-11-05 01:03 PKT · Claude · Opus 5.5 · branch claude/p1-21-delivery-approval · TASK
-**Task:** P1-21 (completion slice 4; ORD-03, ORD-04, ADM-03, SEC-11, CTL-05; D-32, D-31, D-30, A-16, A-18, L-0163, L-0385; areas: stock_location kind pending_delivery, stock_movement kinds submitted_to_salon and pending_returned, delivery_submission, delivery_submission_decision, pending_stock_resolution, invoice.delivered_by and commission_rep_id, app.finalise_delivery replacing app.deliver, app.rep_submit_delivery, app.rep_deliver closed, app.office_approve_delivery, app.office_reject_delivery, app.office_resolve_pending, app.office_post_adjustment, app.office_create_location, app.office_deliver, app.cancel_order, reads app.my_submissions, app.office_pending_deliveries, app.office_pending_stock; DB test fixtures that delivered through rep_deliver; rep Deliver and My deliveries pages; office Delivery approvals page; stack seed and stack test)
-**What / why:** Build slice 4 of the project completion plan from docs/superpowers/plans/2026-11-04-delivery-submission-approval.md (MJ accepted every recommended default of its decisions table on 2026-11-04). Migrations 20261105130000 (enum values alone, Decision 7) and 20261105130100 (everything else). Work in progress; this entry grows with each commit.
-**Evidence:** In progress. DATABASE_URL unset; embedded Postgres, one test command at a time.
-- Task 1 (schema): pnpm exec vitest run --config supabase/tests/vitest.config.ts delivery-approval: first attempt hit the known No test files found and Unknown Error setup flake, rerun: 6 passed. Then rls-matrix schema-hygiene verifier-attacks inventory in one command: 4 files, 2157 passed.
-**Next / needs:** Tasks 2 to 10 of the plan.
+**Task:** P1-21 (completion slice 4; ORD-03, ORD-04, ADM-03, SEC-11, CTL-05; D-32, D-31, D-30, A-16, A-18, L-0163, L-0385; areas: stock_location kind pending_delivery, stock_movement kinds submitted_to_salon and pending_returned, delivery_submission, delivery_submission_decision, pending_stock_resolution, invoice.delivered_by and commission_rep_id, app.finalise_delivery replacing app.deliver, app.rep_submit_delivery, app.rep_deliver closed, app.office_approve_delivery, app.office_reject_delivery, app.office_resolve_pending, app.post_adjustment, app.office_post_adjustment, app.office_create_location, app.office_deliver, app.cancel_order, reads app.my_submissions, app.office_pending_deliveries, app.office_pending_stock; the DB test fixtures that delivered through rep_deliver; rep pages Deliver and My deliveries; office page Delivery approvals; the stack seed and stack test)
+**What / why:** Slice 4 of the project completion plan, built from docs/superpowers/plans/2026-11-04-delivery-submission-approval.md tasks 1 to 10. MJ accepted every recommended default of its decisions table on 2026-11-04 (cash at the door: the rep collects after approval; no payment code changes), so the plan's defaults are what is built.
+
+Database, two migrations (Decision 7: Postgres cannot use an enum value in the transaction that added it):
+- 20261105130000_delivery_approval_enums.sql: stock_location_kind pending_delivery; stock_movement_kind submitted_to_salon and pending_returned.
+- 20261105130100_delivery_approval.sql, everything else:
+- A pending_delivery location per rep: stock_location_bag_owner widened, one per rep (unique index), made by an after-insert trigger on every new rep_bag (control.stock_location_pending_twin), backfilled for existing bags. app.office_create_location (migration 0008 body) refuses pending_delivery with 22023. stock_movement_kind_shape gains the two new kinds (both sides required).
+- delivery_submission, delivery_submission_decision (one per submission; approved with its delivery or rejected with a reason of 5 to 500), pending_stock_resolution (returned_to_bag, returned_to_warehouse, missing with an approval; count note; control.pending_resolution_guard locks the submission and refuses more than is unsettled, and anything for an undecided submission, 23514). All three append-only (forbid_mutation and no_truncate), audited, RLS enabled and forced, select only (office all; a rep its own on its approved phone), no write grant. The new table's GPS checks are named delivery_lat_check and delivery_lng_check, as on delivery.
+- invoice.delivered_by and commission_rep_id, nullable, with invoice_delivered_by_set check NOT VALID (Decision 8: no backfill of append-only invoices).
+- app.finalise_delivery (internal, no grant): migration 20261104090000's app.deliver with every guard and the M1 lock note, taking the deliverer as parameters; its invoice insert is the single stamping point (delivered_by, commission_rep_id = the order's assigned rep), with a comment where slice 5 adds commission_rate_bp. app.deliver is dropped. app.office_deliver calls it with the office user.
+- app.rep_submit_delivery: the rep path's checks and words in the same order (role, client_id, replay, own order NULL-safe, open day, app.rep_can_reach_salon, bag, GPS, order lock and replay again, status, name, lines), lines limited to what is open (remaining minus undecided submissions, app.order_lines_open, Review Focus 1), bag stock, flags mock_location and distance_unknown, then the submission and one submitted_to_salon movement per line, bag to pending. The order is not touched. app.my_submissions for the rep.
+- app.office_approve_delivery: office AAL2, client_id replay before and after the submission lock, approver not the submitter (42501, SEC-11), decided once (55000), then app.finalise_delivery from the rep's pending location with the rep as deliverer and the submission's day, GPS and phone time, then the decision row (after the salon lock, M1). Approval still works after check-out, suspension or a territory move (Decision 9). app.office_pending_deliveries lists undecided ones, oldest first, with the order's prices.
+- app.office_deliver and app.cancel_order refuse 55000 while the order has an undecided submission (Review Focus 3). Deviation from the plan, more restrictive: in cancel_order the check sits after the who-may-cancel test, so a caller who may not cancel learns nothing about submissions.
+- app.office_reject_delivery (same guards and replay; nothing moves). app.post_adjustment (internal, migration 0008 body); app.office_post_adjustment keeps its signature and grant and refuses a pending_delivery subject (22023, Review Focus 5). app.office_resolve_pending settles at most the unsettled quantity, three ways; missing needs an approved adjustment request naming this pending location, SKU, quantity and submission, posted through app.post_adjustment (status, single use, owner threshold). Also refuses the submitter as settler (SEC-11, not in the plan, restrictive). app.office_pending_stock lists what is unsettled with the newest pending or approved, unused adjustment request.
+- app.rep_deliver keeps its signature, refuses everyone as its first statement and has no grant.
+
+Tests: supabase/tests/delivery-approval.test.ts (new, 42 tests: schema, the finalising function, submission, approval, rejection and settlement, the closed rep path); supabase/tests/helpers/submit-approve.ts (one SQL script: the rep submits, the manager approves; same uuid for both client_ids); the 21 rep_deliver call sites in crm-attacks, deliveries, handovers, invoice-document, office-cash, office-order-access, order-cards, payments, receivables-ageing moved to it or to app.rep_submit_delivery, no assertion changed; rls-matrix rows for the three tables; verifier-attacks allowlist (adds my_submissions, office_approve_delivery, office_pending_deliveries, office_pending_stock, office_reject_delivery, office_resolve_pending, rep_submit_delivery; removes rep_deliver) and CALLS (finalise_delivery, rep_deliver); reverify3 timestamp list (adds app.rep_submit_delivery, removes app.rep_deliver).
+
+Web: /app/orders/[id]/deliver (lines from app.order_remaining with SKU labels, quantity per line, receiver, GPS; one client id per open form; the pinned copy after sending; a missing GPS fix is sent as null so the database's GPS words answer), /app/deliveries (app.my_submissions), a Deliver this order link on /app/orders for assigned orders (Waiting for approval while one waits), a My deliveries link on /app; /office/deliveries (approve, reject with a reason, settle: return to bag, return to a warehouse, report missing through request_approval, approve or refuse the request by another office user, settle as missing) and its nav entry Delivery approvals. Seed: a warehouse and 6 units of the SKU in Rep One's bag; .seed.json gains warehouse and bagQty. Stack test: J1's morning count fills the bag quantity; the evening count and check-out moved, unchanged apart from the count, into a last test; new tests for approval end to end, rejection with return to bag, and the signed-out redirect.
+
+Docs (H-25): doc 03 ORD-04 rewritten; doc 04 stock_location and stock_movement kinds and the three tables; doc 06 section 2 matrix row, the as-built note and the spec section 5 classification table; doc 10 sale row; doc 12 D-32 status; SPEC.md P1-21 row; board row P1-21 set to IN PROGRESS (implemented, awaiting CI including the e2e-stack browser test, and an independent check), in P1-18's wording. In the master prompt's words this is IMPLEMENTED — NOT VERIFIED.
+**Evidence:** Branch claude/p1-21-delivery-approval from origin/main e7209f4. Commits aaabf74 (schema), 23bc5d7 (finalise_delivery), 914719c (submission), 1022183 (approval), c77144a (rejection and settlement), fe0bc65 (fixtures moved), 4ee667f (rep_deliver closed), a87113c (Biome formatting of the tests), 10792c7 (rep pages), ac6f194 (office page, seed, stack test), and the docs commit that carries this text. DATABASE_URL and KIRAN_TEST_DATABASE_URL unset; embedded Postgres; pnpm exec vitest run --config supabase/tests/vitest.config.ts with file fragments, one command at a time.
+- Task 1: delivery-approval: first attempt the known No test files found and Unknown Error setup flake, rerun: 6 passed. rls-matrix schema-hygiene verifier-attacks inventory: 4 files, 2157 passed.
+- Task 2: delivery-approval deliveries office-order-access payments verifier-attacks: 5 files, 160 passed.
+- Task 3: delivery-approval verifier-attacks: 1 failed (a column alias day is a reserved word in the test), fixed in the test; delivery-approval: 18 passed.
+- Task 4 and 5: delivery-approval: 1 failed until the rejection function existed (Task 4 commit notes it), then 1 failed on a temp table the manager could not read (test fixed with a grant), then 41 passed. inventory crm-attacks verifier-attacks: 3 files, 120 passed.
+- Task 6: deliveries handovers invoice-document office-cash payments receivables-ageing: 6 files, 164 passed; crm-attacks office-order-access order-cards: 3 files, 105 passed; orders.test (orders and office-orders): 2 files, 65 passed. No assertion was changed.
+- Task 7: delivery-approval verifier-attacks rls-matrix schema-hygiene: 4 files, 2176 passed; the Task 6 set again in one command (11 files): 334 passed.
+- Final, on ac6f194, the leakage run in ONE command: delivery-approval rls-matrix verifier-attacks crm-attacks deliveries handovers invoice-document office-cash office-order-access order-cards payments receivables-ageing schema-hygiene inventory visits.test orders.test: 17 files, 2549 passed (run twice, same result).
+- pnpm typecheck: pass. pnpm lint: pass, 33 warnings and 42 infos (the same counts as slice 1). pnpm format also rewrote two files this slice does not own (packages/import/src/core/normalize.ts, scripts/activity-log-check.mjs, unsafe regex fixes); both were restored with git checkout and are not in the diff.
+- NEXT_PUBLIC placeholder settings as in CI, pnpm -C apps/web build: pass; routes include /app/deliveries, /app/orders/[id]/deliver, /office/deliveries.
+- CI=true pnpm -C apps/web test:e2e: 4 passed. pnpm service-role:scan: OK, 71 files. node scripts/service-role-scan.mjs --bundle apps/web/.next/static: OK, 113 files. node --check scripts/e2e-stack-seed.mjs: exit 0.
+- node scripts/activity-log-check.mjs origin/main and pnpm agent:preflight: see the addition at the end of this entry.
+
+Not run here: apps/web/e2e-stack (no Docker on this host; CI only), so the new browser journeys, the moved check-out and the seeded bag are unexercised. The reverify suites, including reverify3 whose list changed (CI runs them). The concurrency branch where a retry waits on the submission lock (needs two sessions; as in PR A). Nothing touched staging or production; synthetic data only.
+
+Rulings made here (safest reading): the cancel refusal placed after the permission test; the submitter may not settle its own goods either; office_pending_stock offers only pending or approved, unused requests (a refused one leaves the row ready for a new request); the settlement guard treats an undecided submission as having nothing to settle; a rep sees invoices of approved submissions through the salon's account page (no rep invoice page exists).
+
+DoD (section 6):
+[x] Requirement IDs implemented as written (ORD-04 rewritten with D-32), differences listed above
+[x] Migrations forward-only; apply on a fresh embedded database after every earlier migration
+[x] New tables: RLS enabled and forced, policies, matrix rows for every persona
+[x] Append-only tables refuse UPDATE, DELETE and TRUNCATE, tested even as the table owner
+[x] Mutations through security definer functions, pinned search_path, client_id replay tested
+[x] Audit rows produced for submission, decision, delivery and invoice (tested)
+[x] No vault data involved
+[ ] Offline: the rep form keeps one client id per open form, so a retry replays; the outbox is P1-09
+[x] Money in integer paisa
+[ ] Lint, typecheck, touched DB suites pass locally; CI not yet run (so not DONE)
+[x] Docs and board updated
+[x] No secrets, real personal or supplier data in the diff (read)
+[x] This entry holds the evidence
 
 Security checklist (tick honestly):
-[ ] RLS enabled+forced; policies + role×table tests added/updated (H-13)
-[ ] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
-[ ] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
-[ ] Audit trigger present; hash chain verifies (H-17)
-[ ] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
-[ ] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
-[ ] Governance powers still owner-only + AAL2 (H-15)
-[ ] No control weakened, skipped or "temporarily" disabled (H-16)
-[ ] Docs match code; deviations logged (H-25)
-[ ] Tests actually run; real results recorded (H-23, H-24)
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08)
+[x] Audit trigger present; hash chain verifies (H-17)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24)
+
+**Next / needs:** CI on a pull request (MJ decides when to push), especially e2e-stack (the delivery journeys, GPS in the browser context, the moved check-out) and the reverify suites. Then slice 5 (P1-22) reads invoice.commission_rep_id and adds commission_rate_bp at the stamping point in app.finalise_delivery. Slices 2 and 3 touch the same verifier-attacks list, rls-matrix, office nav and board: rebase conflicts are expected there and are additive.

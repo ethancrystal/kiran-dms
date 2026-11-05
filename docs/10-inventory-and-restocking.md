@@ -43,7 +43,7 @@ Stock on hand anywhere = Σ `stock_movement` for that location and SKU. Nothing 
 |---|---|---|---|
 | `receipt` | (vault) → warehouse | Vault grantee posting a goods receipt | Vault record; "labels removed" confirmation |
 | `issue_to_rep` | warehouse → rep_bag | Manager/owner | Rep confirms count in-app |
-| `sale` | rep_bag or warehouse → (salon) | Delivery by the rep from its bag, or by the office from a warehouse. Approved, not built (D-32): a rep submits the delivery and only the office's approval writes this movement | Salon acknowledgment (OTP/signature; Phase 1: the receiver's name with GPS and server time (MJ, ACTIVITY L-0163); the OTP comes with the SMS adapter), invoice |
+| `sale` | rep_bag or warehouse → (salon) | Delivery by the office from a warehouse, or a rep's delivery once the office approves it (D-32, built in slice 4, migration 20261105130100, not verified): the rep's submission moves the goods bag to pending (`submitted_to_salon`), and only the approval writes this movement, out of the rep's pending location | Salon acknowledgment (OTP/signature; Phase 1: the receiver's name with GPS and server time (MJ, ACTIVITY L-0163); the OTP comes with the SMS adapter), invoice |
 | `return_in` | (salon) → quarantine | Rep requests with photo | Manager accepts at warehouse (CTL-12) |
 | `return_to_warehouse` | rep_bag → warehouse | Manager/owner | Rep confirms |
 | `transfer` | warehouse ↔ warehouse (later, multi-site) | Manager/owner | Receiving side confirms |
