@@ -68,3 +68,65 @@ Security checklist (tick honestly):
 
 Addition, after merging main (2026-11-05 16:40 PKT): origin/main moved to 594479c during the build (pull request 67, P1-27, removes the Urdu from apps/web), so the first node scripts/activity-log-check.mjs origin/main failed, naming docs/log/2026-11-05-claude-english-only-code.md as deleted, because this branch did not have that file yet. Merged as f6c1f27, no conflict. This corrects the build addition's line about Urdu: with that merge no Urdu is left on /app, /app/day or the rep's salon page.
 **Evidence:** on f6c1f27: pnpm typecheck: pass. pnpm exec biome check --diagnostic-level=error: no errors (148 files). pnpm lint: pass, 36 warnings, 42 infos. pnpm -C apps/web build: pass. CI=true pnpm -C apps/web test:e2e: the first run failed with exit code 1 while the build above was still running in the background on the same .next directory (its failure output was not kept, so the cause is inferred, not shown); rerun alone: 4 passed. node scripts/activity-log-check.mjs origin/main: OK (1 new log entry, 16 changed files; owner terms checked: 0, the secret is not set locally). pnpm agent:preflight: PREFLIGHT OK. The database suites were not rerun after the merge: it changed nothing under supabase or scripts (git diff --stat 50e7162 origin/main -- supabase scripts is empty).
+
+Addition, corrections (2026-11-05 16:27 PKT, read from the clock). Two statements in the additions above were wrong. (1) The post-merge addition lists pnpm agent:preflight as run on f6c1f27; it had last run on f551ffa, before the merge. It is run after this correction: result on the line at the end of this addition. (2) The times 16:15 and 16:40 in the two additions above were estimates, not clock readings; 16:40 is later than this addition. Also changed here: the form on /app/route is now labelled Add a stop from my salons, so it no longer shares its name with the select inside it, and the stack test follows. After that rename: pnpm typecheck pass; pnpm exec biome check --diagnostic-level=error no errors (148 files); the build and test:e2e were not rerun for this one attribute.
+
+The screen definitions (frontend plan section 2 rule 9, section 9 template). They are written after the build, not before it as the rule asks; recorded so the difference is plain.
+```
+Route: /office/routes
+Roles: owner, manager at AAL2. Rep lands on /office/mfa with no office nav; anonymous goes to /office/login; a direct RPC is 42501.
+Functions: app.office_set_route(p_rep_id, p_day, p_stops); app.due_list(p_on, p_territory_id).
+Data: route, route_stop, rep_territory, salon, salon_rep_assignment, user_profile under RLS. No new read.
+Fields: rep, day; stop salon (link), area, reason, added by the rep; due salon, area, product group, status, due date.
+Filters and sort: stops by sequence; salons by name, approved and not parked, first 200 (says so); due per territory, 50 a call (says so).
+Actions: Add stop, Add to route, Move up, Move down, Remove (local until saved); Save route, no confirmation, the page warns it replaces the day.
+States: Loading...; No stops for this rep on this day; Nothing is due...; the database's words on refusal; Route saved for NAME on DAY: N stops; a past day read-only.
+Money: none. Offline: n/a.
+Acceptance: the saved order survives a reload and reaches the rep; a rep-added stop can be re-saved; a salon the rep does not hold is refused.
+Test: office.spec.ts, "a manager builds a rep's route...": positive, wrong role, other territory (22023); replay: a save replaces state, not exercised twice.
+
+Route: /app/route
+Roles: rep on an approved phone. Pending phone or another role: denied message; anonymous: sign-in.
+Functions: app.my_session; app.my_route(p_day); app.due_list(p_on, null); app.my_salons; app.rep_reorder_route(p_day, p_stop_ids); app.rep_add_stop(p_salon_id).
+Data: those functions only. No new read.
+Fields: salon (link), area, reason, next due, visited and outcome; due salon, product group, status, due date.
+Actions: Move up, Move down (today or later); Add to route, Add stop (today only). No confirmation; no reason field.
+States: Loading your route...; No stops on this day; Nothing is due...; denied; the database's words; Route reordered; Added NAME to today's route.
+Money: none. Offline: not built, online until P1-09.
+Acceptance: the rep sees only its own route in the office's order; a new order survives a reload; 360 px, tap targets of at least 44 px (not yet seen in a browser).
+Test: office.spec.ts, same test: positive; other reps are covered by routes.test.ts, not here.
+
+Route: /office/stock/levels
+Roles: owner, manager at AAL2. Rep: /office/mfa; anonymous: /office/login; direct RPC 42501 for the office functions.
+Functions: app.low_stock; app.warehouse_availability; app.office_set_reorder_point(p_sku_id, p_reorder_point); app.stock_on_hand(p_location_id); app.record_count(p_client_id, p_location_id, p_kind, p_counted, p_counted_at_client).
+Data: sku, reorder_rule, stock_location, stock_count, user_profile under RLS. No new read.
+Fields: SKU, on hand, reorder point; SKU, available, reorder point; count kind, location, who, variance, expected, counted.
+Sort: low stock and SKUs by code, first 200 SKUs (says so); counts newest 50.
+Actions: Save a reorder point; Save the count (location, kind, a blank field per SKU held, Also found here). No reason field in the functions.
+States: Loading...; Nothing is at or below its reorder point; No active SKU yet; No count recorded yet; the database's words; Reorder point of CODE set to N; Count saved: variance N units.
+Money: none. Offline: n/a.
+Acceptance: a point at or above stock lists the SKU as low; stock above it takes it off; a count records variance and leaves stock unchanged.
+Test: office.spec.ts, "reorder point and low stock...": positive, wrong role; replay of a count: covered by inventory.test.ts, not in the browser.
+
+Route: /office/stock, Take stock back from a rep's bag; /app/stock, Going back to the warehouse
+Roles: propose owner, manager at AAL2; confirm the rep whose bag it is.
+Functions: app.office_propose_stock_issue(direction to_warehouse); app.rep_confirm_stock_issue(p_issue_id, p_counted); app.office_cancel_stock_issue; app.warehouse_availability on /app/stock.
+Fields: bag, warehouse, units per SKU the bag holds; the rep types its count blind.
+Actions: Propose the return, one client id per form; Confirm my count; Cancel issue with a reason of at least 3 characters.
+States: This bag holds nothing; Return proposed...; Confirmed: the stock has gone back to the warehouse; the disputed message; the database's words.
+Money: none. Offline: online only.
+Acceptance: nothing moves until the same count; the bag and warehouse figures follow.
+Test: office.spec.ts, same stock test: positive path; disputed path not exercised in the browser (inventory.test.ts).
+
+Route: /app/salons/[id], Lost demand
+Roles: rep who holds the salon; the function refuses other salons and supply_short from a rep.
+Functions: app.record_demand(p_client_id, p_sku_id, p_product_group_id, p_qty, p_reason, p_salon_id, p_captured_at_client).
+Data: sku, product_group, demand_signal (own rows) under RLS.
+Fields: reason, SKU or product group, units; newest 5 of the rep's rows for this salon.
+Actions: Record lost demand, one client id per intent, no free text.
+States: Loading...; Lost demand recorded; the database's words.
+Money: none. Offline: not built, though DEM-01 asks for it (P1-09).
+Acceptance: the row survives a reload and is on the database with the salon and the rep.
+Test: office.spec.ts, same stock test: positive path; replay and other salon: not in the browser.
+```
+**Evidence:** the commands named in this addition; final pnpm agent:preflight and activity-log-check are reported in the hand-back, after this commit.

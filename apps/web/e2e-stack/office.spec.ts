@@ -1760,7 +1760,7 @@ test("a manager builds a rep's route, the rep sees it in order and reorders it, 
   await phone.reload();
   await expect(repStops.nth(0)).toContainText(dueSalon.name);
   await expect(repStops.nth(1)).toContainText(plannedSalon.name);
-  const addMine = phone.getByRole("form", { name: "Add one of my salons" });
+  const addMine = phone.getByRole("form", { name: "Add a stop from my salons" });
   await addMine.getByLabel("Add one of my salons").selectOption(repAddedSalon.id);
   await addMine.getByRole("button", { name: "Add stop" }).click();
   await expect(phone.getByText(`Added ${repAddedSalon.name} to today's route.`)).toBeVisible();

@@ -219,7 +219,7 @@ export default function MyRoute() {
           {isToday ? (
             <form
               className="card route-tap"
-              aria-label="Add one of my salons"
+              aria-label="Add a stop from my salons"
               onSubmit={(e) => {
                 e.preventDefault();
                 const s = salons.find((x) => x.id === pick);
