@@ -481,7 +481,7 @@ describe("earned is derived from invoices, floored per invoice", () => {
 // ------------------------------------------------------------------ rates ----
 describe("app.office_set_commission_rate", () => {
   it("validates the rate, the reason and the rep", async () => {
-    const bad = (bp: string, reason: string, rep = repC.id) =>
+    const bad = (bp: string, reason: string, rep: string = repC.id) =>
       txCode([["manager", `select app.office_set_commission_rate('${id()}', '${rep}', ${bp}, ${quote(reason)});`]]);
     expect(await bad("10001", "agreed in review")).toBe(BAD_INPUT);
     expect(await bad("-1", "agreed in review")).toBe(BAD_INPUT);
