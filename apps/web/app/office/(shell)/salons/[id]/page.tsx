@@ -162,8 +162,8 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         <h2 id="stage-h">Change stage</h2>
         {salon.stage === "blocked" && (
           <p className="muted">
-            Moving a salon out of Blocked unblocks its credit. A manager may do that only a few times a month for one salon
-            (CTL-08, set by the owner); the database says when the limit is reached, and the owner can always do it.
+            Moving a salon out of Blocked unblocks its credit. A manager may do that only a few times a month for one salon (a
+            number the owner sets); the database says when the limit is reached, and the owner can always do it.
           </p>
         )}
         <StageOverride

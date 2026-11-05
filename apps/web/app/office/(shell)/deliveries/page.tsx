@@ -310,16 +310,17 @@ export default function DeliveryApprovals() {
                   <div className="row">
                     {role === "owner" && (
                       <ConfirmAction
-                        label="Settle as missing now"
+                        label="Record as missing (owner)"
                         confirmLabel="Record these goods as missing"
                         reasonLabel="What happened to the goods (kept on the record)"
                         reasonMinLength={OWNER_NOTE_MIN}
                         danger
                         onConfirm={(note) =>
                           act(
-                            `owner-missing:${key}`,
+                            // The same key as settle() uses, so a second settlement of this row gets a new client id.
+                            `missing:${key}`,
                             () => settle("missing", note),
-                            "Recorded as missing, with your note (D-45).",
+                            "Recorded as missing, with your note.",
                           )
                         }
                       />
@@ -355,7 +356,9 @@ export default function DeliveryApprovals() {
                     {u.request_status === "pending" && !canCheck && (
                       <span className="muted">
                         {u.request_maker_id === me
-                          ? "You asked for this; another office user checks it."
+                          ? ownerLevel
+                            ? "You asked for this; the owner checks it."
+                            : "You asked for this; another office user checks it."
                           : "Waiting for the owner to check it."}
                       </span>
                     )}

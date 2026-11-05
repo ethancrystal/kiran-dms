@@ -38,7 +38,9 @@ export default async function OfficeHome() {
   const sb = await supabaseServer();
   const head = { count: "exact" as const, head: true };
   const n = (r: { count: number | null; error: unknown }) => (r.error ? null : (r.count ?? 0));
-  const [countsRes, rowsRes, capRes, approvalsRes, goodsRes, disputedRes, daysRes, ...setup] = await Promise.all([
+  const [sessionRes, countsRes, rowsRes, capRes, approvalsRes, goodsRes, disputedRes, daysRes, ...setup] = await Promise.all([
+    // Review of P1-30: the caller's role, so a manager is not sent to work only the owner can do.
+    sb.schema("app").rpc("my_session"),
     sb.schema("app").rpc("office_overview_counts"),
     sb.schema("app").rpc("office_overview_rows"),
     sb.schema("app").rpc("office_cash_cap_reps"),
@@ -53,14 +55,18 @@ export default async function OfficeHome() {
     sb.from("salon").select("id", head),
   ]);
   const [pending, people, territories, salons] = setup.map(n);
-  type Queued = { status: string };
+  const isOwner = (sessionRes.data as { role?: string } | null)?.role === "owner";
+  type Queued = { status: string; made_by_me: boolean; checker_role_required: string };
   const approvals = (approvalsRes.data as Queued[] | null) ?? [];
-  const toDecide = approvals.filter((a) => a.status === "pending").length;
+  const waitingRequests = approvals.filter((a) => a.status === "pending");
+  // What this person can decide: not their own request, and not an owner-level one unless they are the owner.
+  const toDecide = waitingRequests.filter((a) => !a.made_by_me && (isOwner || a.checker_role_required !== "owner")).length;
+  const forOthers = waitingRequests.length - toDecide;
   const toPost = approvals.filter((a) => a.status === "approved").length;
   const goods = ((goodsRes.data as unknown[] | null) ?? []).length;
   const disputed = n(disputedRes);
   const openDays = n(daysRes);
-  const extra = [toDecide, toPost, goods, disputed ?? 0, openDays ?? 0, pending ?? 0];
+  const extra = [toDecide, forOthers, toPost, goods, disputed ?? 0, openDays ?? 0, pending ?? 0];
   if (countsRes.error) console.error("office home: counts read failed", countsRes.error);
   if (rowsRes.error) console.error("office home: lists read failed", rowsRes.error);
   const c = ((countsRes.data as OverviewCounts[] | null) ?? [])[0] ?? null;
@@ -144,7 +150,7 @@ export default async function OfficeHome() {
             {c && Number(c.handovers_disputed) > 0 && (
               <li>
                 {count(c.handovers_disputed, "cash handover is", "cash handovers are")} disputed and waiting for the owner.{" "}
-                <Link href="/office/handovers">Settle them</Link>
+                <Link href="/office/handovers">{isOwner ? "Settle them" : "See them (the owner settles them)"}</Link>
               </li>
             )}
             {c && Number(c.handovers_unanswered) > 0 && (
@@ -163,6 +169,12 @@ export default async function OfficeHome() {
               <li>
                 {count(toDecide, "request waits", "requests wait")} for a decision (discounts or stock adjustments).{" "}
                 <Link href="/office/approvals">Decide them</Link>
+              </li>
+            )}
+            {forOthers > 0 && (
+              <li>
+                {count(forOthers, "request waits", "requests wait")} for someone else to decide (your own requests, or ones only
+                the owner decides). <Link href="/office/approvals">See them</Link>
               </li>
             )}
             {toPost > 0 && (

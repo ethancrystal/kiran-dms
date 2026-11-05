@@ -97,7 +97,7 @@ export const HOLD_TEXT: Record<string, string> = {
   plan_not_allowed: "This payment plan is not allowed for the salon. Release it or cancel the order.",
   over_limit: "The salon has reached its credit limit. Release it or cancel the order.",
   discount_waiting: "A discount is waiting for approval.",
-  discount_refused: "The discount was refused. Cancel the order and make a new one.",
+  discount_refused: "The discount was not approved (refused or withdrawn). Cancel the order and make a new one.",
   not_checked: "Not checked yet. Open the order to check it again.",
 };
 
@@ -120,7 +120,8 @@ export const REP_HOLD_TEXT: Record<string, string> = {
   plan_not_allowed: "This payment plan is not allowed for the salon yet.",
   over_limit: "The salon has reached its credit limit.",
   pending: "A discount is waiting for approval.",
-  rejected: "The discount was refused.",
+  // hold_discount "rejected" also follows a discount request its maker withdrew (the hold has no withdrawn state).
+  rejected: "The discount was not approved (refused or withdrawn).",
 };
 
 /** What a salon's held order waits for (app.salon_my_orders waiting_on; AUTH-10): no figure, no office text. */

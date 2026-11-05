@@ -29,16 +29,21 @@ const BANK_FIELDS: Array<[string, string]> = [
 const KEY_LABELS: Record<string, string> = {
   "cash.intraday_cap_paisa": "Cash a rep may hold before a handover",
   "approval.discount.owner_above": "Discounts the owner must approve",
-  "approval.payment_reversal.owner_above_paisa": "Payment reversals above this need the owner",
   "approval.stock_adjustment.owner_above": "Stock adjustments the owner must approve",
-  "approval.credit_note.owner_above_paisa": "Credit notes above this need the owner",
-  "approval.restructure.owner_above_paisa": "Restructures above this need the owner",
-  "approval.purchase_order.owner_above_paisa": "Purchase orders above this need the owner",
-  "approval.petty_expense.owner_above_paisa": "Petty expenses above this need the owner",
   "credit.manager_override.max_increase_pct": "Most a manager may raise a credit limit (%)",
   "credit.manager_override.max_per_salon_month": "Manager raises or unblocks per salon each month",
   "payment.geofence_m": "Distance from the salon pin before a payment is flagged (metres)",
   "payment.max_minutes_after_arrival": "Minutes after arriving before a payment is flagged",
+};
+// Review of P1-30: seeded keys that no database function reads yet (checked by searching the migrations).
+// Shown read-only, so a saved figure never looks like a control that is in force. A payment reversal has
+// no amount limit (D-48 names who may reverse; whether doc 13's threshold applies is a question for MJ).
+const NOT_USED: Record<string, string> = {
+  "approval.payment_reversal.owner_above_paisa": "Payment reversal amount",
+  "approval.credit_note.owner_above_paisa": "Credit note amount",
+  "approval.restructure.owner_above_paisa": "Restructure amount",
+  "approval.purchase_order.owner_above_paisa": "Purchase order amount",
+  "approval.petty_expense.owner_above_paisa": "Petty expense amount",
   "office_cash.max_age_working_days": "Working days office cash may wait before deposit",
   "transfer.match_within_working_days": "Working days to match a bank transfer",
 };
@@ -102,13 +107,17 @@ export default function Settings() {
   const row = (k: string) => config.find((c) => c.key === k);
   const profile = row(PROFILE);
   const banks = row(BANKS);
-  const numeric = config.filter((c) => !READ_ONLY.includes(c.key) && (typeof c.value === "number" || isNumberObject(c.value)));
+  const numeric = config.filter(
+    (c) => !READ_ONLY.includes(c.key) && !(c.key in NOT_USED) && (typeof c.value === "number" || isNumberObject(c.value)),
+  );
+  const unused = config.filter((c) => c.key in NOT_USED);
 
   return (
     <>
       <h1>Settings</h1>
       <ListState loading={loading} error={error} empty={false} emptyText="" />
-      {!loading && role !== "owner" && (
+      {/* Only when the session was read: a failed load shows its error, not a refusal. */}
+      {!loading && !error && role !== null && role !== "owner" && (
         <p className="error" role="alert">
           Only the owner changes settings.
         </p>
@@ -125,6 +134,21 @@ export default function Settings() {
               <NumberSetting key={`${c.key}-${c.updated_at}`} row={c} onDone={done} />
             ))}
           </section>
+          {unused.length > 0 && (
+            <section aria-labelledby="unused-h">
+              <h2 id="unused-h">Not used yet</h2>
+              <p className="muted">
+                These figures are stored, but nothing in the system checks them yet, so they cannot be changed here.
+              </p>
+              <ul className="plain">
+                {unused.map((c) => (
+                  <li key={c.key} data-testid={`unused-${c.key}`}>
+                    {NOT_USED[c.key]}: {typeof c.value === "number" ? show(c.key, c.value) : "—"}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <section aria-labelledby="fixed-h">
             <h2 id="fixed-h">Not changed here</h2>
             <p className="muted">
@@ -156,10 +180,8 @@ function Reason({ id, value, onChange }: { id: string; value: string; onChange: 
 
 function Saved({ row }: { row: ConfigRow }) {
   return (
-    <p className="muted">
-      Last changed {when(row.updated_at)}
-      {row.note ? ` · ${row.note}` : ""}
-    </p>
+    // The note column holds seeding remarks for developers, so it is not shown; the reason is in the audit log.
+    <p className="muted">Last changed {when(row.updated_at)}</p>
   );
 }
 

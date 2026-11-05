@@ -34,6 +34,17 @@ const STATUS_TEXT: Record<Handover["status"], string> = {
   settled: "Settled by the owner",
   withdrawn: "Withdrawn",
 };
+/**
+ * Whose the difference is, in rupees, from the row's own figures. The dispute stores no amount of the rep's,
+ * so "the rep's amount" is the expected figure the rep's ledger holds (ruling in the P1-30 TASK entry).
+ */
+function differenceText(h: Handover, whose: "rep" | "office") {
+  const v = Number(h.variance_paisa);
+  if (v === 0) return "no difference";
+  const amount = rupees(Math.abs(v));
+  if (whose === "rep") return v > 0 ? `the rep is short ${amount}` : `the rep is over ${amount}`;
+  return v > 0 ? `the office absorbs ${amount}` : `the office records ${amount} extra`;
+}
 const SETTLEMENT_TEXT: Record<string, string> = {
   counted: "the counted amount stands; the difference stays recorded against the rep",
   rep: "the rep's amount was accepted; the difference is an office difference",
@@ -45,8 +56,9 @@ const SETTLEMENT_TEXT: Record<string, string> = {
 // a reason, and moves the cash only when the rep acknowledges on their own phone (ACTIVITY A-15).
 // D-46 (P1-30): only the owner settles a disputed count, with a reason, choosing the counted amount (the
 // difference stays against the rep) or the rep's amount (an office difference); the cash then moves as on
-// an acknowledgment. The owner or the manager may withdraw a count the rep has not answered (nothing moves),
-// so a lost phone or a silent rep no longer blocks the next count.
+// an acknowledgment. The owner, or a manager who did not make the count, may withdraw a count the rep has not
+// answered (nothing moves), so a lost phone or a silent rep no longer blocks the next count. The buttons name
+// the rupee figures from the row; the database refuses a manager withdrawing their own count, in its words.
 export default function Handovers() {
   const [reps, setReps] = useState<Rep[]>([]);
   const [list, setList] = useState<Handover[]>([]);
@@ -169,15 +181,15 @@ export default function Handovers() {
                   {h.status === "disputed" && role === "owner" && (
                     <div className="row">
                       <ConfirmAction
-                        label="Accept the counted amount"
-                        confirmLabel="Settle at the counted amount"
+                        label={`Keep the counted ${rupees(h.counted_paisa)} (${differenceText(h, "rep")})`}
+                        confirmLabel={`Settle at the counted ${rupees(h.counted_paisa)}`}
                         reasonLabel="Why (kept on the record)"
                         reasonMinLength={REASON_MIN}
                         onConfirm={(reason) => settle(h, "counted", reason)}
                       />
                       <ConfirmAction
-                        label="Accept the rep's amount"
-                        confirmLabel="Settle at the rep's amount"
+                        label={`Accept the rep's ${rupees(h.expected_paisa)} (${differenceText(h, "office")})`}
+                        confirmLabel={`Settle at the rep's ${rupees(h.expected_paisa)}`}
                         reasonLabel="Why (kept on the record)"
                         reasonMinLength={REASON_MIN}
                         onConfirm={(reason) => settle(h, "rep", reason)}

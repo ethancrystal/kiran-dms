@@ -206,8 +206,8 @@ export default function Stock() {
             <h2 id="opening-h">Opening stock in a warehouse</h2>
             {myRole === "owner" ? (
               <p className="muted">
-                Your own opening stock goes in at once, with your reason on the record (D-45). A manager&apos;s request still
-                waits for your approval on Approvals.
+                Your own opening stock goes in at once, with your reason on the record. A manager&apos;s request still waits for
+                your approval on Approvals.
               </p>
             ) : (
               <p className="muted">

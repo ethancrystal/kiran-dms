@@ -11,6 +11,13 @@ type Order = { status: string; hold_discount: string | null; hold_credit: string
 
 // app.decide_approval asks for a decision reason; the shared minimum is 3 characters.
 const REASON_MIN = 3;
+/** An adjustment's quantity in words: "3 units missing" for goods in pending custody, "3 units removed" or "3 units added" elsewhere. */
+const unitsText = (delta: number | string | null, kind: string | null) => {
+  if (delta === null) return "quantity unknown";
+  const q = Number(delta);
+  if (q >= 0) return `${q} units added`;
+  return kind === "pending_delivery" ? `${-q} units missing` : `${-q} units removed`;
+};
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 // Approvals (owner or manager at AAL2; SEC-11, CTL-07, CTL-05). Pending discount requests (an order held
@@ -38,13 +45,13 @@ function MakerNote({ a, role }: { a: Approval; role: Role | null }) {
     return (
       <p className="muted">
         Only another owner could decide this, so it would wait. Withdraw it; your own stock goes in at once on the{" "}
-        <Link href="/office/stock">Stock page</Link> (D-45).
+        <Link href="/office/stock">Stock page</Link>.
       </p>
     );
   }
   return (
     <p className="muted">
-      Only another owner could decide this, so it would wait. Withdraw it; your own orders take their discount at once (D-45).
+      Only another owner could decide this, so it would wait. Withdraw it; your own orders take their discount at once.
     </p>
   );
 }
@@ -80,10 +87,25 @@ export default function Approvals() {
 
   const pending = items.filter((a) => a.status === "pending");
 
+  /** The order's holds are re-run so its status is the database's answer, not a guess. */
+  const recheck = async (a: Approval) => {
+    try {
+      const o = await rpc<Order>("recheck_order", { p_order_id: a.subject_id });
+      return ` The order is now ${label(o.status)}${o.hold_discount ? ` (discount ${label(o.hold_discount)})` : ""}${o.hold_credit ? ` (credit ${label(o.hold_credit)})` : ""}.`;
+    } catch (e) {
+      return ` The order could not be rechecked: ${(e as Error).message}`;
+    }
+  };
+
   const withdraw = async (a: Approval, reason: string) => {
     setNotice(null);
     await rpc("cancel_approval", { p_request_id: a.request_id, p_reason: reason });
-    setNotice(`Withdrew the ${a.kind} request.`);
+    let message = `Withdrew the ${a.kind} request.`;
+    if (a.kind === "discount" && a.subject_type === "sales_order") {
+      // Review of P1-30: a withdrawn discount leaves the order without an approval, so its hold is re-run.
+      message += `${await recheck(a)} Cancel the order and make a new one at list price, or with a discount that is asked again.`;
+    }
+    setNotice(message);
     await load();
   };
 
@@ -92,13 +114,7 @@ export default function Approvals() {
     await rpc("decide_approval", { p_request_id: a.request_id, p_approve: approve, p_reason: reason });
     let message = `${approve ? "Approved" : "Refused"} the ${a.kind} request.`;
     if (a.kind === "discount" && a.subject_type === "sales_order") {
-      // The decision is recorded; the order's holds are re-run so its status is the database's answer.
-      try {
-        const o = await rpc<Order>("recheck_order", { p_order_id: a.subject_id });
-        message += ` The order is now ${label(o.status)}${o.hold_discount ? ` (discount ${label(o.hold_discount)})` : ""}${o.hold_credit ? ` (credit ${label(o.hold_credit)})` : ""}.`;
-      } catch (e) {
-        message += ` The order could not be rechecked: ${(e as Error).message}`;
-      }
+      message += await recheck(a);
     }
     if (a.kind === "adjustment" && approve) {
       message +=
@@ -188,7 +204,7 @@ export default function Approvals() {
                 <span className="badge">Refused</span> {a.kind === "discount" ? "Discount" : "Stock adjustment"} ·{" "}
                 {a.kind === "discount"
                   ? (a.salon_name ?? "Unnamed salon")
-                  : `${a.location_name ?? "Unknown location"} · ${a.sku_code ?? "unknown SKU"} · ${a.qty_delta} units`}{" "}
+                  : `${a.location_name ?? "Unknown location"} · ${a.sku_code ?? "unknown SKU"} · ${unitsText(a.qty_delta, a.location_kind)}`}{" "}
                 · asked by {a.maker_name}
                 <br />
                 <span className="muted">

@@ -1182,7 +1182,10 @@ describe("the new office functions refuse AAL1 office sessions and a salon login
   const calls: Array<[string, string]> = [
     ["owner_adjust_stock", `select app.owner_adjust_stock(${u()}, ${u()}, ${u()}, 1, 'opening stock, counted')`],
     ["office_adjustment_checker", `select app.office_adjustment_checker(${u()}, 1)`],
-    ["office_resolve_pending", `select app.office_resolve_pending(${u()}, ${u()}, ${u()}, 1, 'missing', 'counted gone', null, null)`],
+    [
+      "office_resolve_pending",
+      `select app.office_resolve_pending(${u()}, ${u()}, ${u()}, 1, 'missing', 'counted gone', null, null)`,
+    ],
     ["office_pending_stock", "select * from app.office_pending_stock()"],
     ["office_refused_approvals", "select * from app.office_refused_approvals()"],
     ["office_reverse_payment", `select app.office_reverse_payment(${u()}, ${u()}, 'recorded by mistake')`],

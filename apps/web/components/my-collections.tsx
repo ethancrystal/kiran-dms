@@ -32,7 +32,7 @@ export function MyCollections({ salonId, reloadKey = "" }: { salonId?: string; r
         loading={read.loading}
         error={read.error}
         empty={list.length === 0}
-        emptyText="You have not recorded a payment here yet."
+        emptyText={salonId ? "You have not recorded a payment for this salon yet." : "You have not recorded any payments yet."}
       />
       {list.length > 0 && (
         <ul className="plain">
