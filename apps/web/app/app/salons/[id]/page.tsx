@@ -2,6 +2,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
+import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
 
@@ -320,14 +321,27 @@ function NoteForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
   );
 }
 
-// New Order Details (ORD-14, D-30): reps no longer place orders; the rep writes down what the salon
-// wants and the office makes the order from it. app.rep_create_card checks the rep, the approved phone,
-// the open day and the territory, and its words are shown as they are. One key per attempt (H-08).
+// New Order Details (ORD-14, D-30, D-34): reps no longer place orders; the rep writes down what the
+// salon wants, and may pick products and quantities (never prices), and the office makes the order from
+// it. app.rep_create_card checks the rep, the approved phone, the open day and the territory, and its
+// words are shown as they are. One key per attempt (H-08).
 function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<void> }) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
+  const [options, setOptions] = useState<PickOption[]>([]);
+  const [picks, setPicks] = useState<PickLine[]>(() => [newPick()]);
+  useEffect(() => {
+    const read = async () => {
+      try {
+        setOptions(await repProductOptions());
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
+    void read();
+  }, []);
   return (
     <form
       className="card"
@@ -342,8 +356,10 @@ function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
             p_salon_id: salonId,
             p_body: body.trim(),
             p_visit_id: null,
+            p_lines: picksPayload(picks),
           });
           setBody("");
+          setPicks([newPick()]);
           setClientId(crypto.randomUUID());
           await onDone();
         } catch (err) {
@@ -364,6 +380,8 @@ function CardForm({ salonId, onDone }: { salonId: string; onDone: () => Promise<
         required
         maxLength={CARD_MAX}
       />
+      <p className="muted">Products (optional): pick them and the office can make the order in one click.</p>
+      <LinePicker name="Card" options={options} lines={picks} onChange={setPicks} />
       {error && (
         <p className="error" role="alert">
           {error}

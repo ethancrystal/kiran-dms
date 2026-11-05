@@ -268,10 +268,11 @@ describe("internal functions are not callable by app roles", () => {
       "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
       "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit",
       "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "receipt_document", "recheck_order",
-      "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_check_in", "rep_check_out",
-      "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
-      "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_credit_status", "salon_installments", "salon_me",
-      "salon_notes", "salon_stages", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role",
+      "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_cancel_card", "rep_check_in", "rep_check_out",
+      "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_edit_card", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
+      "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_cancel_request",
+      "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_me", "salon_my_account", "salon_my_orders", "salon_my_requests",
+      "salon_notes", "salon_stages", "salon_submit_request", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role",
       "warehouse_availability",
       // my_session, self_ok: added by migration 0004 (L-0026). Inventory RPCs and the my_bag_id RLS
       // helper: migration 0008 (P1-04); list change approved by MJ (L-0130, H-23). Territory and salon
@@ -295,6 +296,9 @@ describe("internal functions are not callable by app roles", () => {
       // 20261105120000 (slice 3, P1-20; D-40, decision file 2026-11-05-mj-reps-salons-orders); MJ standing approval L-0144.
       // office_create_order: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // order cards: migration 0025 (D-30 PR A); MJ standing approval L-0144.
+      // rep_edit_card, rep_cancel_card and the salon portal (salon_submit_request, salon_edit_request,
+      // salon_cancel_request, salon_catalogue, salon_my_requests, salon_my_orders, salon_my_account):
+      // migration 20261105150000 (slice 6, P1-23; D-34, D-41); MJ standing approval L-0144.
       // my_territory_orders, office_orders: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // my_submissions, rep_submit_delivery: migration 20261105130100 (slice 4, P1-21, D-32 PR B); MJ standing approval L-0144.
       // office_approve_delivery, office_pending_deliveries: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
