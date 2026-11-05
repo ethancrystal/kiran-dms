@@ -57,7 +57,8 @@ const cycleDays = (typed: string) => {
 // deactivates. Every rule is the database's (app.office_upsert_product, app.office_upsert_sku,
 // app.office_set_sku_price, the product-images storage policies); this page shows their answer.
 // Product groups and their default cycles are config (ADM-01), owner only in doc 06 section 2 and not
-// among D-39's manager powers, so a manager sees the list but no controls.
+// among D-39's manager powers, so a manager sees the list but no controls. [default-unconfirmed] B-41: the
+// database still lets a manager write a group; MJ decides which is right.
 export default function Products() {
   const [me, setMe] = useState<Session | null>(null);
   const [products, setProducts] = useState<Product[]>([]);

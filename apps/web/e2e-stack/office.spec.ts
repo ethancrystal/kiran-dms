@@ -928,8 +928,10 @@ test("the owner adds, edits and deactivates a product group, and a product can u
   await add.getByLabel("Default cycle (days").fill("3.5");
   await add.getByRole("button", { name: "Add group" }).click();
   await expect(add.getByRole("alert")).toContainText("whole number of days");
+  // The database's refusal replaces the page's own message, so this cannot pass on the stale alert above.
   await add.getByLabel("Default cycle (days").fill("400");
   await add.getByRole("button", { name: "Add group" }).click();
+  await expect(add.getByRole("alert")).not.toContainText("whole number of days");
   await expect(add.getByRole("alert")).toBeVisible();
   await add.getByLabel("Default cycle (days").fill("21");
   await add.getByRole("button", { name: "Add group" }).click();
