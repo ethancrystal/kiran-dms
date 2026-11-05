@@ -259,11 +259,11 @@ describe("internal functions are not callable by app roles", () => {
       "office_catalogue", "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location",
       "office_create_order", "office_decide_profit", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
       "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors",
-      "office_invitations", "office_invite", "office_open_cards", "office_order_timeline", "office_orders", "office_override_stage", "office_overview_counts",
+      "office_invitations", "office_invite", "office_invoices", "office_open_cards", "office_order_timeline", "office_orders", "office_override_stage", "office_overview_counts",
       "office_overview_rows", "office_pending_approvals", "office_pending_deliveries", "office_pending_salons",
       "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing", "office_record_cash",
       "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_reject_delivery", "office_release_credit_hold",
-      "office_rep_cash_position", "office_rep_month", "office_resolve_pending", "office_reverse_commission_payment", "office_reverse_investor_entry", "office_revoke_invitation",
+      "office_receipts", "office_rep_cash_position", "office_rep_detail", "office_rep_month", "office_resolve_pending", "office_reverse_commission_payment", "office_reverse_investor_entry", "office_revoke_invitation",
       "office_salon_prices", "office_salon_timeline", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase", "office_set_member_status",
       "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price", "office_update_investor",
       "office_upsert_area",
@@ -317,6 +317,8 @@ describe("internal functions are not callable by app roles", () => {
       // order_placed_by and rep_month_orders have no grant.
       // office_pending_approvals (owner or manager at AAL2; allow-listed fields of pending discount and adjustment
       // requests, never the raw payload): migration 20261105170000 (slice 8, P1-25); MJ standing approval L-0144.
+      // office_rep_detail, office_invoices, office_receipts (owner or manager at AAL2; allow-listed fields, masked
+      // phone, no GPS, fingerprint, cost or vault data): read-only, migration 20261105190000 (slice 10, P1-28); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
     ]);
     const sr = await run("postgres", `
