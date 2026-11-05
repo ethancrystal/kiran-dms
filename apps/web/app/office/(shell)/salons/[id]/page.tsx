@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { InvoiceList, ReceiptList } from "@/components/document-lists";
 import { MoneySection } from "@/components/money-section";
 import { Timeline } from "@/components/timeline";
 import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
@@ -138,6 +139,13 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 
       <MoneySection salonId={id} mode="office" />
+
+      <section className="card">
+        <h2>Invoices</h2>
+        <InvoiceList salonId={id} />
+        <h2>Receipts</h2>
+        <ReceiptList salonId={id} />
+      </section>
 
       <section className="card" aria-labelledby="stage-h">
         <h2 id="stage-h">Change stage</h2>

@@ -217,7 +217,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           <ul className="plain">
             {invoices.map((i) => (
               <li key={i.id} data-testid="order-invoice">
-                {i.number} · {rupees(Number(i.total_paisa))} · {when(i.issued_at)}
+                <Link href={`/office/invoices/${i.id}`}>{i.number}</Link> · {rupees(Number(i.total_paisa))} · {when(i.issued_at)}
               </li>
             ))}
           </ul>
