@@ -15,6 +15,8 @@ const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "
   pendingSalon: { id: string; name: string; area: string };
   warehouse: { id: string; name: string };
   bagQty: number;
+  catalogueSalon: { id: string; name: string };
+  productGroup: { name: string };
 };
 const { owner, manager, rep, rep2, newcomer, invitee } = seed.people;
 const MAILPIT = process.env.KIRAN_STACK_MAILPIT_URL ?? "http://127.0.0.1:54324";
@@ -832,6 +834,157 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
   await expect(page.getByTestId("salon-rep")).toHaveText(`${rep.name} · 2.5%`);
   await page.reload();
   await expect(page.getByTestId("salon-rep")).toHaveText(`${rep.name} · 2.5%`);
+});
+
+// Slice 2 (P1-19; D-37, D-39): the manager adds a [Dummy] product and SKU on Products, sets its list
+// price with a reason, gives a salon its own lower price on the salon page, and makes an order for that
+// salon with no price typed: the database takes the salon's price, and because it is below list the
+// order waits for a discount approval (OQ-33 default). No picture is uploaded: this stack runs without
+// storage-api, so the picture path is covered by the database tests only.
+const CATALOGUE_LIST_RS = 1000;
+const CATALOGUE_SALON_RS = 900;
+const PAISA_PER_RUPEE = 100;
+
+test("a manager adds a product, prices it, sets a salon price, and an order for that salon uses it (P1-19)", async ({ page }) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const tag = Date.now().toString(36).toUpperCase();
+  const productName = `[Dummy] Catalogue colour ${tag}`;
+  const code = `E2E-${tag}`;
+  await officeSignIn(page, manager);
+  const nav = page.getByRole("navigation", { name: "Office" });
+
+  await nav.getByRole("link", { name: "Products", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Products", exact: true })).toBeVisible();
+  const add = page.getByRole("form", { name: "Add a product" });
+  await add.getByLabel("Product group").selectOption({ label: seed.productGroup.name });
+  await add.getByLabel("Brand label").fill("[Dummy] Kiran");
+  await add.getByLabel("Product name").fill(productName);
+  await add.getByLabel("Description (optional)").fill("[Dummy] A shade for the stack test.");
+  await add.getByRole("button", { name: "Add product" }).click();
+  await expect(page.getByText(`Product ${productName} added.`)).toBeVisible();
+
+  const card = page.getByRole("region", { name: `Product ${productName}` });
+  await expect(card).toContainText("[Dummy] A shade for the stack test.");
+  await expect(card).toContainText("No picture");
+  const addSku = card.getByRole("form", { name: `Add a SKU to ${productName}` });
+  await addSku.getByLabel("SKU code").fill(code);
+  await addSku.getByLabel("Variant").fill("[Dummy] Shade 7");
+  await addSku.getByRole("button", { name: "Add SKU" }).click();
+  await expect(page.getByText(`SKU ${code} added to ${productName}.`)).toBeVisible();
+  await expect(card.getByTestId(`price-${code}`)).toHaveText("No price yet");
+  await card.getByLabel(`List price (Rs) for ${code}`).fill(String(CATALOGUE_LIST_RS));
+  await card.getByLabel(`Why this price for ${code}`).fill("[Test] e2e list price");
+  await card.getByRole("button", { name: `Set price of ${code}` }).click();
+  const list = rupees(CATALOGUE_LIST_RS * PAISA_PER_RUPEE);
+  await expect(page.getByText(`${code} now lists at ${list}.`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("region", { name: `Product ${productName}` }).getByTestId(`price-${code}`)).toHaveText(list);
+
+  // The salon's own price, on the salon page.
+  await page.goto(`/office/salons/${seed.catalogueSalon.id}`);
+  await expect(page.getByText("No salon prices: this salon pays list prices.")).toBeVisible();
+  const skuOption = page.locator("#salon-price-sku option", { hasText: code });
+  await page.getByLabel("SKU for the salon price").selectOption((await skuOption.getAttribute("value")) ?? "");
+  await page.getByLabel("Salon price (Rs; empty clears it)").fill(String(CATALOGUE_SALON_RS));
+  await page.getByLabel("Why this salon price").fill("[Test] e2e salon price");
+  await page.getByRole("button", { name: "Save salon price" }).click();
+  const salonPrice = rupees(CATALOGUE_SALON_RS * PAISA_PER_RUPEE);
+  await expect(page.getByText(`Salon price set: ${code} at ${salonPrice}.`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId(`salon-price-${code}`)).toContainText(salonPrice);
+  await expect(page.getByTestId(`salon-price-${code}`)).toContainText(manager.name);
+
+  // An order for the salon with no price typed: the form shows the salon's price; the database applies it.
+  await nav.getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByRole("button", { name: "Create New Order" }).click();
+  const form = page.getByRole("form", { name: "New order" });
+  await form.getByLabel("Salon", { exact: true }).selectOption(seed.catalogueSalon.id);
+  const lineOption = form.locator("select[id^='sku-'] option", { hasText: code });
+  await expect(lineOption).toContainText(`salon price ${salonPrice}`);
+  await form.getByLabel("Product 1").selectOption((await lineOption.getAttribute("value")) ?? "");
+  await expect(form.getByTestId("salon-price-1")).toHaveText(`This salon's price: ${salonPrice}`);
+  await form.getByLabel("Quantity 1").fill("1");
+  await form.getByLabel("Plan").selectOption("CASH");
+  await form.getByRole("button", { name: "Create order" }).click();
+  await expect(
+    page.getByText(`Order created for ${seed.catalogueSalon.name}: draft · ${salonPrice} (held: pending).`),
+  ).toBeVisible();
+  await page.reload();
+  const row = page.getByRole("row").filter({ hasText: seed.catalogueSalon.name });
+  await expect(row).toContainText(salonPrice);
+});
+
+// Slice 3 (P1-20; D-40): the manager keeps the basic investor ledger, typing every amount; the page
+// shows the database's derived figures, which survive a reload. A rep's signed-in phone has no
+// Investors link and reaches no office page or investor data.
+const INVESTED_PAISA = 10_000_000; // Rs 100,000
+const DECIDED_PAISA = 1_200_000; // Rs 12,000
+const PAID_PAISA = 500_000; // Rs 5,000
+const OWED_PAISA = DECIDED_PAISA - PAID_PAISA; // Rs 7,000
+
+test("a manager records an investor, an investment, a profit decision and a payout; Rs 7,000 owed survives a reload; a rep sees none of it (P1-20)", async ({
+  browser,
+  page,
+}) => {
+  // A further manager sign-in waits for the next TOTP step (up to 30 s) before the test's own work.
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  expect(repPhone, "the rep journey kept the rep's signed-in phone").not.toBeNull();
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Investors", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Investors", exact: true, level: 1 })).toBeVisible();
+  await expect(page.getByTestId("ledger-note")).toContainText("Nothing is calculated");
+
+  const name = `[Dummy] Investor ${Date.now()}`;
+  const add = page.getByRole("form", { name: "Add an investor" });
+  await add.getByLabel("Name").fill(name);
+  await add.getByLabel("Phone (optional)").fill("+920000001234");
+  await add.getByRole("button", { name: "Add investor" }).click();
+  await expect(page.getByText(`Investor ${name} added.`)).toBeVisible();
+  await page.getByRole("link", { name, exact: true }).click();
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+
+  const invest = page.getByRole("form", { name: "Add an investment" });
+  await invest.getByLabel("Amount (Rs)").fill("100000");
+  await invest.getByRole("button", { name: "Record investment" }).click();
+  await expect(page.getByText(`Investment of ${rupees(INVESTED_PAISA)} recorded.`)).toBeVisible();
+  const decide = page.getByRole("form", { name: "Decide profit" });
+  await decide.getByLabel("Amount (Rs)").fill("12000");
+  await decide.getByRole("button", { name: "Record decision" }).click();
+  await expect(page.getByText(`Profit of ${rupees(DECIDED_PAISA)} decided.`)).toBeVisible();
+  const payout = page.getByRole("form", { name: "Record a payout" });
+  await payout.getByLabel("Paid as").selectOption("profit");
+  await payout.getByLabel("Amount (Rs)").fill("5000");
+  await payout.getByRole("button", { name: "Record payout" }).click();
+  await expect(page.getByText(`Profit payout of ${rupees(PAID_PAISA)} recorded.`)).toBeVisible();
+
+  // The investor's own figures and its investment row, as the database derives them.
+  await expect(page.getByTestId("investor-invested")).toHaveText(rupees(INVESTED_PAISA));
+  await expect(page.getByTestId("investor-decided")).toHaveText(rupees(DECIDED_PAISA));
+  await expect(page.getByTestId("investor-paid")).toHaveText(rupees(PAID_PAISA));
+  await expect(page.getByTestId("investor-owed")).toHaveText(rupees(OWED_PAISA));
+  await expect(page.getByTestId("investment-row")).toContainText(rupees(OWED_PAISA));
+  // Data survives a reload: the database answers the same.
+  await page.reload();
+  await expect(page.getByTestId("investor-owed")).toHaveText(rupees(OWED_PAISA));
+  await expect(page.getByTestId("investment-row")).toContainText(rupees(OWED_PAISA));
+  await page.goto("/office/investors");
+  await expect(page.getByRole("row").filter({ hasText: name })).toContainText(rupees(OWED_PAISA));
+
+  // The rep's phone: no Investors link in the rep app, and the office page shows it nothing.
+  const phoneContext = await browser.newContext({ storageState: repPhone ?? undefined });
+  const phone = await phoneContext.newPage();
+  // Positive checks first, so the absence checks below cannot pass on an expired session or an error page:
+  // the rep's Today page renders (signed in), and the office route stops at the TOTP step (the rep is AAL1).
+  await phone.goto("/app");
+  await expect(phone.getByRole("heading", { name: "Today", exact: false, level: 1 })).toBeVisible();
+  await expect(phone.getByRole("link", { name: "Investors" })).toHaveCount(0);
+  await phone.goto("/office/investors");
+  await phone.waitForURL((u) => u.pathname === "/office/mfa");
+  await expect(phone.getByRole("heading", { name: "Two-step verification" })).toBeVisible();
+  await expect(phone.getByRole("navigation", { name: "Office" })).toHaveCount(0);
+  await expect(phone.getByText(name)).toHaveCount(0);
+  await expect(phone.getByTestId("total-owed")).toHaveCount(0);
+  await phoneContext.close();
 });
 
 // J1 step 15 and B-35, moved here from the rep journey (slice 4) so the rep's day stays open for the

@@ -116,7 +116,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | INV-11 | **Route-linked bag load** (D-19): for a rep's next route day, suggest the bag issue per SKU = expected demand of that day's stops (open orders to deliver from the bag, due reorders × last quantity, a small prospect allowance) − current bag stock, capped by warehouse availability and the bag value limit. Shortages are shown and recorded as demand (DEM-02). The manager issues the suggestion in one step through the two-party issue (CTL-05) | M | 1 |
 
 | INV-12 | Authorized authenticated business users see safe aggregate on-hand and available-to-order quantities per active sellable SKU; salon/rep views never reveal internal locations, rep bag custody, supplier, cost, margin or restricted batch detail. Balances remain derived from append-only movements/reservations. Stays Phase 2: stock is not shown to salons in the current work (D-41) | M | 2 |
-| INV-13 | Product pictures and descriptions on the catalogue: `product.image_path`, `product.description`; bucket `product-images`, office writes, signed-in read, image types only, 5 MB. Owner or manager adds and edits products (D-39, D-41) | M | 1 |
+| INV-13 | Product pictures and descriptions on the catalogue: `product.image_path`, `product.description`; bucket `product-images`, office writes, read by signed-in staff and salon members (an unredeemed login reads nothing), image types only, 5 MB. Owner or manager adds and edits products (D-39, D-41) | M | 1 |
 
 ### VLT — Supplier vault (classified supplier)
 
@@ -246,6 +246,8 @@ A basic office ledger, separate from Rep commissions. It calculates nothing and 
 | CAP-01 | Owner or manager records investors and append-only investments, with money in paisa, office only; no investor login or portal | M | 1 |
 | CAP-02 | Owner or manager types each profit decision (no formula) and records append-only payouts and reversals with reasons; totals are derived | M | 1 |
 | CAP-03 | Investor money stays separate from commission and is not posted to the cash ledger; OQ-23, OQ-26, OQ-27 and OQ-28 stay open with MJ and MJ's advisers | M | 1 |
+
+How CAP-01 to CAP-03 are built (slice 3, P1-20, migration 20261105120000; status on the ACTIVITY board): investments, profit decisions and payouts are recorded per investment. A payout is of profit or of principal and never exceeds the profit owed (decided minus paid) or the principal outstanding (invested minus returned) on its investment. A reversal is a row of its own with a reason of 5 to 300 characters, dated by the server; it is never reversed, an entry is reversed once, and no figure goes below zero. A closed investor takes nothing new until reopened, and closing needs nothing outstanding. The office reads each investor's figures, a totals row over all investors, each investment's figures and a statement with running balances, all derived from the rows.
 
 ## Non-functional requirements
 
