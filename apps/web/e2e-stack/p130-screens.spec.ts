@@ -328,7 +328,10 @@ test("the owner changes a bag's value limit; settings are owner only (M9, FLOW-1
   await expect(page.getByText("Company details saved.")).toBeVisible();
   const [after] = await sql(null, "select value from public.app_config where key = 'company.profile'");
   expect(after.value).toEqual({ ...before.value, city: `[Test] City ${tag}` });
+  // The page re-reads its settings after a save; reload so the form is settled before typing into it again.
+  await page.reload();
   const restore = page.getByRole("form", { name: "Company details" });
+  await expect(restore.getByLabel("Company city")).toHaveValue(`[Test] City ${tag}`);
   await restore.getByLabel("Company city").fill(String(before.value.city));
   await restore.getByLabel("Why change it").fill("p130: put the city back");
   await restore.getByRole("button", { name: "Save company details" }).click();
