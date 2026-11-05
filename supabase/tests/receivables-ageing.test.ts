@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fx, MANAGER, OWNER, run, sqlstate, type Who } from "./helpers/db";
+import { approveSalon, fx, MANAGER, OWNER, run, sqlstate, type Who } from "./helpers/db";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -132,6 +132,11 @@ beforeAll(async () => {
       ]),
     ),
   );
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves each before any order.
+  await SALONS.reduce(async (prev, s) => {
+    await prev;
+    await approveSalon(s);
+  }, Promise.resolve());
   await one(OWNER, "select app.owner_set_credit($1, 'INST4', $2, 'ageing tests, owner decision')", [SALON, CREDIT_LIMIT]);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, $3)", [
     GROUP,

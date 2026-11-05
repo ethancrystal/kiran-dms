@@ -10,7 +10,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate } from "./helpers/db";
+import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, run, sqlstate } from "./helpers/db";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -115,6 +115,9 @@ beforeAll(async () => {
     "select app.create_salon($1, '[Test] Invoice salon B', 'ladies_parlor', $2, 'map_pin', null, 24.9, 67.1)",
     [SALON_B, AREA_B],
   );
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON);
+  await approveSalon(SALON_B);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Invoice colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Invoice colour')", [PRODUCT, GROUP]);
   for (const s of [SKU1, SKU2, SKU3]) {

@@ -248,9 +248,9 @@ describe("internal functions are not callable by app roles", () => {
       "office_assign_territory", "office_cancel_stock_issue", "office_cash_position", "office_catalogue", "office_count_handover", "office_create_investor",
       "office_create_location", "office_create_order", "office_decide_profit", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
       "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_statement", "office_investors", "office_invitations",
-      "office_invite", "office_open_cards", "office_orders", "office_override_stage", "office_pending_salons", "office_post_adjustment", "office_propose_stock_issue",
+      "office_invite", "office_open_cards", "office_order_timeline", "office_orders", "office_override_stage", "office_pending_salons", "office_post_adjustment", "office_propose_stock_issue",
       "office_raise_limit", "office_receivables_ageing", "office_record_cash", "office_record_payment", "office_record_payout", "office_release_credit_hold",
-      "office_rep_cash_position", "office_reverse_investor_entry", "office_revoke_invitation", "office_salon_prices", "office_set_blocked", "office_set_last_purchase",
+      "office_rep_cash_position", "office_reverse_investor_entry", "office_revoke_invitation", "office_salon_prices", "office_salon_timeline", "office_set_blocked", "office_set_last_purchase",
       "office_set_member_status", "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price",
       "office_update_investor", "office_upsert_area",
       "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
@@ -288,6 +288,9 @@ describe("internal functions are not callable by app roles", () => {
       // salon_cancel_request, salon_catalogue, salon_my_requests, salon_my_orders, salon_my_account):
       // migration 20261105150000 (slice 6, P1-23; D-34, D-41); MJ standing approval L-0144.
       // my_territory_orders, office_orders: migration 0025 (D-30 PR A); MJ standing approval L-0144.
+      // office_salon_timeline, office_order_timeline (owner or manager at AAL2; allow-listed audit fields,
+      // the raw log stays owner-only): migration 20261105160000 (slice 7, P1-24; doc 06 section 2,
+      // H-15); MJ standing approval L-0144. Its helpers timeline_actor and timeline_label have no grant.
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
