@@ -724,6 +724,27 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Request versions and lines (migration 20261105150000, slice 6, D-34): as the card itself, the office
+  // reads all; a rep reads those of its own cards on its approved phone; a salon reads none of them (it
+  // reads through app.salon_* only).
+  ...(["public.order_intake_card_version", "public.order_intake_card_line"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.order_intake_card_version" ? "body" : "qty",
+      select: {
+        anon: "denied",
+        repA: `card_id in (select c.id from public.order_intake_card c where c.rep_id = ${me("repA")})`,
+        repAWrongDevice: "false",
+        repB: `card_id in (select c.id from public.order_intake_card c where c.rep_id = ${me("repB")})`,
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   // Invitations (migration 20261105100000, slice 1, D-39): no grant and no policy, so nobody reads the
   // table, not even the office (app.office_invitations lists it without the token hash). Memberships,
   // salon decisions and rep assignments: the office reads all; a rep or a salon reads none of them

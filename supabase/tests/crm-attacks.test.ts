@@ -333,6 +333,8 @@ describe("direct writes are refused to every application role (H-06, H-08)", () 
     "invoice",
     "sku_price_change",
     "salon_sku_price",
+    "order_intake_card_version",
+    "order_intake_card_line",
   ];
   const PERSONAS: Array<[string, Who]> = [
     ["rep A", { as: "repA" }],
