@@ -37,19 +37,18 @@ export default function RepLogin() {
   return (
     <main>
       <h1>Sign in</h1>
-      <p className="ur" lang="ur">سائن اِن</p>
       {!sent ? (
         <form className="card" onSubmit={send}>
-          <label htmlFor="email">Email · <span lang="ur">ای میل</span></label>
+          <label htmlFor="email">Email</label>
           <input id="email" type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button disabled={busy}>{busy ? "Sending…" : "Send code · کوڈ بھیجیں"}</button>
+          <button disabled={busy}>{busy ? "Sending…" : "Send code"}</button>
         </form>
       ) : (
         <form className="card" onSubmit={verify}>
           <p>We emailed a 6-digit code to {email.trim()}.</p>
-          <label htmlFor="code">Code · <span lang="ur">کوڈ</span></label>
+          <label htmlFor="code">Code</label>
           <input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
-          <button disabled={busy}>{busy ? "Checking…" : "Sign in · سائن اِن"}</button>
+          <button disabled={busy}>{busy ? "Checking…" : "Sign in"}</button>
           <button type="button" className="link" disabled={busy} onClick={() => { setSent(false); setCode(""); setError(null); }}>Use a different email</button>
         </form>
       )}

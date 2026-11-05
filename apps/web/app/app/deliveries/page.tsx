@@ -53,9 +53,7 @@ export default function MyDeliveries() {
       <p>
         <a href="/app">← Today</a>
       </p>
-      <h1>
-        My deliveries · <span lang="ur">میری ڈیلیوریاں</span>
-      </h1>
+      <h1>My deliveries</h1>
       <p className="muted">
         Each delivery you send waits for the office. The invoice comes with the approval; collect payment after it.
       </p>

@@ -107,9 +107,7 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
       <p>
         <a href="/app/orders">← Orders</a>
       </p>
-      <h1>
-        Deliver · <span lang="ur">ڈیلیوری</span>
-      </h1>
+      <h1>Deliver</h1>
       {loading && (
         <p className="muted" aria-busy="true">
           Loading…
@@ -169,7 +167,7 @@ export default function DeliverOrder({ params }: { params: Promise<{ id: string 
               </div>
             );
           })}
-          <label htmlFor="received-by">Received by (name) · وصول کنندہ</label>
+          <label htmlFor="received-by">Received by (name)</label>
           <input
             id="received-by"
             value={name}
