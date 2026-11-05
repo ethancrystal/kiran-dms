@@ -42,7 +42,7 @@ A coordinated web application with three workspaces over one PostgreSQL database
 3. **Supplier is classified:** supplier identity, pricing and terms are visible to Owner and Manager only. Enforced in the database, not just the UI.
 4. **Payments:** cash, local bank transfer, and installment plans of 2 or 4 instalments.
 5. **Stack:** Next.js + Supabase (Postgres with RLS, Auth, Storage, Edge Functions), PWA for reps, hosted on Vercel + Supabase. See doc 05 for why.
-6. **Locale:** Pakistan, PKR, financial year ends 30 June. UI in English with Urdu labels where reps need them.
+6. **Locale:** Pakistan, PKR, financial year ends 30 June. UI in English only (D-42).
 7. **Security is a launch requirement, not a phase.** The MVP ships with RLS, MFA for owner/manager, device binding for reps, an append-only audit log, and the supplier compartment.
 8. **No cheating by design.** Five principles run through every module (doc 13): (a) nothing is ever edited or deleted — only reversed with a new, attributed entry; (b) every unit of stock and every rupee has a custody chain with a two-party acknowledgment at each handoff; (c) the party with the opposite interest confirms independently — the salon gets a system receipt, the bank statement confirms deposits; (d) high-risk actions are maker-checker, and the maker can never be the checker; (e) the owner receives a daily exception digest of every override, adjustment, variance, write-off and vault read.
 

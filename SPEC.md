@@ -131,7 +131,7 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 | Requests queue with lines; salon portal (D-34, D-41) | ORD-01, 11 to 15; SAL-12; SEC-14, 15 | salon isolation tests and browser journey | P1-23 |
 | Rep read-only, salon proposals, timelines; the end-to-end journey in CI (D-35, D-39) | SAL-05, 09, 13 | end-to-end browser test (completion design §7) | P1-24 |
 | Control layer and owner digest | CTL-06, 11, 15, 16; SEC-06, 08 | DB tests | P1-08 |
-| Offline PWA: outbox, idempotent sync, rejections, Urdu | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
+| Offline PWA: outbox, idempotent sync, rejections | NFR-01 to 03 (ORD-10 superseded by D-30; offline order cards, ORD-14) | **Playwright** + field test | P1-09 |
 | Dashboards, admin | RPT-01, 02; MSG-03; ADM-01, 02; FLD-01 | Playwright | P1-10, P1-11 |
 | Independent agents | AGT-01 to 04, 06 | DB tests + Playwright J3 | P1-15 |
 | Due-list and manual routes | PIP-03, PIP-05/06 thin | `routes.test.ts`, RLS matrix | P1-16 |
@@ -154,7 +154,7 @@ The last column names the task whose status is on [the status board](docs/ACTIVI
 |---|---|---|
 | Offline | Capture visits, order cards, payments, prospects and lost demand with no signal; sync ≤ 60 s after reconnecting | NFR-01 |
 | Cheap phone | First load ≤ 3 s on 3G after install; interactions ≤ 200 ms; rep app shell ≤ 300 KB gzipped; 3–4 year old Android, 2–3 GB RAM | NFR-02, doc 01 |
-| Language | English and Urdu (Nastaliq-safe font); Roman Urdu accepted in free text | NFR-03 |
+| Language | English only: no Urdu labels, no i18n layer (D-42). Roman Urdu stays accepted in free-text fields | NFR-03 |
 | Speed of a field action | ≤ 60 s for quick add, a visit, an order card or a tap | PIP-07, MAP-02 |
 | Cost | ≤ USD 60 a month at launch scale (≤ 10 reps, ≤ 3,000 salons) | NFR-09 |
 | Recovery | RPO ≤ 24 h, RTO ≤ 4 h | NFR-10 |
@@ -190,7 +190,7 @@ pnpm -C apps/web test:e2e           # Playwright rep PWA tests; builds the app f
 | `supabase/tests/` | Vitest + `pg`: the RLS matrix (every table × 10 personas), invariant and attack tests, schema hygiene |
 | `apps/web/` | Next.js 16 + React 19. `app/app/` is the rep PWA, `app/office/` the owner/manager app, `lib/supabase/` the clients. `app/salon/` is the salon's account page (slice 1); the salon customer portal comes in slice 6 (Phase 1 in doc 11 since D-41). `app/invite/` is the invitation page, the only one that creates a login (D-39) |
 | `packages/import/` | Excel/CSV salon import dry-run (P0-02); writes to no database |
-| `packages/shared/` | Planned: DB-generated types, validation schemas, i18n strings (en, ur) |
+| `packages/shared/` | Planned: DB-generated types, validation schemas |
 | `scripts/` | CI helpers: activity-log check, service-role scan, staging smoke |
 
 The business specification is [doc 16](docs/16-project-completion-goal.md). The data model is in [doc 04](docs/04-domain-model.md), the architecture in [doc 05](docs/05-architecture.md), the cross-domain integration brief in [doc 14](docs/14-unified-business-domain-prompt.md), and the module-level field-sales/distribution directive in [doc 15](docs/15-field-sales-distribution-engineering-plan.md).
@@ -222,7 +222,7 @@ The business specification is [doc 16](docs/16-project-completion-goal.md). The 
 - **Time:** server time is authoritative; client times are kept in `*_client` columns.
 - **Data:** no free text that could hold supplier identity (H-27). Fixtures are `[Dummy]` / `[Test]` only, and phone numbers look like `+920000001234` (H-02 to H-04).
 
-**UI copy:** rep screens are in English with Urdu labels where reps need them. They must work on a 3–4 year old Android phone with patchy data ([doc 01](docs/01-business-context.md)).
+**UI copy:** the whole UI is in English only (D-42). They must work on a 3–4 year old Android phone with patchy data ([doc 01](docs/01-business-context.md)).
 
 ## 9. Testing strategy
 
@@ -232,7 +232,7 @@ The business specification is [doc 16](docs/16-project-completion-goal.md). The 
 | **Invariant and attack tests** | Controls hold under attack: append-only, maker ≠ checker, no negative stock, single-use approvals, territory isolation, replays | `supabase/tests/*.test.ts` | Running in CI |
 | **Schema hygiene** | Every table has RLS and an audit trigger; every SECURITY DEFINER function pins `search_path`; anon can execute nothing | `supabase/tests/schema-hygiene.test.ts` | Running in CI |
 | **Package unit tests** | Import mapping and normalisers | `packages/import/tests/` | Running in CI |
-| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline visit, order card, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen with Urdu labels, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order-card, payment and lost-demand flows are added with P1-09 |
+| **Rep PWA browser tests** (Playwright, MJ L-0136) | The offline visit, order card, payment and lost-demand tap are queued in the outbox and synced idempotently; a server rejection after sync is shown to the rep (NFR-01); throttled network and a low-end mobile viewport | `apps/web/e2e/` | **Running in CI** (job `e2e`): sign-in on a 360 px Android screen, a refused request shown to the rep, ≤ 300 KB gzipped JavaScript (199.9 KB on 2026-10-28), security headers. Offline order-card, payment and lost-demand flows are added with P1-09 |
 | **Field test** | Offline capture in a basement salon with no signal (Phase 1 exit criterion 6) | Pilot, [doc 11](docs/11-roadmap.md) | Phase 1 pilot |
 
 **Rules for tests:**

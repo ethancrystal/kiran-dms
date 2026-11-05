@@ -492,7 +492,7 @@ Route names are design guidance, not permission boundaries.
 - **Auditability:** visits, location samples, orders, order transitions, stock movement, price history, membership and payments have actor/time provenance.
 - **Privacy:** collect location only under approved workday policy; disclose tracking to reps; restrict precise trails to authorized office users; define retention and applicable privacy requirements before launch.
 - **Usability:** rep workflows are fast on small Android screens, support one-hand use and low bandwidth; salon checkout clearly shows price, quantity, availability and total.
-- **Accessibility/localization:** responsive layouts, readable status labels, accessibility support and prepared English/Urdu copy where required.
+- **Accessibility/localization:** responsive layouts, readable status labels, accessibility support and English-only copy (D-42).
 - **Observability:** structured logs redact contact details, tokens, supplier/cost data and sensitive location payloads unless access is explicitly required and audited.
 
 ## 9. Delivery sequence and dependency order

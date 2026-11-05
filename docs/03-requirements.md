@@ -255,7 +255,7 @@ How CAP-01 to CAP-03 are built (slice 3, P1-20, migration 20261105120000; status
 |---|---|
 | NFR-01 | **Offline-first rep app.** Visits, rep order requests, payments, prospects can be captured with no connectivity and sync within 60 s of reconnecting; conflicts resolved server-side with the rep notified of any rejection |
 | NFR-02 | **Performance on low-end Android.** First load ≤ 3 s on 3G after install; interactions ≤ 200 ms locally; bundle under 300 KB gzipped for the rep app shell |
-| NFR-03 | **Bilingual UI.** English and Urdu (Nastaliq-safe font) with Roman Urdu accepted in free-text fields |
+| NFR-03 | **English-only UI** (D-42, supersedes the bilingual wording). No Urdu labels and no i18n layer; Roman Urdu is still accepted in free-text fields |
 | NFR-04 | **Availability.** 99.5% monthly for the back office; rep app usable offline regardless |
 | NFR-05 | **Data integrity.** Money and stock tables append-only; all balances derivable by replaying movements; nightly integrity job compares derived vs. stored balances |
 | NFR-06 | **Auditability.** Any record can answer who/when/what-before/what-after |
