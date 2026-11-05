@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, run, sqlstate } from "./helpers/db";
 import { asLogin, type Login, newLogin, quote } from "./helpers/invite";
+import { signOrderSql, signSubmissionSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -125,7 +126,7 @@ const order = (cid: string, salon: string, l: Array<[string, number]>, rep: stri
 ];
 const deliver = (dcid: string, ocid: string): Step => [
   "manager",
-  `select app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha at the counter');`,
+  `${signOrderSql(dcid, oid(ocid))} select app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha at the counter');`,
 ];
 /** An order of one SKU for a salon, delivered by the office from the warehouse: one invoice. */
 const sale = (salon: string, sku: string, rep: string | null = repC.id): Step[] => {
@@ -371,6 +372,7 @@ describe("the rate is stamped at approval (D-38)", () => {
       setRate(repC.id, RATE_DEFAULT),
       order(o, S1, [[SKU1, 1]]),
       ["repC", `select app.rep_submit_delivery('${s}', ${oid(o)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG}, null);`],
+      ["repC", signSubmissionSql(s)],
       setRate(repC.id, RATE_AT_APPROVAL),
       [
         "manager",

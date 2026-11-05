@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, run } from "./helpers/db";
 import { asLogin, type Login, newLogin, quote } from "./helpers/invite";
+import { signOrderSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -136,7 +137,7 @@ const order = (cid: string, salon: string, l: Array<[string, number]>, rep: stri
 ];
 const deliver = (dcid: string, ocid: string): Step => [
   "manager",
-  `select app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha at the counter');`,
+  `${signOrderSql(dcid, oid(ocid))} select app.office_deliver('${dcid}', ${oid(ocid)}, '${WH}', 'Ayesha at the counter');`,
 ];
 const cancel = (ocid: string): Step => ["manager", `select app.cancel_order(${oid(ocid)}, 'salon changed its mind');`];
 /** Moves an order's placing time, with the immutability trigger off for this rolled-back test only. */

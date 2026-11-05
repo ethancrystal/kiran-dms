@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { rupees, toPaisa } from "@/lib/money";
 import { rpc } from "@/lib/rpc";
@@ -20,7 +21,7 @@ type Installment = {
   remaining_paisa: number;
   status: string;
 };
-type Receipt = { number: string };
+type Receipt = { id: string; number: string };
 type Method = "cash" | "bank_transfer";
 /** Who is recording: a rep at the salon (GPS, open day) or the office (owner or manager, MFA; L-0362). */
 export type MoneyMode = "rep" | "office";
@@ -62,12 +63,12 @@ async function record(mode: MoneyMode, a: PayArgs): Promise<Receipt> {
 // recording a payment, for the rep at the salon or for the office. The database checks who may record,
 // allocates oldest due first and issues the receipt number; this section shows what it says. Sending
 // the receipt to the salon is not built (B-08).
-export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMode }) {
+export function MoneySection({ salonId, mode, onRecorded }: { salonId: string; mode: MoneyMode; onRecorded?: () => void }) {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [due, setDue] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -101,7 +102,17 @@ export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMo
           {error}
         </p>
       )}
-      {receipt && <output className="ok">Payment recorded. Receipt {receipt}.</output>}
+      {receipt && (
+        <output className="ok">
+          Payment recorded. Receipt{" "}
+          {mode === "office" && receipt.id ? (
+            <Link href={`/office/receipts/${receipt.id}`}>{receipt.number}</Link>
+          ) : (
+            receipt.number
+          )}
+          .
+        </output>
+      )}
       {!loading && !error && balance && (
         <>
           <p>
@@ -139,8 +150,9 @@ export function MoneySection({ salonId, mode }: { salonId: string; mode: MoneyMo
             <PaymentForm
               salonId={salonId}
               mode={mode}
-              onDone={async (number) => {
-                setReceipt(number);
+              onDone={async (r) => {
+                setReceipt(r);
+                onRecorded?.();
                 await load();
               }}
             />
@@ -158,7 +170,7 @@ function PaymentForm({
 }: {
   salonId: string;
   mode: MoneyMode;
-  onDone: (receipt: string) => Promise<void>;
+  onDone: (receipt: Receipt) => Promise<void>;
 }) {
   const [method, setMethod] = useState<Method>("cash");
   const [amount, setAmount] = useState("");
@@ -186,7 +198,7 @@ function PaymentForm({
           setBankName("");
           setBankRef("");
           setClientId(crypto.randomUUID());
-          await onDone(r.number);
+          await onDone(r);
         } catch (err) {
           setError((err as Error).message);
         } finally {
