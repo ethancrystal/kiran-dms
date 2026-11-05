@@ -13,6 +13,8 @@ const seed = JSON.parse(readFileSync(new URL("./.seed.json", import.meta.url), "
   people: Record<"owner" | "manager" | "rep" | "rep2" | "newcomer" | "invitee", P>;
   sku: { id: string; code: string; list_price_paisa: number };
   pendingSalon: { id: string; name: string; area: string };
+  catalogueSalon: { id: string; name: string };
+  productGroup: { name: string };
 };
 const { owner, manager, rep, rep2, newcomer, invitee } = seed.people;
 const MAILPIT = process.env.KIRAN_STACK_MAILPIT_URL ?? "http://127.0.0.1:54324";
@@ -669,4 +671,82 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
   await expect(page.getByTestId("salon-rep")).toHaveText(`${rep.name} · 2.5%`);
   await page.reload();
   await expect(page.getByTestId("salon-rep")).toHaveText(`${rep.name} · 2.5%`);
+});
+
+// Slice 2 (P1-19; D-37, D-39): the manager adds a [Dummy] product and SKU on Products, sets its list
+// price with a reason, gives a salon its own lower price on the salon page, and makes an order for that
+// salon with no price typed: the database takes the salon's price, and because it is below list the
+// order waits for a discount approval (OQ-33 default). No picture is uploaded: this stack runs without
+// storage-api, so the picture path is covered by the database tests only.
+const CATALOGUE_LIST_RS = 1000;
+const CATALOGUE_SALON_RS = 900;
+const PAISA_PER_RUPEE = 100;
+
+test("a manager adds a product, prices it, sets a salon price, and an order for that salon uses it (P1-19)", async ({ page }) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const tag = Date.now().toString(36).toUpperCase();
+  const productName = `[Dummy] Catalogue colour ${tag}`;
+  const code = `E2E-${tag}`;
+  await officeSignIn(page, manager);
+  const nav = page.getByRole("navigation", { name: "Office" });
+
+  await nav.getByRole("link", { name: "Products", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Products", exact: true })).toBeVisible();
+  const add = page.getByRole("form", { name: "Add a product" });
+  await add.getByLabel("Product group").selectOption({ label: seed.productGroup.name });
+  await add.getByLabel("Brand label").fill("[Dummy] Kiran");
+  await add.getByLabel("Product name").fill(productName);
+  await add.getByLabel("Description (optional)").fill("[Dummy] A shade for the stack test.");
+  await add.getByRole("button", { name: "Add product" }).click();
+  await expect(page.getByText(`Product ${productName} added.`)).toBeVisible();
+
+  const card = page.getByRole("region", { name: `Product ${productName}` });
+  await expect(card).toContainText("[Dummy] A shade for the stack test.");
+  await expect(card).toContainText("No picture");
+  const addSku = card.getByRole("form", { name: `Add a SKU to ${productName}` });
+  await addSku.getByLabel("SKU code").fill(code);
+  await addSku.getByLabel("Variant").fill("[Dummy] Shade 7");
+  await addSku.getByRole("button", { name: "Add SKU" }).click();
+  await expect(page.getByText(`SKU ${code} added to ${productName}.`)).toBeVisible();
+  await expect(card.getByTestId(`price-${code}`)).toHaveText("No price yet");
+  await card.getByLabel(`List price (Rs) for ${code}`).fill(String(CATALOGUE_LIST_RS));
+  await card.getByLabel(`Why this price for ${code}`).fill("[Test] e2e list price");
+  await card.getByRole("button", { name: `Set price of ${code}` }).click();
+  const list = rupees(CATALOGUE_LIST_RS * PAISA_PER_RUPEE);
+  await expect(page.getByText(`${code} now lists at ${list}.`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("region", { name: `Product ${productName}` }).getByTestId(`price-${code}`)).toHaveText(list);
+
+  // The salon's own price, on the salon page.
+  await page.goto(`/office/salons/${seed.catalogueSalon.id}`);
+  await expect(page.getByText("No salon prices: this salon pays list prices.")).toBeVisible();
+  const skuOption = page.locator("#salon-price-sku option", { hasText: code });
+  await page.getByLabel("SKU for the salon price").selectOption((await skuOption.getAttribute("value")) ?? "");
+  await page.getByLabel("Salon price (Rs; empty clears it)").fill(String(CATALOGUE_SALON_RS));
+  await page.getByLabel("Why this salon price").fill("[Test] e2e salon price");
+  await page.getByRole("button", { name: "Save salon price" }).click();
+  const salonPrice = rupees(CATALOGUE_SALON_RS * PAISA_PER_RUPEE);
+  await expect(page.getByText(`Salon price set: ${code} at ${salonPrice}.`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId(`salon-price-${code}`)).toContainText(salonPrice);
+  await expect(page.getByTestId(`salon-price-${code}`)).toContainText(manager.name);
+
+  // An order for the salon with no price typed: the form shows the salon's price; the database applies it.
+  await nav.getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByRole("button", { name: "Create New Order" }).click();
+  const form = page.getByRole("form", { name: "New order" });
+  await form.getByLabel("Salon", { exact: true }).selectOption(seed.catalogueSalon.id);
+  const lineOption = form.locator("select[id^='sku-'] option", { hasText: code });
+  await expect(lineOption).toContainText(`salon price ${salonPrice}`);
+  await form.getByLabel("Product 1").selectOption((await lineOption.getAttribute("value")) ?? "");
+  await expect(form.getByTestId("salon-price-1")).toHaveText(`This salon's price: ${salonPrice}`);
+  await form.getByLabel("Quantity 1").fill("1");
+  await form.getByLabel("Plan").selectOption("CASH");
+  await form.getByRole("button", { name: "Create order" }).click();
+  await expect(
+    page.getByText(`Order created for ${seed.catalogueSalon.name}: draft · ${salonPrice} (held: pending).`),
+  ).toBeVisible();
+  await page.reload();
+  const row = page.getByRole("row").filter({ hasText: seed.catalogueSalon.name });
+  await expect(row).toContainText(salonPrice);
 });

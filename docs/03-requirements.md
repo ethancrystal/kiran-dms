@@ -116,7 +116,7 @@ The rep's map is the primary prospecting tool. It shows the rep's territory with
 | INV-11 | **Route-linked bag load** (D-19): for a rep's next route day, suggest the bag issue per SKU = expected demand of that day's stops (open orders to deliver from the bag, due reorders × last quantity, a small prospect allowance) − current bag stock, capped by warehouse availability and the bag value limit. Shortages are shown and recorded as demand (DEM-02). The manager issues the suggestion in one step through the two-party issue (CTL-05) | M | 1 |
 
 | INV-12 | Authorized authenticated business users see safe aggregate on-hand and available-to-order quantities per active sellable SKU; salon/rep views never reveal internal locations, rep bag custody, supplier, cost, margin or restricted batch detail. Balances remain derived from append-only movements/reservations. Stays Phase 2: stock is not shown to salons in the current work (D-41) | M | 2 |
-| INV-13 | Product pictures and descriptions on the catalogue: `product.image_path`, `product.description`; bucket `product-images`, office writes, signed-in read, image types only, 5 MB. Owner or manager adds and edits products (D-39, D-41) | M | 1 |
+| INV-13 | Product pictures and descriptions on the catalogue: `product.image_path`, `product.description`; bucket `product-images`, office writes, read by signed-in staff and salon members (an unredeemed login reads nothing), image types only, 5 MB. Owner or manager adds and edits products (D-39, D-41) | M | 1 |
 
 ### VLT — Supplier vault (classified supplier)
 
