@@ -64,4 +64,6 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 
+Addition, on 8a9e763 (the docs commit): node scripts/activity-log-check.mjs origin/main: OK (1 new log entry, 32 changed files; 0 owner terms checked, the secret is empty locally). pnpm agent:preflight: PREFLIGHT OK, worktree clean.
+
 **Next / needs:** CI on a pull request (MJ decides when to push), especially e2e-stack (the delivery journeys, GPS in the browser context, the moved check-out) and the reverify suites. Then slice 5 (P1-22) reads invoice.commission_rep_id and adds commission_rate_bp at the stamping point in app.finalise_delivery. Slices 2 and 3 touch the same verifier-attacks list, rls-matrix, office nav and board: rebase conflicts are expected there and are additive.
