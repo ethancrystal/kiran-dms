@@ -321,7 +321,7 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByTestId("salon-readonly")).toContainText("The office keeps the salon's details");
   // P1-07 (PAY-02, PAY-04): the salon's account comes from app.salon_balance and app.salon_installments.
   // A new salon owes nothing, so the database's zero is shown and no payment form is offered.
-  await expect(page.getByRole("heading", { name: "Account · حساب" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
   await expect(page.getByTestId("balance")).toHaveText("Rs 0");
   await expect(page.getByText("Nothing is owed.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Record payment" })).toHaveCount(0);

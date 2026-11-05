@@ -34,9 +34,7 @@ export default function Salons() {
 
   return (
     <main>
-      <h1>
-        Salons · <span lang="ur">سیلون</span>
-      </h1>
+      <h1>Salons</h1>
       <p className="row spread">
         <a href="/app">← Home</a>
         <a className="btn inline" href="/app/salons/new">

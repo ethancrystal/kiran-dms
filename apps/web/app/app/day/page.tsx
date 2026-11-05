@@ -6,9 +6,7 @@ import { RepDay } from "../rep-day";
 export default function RepDayPage() {
   return (
     <main>
-      <h1>
-        Today · <span lang="ur">آج</span>
-      </h1>
+      <h1>Today</h1>
       <p>
         <a href="/app">← Home</a> · <a href="/app/salons">Salons</a>
       </p>

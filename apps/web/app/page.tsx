@@ -10,7 +10,7 @@ export default function Home() {
         <p className="error">Supabase is not configured. Copy apps/web/.env.example to .env.local.</p>
       )}
       <Link className="btn" href="/app">
-        Field app · <span lang="ur">فیلڈ ایپ</span>
+        Field app
       </Link>
       <Link className="btn" href="/office">
         Office (owner / manager)

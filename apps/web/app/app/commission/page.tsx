@@ -37,9 +37,7 @@ export default function MyCommission() {
       <p>
         <a href="/app">← Today</a>
       </p>
-      <h1>
-        My commission · <span lang="ur">میرا کمیشن</span>
-      </h1>
+      <h1>My commission</h1>
       <form
         className="row"
         onSubmit={(e) => {

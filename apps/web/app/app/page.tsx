@@ -50,15 +50,13 @@ export default function RepHome() {
 
   return (
     <main>
-      <h1>Today · <span lang="ur">آج</span></h1>
+      <h1>Today</h1>
       {state.kind === "loading" && <p className="muted">Loading…</p>}
       {state.kind === "error" && <p className="error" role="alert">{state.message}</p>}
       {state.kind === "unregistered" && (
         <div className="card">
           <p className="error" role="alert">
             Your account is not set up yet. Give this sign-in code to the owner:
-            <br />
-            <span lang="ur">آپ کا اکاؤنٹ ابھی تیار نہیں۔ یہ کوڈ مالک کو دیں:</span>
           </p>
           <p>
             <code data-testid="signin-code">{state.code}</code>
@@ -73,8 +71,6 @@ export default function RepHome() {
           ) : (
             <p className="error">
               This phone is waiting for your manager&apos;s approval. You can&apos;t take orders or payments until it is approved.
-              <br />
-              <span lang="ur">یہ فون مینیجر کی منظوری کا منتظر ہے۔</span>
             </p>
           )}
         </div>
@@ -82,36 +78,36 @@ export default function RepHome() {
       {state.kind === "ready" && state.session.device_status === "approved" && (
         <>
           <a className="btn" href="/app/day">
-            Start your day · <span lang="ur">دن شروع کریں</span>
+            Start your day
           </a>
           <p>
             <a href="/app/handovers">
-              Cash handover · <span lang="ur">نقد حوالگی</span>
+              Cash handover
             </a>
           </p>
           <p>
             <a href="/app/cards">
-              My cards · <span lang="ur">میرے کارڈ</span>
+              My cards
             </a>
           </p>
           <p>
             <a href="/app/orders">
-              Orders · <span lang="ur">آرڈرز</span>
+              Orders
             </a>
           </p>
           <p>
             <a href="/app/deliveries">
-              My deliveries · <span lang="ur">میری ڈیلیوریاں</span>
+              My deliveries
             </a>
           </p>
           <p>
             <a href="/app/commission">
-              My commission · <span lang="ur">میرا کمیشن</span>
+              My commission
             </a>
           </p>
           <p>
             <a href="/app/account">
-              My account · <span lang="ur">میرا اکاؤنٹ</span>
+              My account
             </a>
           </p>
         </>

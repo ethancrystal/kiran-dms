@@ -30,9 +30,7 @@ export default function NewSalon() {
 
   return (
     <main>
-      <h1>
-        Add a salon · <span lang="ur">نیا سیلون</span>
-      </h1>
+      <h1>Add a salon</h1>
       <p>
         <a href="/app/salons">← Salons</a>
       </p>
