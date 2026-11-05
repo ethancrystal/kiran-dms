@@ -801,6 +801,26 @@ const MATRIX: Row[] = [
       },
     }),
   ),
+  // Investor ledger (migration 20261105120000, slice 3, D-40): the office reads all four tables; no rep,
+  // AAL1 office session or anon reads any row, and there is no investor login.
+  ...(["public.investor", "public.investment", "public.investor_profit_decision", "public.investor_payout"] as const).map(
+    (table): Row => ({
+      table,
+      writeCol: table === "public.investor" ? "full_name" : "note",
+      select: {
+        anon: "denied",
+        repA: "false",
+        repAWrongDevice: "false",
+        repB: "false",
+        manager: "true",
+        managerAal1: "false",
+        owner: "true",
+        ownerAal1: "false",
+        suspended: "false",
+        service_role: "true",
+      },
+    }),
+  ),
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",
