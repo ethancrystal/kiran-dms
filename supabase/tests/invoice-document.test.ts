@@ -158,7 +158,9 @@ describe("the invoice document (ORD-05)", () => {
     );
     const doc = r.repA as Doc;
     const inv = r.invoice as { number: string; total_paisa: number; subtotal_paisa: number; discount_paisa: number };
-    expect(doc.version).toBe(1);
+    // P1-31 (D-49): version 2 adds fields (customer, people, uom, discount per line, notes, acknowledgement) and keeps every
+    // version 1 key; the document is now the issue-time snapshot plus the live payments.
+    expect(doc.version).toBe(2);
     expect(doc.number).toBe(inv.number);
     expect(doc.financial_year).toMatch(/^20[0-9]{2}-[0-9]{2}$/);
     expect(Number(doc.financial_year.slice(2, 4)) + 1).toBe(Number(doc.financial_year.slice(-2)));

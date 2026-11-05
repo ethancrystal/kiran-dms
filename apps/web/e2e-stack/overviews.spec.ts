@@ -187,6 +187,10 @@ test.beforeAll(async () => {
   );
 });
 
+// P1-31 (D-49): a delivery is final only with the salon's signed acknowledgement of the goods and the office's approval,
+// so a fixture that delivers through SQL records one first. A PNG signature plus zeros: the database checks the bytes and size.
+const SIGNATURE_PNG = Buffer.from(`89504e470d0a1a0a${"00".repeat(300)}`, "hex").toString("base64");
+
 test("office home: an order shows as placed and waiting with its rep; once delivered it shows its invoice, and the counts move by one", async ({
   browser,
 }) => {
@@ -215,6 +219,11 @@ test("office home: an order shows as placed and waiting with its rep; once deliv
   await expect(waitingRow).toContainText("The rep delivers it");
 
   // The office delivers it from the warehouse: it leaves "Waiting" and shows in "Delivered" with its invoice.
+  await sql(
+    MANAGER,
+    "select app.office_attach_signature($1, (select id from public.sales_order where client_id = $2), null, 'signed', 'Ayesha Khan', 'Owner', $3, null)",
+    [randomUUID(), orderCid, SIGNATURE_PNG],
+  );
   const invoice = await sql(
     MANAGER,
     "select (app.office_deliver($1, (select id from public.sales_order where client_id = $2), $3, 'Ayesha at the counter')).number n",

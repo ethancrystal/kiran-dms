@@ -566,14 +566,47 @@ async function repBagOnHand() {
   }
 }
 
+/**
+ * The customer signs on the screen (D-49): name, role, a few strokes with the mouse, the statement ticked, then Confirm.
+ * Used on the rep's phone after a delivery is sent, on My deliveries, and on the office's delivery form.
+ */
+async function signOnScreen(page: Page) {
+  const ack = page.getByTestId("acknowledgement");
+  await expect(ack).toBeVisible();
+  await ack.getByLabel("Name of the person signing").fill("Ayesha Khan");
+  await ack.getByLabel("Their role at the salon").fill("Owner");
+  await ack.getByTestId("signature-pad").scrollIntoViewIfNeeded();
+  const box = await ack.getByTestId("signature-pad").boundingBox();
+  if (!box) throw new Error("the signature area is not on the page");
+  const stroke = [
+    [30, 60],
+    [120, 30],
+    [220, 90],
+    [320, 40],
+  ];
+  await page.mouse.move(box.x + stroke[0][0], box.y + stroke[0][1]);
+  await page.mouse.down();
+  for (const [x, y] of stroke.slice(1)) await page.mouse.move(box.x + x, box.y + y, { steps: 10 });
+  await page.mouse.up();
+  await ack.getByLabel("I have read the statement above").check();
+  await ack.getByRole("button", { name: "Confirm and sign" }).click();
+}
+
 /** The rep opens an order's Deliver page from its Orders list, sets the quantity handed over and sends it. */
-async function submitDelivery(phone: Page, row: ReturnType<Page["getByRole"]>, qty: number) {
+async function submitDelivery(phone: Page, row: ReturnType<Page["getByRole"]>, qty: number, sign = true) {
   await row.getByRole("link", { name: "Deliver this order" }).click();
   await phone.waitForURL(DELIVER_PATH);
   await phone.getByLabel(`Handed over: ${seed.sku.code}`).fill(String(qty));
   await phone.getByLabel("Received by (name)").fill(RECEIVER);
   await phone.getByRole("button", { name: "Send for approval" }).click();
   await expect(phone.getByTestId("delivery-sent")).toHaveText(SENT_COPY);
+  if (sign) {
+    await signOnScreen(phone);
+    await expect(phone.getByTestId("ack-result")).toHaveText("The customer's acknowledgement is recorded.");
+  } else {
+    await phone.getByTestId("acknowledgement").getByRole("button", { name: "Skip for now" }).click();
+    await expect(phone.getByTestId("ack-result")).toHaveText("No acknowledgement was recorded. The office will see that.");
+  }
 }
 
 test("the rep submits its assigned order and the manager approves it; the invoice appears for both (D-32)", async ({
@@ -1284,7 +1317,7 @@ test("delivery-approval boundary: a rep's submission writes no invoice or sale; 
     .getByRole("listitem")
     .filter({ hasText: journeySalon })
     .filter({ hasText: rupees(orderTotal) });
-  await submitDelivery(phone, row, BOUNDARY_QTY);
+  await submitDelivery(phone, row, BOUNDARY_QTY, false);
   // Nothing official yet.
   expect(await facts()).toEqual(before);
   const [submission] = await stackQuery<{ id: string }>(
@@ -1302,13 +1335,25 @@ test("delivery-approval boundary: a rep's submission writes no invoice or sale; 
   expect(await facts()).toEqual(before);
 
   // The manager approves: one invoice and one sale movement more.
+  // The salon has not signed: the database refuses the approval, and the office page offers none.
+  expect(await sqlstateAs(manager, "aal2", "select app.office_approve_delivery($1, gen_random_uuid())", [submission.id])).toBe(
+    "55000",
+  );
+  expect(await facts()).toEqual(before);
   await officeSignIn(page, manager);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Delivery approvals", exact: true }).click();
-  await page
-    .getByTestId("waiting-delivery")
-    .filter({ hasText: journeySalon })
-    .getByRole("button", { name: "Approve delivery" })
-    .click();
+  const unsigned = page.getByTestId("waiting-delivery").filter({ hasText: journeySalon });
+  await expect(unsigned.getByTestId("signature-missing")).toBeVisible();
+  await expect(unsigned.getByRole("button", { name: "Approve delivery" })).toBeDisabled();
+  // The rep gets the customer's signature from My deliveries; then, and only then, the manager can approve.
+  await phone.goto("/app/deliveries");
+  await phone.getByRole("button", { name: "Get the customer's signature" }).click();
+  await signOnScreen(phone);
+  await expect(phone.getByText("The customer has signed for these goods.")).toBeVisible();
+  await page.reload();
+  const signedRow = page.getByTestId("waiting-delivery").filter({ hasText: journeySalon });
+  await expect(signedRow.getByTestId("signature-valid")).toBeVisible();
+  await signedRow.getByRole("button", { name: "Approve delivery" }).click();
   await expect(page.getByText(`Approved the delivery to ${journeySalon}; the invoice is issued.`)).toBeVisible();
   const after = await facts();
   expect(after.invoices).toBe(before.invoices + 1);
@@ -1551,19 +1596,40 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   await expect(timeline).toContainText("request converted");
   await expect(timeline).toContainText("order created");
 
+  // 6b. Prepare the invoice (P1-31, D-49): a draft that is clearly a draft, with display words only.
+  const orderUrl = page.url();
+  await page.getByRole("link", { name: "Prepare the invoice" }).click();
+  await expect(page.getByTestId("draft-banner")).toHaveText("DRAFT — NOT AN OFFICIAL INVOICE");
+  await expect(page.getByTestId("doc-number")).toHaveText("No number until it is issued");
+  await expect(page.getByTestId("doc-total")).toHaveText(requestTotal);
+  await page.getByLabel(`What the customer reads for ${code}`).fill("Rose shade, 100 ml");
+  await page.getByLabel("A note for the customer (optional)").fill("Thank you for your order");
+  await page.getByRole("button", { name: "Save these words" }).click();
+  await expect(page.getByText("Saved. These words will be on the invoice when it is issued.")).toBeVisible();
+  await expect(page.getByTestId("doc-notes")).toHaveText("Thank you for your order");
+  await expect(page.getByTestId("doc-total")).toHaveText(requestTotal);
+  await page.goto(orderUrl);
+
   // 7-8. A rep-less order: the office delivers it from the warehouse (A-18); the invoice appears.
   const deliver = page.getByRole("form", { name: "Deliver from a warehouse" });
   await deliver.getByLabel("Warehouse", { exact: true }).selectOption({ label: seed.warehouse.name });
   const deliverQty = deliver.getByLabel(`Quantity to deliver of ${code}`);
   await expect(deliverQty).toHaveValue(String(J8_SALON_QTY));
   await deliver.getByLabel("Received by (name)").fill(RECEIVER);
-  // One more than is left: the database refuses it and the page shows its words; nothing is written.
+  // One more than is left: the salon signs for it, the database refuses to record it and the page shows its words;
+  // nothing is written. Then the right quantity: the salon signs for exactly that and the delivery is made.
   await deliverQty.fill(String(J8_SALON_QTY + 1));
-  await deliver.getByRole("button", { name: "Deliver and issue the invoice" }).click();
-  await expect(deliver.getByRole("alert")).toHaveText("every line must be a SKU of this order, at most what is left to deliver");
+  await deliver.getByRole("button", { name: "Next: the salon signs for the goods" }).click();
+  await expect(page.getByTestId("acknowledgement").getByRole("button", { name: "Skip for now" })).toHaveCount(0);
+  await signOnScreen(page);
+  await expect(page.getByTestId("acknowledgement").getByRole("alert")).toHaveText(
+    "every line must be a SKU of this order, at most what is left to deliver",
+  );
+  await page.getByRole("button", { name: "Back to the delivery form" }).click();
   await expect(page.getByTestId("order-status")).toHaveText("confirmed");
   await deliverQty.fill(String(J8_SALON_QTY));
-  await deliver.getByRole("button", { name: "Deliver and issue the invoice" }).click();
+  await deliver.getByRole("button", { name: "Next: the salon signs for the goods" }).click();
+  await signOnScreen(page);
   await expect(page.getByText(`Delivered to ${portalSalon.name} from the warehouse: invoice INV-`)).toBeVisible();
   await expect(page.getByTestId("order-status")).toHaveText("delivered");
   await page.reload();
@@ -1572,6 +1638,22 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   await expect(page.getByTestId("order-invoice")).toContainText(requestTotal);
   await expect(timeline).toContainText("delivery recorded");
   await expect(timeline).toContainText("invoice issued");
+  // The issued invoice carries the prepared words, the customer, the delivery person and the salon's acknowledgement.
+  await page.getByTestId("order-invoice").getByRole("link").first().click();
+  await expect(page.getByTestId("draft-banner")).toHaveCount(0);
+  await expect(page.getByTestId("doc-number")).toContainText("INV-");
+  await expect(page.getByTestId("doc-notes")).toHaveText("Thank you for your order");
+  await expect(page.getByTestId("doc-line").first()).toContainText("Rose shade, 100 ml");
+  await expect(page.getByTestId("doc-total")).toHaveText(requestTotal);
+  await expect(page.getByTestId("doc-deliverer")).toBeVisible();
+  await expect(page.getByTestId("doc-ack")).toContainText("Ayesha Khan, Owner");
+  const issuedNumber = await page.getByTestId("doc-number").innerText();
+  // A reprint is the same invoice: the same number and total after a reload, and no second invoice on the order.
+  await page.reload();
+  await expect(page.getByTestId("doc-number")).toHaveText(issuedNumber);
+  await expect(page.getByTestId("doc-total")).toHaveText(requestTotal);
+  await page.goBack();
+  await expect(page.getByTestId("order-invoice")).toHaveCount(1);
   // 9. No rep, so no commission: Rep One's owed figure is unchanged.
   expect(await repOwedPaisa()).toBe(owedBefore);
   await ownerPage.reload();
@@ -1588,6 +1670,13 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
   await salon.reload();
   await expect(salon.getByTestId("salon-balance")).toHaveText(balanceAfter);
   await expect(salon.getByTestId("salon-order").filter({ hasText: `${J8_SALON_QTY} × ${code}` })).toContainText("delivered");
+  // The salon lists and opens its own invoice, with the words the office prepared and what is still to pay.
+  const invoiceRow = salon.getByTestId("salon-invoice-row").filter({ hasText: issuedNumber });
+  await expect(invoiceRow).toBeVisible();
+  await invoiceRow.getByRole("link", { name: issuedNumber }).click();
+  await expect(salon.getByTestId("doc-number")).toHaveText(issuedNumber);
+  await expect(salon.getByTestId("doc-notes")).toHaveText("Thank you for your order");
+  await expect(salon.getByTestId("doc-outstanding")).toBeVisible();
   await salonContext.close();
   // 14. The salon's timeline on the office salon page, read again after a reload.
   await page.reload();

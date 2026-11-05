@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
+import { Acknowledgement, type AckResult } from "@/components/acknowledgement";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { Timeline } from "@/components/timeline";
 import { rupees } from "@/lib/money";
@@ -132,6 +133,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         <Link href="/office/orders">Back to orders</Link>
       </p>
       <h1>Order for {salon}</h1>
+      {order && DELIVERABLE.includes(order.status) && (
+        <p className="no-print">
+          <Link href={`/office/orders/${id}/invoice`}>Prepare the invoice</Link>
+        </p>
+      )}
       {notice && <output className="ok">{notice}</output>}
       {error && (
         <p className="error" role="alert">
@@ -217,7 +223,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           <ul className="plain">
             {invoices.map((i) => (
               <li key={i.id} data-testid="order-invoice">
-                {i.number} · {rupees(Number(i.total_paisa))} · {when(i.issued_at)}
+                <Link href={`/office/invoices/${i.id}`}>{i.number}</Link> · {rupees(Number(i.total_paisa))} · {when(i.issued_at)}
               </li>
             ))}
           </ul>
@@ -338,40 +344,103 @@ function DeliverForm({
   const [key, setKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // D-49 (MJ, 2026-11-05): a delivery is final only with the salon's signed acknowledgement of exactly these goods and
+  // the office's approval. So the form first asks for the goods, then for the customer's signature on them, and only
+  // then delivers. The signature is recorded for the exact lines shown on the signing screen.
+  const [signing, setSigning] = useState<{ sku_id: string; qty: number }[] | null>(null);
+
+  const chosen = () =>
+    left
+      .map((r) => ({ sku_id: r.sku_id, qty: Number.parseInt(qty[r.sku_id] ?? String(r.remaining), 10) }))
+      .filter((l) => l.qty > 0);
+
+  const deliver = async (lines: { sku_id: string; qty: number }[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const inv = await rpc<Invoice>("office_deliver", {
+        p_client_id: key,
+        p_order_id: orderId,
+        p_warehouse_id: warehouse || null,
+        p_received_by_name: receiver,
+        p_lines: lines,
+      });
+      setKey(crypto.randomUUID());
+      setQty({});
+      setReceiver("");
+      setSigning(null);
+      await onDone(`Delivered to ${salon} from the warehouse: invoice ${inv.number}, ${rupees(Number(inv.total_paisa))}.`);
+    } catch (err) {
+      setError((err as Error).message);
+      setSigning(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const afterSigning = async (result: AckResult) => {
+    const lines = signing ?? [];
+    if (result === "signed") {
+      await deliver(lines);
+      return;
+    }
+    setSigning(null);
+    setError("The salon did not sign, so this cannot be delivered. Your note is recorded. Try again when the salon can sign.");
+  };
+
+  if (signing) {
+    return (
+      <div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <Acknowledgement
+          salonName={salon}
+          lines={signing.map((l) => ({ label: skuText(l.sku_id), qty: l.qty }))}
+          canSkip={false}
+          onDone={(r) => void afterSigning(r)}
+          record={async (a) => {
+            await rpc("office_attach_signature", {
+              p_client_id: a.key,
+              p_order_id: orderId,
+              p_lines: signing,
+              p_outcome: a.outcome,
+              p_name: a.name,
+              p_designation: a.designation,
+              p_png_base64: a.png,
+              p_note: a.note,
+            });
+          }}
+        />
+        <p>
+          <button type="button" className="inline" onClick={() => setSigning(null)} disabled={busy}>
+            Back to the delivery form
+          </button>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form
       aria-label="Deliver from a warehouse"
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
         e.preventDefault();
-        setBusy(true);
         setError(null);
-        try {
-          const lines = left
-            .map((r) => ({ sku_id: r.sku_id, qty: Number.parseInt(qty[r.sku_id] ?? String(r.remaining), 10) }))
-            .filter((l) => l.qty > 0);
-          const inv = await rpc<Invoice>("office_deliver", {
-            p_client_id: key,
-            p_order_id: orderId,
-            p_warehouse_id: warehouse || null,
-            p_received_by_name: receiver,
-            p_lines: lines,
-          });
-          setKey(crypto.randomUUID());
-          setQty({});
-          setReceiver("");
-          await onDone(`Delivered to ${salon} from the warehouse: invoice ${inv.number}, ${rupees(Number(inv.total_paisa))}.`);
-        } catch (err) {
-          setError((err as Error).message);
-        } finally {
-          setBusy(false);
+        const lines = chosen();
+        if (lines.length === 0) {
+          setError("Choose at least one product to deliver.");
+          return;
         }
+        setSigning(lines);
       }}
     >
       <h3>Deliver from a warehouse</h3>
       <p className="muted">
-        The office delivers an order that has no rep (A-18). The delivery, the stock movement and the invoice are written
-        together.
+        The office delivers an order that has no rep (A-18). The salon signs for exactly these goods first; then the delivery, the
+        stock movement and the invoice are written together.
       </p>
       <label htmlFor="deliver-warehouse">Warehouse</label>
       <select id="deliver-warehouse" value={warehouse} onChange={(e) => setWarehouse(e.target.value)}>
@@ -409,7 +478,7 @@ function DeliverForm({
         </p>
       )}
       <button type="submit" className="inline" disabled={busy}>
-        {busy ? "Delivering…" : "Deliver and issue the invoice"}
+        {busy ? "Delivering…" : "Next: the salon signs for the goods"}
       </button>
     </form>
   );

@@ -47,11 +47,32 @@ dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 
 dt { color: var(--muted); }
 
 /* Office shell (execution map, slice 1): wider than the rep screens, still plain. */
-.office main { max-width: 64rem; }
+.office main { max-width: 64rem; min-width: 0; flex: 1; }
 .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); background: var(--card); }
-.topbar nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; flex: 1; }
-.topbar nav a { color: var(--accent); text-decoration: none; font-weight: 600; padding: 0.25rem 0; }
+.topbar strong { flex: 1; }
 .topbar .who { font-size: 0.9rem; }
+.office-body { display: flex; align-items: flex-start; }
+.office-nav { flex: 0 0 15rem; padding: 0.75rem; border-right: 1px solid var(--border); background: var(--card); }
+.office-nav summary { padding: 0.35rem 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); cursor: pointer; }
+.office-nav summary:focus-visible, .office-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.office-nav ul { list-style: none; margin: 0 0 0.5rem; padding: 0; }
+.office-nav a { display: block; padding: 0.3rem 0.5rem 0.3rem 1rem; border-radius: 6px; color: var(--accent); font-weight: 600; text-decoration: none; }
+.office-nav a[aria-current="page"] { background: var(--accent); color: var(--accent-fg); }
+/* Tablets and below: the sidebar sits above the page, its groups side by side. */
+@media (max-width: 62rem) {
+  .office-body { flex-direction: column; align-items: stretch; }
+  .office-nav { flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0 0.5rem; border-right: 0; border-bottom: 1px solid var(--border); }
+}
+/* Invoice and receipt views print alone: no shell around the document. */
+.doc-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 2rem; }
+.doc-total { font-size: 1.1rem; }
+.doc-notice { margin: 0.25rem 0; font-weight: 600; }
+@media print {
+  .topbar, .office-nav, .no-print { display: none !important; }
+  .office main { max-width: none; padding: 0; }
+  .card { border: 0; padding: 0; }
+  a { color: inherit; text-decoration: none; }
+}
 h2 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; }
 h3 { font-size: 1rem; margin: 1rem 0 0.25rem; }
 button.inline, .btn.inline { width: auto; margin: 0.25rem 0.25rem 0.25rem 0; padding: 0.45rem 0.8rem; font-size: 0.95rem; }
@@ -104,3 +125,35 @@ ul.summary strong { display: block; font-size: 1.8rem; color: var(--accent); }
 .month-picker button.inline { min-height: 2.75rem; }
 .rep-month .big-line { font-size: 1.15rem; }
 .rep-month dl { font-size: 1.05rem; }
+
+/* The A4 invoice (P1-31). On screen a bordered sheet; when printed, A4 with page numbers, a repeating table head, and
+   totals and signatures that are never split across pages. */
+.invoice-sheet { background: #fff; color: #111; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin: 1rem 0; max-width: 210mm; position: relative; }
+.invoice-sheet .muted { color: #555; }
+.invoice-sheet.is-draft::before { content: "DRAFT"; position: absolute; inset: 35% 0 auto; text-align: center; font-size: 6rem; font-weight: 800; color: rgba(200, 0, 0, 0.08); transform: rotate(-20deg); pointer-events: none; }
+.draft-banner { margin: 0 0 1rem; padding: 0.5rem; border: 2px solid #b00020; color: #b00020; text-align: center; font-weight: 800; letter-spacing: 0.04em; }
+.inv-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; border-bottom: 2px solid #111; padding-bottom: 0.75rem; }
+.inv-company-name { font-size: 1.3rem; }
+.inv-title { text-align: right; }
+.inv-title h1 { margin: 0; font-size: 1.6rem; }
+.inv-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+.inv-meta dl, .inv-block dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 0.75rem; }
+.inv-meta dt { color: #555; }
+.inv-meta dd { margin: 0; }
+.inv-items { font-size: 0.9rem; }
+.inv-items th, .inv-items td { border-bottom: 1px solid #ccc; }
+.inv-items .num, .inv-block .num { text-align: right; white-space: nowrap; }
+.inv-sku { font-size: 0.75rem; }
+.inv-net td { border-top: 2px solid #111; font-size: 1.05rem; }
+.inv-block h2 { margin-top: 1rem; }
+.inv-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2.5rem; break-inside: avoid; }
+.inv-sign-line { height: 3.5rem; border-bottom: 1px solid #111; }
+.inv-sign-img { display: block; height: 3.5rem; max-width: 100%; border-bottom: 1px solid #111; object-fit: contain; }
+.inv-foot { margin-top: 1.5rem; border-top: 1px solid #ccc; padding-top: 0.5rem; font-size: 0.85rem; }
+@media (max-width: 40rem) { .inv-meta, .inv-sign { grid-template-columns: 1fr; } .inv-title { text-align: left; } }
+@page { size: A4; margin: 14mm; @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #555; } }
+@media print {
+  .invoice-sheet { border: 0; border-radius: 0; padding: 0; max-width: none; margin: 0; }
+  .invoice-sheet thead { display: table-header-group; }
+  .invoice-sheet tfoot, .invoice-sheet tr, .inv-block, .inv-foot { break-inside: avoid; }
+}

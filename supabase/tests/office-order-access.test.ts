@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { approveSalon, errorOf, fx, MANAGER, OWNER, REP_A, REP_B, run, sqlstate, type Who } from "./helpers/db";
 import { legacyOrderSql } from "./helpers/legacy-order";
-import { submitApproveSql } from "./helpers/submit-approve";
+import { signOrderSql, submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -127,7 +127,7 @@ const repDeliver = (dcid: string, ocid: string, who: P = "repA"): Step[] => [
 ];
 const officeDeliver = (dcid: string, ocid: string): Step[] => [
   pin(ocid),
-  ["manager", `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter')).id;`],
+  ["manager", `${signOrderSql(dcid, OID)} select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter')).id;`],
 ];
 // The invoice of a delivery, its installments and the order's status, read as postgres.
 const invoiceOf = (dcid: string): Step => [
@@ -332,7 +332,7 @@ describe("the assigned rep reads the office order; another rep does not", () => 
     pin(ocid),
     [
       "manager",
-      `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
+      `${signOrderSql(dcid, OID, `'${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb`)} select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
                   '${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb)).id;`,
     ],
     pin(ocid, dcid),
@@ -361,7 +361,7 @@ describe("the assigned rep reads the office order; another rep does not", () => 
       pin(ocid),
       [
         "manager",
-        `select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
+        `${signOrderSql(dcid, OID, `'${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb`)} select (app.office_deliver('${dcid}', ${OID}, '${WH}', 'Ayesha at the counter',
                     '${JSON.stringify([{ sku_id: SKU, qty: 1 }])}'::jsonb)).id;`,
       ],
       pin(ocid, dcid),
