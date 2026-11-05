@@ -35,7 +35,7 @@ const EVENT_CAP = 500;
 const CHAIRS = 5;
 const MANAGER_NAME = "[Test] Manager"; // the fixtures' names (setup/fixtures.ts)
 const REP_A_NAME = "[Test] Rep A";
-const OFFICE_ONLY ="only the office edits a salon";
+const OFFICE_ONLY = "only the office edits a salon";
 
 // Values written into the salon's rows that a timeline must never return.
 const PHONE = "+920000009377";
@@ -89,8 +89,13 @@ const propose = async (who: Who = REP_A, area = AREA_A) => {
   await run(who, "select app.create_salon($1, $2, 'unisex', $3, 'map_pin')", [id, `[Test] Proposal ${tag()}`, area], C);
   return id;
 };
-const decide = (salon: string, approve: boolean, reason: string | null = null, rep: string | null = null, rate: number | null = null) =>
-  run(MANAGER, "select (app.office_decide_salon($1, $2, $3, $4, $5, $6)).*", [uuid(), salon, approve, reason, rep, rate], C);
+const decide = (
+  salon: string,
+  approve: boolean,
+  reason: string | null = null,
+  rep: string | null = null,
+  rate: number | null = null,
+) => run(MANAGER, "select (app.office_decide_salon($1, $2, $3, $4, $5, $6)).*", [uuid(), salon, approve, reason, rep, rate], C);
 const salonRow = async (id: string) =>
   (await run("postgres", "select approval_status, stage, name, address, chairs from public.salon where id = $1", [id])).rows[0];
 const mySalons = async (who: Who) => (await run(who, "select id from app.my_salons(null, null, 50)")).rows.map((r) => r.id);
@@ -142,15 +147,17 @@ beforeAll(async () => {
   await run(MANAGER, "select app.update_salon($1, null, 'ladies_parlor', $2, $3, $4, $5)", [SALON, AREA_A, ADDRESS, LAT, LNG], C);
   // Its salon account, through a real invitation and an emailed-code session.
   const email = `salon.${tag()}@example.test`;
-  const inv = (await run(MANAGER, "select app.office_invite($1, 'salon', '[Test] Timeline contact', $2, $3) as r", [uuid(), email, SALON], C))
-    .rows[0].r as { token: string };
+  const inv = (
+    await run(MANAGER, "select app.office_invite($1, 'salon', '[Test] Timeline contact', $2, $3) as r", [uuid(), email, SALON], C)
+  ).rows[0].r as { token: string };
   salonLogin = await newLogin({ email });
   await run("postgres", `${asSalon(salonLogin)} select app.redeem_invitation(${quote(inv.token)});`, [], C);
   member = (await run("postgres", "select id from public.salon_membership where user_id = $1", [salonLogin.id])).rows[0].id;
 });
 
 afterAll(async () => {
-  if (member) await run(MANAGER, "select app.office_set_member_status('salon', $1, 'revoked', 'readonly tests finished')", [member], C);
+  if (member)
+    await run(MANAGER, "select app.office_set_member_status('salon', $1, 'revoked', 'readonly tests finished')", [member], C);
   // Leave the shared reps' reach as other files expect it: clear direct assignments made here.
   const { rows: held } = await run(
     "postgres",
@@ -170,9 +177,9 @@ describe("reps read salons and do not edit them (R3, D-35)", () => {
   it("app.update_salon refuses the territory's own rep with 42501 and changes nothing", async () => {
     const before = await salonRow(SALON);
     expect(await sqlstate(REP_A, "select app.update_salon($1, '[Test] renamed', 'unisex', $2)", [SALON, AREA_A])).toBe(DENIED);
-    expect(await errorOf(REP_A, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] new address')", [SALON, AREA_A])).toContain(
-      OFFICE_ONLY,
-    );
+    expect(
+      await errorOf(REP_A, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] new address')", [SALON, AREA_A]),
+    ).toContain(OFFICE_ONLY);
     expect(await salonRow(SALON)).toEqual(before);
   });
 
@@ -182,7 +189,9 @@ describe("reps read salons and do not edit them (R3, D-35)", () => {
   });
 
   it.each(STAFF_REFUSED)("%s cannot edit a salon", async (_n, who) => {
-    expect(await sqlstate(who, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] x')", [SALON, AREA_A])).toBe(DENIED);
+    expect(await sqlstate(who, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] x')", [SALON, AREA_A])).toBe(
+      DENIED,
+    );
   });
 
   it("a salon login and a login with nothing redeemed cannot edit a salon", async () => {
@@ -232,18 +241,24 @@ describe("a rep's new salon is a pending proposal (R3, R4)", () => {
   it("the proposing rep reaches it under R4 (territory), sees it is pending and adds notes; another rep does not", async () => {
     const id = await propose();
     expect(await mySalons(REP_A)).toContain(id);
-    expect((await run(REP_A, "select approval_status from app.my_salon($1)", [id])).rows).toEqual([{ approval_status: "pending" }]);
+    expect((await run(REP_A, "select approval_status from app.my_salon($1)", [id])).rows).toEqual([
+      { approval_status: "pending" },
+    ]);
     expect(await sqlstate(REP_A, "select app.add_salon_note(gen_random_uuid(), $1, '[Test] proposal note')", [id])).toBeNull();
     expect(await mySalons(REP_B)).not.toContain(id);
     expect(await sqlstate(REP_B, "select app.add_salon_note(gen_random_uuid(), $1, '[Test] x')", [id])).toBe(DENIED);
   });
 
   it("a rep proposes only in its own territories, from the field only", async () => {
-    expect(await sqlstate(REP_A, "select app.create_salon($1, '[Test] x', 'unisex', $2, 'map_pin')", [uuid(), AREA_B])).toBe(DENIED);
+    expect(await sqlstate(REP_A, "select app.create_salon($1, '[Test] x', 'unisex', $2, 'map_pin')", [uuid(), AREA_B])).toBe(
+      DENIED,
+    );
     expect(await sqlstate(REP_A, "select app.create_salon($1, '[Test] x', 'unisex', $2, 'excel_import')", [uuid(), AREA_A])).toBe(
       DENIED,
     );
-    expect(await sqlstate(SUSPENDED, "select app.create_salon($1, '[Test] x', 'unisex', $2, 'map_pin')", [uuid(), AREA_A])).toBe(DENIED);
+    expect(await sqlstate(SUSPENDED, "select app.create_salon($1, '[Test] x', 'unisex', $2, 'map_pin')", [uuid(), AREA_A])).toBe(
+      DENIED,
+    );
   });
 
   it("a replay of the proposal returns the same pending row and adds nothing", async () => {
@@ -318,7 +333,12 @@ describe("the office's salon and order timelines", () => {
       C,
     );
     const card = (req as unknown as Array<{ rows: Array<{ id: string }> }>).at(-1)?.rows[0].id ?? "";
-    const o = await run(MANAGER, "select (app.office_create_order($1, $2, 'CASH', null, null, $3, null)).id", [uuid(), SALON, card], C);
+    const o = await run(
+      MANAGER,
+      "select (app.office_create_order($1, $2, 'CASH', null, null, $3, null)).id",
+      [uuid(), SALON, card],
+      C,
+    );
     orderId = o.rows[0].id;
   });
 
@@ -355,9 +375,21 @@ describe("the office's salon and order timelines", () => {
       ...(await salonTimeline(MANAGER, proposal)),
       ...(await orderTimeline(MANAGER, orderId)),
     ]);
-    [PHONE, PHONE.slice(1), NOTE, ADDRESS, String(LAT), String(LNG), REJECT_REASON, REQUEST_NOTE, "token", "hash", "purpose"].forEach((s) =>
-      expect(all, s).not.toContain(s),
-    );
+    [
+      PHONE,
+      PHONE.slice(1),
+      NOTE,
+      ADDRESS,
+      String(LAT),
+      String(LNG),
+      REJECT_REASON,
+      REQUEST_NOTE,
+      "token",
+      "hash",
+      "purpose",
+    ].forEach((s) => {
+      expect(all, s).not.toContain(s);
+    });
     const tables = new Set(
       [...(await salonTimeline(OWNER, SALON)), ...(await orderTimeline(OWNER, orderId))].map((r) => String(r.entity)),
     );
@@ -365,7 +397,9 @@ describe("the office's salon and order timelines", () => {
     // "public.salon_note" matches; "control.phone_reveal", "public.stock_movement" and
     // "public.investor_payout" do not.
     // https://regex101.com/?regex=%5E%28public%7Ccontrol%29%5C.%28%3F%21phone_reveal%7Cstock%7Cinvestor%7Cinvestment%29&flavor=javascript
-    tables.forEach((t) => expect(t, t).toMatch(/^(public|control)\.(?!phone_reveal|stock|investor|investment)/));
+    tables.forEach((t) => {
+      expect(t, t).toMatch(/^(public|control)\.(?!phone_reveal|stock|investor|investment)/);
+    });
   });
 
   it("a proposal's timeline shows the rep's proposal, the office's approval and the assignment", async () => {
@@ -378,7 +412,9 @@ describe("the office's salon and order timelines", () => {
   it("the order timeline shows the request, its conversion, the order and its lines", async () => {
     const rows = await orderTimeline(MANAGER, orderId);
     expect(Object.keys(rows[0]).sort()).toEqual(TIMELINE_KEYS);
-    expect(actions(rows)).toEqual(expect.arrayContaining(["request sent", "request converted", "order created", "order line added"]));
+    expect(actions(rows)).toEqual(
+      expect.arrayContaining(["request sent", "request converted", "order created", "order line added"]),
+    );
     expect(rows.find((r) => r.action === "order created")).toMatchObject({
       detail: "draft",
       actor_name: MANAGER_NAME,

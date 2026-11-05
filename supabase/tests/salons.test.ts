@@ -161,7 +161,10 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
     expect(
       await sqlstate(REP_A, "select app.update_salon($1, '[Test] Renamed', 'unisex', $2, null, 24.9, 67.1, 4)", [S1, A1b]),
     ).toBe("42501");
-    const r = await one(MANAGER, "select (app.update_salon($1, '[Test] Renamed', 'unisex', $2, null, 24.9, 67.1, 4)).*", [S1, A1b]);
+    const r = await one(MANAGER, "select (app.update_salon($1, '[Test] Renamed', 'unisex', $2, null, 24.9, 67.1, 4)).*", [
+      S1,
+      A1b,
+    ]);
     expect(r.area_id).toBe(A1b);
     expect(r.stage).toBe("prospect");
   });

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
+import { Timeline } from "@/components/timeline";
 import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label, SALON_TYPES } from "@/lib/salons";
@@ -85,9 +86,11 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
     void load();
   }, [load]);
 
+  const [tick, setTick] = useState(0); // re-reads the timeline after a change on this page
   const done = async (m: string) => {
     setNotice(m);
     await load();
+    setTick((t) => t + 1);
   };
 
   if (loading)
@@ -192,6 +195,12 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
             ))}
           </ul>
         )}
+      </section>
+
+      <section aria-labelledby="timeline-h">
+        <h2 id="timeline-h">Timeline</h2>
+        <p className="muted">Who did what to this salon, and when (app.office_salon_timeline).</p>
+        <Timeline kind="salon" id={id} reloadKey={tick} />
       </section>
     </>
   );
