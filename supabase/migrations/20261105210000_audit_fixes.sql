@@ -23,8 +23,8 @@
 --            discount takes effect whatever the order's source (app.build_order). Maker-checker between
 --            two different people is unchanged for everyone else (H-12 stays a constraint).
 --   M8 and the second reader's dead ends: app.office_pending_stock returns the request's quantity and
---            the newest refused request with its reason; app.office_pending_approvals also lists the
---            requests refused in the last 14 days with the checker's reason.
+--            the newest refused request with its reason; app.office_refused_approvals lists the requests
+--            refused in the last 14 days with the checker's reason.
 --   D-48     payment reversal (PAY-10): public.payment_reversal (append-only), app.office_reverse_payment,
 --            app.office_salon_payments. A reversed payment's allocations stop counting everywhere a
 --            balance is derived (installment state, allocation guard, ageing, receipt and invoice
@@ -572,30 +572,23 @@ begin
   limit 500;
 end $$;
 
-drop function app.office_pending_approvals();
--- The office approvals queue (slice 8) plus, for the second reader's finding, the discount and
--- adjustment requests refused in the last 14 days, with the checker's name and reason, so a maker sees
--- the outcome. Allow-listed fields only, never the raw payload.
-create function app.office_pending_approvals()
-returns table (request_id uuid, kind public.approval_kind, status public.approval_status, subject_type text,
-               subject_id uuid, made_by_me boolean, maker_name text, checker_role_required public.app_role,
-               reason text, created_at timestamptz,
-               order_status public.order_status, salon_id uuid, salon_name text,
-               subtotal_paisa bigint, discount_paisa bigint, total_paisa bigint,
-               location_name text, location_kind public.stock_location_kind, sku_id uuid, sku_code text,
-               qty_delta bigint, decided_at timestamptz, checker_name text, decision_reason text)
+-- The second reader's finding: a refused request vanished from every page. The discount and adjustment
+-- requests refused in the last 14 days, newest first (100), with the checker's name and reason, so the
+-- maker sees the outcome. Owner or manager at AAL2. Allow-listed fields only, never the raw payload;
+-- app.office_pending_approvals (the queue) is unchanged.
+create function app.office_refused_approvals()
+returns table (request_id uuid, kind public.approval_kind, made_by_me boolean, maker_name text, reason text,
+               created_at timestamptz, salon_name text, location_name text, location_kind public.stock_location_kind,
+               sku_code text, qty_delta bigint, decided_at timestamptz, checker_name text, decision_reason text)
 language plpgsql stable security definer set search_path = '' as $$
 begin
   perform app.assert_office();
   return query
-  select a.id, a.kind, a.status, a.subject_type, a.subject_id, a.maker_id = auth.uid(), mk.full_name,
-         a.checker_role_required, a.reason, a.created_at,
-         o.status, o.salon_id, s.name, o.subtotal_paisa, o.discount_paisa, o.total_paisa,
-         l.name, l.kind, k.id, k.code,
+  select a.id, a.kind, a.maker_id = auth.uid(), mk.full_name, a.reason, a.created_at, s.name, l.name, l.kind, k.code,
          case when a.kind = 'adjustment' and jsonb_typeof(a.payload -> 'qty_delta') = 'number'
                    and (a.payload ->> 'qty_delta') ~ '^-?[0-9]{1,6}$'
               then (a.payload ->> 'qty_delta')::bigint end,
-         a.decided_at, ck.full_name, case when a.status = 'rejected' then a.decision_reason end
+         a.decided_at, ck.full_name, a.decision_reason
   from control.approval_request a
   join public.user_profile mk on mk.id = a.maker_id
   left join public.user_profile ck on ck.id = a.checker_id
@@ -606,13 +599,9 @@ begin
                          and k.id = case when coalesce(a.payload ->> 'sku_id', '')
                                                ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
                                          then (a.payload ->> 'sku_id')::uuid end
-  where a.kind in ('discount', 'adjustment')
-    and (a.status = 'pending'
-         or (a.status = 'approved' and a.kind = 'adjustment' and l.kind in ('warehouse', 'rep_bag')
-             and not exists (select 1 from public.stock_movement m where m.approval_id = a.id))
-         or (a.status = 'rejected' and a.decided_at > now() - interval '14 days'))
-  order by (a.status = 'rejected'), a.created_at desc, a.id
-  limit 200;
+  where a.kind in ('discount', 'adjustment') and a.status = 'rejected' and a.decided_at > now() - interval '14 days'
+  order by a.decided_at desc, a.id
+  limit 100;
 end $$;
 
 -- =============================================================================
@@ -774,7 +763,7 @@ begin
   order by sum(kd.d1 + kd.d8 + kd.d16 + kd.d31) desc, sum(kd.cur + kd.d1 + kd.d8 + kd.d16 + kd.d31) desc, min(kd.label), kd.k;
 end $$;
 
--- D-48: as migration 0021's app.receipt_document, plus the reversal (when, and why); the remaining schedule
+-- D-48: as migration 0021's app.receipt_document, plus the reversal (when, and why) when there is one; the remaining schedule
 -- is still as of this receipt, so a payment reversed before it was issued no longer counts there.
 create or replace function app.receipt_document(p_receipt_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
@@ -796,8 +785,6 @@ begin
     'issued_at', r.issued_at,
     'company', coalesce((select c.value from public.app_config c where c.key = 'company.profile'), '{}'::jsonb),
     'salon', jsonb_build_object('name', s.name),
-    'reversed', (select jsonb_build_object('reversed_at', pr.reversed_at, 'reason', pr.reason)
-                 from public.payment_reversal pr where pr.payment_id = p.id),
     'payment', jsonb_build_object('amount_paisa', p.amount_paisa, 'method', p.method, 'bank_name', p.bank_name,
                                   'bank_reference', p.bank_reference, 'recorded_at', p.recorded_at),
     'allocations', coalesce((
@@ -821,10 +808,13 @@ begin
     'notices', jsonb_build_array(
       jsonb_build_object('code', 'only_valid_proof',
         'en', 'This numbered receipt is your only valid proof of payment. A paper receipt is not valid.',
-        'ur', 'یہ نمبر والی رسید آپ کی ادائیگی کا واحد درست ثبوت ہے۔ کاغذی رسید درست نہیں۔')));
+        'ur', 'یہ نمبر والی رسید آپ کی ادائیگی کا واحد درست ثبوت ہے۔ کاغذی رسید درست نہیں۔')))
+    -- D-48: a reversed receipt says so, when and why; the key is absent otherwise.
+    || coalesce((select jsonb_build_object('reversed', jsonb_build_object('reversed_at', pr.reversed_at, 'reason', pr.reason))
+                 from public.payment_reversal pr where pr.payment_id = p.id), '{}'::jsonb);
 end $$;
 
--- D-48: as migration 20261104090000's app.invoice_document; each receipt says whether it was reversed.
+-- D-48: as migration 20261104090000's app.invoice_document; a reversed receipt carries "reversed": true (absent otherwise).
 create or replace function app.invoice_document(p_invoice_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -879,6 +869,8 @@ begin
     'receipts', coalesce((
       select jsonb_agg(jsonb_build_object('number', r.number, 'issued_at', r.issued_at, 'amount_paisa', t.amt,
                                          'reversed', exists (select 1 from public.payment_reversal pr where pr.payment_id = t.payment_id))
+                       - case when exists (select 1 from public.payment_reversal pr where pr.payment_id = t.payment_id)
+                              then '' else 'reversed' end
                        order by r.issued_at, r.number)
       from (select a.payment_id, sum(a.amount_paisa)::bigint amt
             from public.payment_allocation a join public.installment x on x.id = a.installment_id
@@ -893,7 +885,8 @@ begin
         'ur', 'ادائیگی صرف اس انوائس پر چھپے کمپنی کے اکاؤنٹس میں کریں۔ کسی ریپ کے ذاتی اکاؤنٹ یا والٹ میں ہرگز نہیں۔')));
 end $$;
 
--- D-48: as migration 20261105150000's app.salon_my_account; each payment says whether it was reversed.
+-- D-48: as migration 20261105150000's app.salon_my_account; a reversed payment carries "reversed": true (the
+-- key is absent otherwise, so an unreversed payment reads as before).
 create or replace function app.salon_my_account() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -920,7 +913,8 @@ begin
             order by y.due_on, y.issued_at, y.invoice_number, y.seq limit 50) x), '[]'::jsonb),
     'payments', coalesce((
       select jsonb_agg(jsonb_build_object('receipt_number', t.number, 'paid_at', t.recorded_at, 'method', t.method,
-                                          'amount_paisa', t.amount_paisa, 'reversed', t.reversed)
+                                          'amount_paisa', t.amount_paisa)
+                       || case when t.reversed then jsonb_build_object('reversed', true) else '{}'::jsonb end
                        order by t.recorded_at desc, t.seq desc)
       from (select r.number, p.recorded_at, p.method, p.amount_paisa, p.seq,
                    exists (select 1 from public.payment_reversal pr where pr.payment_id = p.id) reversed
@@ -1621,7 +1615,7 @@ revoke all on function
 
 revoke all on function
   app.owner_adjust_stock(uuid, uuid, uuid, integer, text), app.office_adjustment_checker(uuid, integer),
-  app.office_pending_stock(), app.office_pending_approvals(),
+  app.office_pending_stock(), app.office_refused_approvals(),
   app.office_reverse_payment(uuid, uuid, text), app.office_salon_payments(uuid),
   app.office_cash_cap_reps(),
   app.owner_settle_handover(uuid, uuid, text, text), app.office_withdraw_handover(uuid, uuid, text),
@@ -1631,7 +1625,7 @@ revoke all on function
   from public, anon, authenticated, service_role;
 grant execute on function
   app.owner_adjust_stock(uuid, uuid, uuid, integer, text), app.office_adjustment_checker(uuid, integer),
-  app.office_pending_stock(), app.office_pending_approvals(),
+  app.office_pending_stock(), app.office_refused_approvals(),
   app.office_reverse_payment(uuid, uuid, text), app.office_salon_payments(uuid),
   app.office_cash_cap_reps(),
   app.owner_settle_handover(uuid, uuid, text, text), app.office_withdraw_handover(uuid, uuid, text),

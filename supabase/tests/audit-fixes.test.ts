@@ -11,7 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, run, sqlstate } from "./helpers/db";
-import { asLogin, asLoginRows, newLogin, type Login } from "./helpers/invite";
+import { asLogin, asLoginRows, type Login, newLogin } from "./helpers/invite";
 import { submitApproveSql } from "./helpers/submit-approve";
 
 const C = { commit: true };
@@ -469,14 +469,14 @@ describe("D-45: the owner's own stock adjustment takes effect at once", () => {
       ),
       mark(
         "a",
-        `(select jsonb_build_object('status', status, 'why', decision_reason, 'by', checker_name)
-                  from app.office_pending_approvals() where status = 'rejected' and reason = 'two units missing') as x`,
+        `(select jsonb_build_object('why', decision_reason, 'by', checker_name)
+                  from app.office_refused_approvals() where reason = 'two units missing') as x`,
         "manager",
       ),
     ]);
     expect(r.p[0].x).toEqual({ qty: TWO, status: "pending", checker: "manager" });
     expect(r.q[0].x).toEqual({ status: "rejected", why: "recount first please" });
-    expect(r.a[0].x).toMatchObject({ status: "rejected", why: "recount first please" });
+    expect(r.a[0].x).toMatchObject({ why: "recount first please" });
   });
 
   it("the maker withdraws its own pending request (app.cancel_approval); nobody else can", async () => {
@@ -864,7 +864,7 @@ describe("FLOW-09, FLOW-10: the month and home figures", () => {
       month("ba", "repB"),
       mark(
         "home",
-        `(select jsonb_build_object('kind', placed_by_kind, 'name', placed_by_name) from app.office_overview_rows()
+        `(select jsonb_build_object('kind', placed_by_kind, 'same', placed_by_name = (select u.full_name from public.user_profile u where u.id = '${fx.repA.id}')) from app.office_overview_rows()
                      where section = 'placed' and order_id = ${orderOf(ocid)}) as x`,
         "manager",
       ),
@@ -874,6 +874,6 @@ describe("FLOW-09, FLOW-10: the month and home figures", () => {
     expect(d(r.aa[0], r.ab[0], "orders_count")).toBe(0);
     expect(d(r.ba[0], r.bb[0], "placed_count")).toBe(0);
     expect(d(r.ba[0], r.bb[0], "orders_count")).toBe(1);
-    expect(r.home[0].x).toEqual({ kind: "rep", name: fx.repA.full_name ?? expect.any(String) });
+    expect(r.home[0].x).toEqual({ kind: "rep", same: true });
   });
 });
