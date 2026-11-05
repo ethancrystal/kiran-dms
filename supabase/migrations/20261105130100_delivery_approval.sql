@@ -778,3 +778,278 @@ end $$;
 revoke all on function app.office_approve_delivery(uuid, uuid), app.office_pending_deliveries()
   from public, anon, authenticated, service_role;
 grant execute on function app.office_approve_delivery(uuid, uuid), app.office_pending_deliveries() to authenticated;
+
+-- =============================================================================
+-- Rejection and settling pending stock (plan Task 5; L-0385's three ways to settle)
+-- =============================================================================
+-- The owner or a manager rejects a submission with a reason of 5 to 500 characters. Nothing moves:
+-- the goods stay in the rep's pending location until app.office_resolve_pending settles them. Same
+-- guards and replay rule as approval.
+create function app.office_reject_delivery(p_submission_id uuid, p_client_id uuid, p_reason text)
+returns public.delivery_submission_decision
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role   public.app_role := app.assert_office();
+  s        public.delivery_submission;
+  x        public.delivery_submission_decision;
+  v_reason text := btrim(p_reason);
+begin
+  if p_client_id is null then
+    raise exception using errcode = '22023', message = 'a rejection needs a client_id (idempotency key, H-08)';
+  end if;
+  select * into x from public.delivery_submission_decision where client_id = p_client_id;
+  if x.id is not null then
+    if x.submission_id = p_submission_id and x.decided_by = auth.uid() and x.outcome = 'rejected' then
+      return x;                                                                  -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if v_reason is null or length(v_reason) not between 5 and 500 then
+    raise exception using errcode = '22023', message = 'a rejection needs a reason of 5 to 500 characters';
+  end if;
+  select * into s from public.delivery_submission where id = p_submission_id for update;
+  if s.id is null then raise exception using errcode = '22023', message = 'unknown delivery submission'; end if;
+  select * into x from public.delivery_submission_decision where client_id = p_client_id;
+  if x.id is not null then
+    if x.submission_id = p_submission_id and x.decided_by = auth.uid() and x.outcome = 'rejected' then
+      return x;                                                                  -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if s.rep_id = auth.uid() then perform app.raise_denied('the approver cannot be the rep who submitted (SEC-11)'); end if;
+  if exists (select 1 from public.delivery_submission_decision d where d.submission_id = s.id) then
+    raise exception using errcode = '55000', message = 'this delivery submission is already decided';
+  end if;
+  perform app.set_purpose('delivery submission rejected');
+  insert into public.delivery_submission_decision (client_id, submission_id, outcome, reason, decided_by)
+  values (p_client_id, s.id, 'rejected', v_reason, auth.uid())
+  returning * into x;
+  return x;
+end $$;
+
+-- Internal: migration 0008's app.office_post_adjustment body (an approved `adjustment` request, single
+-- use, the owner threshold re-checked at use), shared by the office RPC and pending-stock settlement.
+create function app.post_adjustment(p_client_id uuid, p_approval_id uuid)
+returns public.stock_movement
+language plpgsql security definer set search_path = '' as $$
+declare
+  v       public.stock_movement;
+  a       control.approval_request;
+  v_sku   public.sku;
+  v_delta bigint;
+  v_cfg   jsonb;
+  v_owner boolean;
+begin
+  perform app.assert_office();
+  select * into v from public.stock_movement where client_id = p_client_id;
+  if v.id is not null then
+    if v.approval_id = p_approval_id then return v; end if;                 -- replay
+    raise exception using errcode = '23505', message = 'client_id already used';
+  end if;
+  select * into a from control.approval_request where id = p_approval_id for update;
+  if a.id is null or a.kind <> 'adjustment' or a.subject_type <> 'stock_location' then
+    perform app.raise_denied('an approved stock adjustment request is required');
+  end if;
+  if a.status <> 'approved' then perform app.raise_denied('the adjustment request is not approved'); end if;
+  if exists (select 1 from public.stock_movement m where m.approval_id = a.id) then
+    perform app.raise_denied('this approval has already been used');
+  end if;
+  if coalesce(jsonb_typeof(a.payload -> 'qty_delta'), '') <> 'number' or coalesce(a.payload ->> 'sku_id', '') !~ '^[0-9a-fA-F-]{36}$' then
+    raise exception using errcode = '22023', message = 'adjustment payload needs sku_id and qty_delta';
+  end if;
+  v_delta := (a.payload ->> 'qty_delta')::bigint;
+  select * into v_sku from public.sku where id = (a.payload ->> 'sku_id')::uuid;
+  if v_sku.id is null or coalesce(v_delta, 0) = 0 or abs(v_delta) > 100000 then
+    raise exception using errcode = '22023', message = 'invalid adjustment payload';
+  end if;
+  if not exists (select 1 from public.stock_location where id = a.subject_id) then
+    raise exception using errcode = '22023', message = 'unknown location';
+  end if;
+  -- doc 13 §9: owner above the threshold (units or value at list price). A missing or
+  -- malformed threshold routes to the owner.
+  select c.value into v_cfg from public.app_config c where c.key = 'approval.stock_adjustment.owner_above';
+  v_owner := true;
+  if jsonb_typeof(v_cfg -> 'units') = 'number' and jsonb_typeof(v_cfg -> 'paisa') = 'number'
+     and v_sku.list_price_paisa is not null then
+    v_owner := abs(v_delta) > (v_cfg ->> 'units')::numeric
+            or abs(v_delta) * v_sku.list_price_paisa > (v_cfg ->> 'paisa')::numeric;
+  end if;
+  if v_owner and not exists (select 1 from public.user_profile u where u.id = a.checker_id and u.role = 'owner') then
+    perform app.raise_denied('this adjustment needs the owner''s approval');
+  end if;
+  perform app.set_purpose('stock adjustment posted: ' || a.reason);
+  insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind,
+                                     source_type, source_id, approval_id, reason, actor_id)
+  values (p_client_id, v_sku.id, abs(v_delta)::integer,
+          case when v_delta < 0 then a.subject_id end,
+          case when v_delta > 0 then a.subject_id end,
+          'adjustment', 'approval_request', a.id, a.id, left(a.reason, 300), auth.uid())
+  returning * into v;
+  return v;
+end $$;
+
+-- The office RPC keeps its signature and grant. Pending stock is settled only through its submission
+-- (app.office_resolve_pending), so an approved adjustment cannot drain a pending location directly
+-- (Review Focus 5).
+create or replace function app.office_post_adjustment(p_client_id uuid, p_approval_id uuid)
+returns public.stock_movement
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform app.assert_office();
+  if exists (select 1 from control.approval_request a join public.stock_location l on l.id = a.subject_id
+             where a.id = p_approval_id and a.subject_type = 'stock_location' and l.kind = 'pending_delivery') then
+    raise exception using errcode = '22023', message = 'pending stock is settled through its delivery submission';
+  end if;
+  return app.post_adjustment(p_client_id, p_approval_id);
+end $$;
+
+-- Internal: what of a submission's SKU is still in pending custody: submitted minus delivered (0 when
+-- rejected) minus earlier settlements. Zero for an undecided submission (nothing to settle yet).
+create function app.pending_unsettled(p_submission_id uuid, p_sku_id uuid) returns integer
+language sql stable security definer set search_path = '' as $$
+  select case when not exists (select 1 from public.delivery_submission_decision x where x.submission_id = p_submission_id) then 0
+         else (select coalesce(sum((e ->> 'qty')::integer), 0) from public.delivery_submission s, jsonb_array_elements(s.lines) e
+               where s.id = p_submission_id and (e ->> 'sku_id')::uuid = p_sku_id)
+            - (select coalesce(sum(dl.qty), 0) from public.delivery_submission_decision x join public.delivery_line dl on dl.delivery_id = x.delivery_id
+               where x.submission_id = p_submission_id and dl.sku_id = p_sku_id)
+            - (select coalesce(sum(r.qty), 0) from public.pending_stock_resolution r
+               where r.submission_id = p_submission_id and r.sku_id = p_sku_id)
+         end::integer
+$$;
+
+-- The office settles goods a rejected submission left in pending custody, with a count note:
+--   returned_to_bag        pending to the rep's bag (Decision 4: no rep confirmation; the rep's next
+--                          daily close is the cross-check);
+--   returned_to_warehouse  pending to an active warehouse;
+--   missing                an approved `adjustment` request for exactly this submission, SKU and
+--                          quantity (Decision 3), posted through app.post_adjustment (status, single
+--                          use and the owner threshold are enforced there).
+-- Never more than is unsettled (here, and again by control.pending_resolution_guard). Idempotent on
+-- client_id.
+create function app.office_resolve_pending(
+  p_client_id uuid, p_submission_id uuid, p_sku_id uuid, p_qty integer, p_outcome text, p_note text,
+  p_warehouse_id uuid default null, p_approval_id uuid default null)
+returns public.pending_stock_resolution
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role  public.app_role := app.assert_office();
+  s       public.delivery_submission;
+  r       public.pending_stock_resolution;
+  a       control.approval_request;
+  m       public.stock_movement;
+  v_id    uuid := gen_random_uuid();
+  v_pend  uuid;
+  v_bag   uuid;
+  v_note  text := btrim(p_note);
+begin
+  if p_client_id is null then
+    raise exception using errcode = '22023', message = 'a settlement needs a client_id (idempotency key, H-08)';
+  end if;
+  select * into r from public.pending_stock_resolution where client_id = p_client_id;
+  if r.id is not null then
+    if r.resolved_by = auth.uid() and r.submission_id = p_submission_id and r.sku_id = p_sku_id and r.qty = p_qty
+       and r.outcome = p_outcome then
+      return r;                                                                  -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  select * into s from public.delivery_submission where id = p_submission_id for update;
+  if s.id is null then raise exception using errcode = '22023', message = 'unknown delivery submission'; end if;
+  select * into r from public.pending_stock_resolution where client_id = p_client_id;
+  if r.id is not null then
+    if r.resolved_by = auth.uid() and r.submission_id = p_submission_id and r.sku_id = p_sku_id and r.qty = p_qty
+       and r.outcome = p_outcome then
+      return r;                                                                  -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if s.rep_id = auth.uid() then perform app.raise_denied('the office user cannot settle their own submission (SEC-11)'); end if;
+  if not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id) then
+    raise exception using errcode = '55000', message = 'decide the submission before settling its goods';
+  end if;
+  if p_outcome is null or p_outcome not in ('returned_to_bag', 'returned_to_warehouse', 'missing') then
+    raise exception using errcode = '22023', message = 'a settlement is returned_to_bag, returned_to_warehouse or missing';
+  end if;
+  if v_note is null or length(v_note) not between 3 and 300 then
+    raise exception using errcode = '22023', message = 'a settlement needs a count note of 3 to 300 characters';
+  end if;
+  if p_qty is null or p_qty < 1 or p_qty > app.pending_unsettled(s.id, p_sku_id) then
+    raise exception using errcode = '22023', message = 'at most the unsettled quantity can be settled';
+  end if;
+  v_pend := app.pending_location_of(s.rep_id);
+  perform app.set_purpose('pending stock settled: ' || p_outcome);
+  if p_outcome = 'returned_to_bag' then
+    select l.id into v_bag from public.stock_location l where l.kind = 'rep_bag' and l.owner_user_id = s.rep_id;
+    if v_bag is null then raise exception using errcode = '22023', message = 'the rep has no bag to return the goods to'; end if;
+    insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, source_type, source_id, reason, actor_id)
+    values (gen_random_uuid(), p_sku_id, p_qty, v_pend, v_bag, 'pending_returned', 'pending_stock_resolution', v_id, left(v_note, 300), auth.uid())
+    returning * into m;
+  elsif p_outcome = 'returned_to_warehouse' then
+    if not exists (select 1 from public.stock_location l where l.id = p_warehouse_id and l.kind = 'warehouse' and l.active) then
+      raise exception using errcode = '22023', message = 'the goods return to an active warehouse';
+    end if;
+    insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, source_type, source_id, reason, actor_id)
+    values (gen_random_uuid(), p_sku_id, p_qty, v_pend, p_warehouse_id, 'return_to_warehouse', 'pending_stock_resolution', v_id, left(v_note, 300), auth.uid())
+    returning * into m;
+  else
+    select * into a from control.approval_request where id = p_approval_id for update;
+    if a.id is null or a.kind <> 'adjustment' or a.subject_type <> 'stock_location' or a.subject_id is distinct from v_pend
+       or a.payload ->> 'sku_id' is distinct from p_sku_id::text
+       or coalesce(jsonb_typeof(a.payload -> 'qty_delta'), '') <> 'number' or (a.payload ->> 'qty_delta')::numeric <> -p_qty
+       or a.payload ->> 'submission_id' is distinct from s.id::text then
+      perform app.raise_denied('an approved adjustment for this quantity is required');
+    end if;
+    m := app.post_adjustment(gen_random_uuid(), p_approval_id);
+  end if;
+  insert into public.pending_stock_resolution (id, client_id, submission_id, sku_id, qty, outcome, note, movement_id, approval_id, resolved_by)
+  values (v_id, p_client_id, s.id, p_sku_id, p_qty, p_outcome, v_note, m.id,
+          case when p_outcome = 'missing' then p_approval_id end, auth.uid())
+  returning * into r;
+  return r;
+end $$;
+
+-- What is waiting to be settled: per rejected submission and SKU, the unsettled quantity (oldest
+-- decision first, up to 500), with the newest adjustment request for it that is pending or approved
+-- and not yet used, so the office page can offer the next step of a "missing" settlement.
+create function app.office_pending_stock()
+returns table (submission_id uuid, rep_id uuid, rep_name text, salon_name text, sku_id uuid, sku_code text, unsettled integer,
+               pending_location_id uuid, reason text, decided_at timestamptz, request_id uuid,
+               request_status public.approval_status, request_maker_id uuid, request_checker_role public.app_role)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.assert_office();
+  return query
+  select q.submission_id, q.rep_id, q.rep_name, q.salon_name, q.sku_id, q.sku_code, q.unsettled, q.pending_location_id,
+         q.reason, q.decided_at, req.id, req.status, req.maker_id, req.checker_role_required
+  from (
+    select s.id submission_id, s.rep_id, u.full_name rep_name, sa.name salon_name, k.id sku_id, k.code sku_code,
+           app.pending_unsettled(s.id, k.id) unsettled, app.pending_location_of(s.rep_id) pending_location_id,
+           x.reason, x.decided_at
+    from public.delivery_submission s
+    join public.delivery_submission_decision x on x.submission_id = s.id and x.outcome = 'rejected'
+    join public.user_profile u on u.id = s.rep_id
+    join public.salon sa on sa.id = s.salon_id
+    cross join lateral jsonb_array_elements(s.lines) e
+    join public.sku k on k.id = (e ->> 'sku_id')::uuid) q
+  left join lateral (
+    select a.id, a.status, a.maker_id, a.checker_role_required
+    from control.approval_request a
+    where a.kind = 'adjustment' and a.subject_type = 'stock_location' and a.subject_id = q.pending_location_id
+      and a.payload ->> 'submission_id' = q.submission_id::text and a.payload ->> 'sku_id' = q.sku_id::text
+      and a.status in ('pending', 'approved')
+      and not exists (select 1 from public.stock_movement m where m.approval_id = a.id)
+    order by a.created_at desc, a.id
+    limit 1) req on true
+  where q.unsettled > 0
+  order by q.decided_at, q.submission_id, q.sku_code
+  limit 500;
+end $$;
+
+revoke all on function
+  app.office_reject_delivery(uuid, uuid, text), app.post_adjustment(uuid, uuid), app.pending_unsettled(uuid, uuid),
+  app.office_resolve_pending(uuid, uuid, uuid, integer, text, text, uuid, uuid), app.office_pending_stock()
+  from public, anon, authenticated, service_role;
+grant execute on function
+  app.office_reject_delivery(uuid, uuid, text), app.office_resolve_pending(uuid, uuid, uuid, integer, text, text, uuid, uuid),
+  app.office_pending_stock()
+  to authenticated;

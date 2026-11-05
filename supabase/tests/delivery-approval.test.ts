@@ -1022,3 +1022,380 @@ describe("the office approves a submission: the official record is written once 
   });
 });
 
+// ------------------------------------------------- Task 5: rejection and settlement ----
+const REASON = "wrong shade delivered";
+const ABOVE_OWNER_THRESHOLD = 9; // 9 x Rs 1,200 is above Rs 10,000 (doc 13 section 9 default)
+const SUBMISSIONS_AFTER_RESUBMIT = 2; // the rejected one and the new one
+const UNSETTLED_LIMIT = "at most the unsettled quantity";
+// The goods of a rejected submission of HANDED units of SKU1.
+const rejectedGoods = (o: string, s: string, qty = HANDED): Step[] => [
+  order(o, [[SKU1, qty]]),
+  submit(s, o),
+  reject(s, id(), REASON),
+];
+/** An adjustment request for missing goods: made by `maker`, decided by `checker` unless left pending. */
+const missingRequest = (
+  a: string,
+  s: string,
+  qty: number,
+  args: { maker?: Persona; checker?: Persona | null; sku?: string; submission?: string } = {},
+): Step[] => {
+  const steps: Step[] = [
+    [
+      args.maker ?? "owner",
+      `select app.request_approval('${a}', 'adjustment', 'stock_location', ${PENDING_A},
+         jsonb_build_object('sku_id', '${args.sku ?? SKU1}', 'qty_delta', -${qty}, 'submission_id', ${args.submission ?? sid(s)}), 'goods missing after rejection');`,
+    ],
+  ];
+  const checker = args.checker === undefined ? "manager" : args.checker;
+  return checker
+    ? [
+        ...steps,
+        [checker, `select app.decide_approval((select id from control.approval_request where client_id = '${a}'), true, 'checked the count');`],
+      ]
+    : steps;
+};
+const approvalId = (a: string) => `(select id from control.approval_request where client_id = '${a}')::text`;
+
+describe("rejection keeps history; the office settles pending goods three ways (D-32, L-0385)", () => {
+  it("rejection keeps history and leaves the goods in pending", async () => {
+    const o = id(),
+      s = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      baseline,
+      submit(s, o),
+      reject(s, id(), REASON),
+      [
+        "postgres",
+        `select x.outcome, x.reason, x.decided_by = '${fx.manager.id}' by_manager, ${deltas}, o.status::text status,
+                (select count(*)::int from public.delivery d where d.order_id = o.id) deliveries,
+                (select count(*)::int from public.invoice i where i.order_id = o.id) invoices,
+                (select count(*)::int from public.delivery_submission where client_id = '${s}') kept
+         from public.delivery_submission_decision x join public.delivery_submission s on s.id = x.submission_id
+         join public.sales_order o on o.id = s.order_id where s.client_id = '${s}';`,
+      ],
+    ]);
+    expect(r).toEqual({
+      outcome: "rejected",
+      reason: REASON,
+      by_manager: true,
+      bag1: -HANDED,
+      pend1: HANDED,
+      bag2: 0,
+      pend2: 0,
+      status: "confirmed",
+      deliveries: 0,
+      invoices: 0,
+      kept: 1,
+    });
+    const mine = await tx([
+      ...rejectedGoods(o, s),
+      ["repA", `select status, reason, unsettled, invoice_id from app.my_submissions() where submission_id = ${sid(s)};`],
+    ]);
+    expect(mine).toEqual([{ status: "rejected", reason: REASON, unsettled: HANDED, invoice_id: null }]);
+  });
+
+  it("rejection refusals", async () => {
+    const o = id(),
+      s = id(),
+      d = id();
+    const waiting = [order(o, [[SKU1, HANDED]]), submit(s, o)];
+    const cases: Array<[Step[], string]> = [
+      [[...waiting, reject(s, id(), "shad")], BAD_INPUT],
+      [[...waiting, reject(s, d), reject(s, id())], WRONG_STATE],
+      [[...waiting, reject(s, d), approve(s, id())], WRONG_STATE],
+      [[...waiting, approve(s, id()), reject(s, id())], WRONG_STATE],
+      [[...waiting, reject(s, id(), REASON, "repA")], DENIED],
+      [[...waiting, reject(s, id(), REASON, "managerAal1")], DENIED],
+      [[...waiting, ["manager", `select app.office_reject_delivery(${sid(s)}, null, '${REASON}');`]], BAD_INPUT],
+      [
+        [
+          ...waiting,
+          ["owner", `select app.owner_set_role('${fx.repA.id}', 'manager', 'test: promoted with a submission queued');`],
+          [
+            "postgres",
+            `select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal2" })}', true);
+             set local role authenticated;
+             select app.office_reject_delivery(${sid(s)}, '${id()}', '${REASON}');`,
+          ],
+        ],
+        DENIED,
+      ],
+    ];
+    const codes = await inSeries(cases, ([steps]) => txCode(steps));
+    expect(codes).toEqual(cases.map(([, code]) => code));
+    const [r] = await tx([
+      ...waiting,
+      reject(s, d),
+      ["manager", `select (app.office_reject_delivery(${sid(s)}, '${d}', '${REASON}')).id = (select id from public.delivery_submission_decision where client_id = '${d}') same;`],
+    ]);
+    expect(r).toEqual({ same: true });
+  });
+
+  it("goods return to the bag", async () => {
+    const o = id(),
+      s = id(),
+      rc = id();
+    const [r] = await tx([
+      ...rejectedGoods(o, s),
+      baseline,
+      resolve(rc, s, SKU1, HANDED, "returned_to_bag"),
+      [
+        "postgres",
+        `select ${deltas}, m.kind::text kind, m.from_location_id = ${PENDING_A} from_pending, m.to_location_id = ${BAG_A} to_bag,
+                m.source_type, m.source_id = r.id names_settlement, r.outcome, r.note, r.approval_id
+         from public.pending_stock_resolution r join public.stock_movement m on m.id = r.movement_id where r.client_id = '${rc}';`,
+      ],
+    ]);
+    expect(r).toEqual({
+      bag1: HANDED,
+      pend1: -HANDED,
+      bag2: 0,
+      pend2: 0,
+      kind: "pending_returned",
+      from_pending: true,
+      to_bag: true,
+      source_type: "pending_stock_resolution",
+      names_settlement: true,
+      outcome: "returned_to_bag",
+      note: "counted at the office",
+      approval_id: null,
+    });
+  });
+
+  it("goods return to the warehouse", async () => {
+    const o = id(),
+      s = id();
+    const [r] = await tx([
+      ...rejectedGoods(o, s),
+      baseline,
+      ["postgres", `create temp table w on commit drop as select app.on_hand('${WH}', '${SKU1}')::int wh;`],
+      resolve(id(), s, SKU1, HANDED, "returned_to_warehouse", { warehouse: WH }),
+      ["postgres", `select ${deltas}, app.on_hand('${WH}', '${SKU1}')::int - (select wh from w) wh;`],
+    ]);
+    expect(r).toEqual({ bag1: 0, pend1: -HANDED, bag2: 0, pend2: 0, wh: HANDED });
+    const wrong = await inSeries([id(), "BAG"], (w) =>
+      txFail([
+        ...rejectedGoods(o, s),
+        w === "BAG"
+          ? [
+              "manager",
+              `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', 1, 'returned_to_warehouse', 'counted', ${BAG_A}, null);`,
+            ]
+          : resolve(id(), s, SKU1, 1, "returned_to_warehouse", { warehouse: w }),
+      ]),
+    );
+    expect(wrong.map((f) => [f?.code, f?.message.includes("active warehouse")])).toEqual([
+      [BAD_INPUT, true],
+      [BAD_INPUT, true],
+    ]);
+  });
+
+  it("goods reported missing need an approved adjustment", async () => {
+    const o = id(),
+      s = id(),
+      a = id();
+    const noApproval = await txFail([...rejectedGoods(o, s), resolve(id(), s, SKU1, HANDED, "missing")]);
+    expect(noApproval?.code).toBe(DENIED);
+    const pending = await txFail([
+      ...rejectedGoods(o, s),
+      ...missingRequest(a, s, HANDED, { checker: null }),
+      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${HANDED}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`],
+    ]);
+    expect([pending?.code, pending?.message.includes("not approved")]).toEqual([DENIED, true]);
+    const [r] = await tx([
+      ...rejectedGoods(o, s),
+      baseline,
+      ...missingRequest(a, s, HANDED),
+      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${HANDED}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`],
+      [
+        "postgres",
+        `select ${deltas}, m.kind::text kind, m.from_location_id = ${PENDING_A} from_pending, m.to_location_id to_loc,
+                m.approval_id::text = ${approvalId(a)} approval, r.approval_id::text = ${approvalId(a)} settled_with
+         from public.pending_stock_resolution r join public.stock_movement m on m.id = r.movement_id where r.submission_id = ${sid(s)};`,
+      ],
+    ]);
+    expect(r).toEqual({ bag1: 0, pend1: -HANDED, bag2: 0, pend2: 0, kind: "adjustment", from_pending: true, to_loc: null, approval: true, settled_with: true });
+    // Above the owner threshold a manager's check is not enough (Decision 3: the manager raises it, the owner checks).
+    const big = id(),
+      bs = id(),
+      ba = id();
+    const above = await txFail([
+      ...rejectedGoods(big, bs, ABOVE_OWNER_THRESHOLD),
+      ...missingRequest(ba, bs, ABOVE_OWNER_THRESHOLD),
+      [
+        "manager",
+        `select app.office_resolve_pending('${id()}', ${sid(bs)}, '${SKU1}', ${ABOVE_OWNER_THRESHOLD}, 'missing', 'counted', null, ${approvalId(ba)}::uuid);`,
+      ],
+    ]);
+    expect([above?.code, above?.message.includes("owner's approval")]).toEqual([DENIED, true]);
+    const [ok] = await tx([
+      ...rejectedGoods(big, bs, ABOVE_OWNER_THRESHOLD),
+      ...missingRequest(ba, bs, ABOVE_OWNER_THRESHOLD, { maker: "manager", checker: "owner" }),
+      [
+        "manager",
+        `select (app.office_resolve_pending('${id()}', ${sid(bs)}, '${SKU1}', ${ABOVE_OWNER_THRESHOLD}, 'missing', 'counted', null, ${approvalId(ba)}::uuid)).outcome;`,
+      ],
+    ]);
+    expect(ok).toEqual({ outcome: "missing" });
+  });
+
+  it("an approval is used once, and only for its own quantity (Review Focus 5)", async () => {
+    const o = id(),
+      s = id(),
+      a = id();
+    const settleMissing = (qty: number) =>
+      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', ${qty}, 'missing', 'counted', null, ${approvalId(a)}::uuid);`] as Step;
+    const reused = await txFail([...rejectedGoods(o, s, ORDER_OF_THREE), ...missingRequest(a, s, 1), settleMissing(1), settleMissing(1)]);
+    expect(reused?.code).toBe(DENIED);
+    const p = id(),
+      ps = id();
+    const mismatches: Step[][] = [
+      missingRequest(a, s, 1, { sku: SKU2 }),
+      missingRequest(a, s, HANDED),
+      [order(p, [[SKU1, 1]]), submit(ps, p), reject(ps, id(), REASON), ...missingRequest(a, s, 1, { submission: sid(ps) })],
+    ];
+    const codes = await inSeries(mismatches, (steps) => txCode([...rejectedGoods(o, s, ORDER_OF_THREE), ...steps, settleMissing(1)]));
+    expect(codes).toEqual(mismatches.map(() => DENIED));
+  });
+
+  it("pending stock cannot be adjusted outside a settlement (Review Focus 5)", async () => {
+    const o = id(),
+      s = id(),
+      a = id(),
+      w = id();
+    const direct = await txFail([
+      ...rejectedGoods(o, s),
+      ...missingRequest(a, s, 1),
+      ["manager", `select app.office_post_adjustment('${id()}', ${approvalId(a)}::uuid);`],
+    ]);
+    expect([direct?.code, direct?.message.includes("settled through its delivery submission")]).toEqual([BAD_INPUT, true]);
+    const [r] = await tx([
+      [
+        "owner",
+        `select app.request_approval('${w}', 'adjustment', 'stock_location', '${WH}', jsonb_build_object('sku_id', '${SKU1}', 'qty_delta', 1), 'found one more');`,
+      ],
+      ["manager", `select app.decide_approval((select id from control.approval_request where client_id = '${w}'), true, 'checked the count');`],
+      ["manager", `select (app.office_post_adjustment('${id()}', ${approvalId(w)}::uuid)).kind::text kind;`],
+    ]);
+    expect(r).toEqual({ kind: "adjustment" });
+  });
+
+  it("settlement cannot exceed what was rejected", async () => {
+    const o = id(),
+      s = id(),
+      rc = id();
+    const split = await tx([
+      ...rejectedGoods(o, s),
+      resolve(rc, s, SKU1, 1, "returned_to_bag"),
+      resolve(id(), s, SKU1, 1, "returned_to_bag"),
+      ["postgres", `select count(*)::int n from public.pending_stock_resolution where submission_id = ${sid(s)};`],
+    ]);
+    expect(split).toEqual([{ n: HANDED }]);
+    const third = await failOf([
+      ...rejectedGoods(o, s),
+      resolve(id(), s, SKU1, 1, "returned_to_bag"),
+      resolve(id(), s, SKU1, 1, "returned_to_bag"),
+      resolve(id(), s, SKU1, 1, "returned_to_bag"),
+    ]);
+    expect([third[0], third[1]?.includes(UNSETTLED_LIMIT)]).toEqual([BAD_INPUT, true]);
+    const over = await txFail([
+      ...rejectedGoods(o, s),
+      [
+        "postgres",
+        `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, actor_id)
+         values ('${rc}', '${SKU1}', 1, ${PENDING_A}, ${BAG_A}, 'pending_returned', '${fx.manager.id}');
+         insert into public.pending_stock_resolution (client_id, submission_id, sku_id, qty, outcome, note, movement_id, resolved_by)
+         values (gen_random_uuid(), ${sid(s)}, '${SKU1}', ${ORDER_OF_THREE}, 'returned_to_bag', 'counted', ${movementOf(rc)}, '${fx.manager.id}');`,
+      ],
+    ]);
+    expect([over?.code, over?.message.includes(UNSETTLED)]).toEqual([CHECK, true]);
+    const waiting = await txCode([order(o, [[SKU1, HANDED]]), submit(s, o), resolve(id(), s, SKU1, 1, "returned_to_bag")]);
+    expect(waiting).toBe(WRONG_STATE);
+    const approved = await txCode([order(o, [[SKU1, HANDED]]), submit(s, o), approve(s, id()), resolve(id(), s, SKU1, 1, "returned_to_bag")]);
+    expect(approved).toBe(BAD_INPUT);
+    const [replay] = await tx([
+      ...rejectedGoods(o, s),
+      resolve(rc, s, SKU1, 1, "returned_to_bag"),
+      resolve(rc, s, SKU1, 1, "returned_to_bag"),
+      [
+        "postgres",
+        `select (select count(*)::int from public.pending_stock_resolution where submission_id = ${sid(s)}) settlements,
+                (select count(*)::int from public.stock_movement where kind = 'pending_returned' and source_type = 'pending_stock_resolution'
+                   and source_id in (select id from public.pending_stock_resolution where submission_id = ${sid(s)})) moves;`,
+      ],
+    ]);
+    expect(replay).toEqual({ settlements: 1, moves: 1 });
+    expect(await txCode([...rejectedGoods(o, s), resolve(rc, s, SKU1, 1, "returned_to_bag"), resolve(rc, s, SKU1, HANDED, "returned_to_bag")])).toBe(
+      DUPLICATE,
+    );
+  });
+
+  it("who may settle", async () => {
+    const o = id(),
+      s = id();
+    const callers = ["repA", "managerAal1", "suspended"] as const;
+    const codes = await inSeries(callers, (who) => txCode([...rejectedGoods(o, s), resolve(id(), s, SKU1, 1, "returned_to_bag", { who })]));
+    expect(codes).toEqual(callers.map(() => DENIED));
+  });
+
+  it("the rep resubmits after the goods are back in the bag (Review Focus 4)", async () => {
+    const o = id(),
+      s = id();
+    // Rep A's bag holds only what the prelude loaded (and whatever earlier files committed); an order for
+    // all of it is rejected, so the bag holds none of SKU1 until the office returns it.
+    const full: Step[] = [
+      ["postgres", `create temp table q on commit drop as select ${onHand(BAG_A, SKU1)} n; grant select on q to authenticated;`],
+      [
+        "manager",
+        `select app.office_create_order('${o}', '${SALON}', 'CASH', jsonb_build_array(jsonb_build_object('sku_id', '${SKU1}', 'qty', (select n from q))), '${fx.repA.id}');`,
+      ],
+      submit(s, o),
+      reject(s, id(), REASON),
+    ];
+    const early = await failOf([...full, submit(id(), o)]);
+    expect([early[0], early[1]?.includes("insufficient stock at the delivery location")]).toEqual([CHECK, true]);
+    const [r] = await tx([
+      ...full,
+      ["manager", `select app.office_resolve_pending('${id()}', ${sid(s)}, '${SKU1}', (select n from q), 'returned_to_bag', 'counted at the office');`],
+      submit(id(), o),
+      [
+        "postgres",
+        `select count(*)::int subs, (select sum(reserved)::int from app.order_lines_open(${oid(o)})) reserved,
+                (select n from q) = (select sum(reserved)::int from app.order_lines_open(${oid(o)})) all_reserved
+         from public.delivery_submission where order_id = ${oid(o)};`,
+      ],
+    ]);
+    expect([r.subs, r.all_reserved]).toEqual([SUBMISSIONS_AFTER_RESUBMIT, true]);
+  });
+
+  it("the settle list shows what is unsettled", async () => {
+    const o = id(),
+      s = id(),
+      a = id();
+    const list = (): Step => [
+      "manager",
+      `select unsettled, sku_id::text = '${SKU1}' sku, rep_name, reason, request_status::text request_status,
+              request_maker_id = '${fx.manager.id}' made_by_manager
+       from app.office_pending_stock() where submission_id = ${sid(s)};`,
+    ];
+    const before = await tx([...rejectedGoods(o, s), list()]);
+    expect(before).toEqual([
+      { unsettled: HANDED, sku: true, rep_name: "[Test] Rep A", reason: REASON, request_status: null, made_by_manager: null },
+    ]);
+    const after = await tx([
+      ...rejectedGoods(o, s),
+      resolve(id(), s, SKU1, 1, "returned_to_bag"),
+      ...missingRequest(a, s, 1, { maker: "manager", checker: null }),
+      list(),
+    ]);
+    expect(after).toEqual([
+      { unsettled: 1, sku: true, rep_name: "[Test] Rep A", reason: REASON, request_status: "pending", made_by_manager: true },
+    ]);
+    const gone = await tx([...rejectedGoods(o, s), resolve(id(), s, SKU1, HANDED, "returned_to_bag"), list()]);
+    expect(gone).toEqual([]);
+    expect(await txCode([["repA", "select * from app.office_pending_stock();"]])).toBe(DENIED);
+  });
+});
+

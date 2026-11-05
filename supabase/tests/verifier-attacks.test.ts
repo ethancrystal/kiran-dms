@@ -248,8 +248,8 @@ describe("internal functions are not callable by app roles", () => {
       "is_rep", "log_visit", "low_stock", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_day", "my_handovers", "my_orders", "my_route",
       "my_salon", "my_salons", "my_session", "my_submissions", "my_territory_ids", "my_territory_orders", "office_approve_delivery", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue",
       "office_cash_position", "office_count_handover", "office_create_location", "office_create_order", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
-      "office_force_close_rep_day", "office_handovers", "office_invitations", "office_invite", "office_open_cards", "office_orders", "office_override_stage", "office_pending_deliveries", "office_pending_salons", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
-      "office_record_cash", "office_record_payment", "office_release_credit_hold", "office_rep_cash_position", "office_revoke_invitation", "office_set_blocked", "office_set_last_purchase", "office_set_member_status",
+      "office_force_close_rep_day", "office_handovers", "office_invitations", "office_invite", "office_open_cards", "office_orders", "office_override_stage", "office_pending_deliveries", "office_pending_salons", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
+      "office_record_cash", "office_record_payment", "office_reject_delivery", "office_release_credit_hold", "office_rep_cash_position", "office_resolve_pending", "office_revoke_invitation", "office_set_blocked", "office_set_last_purchase", "office_set_member_status",
       "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_upsert_area",
       "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
       "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit",
@@ -279,6 +279,7 @@ describe("internal functions are not callable by app roles", () => {
       // my_territory_orders, office_orders: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // my_submissions, rep_submit_delivery: migration 20261105130100 (slice 4, P1-21, D-32 PR B); MJ standing approval L-0144.
       // office_approve_delivery, office_pending_deliveries: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
+      // office_pending_stock, office_reject_delivery, office_resolve_pending: migration 20261105130100 (D-32 PR B); MJ standing approval L-0144.
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
