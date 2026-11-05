@@ -108,6 +108,8 @@ These are dependency-managed packages, not one linear chain. Verify and extend w
 
 Salon portal screens are online first and not offline.
 
+Status note, 2026-11-05, slice 11 (P1-29, branch claude/p1-29-routes-stock, not merged): S-C is built (`/office/routes`, `/app/route`). S-A: slice 8 built on hand, opening stock and issues; slice 11 adds availability, low stock, reorder points, office counts and variance (`/office/stock/levels`), the bag return and the lost-demand tap. Still to do in S-A: a correcting adjustment from a count variance. The catalogue rows below keep their earlier status text; the board (ACTIVITY §12) is the status.
+
 ## 8. Screen catalogue
 
 Status key, checked against the trees named above: BUILT (page exists on main), IN FLIGHT (page exists on an unmerged branch), PARTIAL (works but some of the area has no UI), NO PAGE (database function exists, no page calls it), NOT STARTED (no backend either). Commission and portal rows are IN FLIGHT; they are not approved features by being listed.
@@ -205,4 +207,4 @@ Not done here, and why: the new work packages are not yet added to `2026-11-05-p
 
 1. Commission basis and payout policy (stated as separate): until decided the frontend shows database figures only.
 2. Rep-less order delivery (`office_deliver`, A-18, still an assumption): a page waits on confirmation.
-3. Whether the separate Route page for reps is needed, given route handling inside `rep-day.tsx` (decide in S-C).
+3. Whether the separate Route page for reps is needed, given route handling inside `rep-day.tsx` (decide in S-C). Answered by the brief for slice 11: `/app/route` is built, and the handling on `/app/day` stays.
