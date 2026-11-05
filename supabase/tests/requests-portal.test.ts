@@ -688,10 +688,13 @@ describe("the office queue and one-click convert (ORD-12, ORD-13, R1, R5, R6)", 
     });
   });
 
-  it("the owner converting a salon request priced below list is held too (the owner's no-approval rule is for office orders)", async () => {
+  // D-45 (MJ, 2026-11-05, decision file 2026-11-05-mj-audit-decisions; answers B-42) changes this rule: the
+  // owner's own discount takes effect whatever the order's source, so the owner's conversion of a salon
+  // request below list is no longer held. Before D-45 this test expected draft with hold_discount pending.
+  it("the owner converting a salon request priced below list is confirmed at once, recorded as the owner's discount (D-45)", async () => {
     const [cid, oid] = [uuid(), uuid()];
     const [o] = await stx([submit(A(), cid), convert("owner", oid, cid)]);
-    expect(o).toMatchObject({ status: "draft", channel: "salon_portal", hold_discount: "pending" });
+    expect(o).toMatchObject({ status: "confirmed", channel: "salon_portal", hold_discount: null });
   });
 
   it("convert uses the current version; an expected version that is stale is refused 55000", async () => {

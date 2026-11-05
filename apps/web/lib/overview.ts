@@ -48,7 +48,14 @@ export type OverviewCounts = {
   pending_salons: number;
   pending_requests: number;
   delivered_this_week: number;
+  /** P1-30: reps whose cash in hand is at or over the cap (D-47), and handovers waiting (D-46). */
+  reps_at_cash_cap: number;
+  handovers_unanswered: number;
+  handovers_disputed: number;
 };
+
+/** One row of app.office_cash_cap_reps (D-47). */
+export type CashCapRep = { rep_id: string; full_name: string; cash_paisa: number; cap_paisa: number };
 
 export type OverviewSection = "placed" | "waiting" | "held" | "delivered";
 
@@ -73,6 +80,8 @@ export type OverviewRow = {
   invoice_total_paisa: number | null;
   delivered_at: string | null;
   delivered_by_name: string | null;
+  /** P1-30 (FLOW-09): what of the order is still to deliver, at its own prices; null on invoice rows. */
+  undelivered_paisa: number | null;
 };
 
 /** Who placed an order, in a few plain words. */
@@ -88,7 +97,7 @@ export const HOLD_TEXT: Record<string, string> = {
   plan_not_allowed: "This payment plan is not allowed for the salon. Release it or cancel the order.",
   over_limit: "The salon has reached its credit limit. Release it or cancel the order.",
   discount_waiting: "A discount is waiting for approval.",
-  discount_refused: "The discount was refused. Cancel the order and make a new one.",
+  discount_refused: "The discount was not approved (refused or withdrawn). Cancel the order and make a new one.",
   not_checked: "Not checked yet. Open the order to check it again.",
 };
 
@@ -100,6 +109,26 @@ export const STATUS_TEXT: Record<string, string> = {
   delivered: "Delivered",
   closed: "Delivered",
   cancelled: "Cancelled",
+};
+
+/** A payment plan in plain words. */
+export const PLAN_TEXT: Record<string, string> = { CASH: "Cash", INST2: "2 installments", INST4: "4 installments" };
+
+/** Why an order is on hold, for the rep (P1-30, FLOW-18, REP-17): the order's own hold codes in plain words. */
+export const REP_HOLD_TEXT: Record<string, string> = {
+  blocked: "The salon's credit is blocked.",
+  plan_not_allowed: "This payment plan is not allowed for the salon yet.",
+  over_limit: "The salon has reached its credit limit.",
+  pending: "A discount is waiting for approval.",
+  // hold_discount "rejected" also follows a discount request its maker withdrew (the hold has no withdrawn state).
+  rejected: "The discount was not approved (refused or withdrawn).",
+};
+
+/** What a salon's held order waits for (app.salon_my_orders waiting_on; AUTH-10): no figure, no office text. */
+export const SALON_WAITING_TEXT: Record<string, string> = {
+  price_approval: "Waiting for the office to approve the price.",
+  credit_check: "Waiting for the office to check the payment terms.",
+  office_check: "Waiting for the office to check it.",
 };
 
 const DAYS_TEXT: Record<number, string> = { 0: "since today", 1: "1 day" };
@@ -139,6 +168,9 @@ export type MyMonthOrders = {
   waiting_value_paisa: number;
   held_count: number;
   cancelled_count: number;
+  /** P1-30 (FLOW-10): orders from the rep's own cards, whoever delivers them (as the office home's "placed by"). */
+  placed_count: number;
+  placed_value_paisa: number;
 };
 
 export type RepMonthRow = {
@@ -156,4 +188,6 @@ export type RepMonthRow = {
   earned_month_paisa: number;
   paid_month_paisa: number;
   owed_paisa: number;
+  placed_count: number;
+  placed_value_paisa: number;
 };

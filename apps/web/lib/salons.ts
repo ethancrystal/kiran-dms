@@ -12,6 +12,8 @@ export type Salon = {
   lat: number | null;
   lng: number | null;
   phone_masked: string | null;
+  /** P1-30 (REP-10): the office's decision on a salon; a rep's proposal reads pending until then. */
+  approval_status: "pending" | "approved" | "rejected";
 };
 
 export const SALON_TYPES = [
@@ -52,7 +54,8 @@ export function salonPage(after?: Salon) {
 export type SalonDetail = Salon & {
   address: string | null;
   chairs: number | null;
-  approval_status: "pending" | "approved" | "rejected";
+  /** P1-30 (REP-10): the office's reason, when it rejected the proposal. */
+  rejection_reason: string | null;
 };
 
 /** One of the rep's own salons (app.my_salon: same territory scope as app.my_salons, phone masked), or null. */

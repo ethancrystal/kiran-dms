@@ -12,6 +12,9 @@ export default function Home() {
       <Link className="btn" href="/app">
         Field app
       </Link>
+      <Link className="btn" href="/salon/login">
+        Salon portal
+      </Link>
       <Link className="btn" href="/office">
         Office (owner / manager)
       </Link>

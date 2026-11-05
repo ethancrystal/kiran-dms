@@ -253,28 +253,30 @@ describe("internal functions are not callable by app roles", () => {
     expect(rows.map((r) => r.proname)).toEqual([
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon", "decide_approval", "delivery_ack_text", "due_list",
       "duplicate_phones", "has_vault_grant", "invitation_preview", "invoice_document", "is_aal2", "is_office", "is_owner", "is_rep", "log_visit", "low_stock",
-      "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_commission", "my_day", "my_handovers", "my_month_orders",
-      "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_signature_status", "my_submissions", "my_territory_ids", "my_territory_orders",
-      "office_add_investment", "office_approve_delivery", "office_assign_salon_rep", "office_assign_territory", "office_attach_signature", "office_cancel_stock_issue",
-      "office_cash_position", "office_catalogue", "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor",
-      "office_create_location", "office_create_order", "office_decide_profit", "office_decide_salon", "office_deliver", "office_delivery_signature",
-      "office_dismiss_card", "office_end_territory", "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_month",
-      "office_investor_statement", "office_investors", "office_invitations", "office_invite", "office_invoice_preview", "office_invoices", "office_open_cards",
-      "office_order_signature", "office_order_timeline", "office_orders", "office_override_stage", "office_overview_counts", "office_overview_rows",
-      "office_pending_approvals", "office_pending_deliveries", "office_pending_salons", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue",
-      "office_raise_limit", "office_receipts", "office_receivables_ageing", "office_record_cash", "office_record_commission_payment", "office_record_payment",
-      "office_record_payout", "office_reject_delivery", "office_release_credit_hold", "office_rep_cash_position", "office_rep_detail", "office_rep_month",
-      "office_resolve_pending", "office_reverse_commission_payment", "office_reverse_investor_entry", "office_revoke_invitation", "office_salon_prices",
-      "office_salon_timeline", "office_save_invoice_draft", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase", "office_set_member_status",
-      "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price", "office_signature_image",
-      "office_update_investor", "office_upsert_area", "office_upsert_product", "office_upsert_product_group", "office_upsert_sku", "office_upsert_territory",
-      "order_remaining", "owner_create_user", "owner_set_bag_limit", "owner_set_config", "owner_set_credit", "owner_set_role", "owner_set_sku_price", "owner_set_status",
-      "owner_set_vault_grant", "receipt_document", "recheck_order", "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop",
-      "rep_attach_signature", "rep_cancel_card", "rep_check_in", "rep_check_out", "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_edit_card",
-      "rep_park_salon", "rep_record_payment", "rep_reorder_route", "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id",
-      "reveal_phone", "revoke_device", "salon_balance", "salon_cancel_request", "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments",
-      "salon_invoice_document", "salon_me", "salon_my_account", "salon_my_invoices", "salon_my_orders", "salon_my_requests", "salon_notes", "salon_stages",
-      "salon_submit_request", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role", "warehouse_availability",
+      "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_collections", "my_commission", "my_day", "my_handovers",
+      "my_month_orders", "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_signature_status", "my_submissions", "my_territory_ids",
+      "my_territory_order", "my_territory_orders", "office_add_investment", "office_adjustment_checker", "office_approve_delivery", "office_assign_salon_rep",
+      "office_assign_territory", "office_attach_signature", "office_cancel_stock_issue", "office_cash_cap_reps", "office_cash_position", "office_catalogue",
+      "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location", "office_create_order",
+      "office_decide_profit", "office_decide_salon", "office_deliver", "office_delivery_signature", "office_dismiss_card", "office_end_territory",
+      "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors",
+      "office_invitations", "office_invite", "office_invoice_preview", "office_invoices", "office_open_cards", "office_order_signature", "office_order_timeline",
+      "office_orders", "office_override_stage", "office_overview_counts", "office_overview_rows", "office_pending_approvals", "office_pending_deliveries",
+      "office_pending_salons", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receipts",
+      "office_receivables_ageing", "office_record_cash", "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_refused_approvals",
+      "office_reject_delivery", "office_release_credit_hold", "office_rep_cash_position", "office_rep_detail", "office_rep_month", "office_resolve_pending",
+      "office_reverse_commission_payment", "office_reverse_investor_entry", "office_reverse_payment", "office_revoke_invitation", "office_salon_payments",
+      "office_salon_prices", "office_salon_timeline", "office_save_invoice_draft", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase",
+      "office_set_member_status", "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price",
+      "office_signature_image", "office_update_investor", "office_upsert_area", "office_upsert_product", "office_upsert_product_group", "office_upsert_sku",
+      "office_upsert_territory", "office_withdraw_handover", "order_remaining", "owner_adjust_stock", "owner_create_user", "owner_set_bag_limit", "owner_set_config",
+      "owner_set_credit", "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "owner_settle_handover", "receipt_document",
+      "recheck_order", "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_attach_signature", "rep_cancel_card",
+      "rep_check_in", "rep_check_out", "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_edit_card", "rep_park_salon", "rep_record_payment",
+      "rep_reorder_route", "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance",
+      "salon_cancel_request", "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_invoice_document", "salon_login_status",
+      "salon_me", "salon_my_account", "salon_my_invoices", "salon_my_orders", "salon_my_requests", "salon_notes", "salon_stages", "salon_submit_request", "salon_visits",
+      "self_ok", "stock_on_hand", "update_salon", "user_role", "warehouse_availability",
       // office_invoice_preview, office_save_invoice_draft, office_delivery_signature, office_signature_image (logs each
       // opening), office_attach_signature and office_order_signature (the office's acknowledgement for a delivery it
       // makes itself; owner or manager at AAL2); rep_attach_signature, my_signature_status,
@@ -322,6 +324,14 @@ describe("internal functions are not callable by app roles", () => {
       // order_placed_by and rep_month_orders have no grant.
       // office_pending_approvals (owner or manager at AAL2; allow-listed fields of pending discount and adjustment
       // requests, never the raw payload): migration 20261105170000 (slice 8, P1-25); MJ standing approval L-0144.
+      // owner_adjust_stock (owner only, D-45), office_adjustment_checker (owner or manager, a read for audit H2), office_refused_approvals (owner or manager, the second reader's refused requests), office_reverse_payment and office_salon_payments (owner or manager,
+      // D-48), office_cash_cap_reps (owner or manager, D-47), owner_settle_handover (owner only, D-46) and
+      // office_withdraw_handover (owner or manager): migration 20261105230000 (P1-30, decision file
+      // 2026-11-05-mj-audit-decisions); MJ standing approval L-0144. Their helpers rep_session_ok,
+      // adjustment_needs_owner, owner_post_adjustment and order_undelivered_paisa have no grant.
+      // my_territory_order, my_collections (a rep, own scope, at most 50 rows) and salon_login_status (a salon
+      // login with an emailed-code session, its own account status only): migration 20261105230000 part 2
+      // (P1-30, audit REP-03, REP-09, AUTH-09); MJ standing approval L-0144.
       // office_rep_detail, office_invoices, office_receipts (owner or manager at AAL2; allow-listed fields, masked
       // phone, no GPS, fingerprint, cost or vault data): read-only, migration 20261105190000 (slice 10, P1-28); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).

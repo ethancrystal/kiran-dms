@@ -727,6 +727,58 @@ const MATRIX: Row[] = [
       service_role: "true",
     },
   },
+  // Handover settlements (migration 20261105230000, P1-30, D-46): as the handover answers.
+  {
+    table: "public.handover_settlement",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: `handover_id in (select h.id from public.handover h where h.rep_id = ${me("repA")})`,
+      repAWrongDevice: "false",
+      repB: `handover_id in (select h.id from public.handover h where h.rep_id = ${me("repB")})`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  // Payment reversals (migration 20261105230000, P1-30, D-48): as payments: the office reads all; a rep
+  // reads the reversals of the payments it recorded, on its approved phone.
+  {
+    table: "public.payment_reversal",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: `payment_id in (select p.id from public.payment p where p.recorded_by = ${me("repA")})`,
+      repAWrongDevice: "false",
+      repB: `payment_id in (select p.id from public.payment p where p.recorded_by = ${me("repB")})`,
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
+  // The owner's own stock adjustments (migration 20261105230000, P1-30, D-45): office only.
+  {
+    table: "public.owner_stock_adjustment",
+    writeCol: "reason",
+    select: {
+      anon: "denied",
+      repA: "false",
+      repAWrongDevice: "false",
+      repB: "false",
+      manager: "true",
+      managerAal1: "false",
+      owner: "true",
+      ownerAal1: "false",
+      suspended: "false",
+      service_role: "true",
+    },
+  },
   // Order cards (D-30): a rep reads its own cards and their closes on its approved phone; the office reads all.
   {
     table: "public.order_intake_card",

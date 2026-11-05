@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { RepSignOut } from "@/components/rep-sign-out";
 import { mySession, type Session } from "@/lib/rpc";
 
 const STATUS_TEXT: Record<Session["status"], string> = {
@@ -68,6 +69,9 @@ export default function MyAccount() {
           </p>
         </div>
       )}
+      <p>
+        <RepSignOut />
+      </p>
     </main>
   );
 }

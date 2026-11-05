@@ -4,6 +4,9 @@ import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { InvoiceList, ReceiptList } from "@/components/document-lists";
 import { MoneySection } from "@/components/money-section";
+import { SalonContact } from "@/components/salon-contact";
+import { SalonCredit } from "@/components/salon-credit";
+import { SalonPayments } from "@/components/salon-payments";
 import { Timeline } from "@/components/timeline";
 import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
@@ -54,6 +57,9 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // P1-30: a recorded payment reloads the payment list; a reversal reloads the balance (D-48).
+  const [paymentsVersion, setPaymentsVersion] = useState(0);
+  const [balanceVersion, setBalanceVersion] = useState(0);
 
   const load = useCallback(async () => {
     setError(null);
@@ -129,18 +135,35 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
         </p>
       )}
 
-      <section className="card" aria-labelledby="contact-h">
-        <h2 id="contact-h">Primary contact</h2>
-        <p>{contact ? `${contact.name ?? "No name"} · ${contact.phone}` : "No phone recorded."}</p>
-      </section>
+      <SalonContact key={contact?.phone ?? "none"} salonId={id} contact={contact} onDone={done} />
 
       <RepAssignment salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
+
+      <SalonCredit salonId={id} stageBlocked={salon.stage === "blocked"} />
 
       <SalonPrices salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 
-      <MoneySection salonId={id} mode="office" onRecorded={() => setDocsVersion((v) => v + 1)} />
+      <MoneySection
+        key={`money-${balanceVersion}`}
+        salonId={id}
+        mode="office"
+        onRecorded={() => {
+          setPaymentsVersion((v) => v + 1);
+          setDocsVersion((v) => v + 1);
+        }}
+      />
+
+      <SalonPayments
+        salonId={id}
+        version={paymentsVersion}
+        onReversed={(message) => {
+          setNotice(message);
+          setBalanceVersion((v) => v + 1);
+          setDocsVersion((v) => v + 1);
+        }}
+      />
 
       <section className="card" key={docsVersion}>
         <h2>Invoices</h2>
@@ -151,6 +174,12 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
 
       <section className="card" aria-labelledby="stage-h">
         <h2 id="stage-h">Change stage</h2>
+        {salon.stage === "blocked" && (
+          <p className="muted">
+            Moving a salon out of Blocked unblocks its credit. A manager may do that only a few times a month for one salon (a
+            number the owner sets); the database says when the limit is reached, and the owner can always do it.
+          </p>
+        )}
         <StageOverride
           key={salon.stage}
           current={salon.stage}

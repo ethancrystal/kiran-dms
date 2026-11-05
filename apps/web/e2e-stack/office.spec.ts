@@ -992,7 +992,10 @@ test("a manager invites a rep and a salon, approves a proposed salon, and both i
   await member.getByRole("button", { name: "Suspend now" }).click();
   await expect(page.getByText("[Test] Salon Owner is now suspended.")).toBeVisible();
   await guest.goto("/salon");
-  await expect(guest.getByRole("alert").filter({ hasText: "no active salon account" })).toBeVisible();
+  // P1-30 (AUTH-09): a suspended salon is told so, in plain words, and sees no account data.
+  await expect(guest.getByTestId("salon-account-state")).toHaveText(
+    "This salon account is suspended by the office. Contact the office to have it reactivated.",
+  );
   portalSalon = { name: salonName, email: salonEmail };
   salonPhone = await guest.context().storageState();
 

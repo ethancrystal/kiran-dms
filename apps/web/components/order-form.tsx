@@ -90,9 +90,9 @@ const skuText = (s: Sku, salonPrice: number | undefined) =>
  * The reps who may deliver an order for this salon (R4, A-16): its directly assigned rep when it has
  * one (latest salon_rep_assignment row), otherwise the active reps currently assigned (to_date null)
  * to the salon's area's territory. Office users read these tables under RLS; the database checks the
- * same rule again in app.office_create_order.
+ * same rule again in app.office_create_order. `direct` is true when the salon has its own rep (D-36).
  */
-async function territoryReps(salonId: string): Promise<Rep[]> {
+async function territoryReps(salonId: string): Promise<{ reps: Rep[]; direct: boolean }> {
   const [direct] = await rows<{ rep: { id: string; full_name: string; role: string; status: string } | null }>(
     db()
       .from("salon_rep_assignment")
@@ -102,13 +102,16 @@ async function territoryReps(salonId: string): Promise<Rep[]> {
       .limit(1),
   );
   if (direct?.rep) {
-    return direct.rep.status === "active" ? [{ id: direct.rep.id, full_name: direct.rep.full_name }] : [];
+    return {
+      reps: direct.rep.status === "active" ? [{ id: direct.rep.id, full_name: direct.rep.full_name }] : [],
+      direct: true,
+    };
   }
   const [salon] = await rows<{ area: { territory_id: string } | null }>(
     db().from("salon").select("area:area_id(territory_id)").eq("id", salonId),
   );
   const territory = salon?.area?.territory_id;
-  if (!territory) return [];
+  if (!territory) return { reps: [], direct: false };
   const links = await rows<RepLink>(
     db()
       .from("rep_territory")
@@ -116,9 +119,12 @@ async function territoryReps(salonId: string): Promise<Rep[]> {
       .eq("territory_id", territory)
       .is("to_date", null),
   );
-  return links.flatMap((l) =>
-    l.rep && l.rep.role === "rep" && l.rep.status === "active" ? [{ id: l.rep.id, full_name: l.rep.full_name }] : [],
-  );
+  return {
+    reps: links.flatMap((l) =>
+      l.rep && l.rep.role === "rep" && l.rep.status === "active" ? [{ id: l.rep.id, full_name: l.rep.full_name }] : [],
+    ),
+    direct: false,
+  };
 }
 
 /** The lines as app.office_create_order takes them, or an error to show before anything is sent. */
@@ -230,7 +236,9 @@ export function OrderForm({
     void read();
   }, [salonId]);
 
-  // The salon's territory reps; the card's rep stays selected only when it is one of them.
+  // The salon's territory reps; the card's rep stays selected only when it is one of them. FLOW-11 (P1-30):
+  // a salon with its own rep (D-36) gets that rep by default, so the order carries the salon's rep and rate;
+  // "No rep (office delivers)" stays a choice (A-16).
   useEffect(() => {
     setReps([]);
     setRepNote(null);
@@ -238,9 +246,15 @@ export function OrderForm({
     const read = async () => {
       setRepsLoading(true);
       try {
-        const r = await territoryReps(salonId);
+        const { reps: r, direct } = await territoryReps(salonId);
         setReps(r);
-        setRepId((current) => (r.some((x) => x.id === current) ? current : ""));
+        const own = direct ? (r[0]?.id ?? "") : "";
+        setRepId((current) => (r.some((x) => x.id === current) ? current : own));
+        if (own && !cardRepId) {
+          setRepNote(
+            `${r[0]?.full_name ?? "The salon's rep"} is this salon's own rep, so they are chosen; their commission rate for this salon applies. Choose "No rep" if the office delivers.`,
+          );
+        }
         if (cardRepId && !r.some((x) => x.id === cardRepId)) {
           setRepNote(`${cardRepName} no longer covers this salon's territory, so no rep is selected.`);
         }

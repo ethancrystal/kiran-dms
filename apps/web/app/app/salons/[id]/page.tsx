@@ -3,6 +3,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LostDemand } from "@/components/lost-demand";
 import { MoneySection } from "@/components/money-section";
+import { MyCollections } from "@/components/my-collections";
 import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
 import { findSalon, label, position, type SalonDetail, VISIT_OUTCOMES } from "@/lib/salons";
@@ -30,6 +31,7 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 export default function SalonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [salon, setSalon] = useState<SalonDetail | null>(null);
+  const [paid, setPaid] = useState(0); // a recorded payment reloads the list of the rep's own payments
   const [notes, setNotes] = useState<Note[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -111,7 +113,8 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
       )}
       {salon.approval_status === "rejected" && (
         <p className="badge" data-testid="salon-rejected">
-          The office did not approve this salon.
+          The office did not approve this salon
+          {salon.rejection_reason ? `: ${salon.rejection_reason}` : "."} To try again, propose it as a new salon.
         </p>
       )}
       {error && (
@@ -156,7 +159,8 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
         <CardForm salonId={id} onDone={() => done("Order details saved. The office makes the order from them.")} />
       )}
 
-      <MoneySection salonId={id} mode="rep" />
+      <MoneySection salonId={id} mode="rep" onRecorded={() => setPaid((n) => n + 1)} />
+      <MyCollections salonId={id} reloadKey={String(paid)} />
 
       <LostDemand salonId={id} />
 

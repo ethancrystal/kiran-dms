@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { rpc } from "@/lib/rpc";
+import { karachiToday, day as shortDay } from "@/lib/overview";
+import { db, rows, rpc } from "@/lib/rpc";
 
 type Day = {
   id: string;
@@ -60,13 +61,24 @@ export function RepDay() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // REP-01 (P1-30): an open day from an earlier Karachi date (no check-out, or past midnight) blocks
+  // check-in, and only the office can close it (PIP-09). Read from the rep's own rep_day rows (RLS).
+  const [stuck, setStuck] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [d, b, a] = await Promise.all([rpc<Day[]>("my_day"), rpc<BagLine[]>("my_bag"), rpc<AreaRow[]>("my_areas")]);
+      const [d, b, a, old] = await Promise.all([
+        rpc<Day[]>("my_day"),
+        rpc<BagLine[]>("my_bag"),
+        rpc<AreaRow[]>("my_areas"),
+        rows<{ day: string }>(
+          db().from("rep_day").select("day").eq("status", "open").lt("day", karachiToday()).order("day").limit(1),
+        ),
+      ]);
       const today = (d ?? [])[0] ?? null;
       setDay(today);
+      setStuck(old[0]?.day ?? null);
       setBag(b ?? []);
       setAreas(a ?? []);
       if (today?.status === "open") {
@@ -131,7 +143,19 @@ export function RepDay() {
         )}
       </section>
 
-      {!day && (
+      {!day && stuck && (
+        <div className="card" data-testid="day-stuck">
+          <p className="error" role="alert">
+            Your day of {shortDay(stuck)} is still open, so you cannot check in today.
+          </p>
+          <p>
+            You can no longer close it from this phone. Ask your manager or the owner to close it on the office overview (under
+            &quot;Rep days left open&quot;), then open this page again.
+          </p>
+        </div>
+      )}
+
+      {!day && !stuck && (
         <CountForm
           title="Check in"
           help="Count what is in your bag before you start. Enter what you see, not what you expect."

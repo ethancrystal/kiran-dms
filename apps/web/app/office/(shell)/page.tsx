@@ -1,6 +1,18 @@
 import Link from "next/link";
+import { OpenRepDays } from "@/components/open-rep-days";
 import { rupees } from "@/lib/money";
-import { day, daysWaiting, HOLD_TEXT, type OverviewCounts, type OverviewRow, placedBy, STATUS_TEXT, when } from "@/lib/overview";
+import {
+  type CashCapRep,
+  day,
+  daysWaiting,
+  HOLD_TEXT,
+  karachiToday,
+  type OverviewCounts,
+  type OverviewRow,
+  placedBy,
+  STATUS_TEXT,
+  when,
+} from "@/lib/overview";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +25,7 @@ const count = (n: number, one: string, many: string) => `${n} ${Number(n) === 1 
 /** The one next step for an order waiting to be delivered. */
 function NextStep({ r }: { r: OverviewRow }) {
   if (r.waiting_approval) return <Link href="/office/deliveries">Rep delivered it: approve</Link>;
-  if (r.deliverer_kind === "office") return <Link href="/office/orders">Office delivers: open orders</Link>;
+  if (r.deliverer_kind === "office") return <Link href={`/office/orders/${r.order_id}`}>Office delivers: open the order</Link>;
   return <span className="muted">The rep delivers it</span>;
 }
 
@@ -26,20 +38,47 @@ export default async function OfficeHome() {
   const sb = await supabaseServer();
   const head = { count: "exact" as const, head: true };
   const n = (r: { count: number | null; error: unknown }) => (r.error ? null : (r.count ?? 0));
-  const [countsRes, rowsRes, ...setup] = await Promise.all([
+  const [sessionRes, countsRes, rowsRes, capRes, approvalsRes, goodsRes, disputedRes, daysRes, ...setup] = await Promise.all([
+    // Review of P1-30: the caller's role, so a manager is not sent to work only the owner can do.
+    sb.schema("app").rpc("my_session"),
     sb.schema("app").rpc("office_overview_counts"),
     sb.schema("app").rpc("office_overview_rows"),
+    sb.schema("app").rpc("office_cash_cap_reps"),
+    // M5, FLOW-15 (P1-30): the other queues, so the page never says nothing is waiting while one is.
+    sb.schema("app").rpc("office_pending_approvals"),
+    sb.schema("app").rpc("office_pending_stock"),
+    sb.from("stock_issue").select("id", head).eq("status", "disputed"),
+    sb.from("rep_day").select("id", head).eq("status", "open").lt("day", karachiToday()),
     sb.from("device").select("id", head).eq("status", "pending"),
     sb.from("user_profile").select("id", head).eq("status", "active"),
     sb.from("territory").select("id", head).eq("active", true),
     sb.from("salon").select("id", head),
   ]);
   const [pending, people, territories, salons] = setup.map(n);
+  const isOwner = (sessionRes.data as { role?: string } | null)?.role === "owner";
+  type Queued = { status: string; made_by_me: boolean; checker_role_required: string };
+  const approvals = (approvalsRes.data as Queued[] | null) ?? [];
+  const waitingRequests = approvals.filter((a) => a.status === "pending");
+  // What this person can decide: not their own request, and not an owner-level one unless they are the owner.
+  const toDecide = waitingRequests.filter((a) => !a.made_by_me && (isOwner || a.checker_role_required !== "owner")).length;
+  const forOthers = waitingRequests.length - toDecide;
+  const toPost = approvals.filter((a) => a.status === "approved").length;
+  const goods = ((goodsRes.data as unknown[] | null) ?? []).length;
+  const disputed = n(disputedRes);
+  const openDays = n(daysRes);
+  const extra = [toDecide, forOthers, toPost, goods, disputed ?? 0, openDays ?? 0, pending ?? 0];
   if (countsRes.error) console.error("office home: counts read failed", countsRes.error);
   if (rowsRes.error) console.error("office home: lists read failed", rowsRes.error);
   const c = ((countsRes.data as OverviewCounts[] | null) ?? [])[0] ?? null;
   const rows = (rowsRes.data as OverviewRow[] | null) ?? [];
-  const failed = !c || Boolean(rowsRes.error) || [pending, people, territories, salons].some((x) => x === null);
+  if (capRes.error) console.error("office home: cash cap read failed", capRes.error);
+  const atCap = (capRes.data as CashCapRep[] | null) ?? [];
+  if (approvalsRes.error) console.error("office home: approvals read failed", approvalsRes.error);
+  if (goodsRes.error) console.error("office home: pending stock read failed", goodsRes.error);
+  const failed =
+    !c ||
+    [rowsRes, capRes, approvalsRes, goodsRes].some((r) => Boolean(r.error)) ||
+    [pending, people, territories, salons, disputed, openDays].some((x) => x === null);
   const show = (x: number | null | undefined) => (x === null || x === undefined ? "—" : String(x));
   const of = (s: OverviewRow["section"]) => rows.filter((r) => r.section === s);
   const placed = of("placed");
@@ -82,10 +121,85 @@ export default async function OfficeHome() {
 
       <section aria-labelledby="attention-h" className="card">
         <h2 id="attention-h">Needs your attention</h2>
-        {c && Number(c.held_orders) + Number(c.pending_salons) + Number(c.waiting_approval) + Number(c.pending_requests) === 0 ? (
+        {c &&
+        Number(c.held_orders) +
+          Number(c.pending_salons) +
+          Number(c.waiting_approval) +
+          Number(c.pending_requests) +
+          Number(c.reps_at_cash_cap) +
+          Number(c.handovers_unanswered) +
+          Number(c.handovers_disputed) +
+          extra.reduce((a, b) => a + b, 0) ===
+          0 ? (
           <p className="ok">Nothing is waiting for you. Well done.</p>
         ) : (
           <ul className="plain">
+            {c && Number(c.reps_at_cash_cap) > 0 && (
+              <li data-testid="cash-cap">
+                {count(c.reps_at_cash_cap, "rep is", "reps are")} at the cash limit and cannot collect more cash until a handover:
+                <ul className="plain">
+                  {atCap.map((r) => (
+                    <li key={r.rep_id} data-testid="cash-cap-rep">
+                      {r.full_name} holds {rupees(Number(r.cash_paisa))} (limit {rupees(Number(r.cap_paisa))})
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/office/handovers">Count their cash</Link>
+              </li>
+            )}
+            {c && Number(c.handovers_disputed) > 0 && (
+              <li>
+                {count(c.handovers_disputed, "cash handover is", "cash handovers are")} disputed and waiting for the owner.{" "}
+                <Link href="/office/handovers">{isOwner ? "Settle them" : "See them (the owner settles them)"}</Link>
+              </li>
+            )}
+            {c && Number(c.handovers_unanswered) > 0 && (
+              <li>
+                {count(c.handovers_unanswered, "cash count is", "cash counts are")} waiting for the rep&apos;s answer.{" "}
+                <Link href="/office/handovers">See them</Link>
+              </li>
+            )}
+            {openDays !== null && openDays > 0 && (
+              <li>
+                {count(openDays, "rep day from an earlier date is", "rep days from earlier dates are")} still open, so those reps
+                cannot check in. <a href="#open-days-h">Close them below</a>
+              </li>
+            )}
+            {toDecide > 0 && (
+              <li>
+                {count(toDecide, "request waits", "requests wait")} for a decision (discounts or stock adjustments).{" "}
+                <Link href="/office/approvals">Decide them</Link>
+              </li>
+            )}
+            {forOthers > 0 && (
+              <li>
+                {count(forOthers, "request waits", "requests wait")} for someone else to decide (your own requests, or ones only
+                the owner decides). <Link href="/office/approvals">See them</Link>
+              </li>
+            )}
+            {toPost > 0 && (
+              <li>
+                {count(toPost, "approved stock adjustment is", "approved stock adjustments are")} not posted yet.{" "}
+                <Link href="/office/stock">Post them</Link>
+              </li>
+            )}
+            {goods > 0 && (
+              <li>
+                {count(goods, "line of goods from a refused delivery is", "lines of goods from refused deliveries are")} not
+                settled. <Link href="/office/deliveries">Settle them</Link>
+              </li>
+            )}
+            {disputed !== null && disputed > 0 && (
+              <li>
+                {count(disputed, "stock issue is", "stock issues are")} disputed by the rep.{" "}
+                <Link href="/office/stock">Check them</Link>
+              </li>
+            )}
+            {pending !== null && pending > 0 && (
+              <li>
+                {count(pending, "phone waits", "phones wait")} for approval. <Link href="/office/devices">Approve or refuse</Link>
+              </li>
+            )}
             {c && Number(c.waiting_approval) > 0 && (
               <li>
                 {count(c.waiting_approval, "delivery is", "deliveries are")} waiting for your approval.{" "}
@@ -111,7 +225,8 @@ export default async function OfficeHome() {
                   {held.map((h) => (
                     <li key={h.order_id} data-testid="held-order">
                       <Link href={`/office/salons/${h.salon_id}`}>{h.salon_name}</Link> · {rupees(Number(h.total_paisa))} ·{" "}
-                      {HOLD_TEXT[h.hold_reason ?? ""] ?? "On hold."} <Link href="/office/orders">Open orders</Link>
+                      {HOLD_TEXT[h.hold_reason ?? ""] ?? "On hold."}{" "}
+                      <Link href={`/office/orders/${h.order_id}`}>Open the order</Link>
                     </li>
                   ))}
                 </ul>
@@ -167,7 +282,7 @@ export default async function OfficeHome() {
             <thead>
               <tr>
                 <th>Salon</th>
-                <th>Amount</th>
+                <th>Still to deliver</th>
                 <th>Waiting</th>
                 <th>Who delivers</th>
                 <th>Next step</th>
@@ -180,7 +295,10 @@ export default async function OfficeHome() {
                     <Link href={`/office/salons/${r.salon_id}`}>{r.salon_name}</Link>
                     {r.status === "partially_delivered" && <span className="muted"> (part delivered)</span>}
                   </td>
-                  <td>{rupees(Number(r.total_paisa))}</td>
+                  <td>
+                    {rupees(Number(r.undelivered_paisa ?? r.total_paisa))}
+                    {r.status === "partially_delivered" && <span className="muted"> of {rupees(Number(r.total_paisa))}</span>}
+                  </td>
                   <td>{daysWaiting(r.waiting_days)}</td>
                   <td>{r.deliverer_kind === "rep" ? `Rep ${r.deliverer_name ?? ""}` : "Office"}</td>
                   <td>
@@ -235,6 +353,8 @@ export default async function OfficeHome() {
           commission are on <Link href="/office/reps">rep performance</Link>.
         </p>
       </section>
+
+      <OpenRepDays />
 
       <h2>Phones and people</h2>
       <div className="tiles">

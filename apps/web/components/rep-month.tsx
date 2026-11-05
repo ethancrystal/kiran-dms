@@ -59,8 +59,12 @@ export function RepMonth() {
       {!state.loading && o && c && (
         <>
           <p className="big-line">
-            Orders I brought: <strong data-testid="month-orders">{o.orders_count}</strong>
+            Orders assigned to me: <strong data-testid="month-orders">{o.orders_count}</strong>
             {Number(o.orders_count) > 0 && <> worth {rupees(o.orders_value_paisa)}</>}
+          </p>
+          <p>
+            Orders made from my cards: <strong data-testid="month-placed">{o.placed_count}</strong>
+            {Number(o.placed_count) > 0 && <> worth {rupees(o.placed_value_paisa)}</>}
           </p>
           {Number(o.orders_count) === 0 && Number(o.cancelled_count) === 0 ? (
             <p className="muted">No orders yet this month. Send an order card from a salon page; the office makes the order.</p>
@@ -71,7 +75,7 @@ export function RepMonth() {
               </li>
               <li>
                 Waiting to be delivered: <strong data-testid="month-waiting">{o.waiting_count}</strong> (
-                {rupees(o.waiting_value_paisa)})
+                {rupees(o.waiting_value_paisa)} still to deliver)
               </li>
               {Number(o.held_count) > 0 && (
                 <li>
@@ -94,7 +98,10 @@ export function RepMonth() {
             <dd data-testid="month-owed">{rupees(Number(c.owed_paisa))}</dd>
           </dl>
           <p className="muted">
-            An order counts in the month it was placed. Its commission counts in the month the office approves the delivery.
+            An order counts in the month it was placed. Assigned orders are the ones you deliver and earn commission on; an order
+            from your card that the office gives to another rep counts for that rep. Delivered amounts are what was invoiced; a
+            part delivery counts its delivered part there and the rest as waiting. Commission counts in the month the office
+            approves the delivery.
           </p>
         </>
       )}
