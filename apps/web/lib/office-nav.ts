@@ -1,9 +1,9 @@
 // The office sidebar (frontend plan section 4). Only pages that exist and work are listed; a group with
-// no page yet (Controls, Reports, Administration) is left out until it has one. Hiding an item is
+// no page yet (Controls, Reports) is left out until it has one. Hiding an item is
 // convenience, never a control: RLS and the app.* functions decide every read and write (doc 06 section 2).
 //
-// `ownerOnly` hides an item from the manager. No page on this list is owner-only today: Team is
-// governance, but a manager reads it without controls (H-15). The first owner-only page sets the flag.
+// `ownerOnly` hides an item from the manager. Settings is the one owner-only page (FLOW-14); Team is
+// governance, but a manager reads it without controls (H-15).
 
 export type OfficeRole = "owner" | "manager";
 
@@ -56,6 +56,7 @@ export const OFFICE_NAV: readonly NavGroup[] = [
       { href: "/office/routes", label: "Routes" },
     ],
   },
+  { title: "Administration", items: [{ href: "/office/settings", label: "Settings", ownerOnly: true }] },
 ];
 
 /** The groups this role sees; a group left with no item is dropped. */
