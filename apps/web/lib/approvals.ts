@@ -23,3 +23,21 @@ export type Approval = {
   sku_code: string | null;
   qty_delta: number | null;
 };
+
+/** One row of app.office_refused_approvals (migration 20261105210000, P1-30): refused in the last 14 days. */
+export type RefusedApproval = {
+  request_id: string;
+  kind: "discount" | "adjustment";
+  made_by_me: boolean;
+  maker_name: string;
+  reason: string;
+  created_at: string;
+  salon_name: string | null;
+  location_name: string | null;
+  location_kind: string | null;
+  sku_code: string | null;
+  qty_delta: number | null;
+  decided_at: string;
+  checker_name: string | null;
+  decision_reason: string;
+};

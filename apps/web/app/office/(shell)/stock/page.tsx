@@ -39,6 +39,8 @@ const ISSUE_LIST = 50;
 const MAX_ISSUE_LINES = 10;
 // app.office_post_adjustment refuses an adjustment above 100000 units.
 const MAX_ADJUSTMENT_UNITS = 100_000;
+// app.owner_adjust_stock asks for a reason of 5 to 300 characters (D-45).
+const OWNER_REASON_MIN = 5;
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
 /** One client id per form, kept until the database accepts the write, so a retry replays it (H-08). */
@@ -95,7 +97,7 @@ export default function Stock() {
       setSkus(s);
       setOnHand(h ?? []);
       setIssues(i);
-      setAdjustments((a ?? []).filter((x) => x.kind === "adjustment"));
+      setAdjustments((a ?? []).filter((x) => x.kind === "adjustment" && x.location_kind !== "pending_delivery"));
       const me = user.data.user?.id;
       setMyRole(p.find((x) => x.id === me)?.role ?? null);
     } catch (e) {
@@ -201,11 +203,18 @@ export default function Stock() {
 
           <section aria-labelledby="opening-h">
             <h2 id="opening-h">Opening stock in a warehouse</h2>
-            <p className="muted">
-              A manager asks for an adjustment; the owner approves it on Approvals (nobody approves their own request), then it is
-              posted here.
-            </p>
-            <OpeningStock warehouses={warehouses} skus={issuable} onDone={done} />
+            {myRole === "owner" ? (
+              <p className="muted">
+                Your own opening stock goes in at once, with your reason on the record (D-45). A manager&apos;s request still
+                waits for your approval on Approvals.
+              </p>
+            ) : (
+              <p className="muted">
+                A manager asks for an adjustment; the owner approves it on Approvals (nobody approves their own request), then it
+                is posted here. A refused request is listed on Approvals with the owner&apos;s reason.
+              </p>
+            )}
+            <OpeningStock warehouses={warehouses} skus={issuable} owner={myRole === "owner"} onDone={done} />
             {adjustments.length > 0 && (
               <ul className="plain">
                 {adjustments.map((a) => (
@@ -213,6 +222,21 @@ export default function Stock() {
                     {a.location_name} · {a.sku_code} · {Number(a.qty_delta) > 0 ? `+${a.qty_delta}` : a.qty_delta} units ·{" "}
                     {a.status === "approved" ? "approved" : "waiting for approval"} · asked by {a.maker_name}
                     {a.status === "approved" && <PostAdjustment approval={a} onDone={done} />}
+                    {a.status === "pending" && a.made_by_me && (
+                      <div className="row">
+                        <ConfirmAction
+                          label="Withdraw"
+                          confirmLabel="Withdraw request"
+                          reasonLabel="Why it is withdrawn"
+                          reasonMinLength={REASON_MIN}
+                          danger
+                          onConfirm={async (reason) => {
+                            await rpc("cancel_approval", { p_request_id: a.request_id, p_reason: reason });
+                            await done("Request withdrawn; nothing moved.");
+                          }}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -399,10 +423,13 @@ function AddBag({ reps, onDone }: { reps: Person[]; onDone: Done }) {
 function OpeningStock({
   warehouses,
   skus,
+  owner,
   onDone,
 }: {
   warehouses: Array<{ id: string; name: string }>;
   skus: Sku[];
+  /** D-45: the owner's own opening stock posts at once (app.owner_adjust_stock); a manager asks the owner. */
+  owner: boolean;
   onDone: Done;
 }) {
   const [warehouse, setWarehouse] = useState("");
@@ -414,7 +441,7 @@ function OpeningStock({
   const { key, renew } = useKey();
   return (
     <form
-      aria-label="Ask for opening stock"
+      aria-label={owner ? "Add opening stock" : "Ask for opening stock"}
       onSubmit={async (e) => {
         e.preventDefault();
         setError(null);
@@ -425,6 +452,20 @@ function OpeningStock({
         }
         setBusy(true);
         try {
+          if (owner) {
+            await rpc("owner_adjust_stock", {
+              p_client_id: key,
+              p_location_id: warehouse || null,
+              p_sku_id: sku || null,
+              p_qty_delta: units,
+              p_reason: reason,
+            });
+            renew();
+            setQty("");
+            setReason("");
+            await onDone(`Opening stock added: ${units} units, on the record with your reason.`);
+            return;
+          }
           await rpc("request_approval", {
             p_client_id: key,
             p_kind: "adjustment",
@@ -468,18 +509,18 @@ function OpeningStock({
       </select>
       <label htmlFor="opening-qty">Units counted in</label>
       <input id="opening-qty" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} required />
-      <label htmlFor="opening-reason">Why (for the approver)</label>
+      <label htmlFor="opening-reason">{owner ? "Why (kept on the record)" : "Why (for the approver)"}</label>
       <input
         id="opening-reason"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         required
-        minLength={REASON_MIN}
+        minLength={owner ? OWNER_REASON_MIN : REASON_MIN}
         maxLength={300}
       />
       <FormError error={error} />
       <button type="submit" className="inline" disabled={busy}>
-        Ask for approval
+        {owner ? "Add to stock" : "Ask for approval"}
       </button>
     </form>
   );

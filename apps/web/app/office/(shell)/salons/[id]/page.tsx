@@ -3,6 +3,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { MoneySection } from "@/components/money-section";
+import { SalonPayments } from "@/components/salon-payments";
 import { Timeline } from "@/components/timeline";
 import { percent, percentInput, rupees, toBasisPoints, toPaisa } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
@@ -51,6 +52,9 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // P1-30: a recorded payment reloads the payment list; a reversal reloads the balance (D-48).
+  const [paymentsVersion, setPaymentsVersion] = useState(0);
+  const [balanceVersion, setBalanceVersion] = useState(0);
 
   const load = useCallback(async () => {
     setError(null);
@@ -137,10 +141,30 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 
-      <MoneySection salonId={id} mode="office" />
+      <MoneySection
+        key={`money-${balanceVersion}`}
+        salonId={id}
+        mode="office"
+        onRecorded={() => setPaymentsVersion((v) => v + 1)}
+      />
+
+      <SalonPayments
+        salonId={id}
+        version={paymentsVersion}
+        onReversed={(message) => {
+          setNotice(message);
+          setBalanceVersion((v) => v + 1);
+        }}
+      />
 
       <section className="card" aria-labelledby="stage-h">
         <h2 id="stage-h">Change stage</h2>
+        {salon.stage === "blocked" && (
+          <p className="muted">
+            Moving a salon out of Blocked unblocks its credit. A manager may do that only a few times a month for one salon
+            (CTL-08, set by the owner); the database says when the limit is reached, and the owner can always do it.
+          </p>
+        )}
         <StageOverride
           key={salon.stage}
           current={salon.stage}

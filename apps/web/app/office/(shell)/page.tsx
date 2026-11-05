@@ -1,6 +1,16 @@
 import Link from "next/link";
 import { rupees } from "@/lib/money";
-import { day, daysWaiting, HOLD_TEXT, type OverviewCounts, type OverviewRow, placedBy, STATUS_TEXT, when } from "@/lib/overview";
+import {
+  type CashCapRep,
+  day,
+  daysWaiting,
+  HOLD_TEXT,
+  type OverviewCounts,
+  type OverviewRow,
+  placedBy,
+  STATUS_TEXT,
+  when,
+} from "@/lib/overview";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -26,9 +36,10 @@ export default async function OfficeHome() {
   const sb = await supabaseServer();
   const head = { count: "exact" as const, head: true };
   const n = (r: { count: number | null; error: unknown }) => (r.error ? null : (r.count ?? 0));
-  const [countsRes, rowsRes, ...setup] = await Promise.all([
+  const [countsRes, rowsRes, capRes, ...setup] = await Promise.all([
     sb.schema("app").rpc("office_overview_counts"),
     sb.schema("app").rpc("office_overview_rows"),
+    sb.schema("app").rpc("office_cash_cap_reps"),
     sb.from("device").select("id", head).eq("status", "pending"),
     sb.from("user_profile").select("id", head).eq("status", "active"),
     sb.from("territory").select("id", head).eq("active", true),
@@ -39,7 +50,10 @@ export default async function OfficeHome() {
   if (rowsRes.error) console.error("office home: lists read failed", rowsRes.error);
   const c = ((countsRes.data as OverviewCounts[] | null) ?? [])[0] ?? null;
   const rows = (rowsRes.data as OverviewRow[] | null) ?? [];
-  const failed = !c || Boolean(rowsRes.error) || [pending, people, territories, salons].some((x) => x === null);
+  if (capRes.error) console.error("office home: cash cap read failed", capRes.error);
+  const atCap = (capRes.data as CashCapRep[] | null) ?? [];
+  const failed =
+    !c || Boolean(rowsRes.error) || Boolean(capRes.error) || [pending, people, territories, salons].some((x) => x === null);
   const show = (x: number | null | undefined) => (x === null || x === undefined ? "—" : String(x));
   const of = (s: OverviewRow["section"]) => rows.filter((r) => r.section === s);
   const placed = of("placed");
@@ -82,10 +96,43 @@ export default async function OfficeHome() {
 
       <section aria-labelledby="attention-h" className="card">
         <h2 id="attention-h">Needs your attention</h2>
-        {c && Number(c.held_orders) + Number(c.pending_salons) + Number(c.waiting_approval) + Number(c.pending_requests) === 0 ? (
+        {c &&
+        Number(c.held_orders) +
+          Number(c.pending_salons) +
+          Number(c.waiting_approval) +
+          Number(c.pending_requests) +
+          Number(c.reps_at_cash_cap) +
+          Number(c.handovers_unanswered) +
+          Number(c.handovers_disputed) ===
+          0 ? (
           <p className="ok">Nothing is waiting for you. Well done.</p>
         ) : (
           <ul className="plain">
+            {c && Number(c.reps_at_cash_cap) > 0 && (
+              <li data-testid="cash-cap">
+                {count(c.reps_at_cash_cap, "rep is", "reps are")} at the cash limit and cannot collect more cash until a handover:
+                <ul className="plain">
+                  {atCap.map((r) => (
+                    <li key={r.rep_id} data-testid="cash-cap-rep">
+                      {r.full_name} holds {rupees(Number(r.cash_paisa))} (limit {rupees(Number(r.cap_paisa))})
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/office/handovers">Count their cash</Link>
+              </li>
+            )}
+            {c && Number(c.handovers_disputed) > 0 && (
+              <li>
+                {count(c.handovers_disputed, "cash handover is", "cash handovers are")} disputed and waiting for the owner.{" "}
+                <Link href="/office/handovers">Settle them</Link>
+              </li>
+            )}
+            {c && Number(c.handovers_unanswered) > 0 && (
+              <li>
+                {count(c.handovers_unanswered, "cash count is", "cash counts are")} waiting for the rep&apos;s answer.{" "}
+                <Link href="/office/handovers">See them</Link>
+              </li>
+            )}
             {c && Number(c.waiting_approval) > 0 && (
               <li>
                 {count(c.waiting_approval, "delivery is", "deliveries are")} waiting for your approval.{" "}
@@ -167,7 +214,7 @@ export default async function OfficeHome() {
             <thead>
               <tr>
                 <th>Salon</th>
-                <th>Amount</th>
+                <th>Still to deliver</th>
                 <th>Waiting</th>
                 <th>Who delivers</th>
                 <th>Next step</th>
@@ -180,7 +227,10 @@ export default async function OfficeHome() {
                     <Link href={`/office/salons/${r.salon_id}`}>{r.salon_name}</Link>
                     {r.status === "partially_delivered" && <span className="muted"> (part delivered)</span>}
                   </td>
-                  <td>{rupees(Number(r.total_paisa))}</td>
+                  <td>
+                    {rupees(Number(r.undelivered_paisa ?? r.total_paisa))}
+                    {r.status === "partially_delivered" && <span className="muted"> of {rupees(Number(r.total_paisa))}</span>}
+                  </td>
                   <td>{daysWaiting(r.waiting_days)}</td>
                   <td>{r.deliverer_kind === "rep" ? `Rep ${r.deliverer_name ?? ""}` : "Office"}</td>
                   <td>

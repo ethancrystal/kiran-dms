@@ -48,7 +48,14 @@ export type OverviewCounts = {
   pending_salons: number;
   pending_requests: number;
   delivered_this_week: number;
+  /** P1-30: reps whose cash in hand is at or over the cap (D-47), and handovers waiting (D-46). */
+  reps_at_cash_cap: number;
+  handovers_unanswered: number;
+  handovers_disputed: number;
 };
+
+/** One row of app.office_cash_cap_reps (D-47). */
+export type CashCapRep = { rep_id: string; full_name: string; cash_paisa: number; cap_paisa: number };
 
 export type OverviewSection = "placed" | "waiting" | "held" | "delivered";
 
@@ -73,6 +80,8 @@ export type OverviewRow = {
   invoice_total_paisa: number | null;
   delivered_at: string | null;
   delivered_by_name: string | null;
+  /** P1-30 (FLOW-09): what of the order is still to deliver, at its own prices; null on invoice rows. */
+  undelivered_paisa: number | null;
 };
 
 /** Who placed an order, in a few plain words. */
@@ -139,6 +148,9 @@ export type MyMonthOrders = {
   waiting_value_paisa: number;
   held_count: number;
   cancelled_count: number;
+  /** P1-30 (FLOW-10): orders from the rep's own cards, whoever delivers them (as the office home's "placed by"). */
+  placed_count: number;
+  placed_value_paisa: number;
 };
 
 export type RepMonthRow = {
@@ -156,4 +168,6 @@ export type RepMonthRow = {
   earned_month_paisa: number;
   paid_month_paisa: number;
   owed_paisa: number;
+  placed_count: number;
+  placed_value_paisa: number;
 };

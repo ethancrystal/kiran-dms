@@ -7,9 +7,10 @@ import { rupees } from "@/lib/money";
 import { type RepMonthRow, thisMonth } from "@/lib/overview";
 
 // Rep performance (P1-26; doc 16, D-38). Owner and manager only: app.office_rep_month lists every rep
-// with the orders they brought in the month (orders whose rep they are, by the month the order was
-// placed) and their commission: earned and paid in the month, still owed over all months. Every figure
-// is the database's; the page adds nothing up. Payments are recorded on the Commission page.
+// with the orders assigned to them in the month (the orders their commission follows, A-20, by the month
+// the order was placed), the orders they placed from their own cards (the office home's "placed by",
+// P1-30, FLOW-10) and their commission: earned and paid in the month, still owed over all months. Every
+// figure is the database's; the page adds nothing up. Payments are recorded on the Commission page.
 export default function RepPerformance() {
   const [month, setMonth] = useState(thisMonth);
   const read = useRpcRead<RepMonthRow[]>("office_rep_month", { p_month: month }, month);
@@ -19,9 +20,10 @@ export default function RepPerformance() {
     <>
       <h1>Rep performance</h1>
       <p className="muted">
-        For each rep: the orders they brought this month, how many are delivered or still waiting, and their commission.
-        Commission counts in the month the delivery is approved. To pay a rep, use the{" "}
-        <Link href="/office/commission">commission page</Link>.
+        For each rep: the orders assigned to them this month (they deliver them and earn the commission), how many are delivered
+        or still waiting, and their commission. &ldquo;Placed from their cards&rdquo; counts the orders made from the rep&apos;s
+        own order cards, whoever delivers them, as the overview&apos;s &ldquo;placed by&rdquo; does. Commission counts in the
+        month the delivery is approved. To pay a rep, use the <Link href="/office/commission">commission page</Link>.
       </p>
       <MonthPicker month={month} onChange={setMonth} />
       {read.loading && (
@@ -40,12 +42,13 @@ export default function RepPerformance() {
           <thead>
             <tr>
               <th>Rep</th>
-              <th>Orders brought</th>
+              <th>Orders assigned</th>
               <th>Delivered</th>
               <th>Waiting to be delivered</th>
               <th>Commission earned</th>
               <th>Commission paid</th>
               <th>Still owed (all months)</th>
+              <th>Placed from their cards</th>
             </tr>
           </thead>
           <tbody>
@@ -65,6 +68,10 @@ export default function RepPerformance() {
                 <td>{rupees(r.paid_month_paisa)}</td>
                 <td>
                   <strong>{rupees(r.owed_paisa)}</strong>
+                </td>
+                <td>
+                  {r.placed_count}
+                  {Number(r.placed_count) > 0 && <span className="muted"> ({rupees(r.placed_value_paisa)})</span>}
                 </td>
               </tr>
             ))}

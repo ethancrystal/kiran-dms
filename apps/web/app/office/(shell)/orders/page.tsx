@@ -35,6 +35,22 @@ const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "me
 // The rep who delivers: the assigned rep of an office order, or the rep who took a rep_visit order.
 const deliveringRep = (o: Order) => o.assigned_rep_id ?? o.rep_id;
 
+/**
+ * FLOW-11 (P1-30): a salon's own active rep (latest salon_rep_assignment, D-36), read under RLS, so a
+ * salon's request converted in one click carries that rep and its rate; null when it has none.
+ */
+async function directRepOf(salonId: string): Promise<string | null> {
+  const [d] = await rows<{ rep_id: string | null; rep: { status: string } | null }>(
+    db()
+      .from("salon_rep_assignment")
+      .select("rep_id, rep:rep_id(status)")
+      .eq("salon_id", salonId)
+      .order("seq", { ascending: false })
+      .limit(1),
+  );
+  return d?.rep_id && d.rep?.status === "active" ? d.rep_id : null;
+}
+
 const chunks = (ids: string[]) =>
   Array.from({ length: Math.ceil(ids.length / NAME_CHUNK) }, (_, n) => ids.slice(n * NAME_CHUNK, (n + 1) * NAME_CHUNK));
 
@@ -130,7 +146,7 @@ export default function Orders() {
 
   // One click: the request's own lines at the database's prices, on CASH, for the version shown. A rep's
   // card keeps its rep as the delivering rep (the database checks the rep still covers the salon); a
-  // salon's request has none, so the office delivers.
+  // salon's request takes the salon's own rep when it has one (FLOW-11), otherwise the office delivers.
   const convert = async (c: OrderCard) => {
     setNotice(null);
     setQueueError(null);
@@ -143,7 +159,7 @@ export default function Orders() {
         p_salon_id: c.salon_id,
         p_plan: "CASH",
         p_lines: null,
-        p_assigned_rep_id: c.rep_id,
+        p_assigned_rep_id: c.rep_id ?? (await directRepOf(c.salon_id)),
         p_intake_card_id: c.card_id,
         p_card_version: c.version,
       });

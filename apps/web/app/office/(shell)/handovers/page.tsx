@@ -1,8 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { ListState } from "@/components/confirm-action";
+import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { rupees, toPaisa } from "@/lib/money";
-import { db, rows, rpc } from "@/lib/rpc";
+import { db, mySession, type Role, rows, rpc } from "@/lib/rpc";
 
 type Rep = { id: string; full_name: string };
 type Cash = { in_paisa: number; out_paisa: number; balance_paisa: number };
@@ -15,20 +15,38 @@ type Handover = {
   variance_paisa: number;
   variance_reason: string | null;
   counted_by_name: string;
-  status: "pending" | "final" | "disputed";
+  status: "pending" | "final" | "disputed" | "settled" | "withdrawn";
   response_note: string | null;
+  settlement: "counted" | "rep" | "withdrawn" | null;
+  settlement_reason: string | null;
+  settled_at: string | null;
+  settled_by_name: string | null;
 };
+
+// app.owner_settle_handover and app.office_withdraw_handover take a reason of 5 to 300 characters.
+const REASON_MIN = 5;
 
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 const STATUS_TEXT: Record<Handover["status"], string> = {
   pending: "Waiting for the rep",
   final: "Final",
-  disputed: "Disputed: for the owner",
+  disputed: "Disputed: the owner settles it",
+  settled: "Settled by the owner",
+  withdrawn: "Withdrawn",
+};
+const SETTLEMENT_TEXT: Record<string, string> = {
+  counted: "the counted amount stands; the difference stays recorded against the rep",
+  rep: "the rep's amount was accepted; the difference is an office difference",
+  withdrawn: "withdrawn before the rep answered; nothing moved",
 };
 
 // Evening cash handover (PAY-05, CTL-03, doc 09 §5). The owner or manager counts a rep's cash; the
 // database computes what the rep should hold from the cash ledger, refuses a different figure without
 // a reason, and moves the cash only when the rep acknowledges on their own phone (ACTIVITY A-15).
+// D-46 (P1-30): only the owner settles a disputed count, with a reason, choosing the counted amount (the
+// difference stays against the rep) or the rep's amount (an office difference); the cash then moves as on
+// an acknowledgment. The owner or the manager may withdraw a count the rep has not answered (nothing moves),
+// so a lost phone or a silent rep no longer blocks the next count.
 export default function Handovers() {
   const [reps, setReps] = useState<Rep[]>([]);
   const [list, setList] = useState<Handover[]>([]);
@@ -36,19 +54,22 @@ export default function Handovers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [r, h, c] = await Promise.all([
+      const [r, h, c, me] = await Promise.all([
         rows<Rep>(db().from("user_profile").select("id, full_name").eq("role", "rep").eq("status", "active").order("full_name")),
         rpc<Handover[]>("office_handovers"),
         rpc<Cash[]>("office_cash_position"),
+        mySession(),
       ]);
       setReps(r);
       setList(h ?? []);
       setOffice(c?.[0] ?? null);
+      setRole(me?.role ?? null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -59,13 +80,46 @@ export default function Handovers() {
     void load();
   }, [load]);
 
+  // One client id per row and action, kept until the database accepts it, so a retry replays (H-08).
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const keyFor = (k: string) => {
+    const known = keys[k];
+    if (known) return known;
+    const fresh = crypto.randomUUID();
+    setKeys((all) => ({ ...all, [k]: fresh }));
+    return fresh;
+  };
+  const settle = async (h: Handover, outcome: "counted" | "rep", reason: string) => {
+    setNotice(null);
+    await rpc("owner_settle_handover", {
+      p_client_id: keyFor(`settle:${h.handover_id}`),
+      p_handover_id: h.handover_id,
+      p_outcome: outcome,
+      p_reason: reason,
+    });
+    setNotice(`Settled ${h.rep_name}'s handover. The rep can be counted again.`);
+    await load();
+  };
+  const withdraw = async (h: Handover, reason: string) => {
+    setNotice(null);
+    await rpc("office_withdraw_handover", {
+      p_client_id: keyFor(`withdraw:${h.handover_id}`),
+      p_handover_id: h.handover_id,
+      p_reason: reason,
+    });
+    setNotice(`Withdrew the count for ${h.rep_name}; nothing moved. Count again when the rep is here.`);
+    await load();
+  };
+
   return (
     <>
       <h1>Cash handover</h1>
       {office && (
         <p>
           Office cash: <strong data-testid="office-cash">{rupees(office.balance_paisa)}</strong>{" "}
-          <span className="muted">(handed over and acknowledged; bank deposits are not built yet)</span>
+          <span className="muted">
+            (handed over and acknowledged or settled, and cash the office collected itself; bank deposits are not built yet)
+          </span>
         </p>
       )}
       {notice && <output className="ok">{notice}</output>}
@@ -106,6 +160,43 @@ export default function Handovers() {
                 <td data-label="Status">
                   <span className="badge">{STATUS_TEXT[h.status]}</span>
                   {h.response_note && <span className="muted"> · {h.response_note}</span>}
+                  {h.settlement && (
+                    <span className="muted">
+                      {" "}
+                      · {SETTLEMENT_TEXT[h.settlement]} ({h.settled_by_name}: {h.settlement_reason})
+                    </span>
+                  )}
+                  {h.status === "disputed" && role === "owner" && (
+                    <div className="row">
+                      <ConfirmAction
+                        label="Accept the counted amount"
+                        confirmLabel="Settle at the counted amount"
+                        reasonLabel="Why (kept on the record)"
+                        reasonMinLength={REASON_MIN}
+                        onConfirm={(reason) => settle(h, "counted", reason)}
+                      />
+                      <ConfirmAction
+                        label="Accept the rep's amount"
+                        confirmLabel="Settle at the rep's amount"
+                        reasonLabel="Why (kept on the record)"
+                        reasonMinLength={REASON_MIN}
+                        onConfirm={(reason) => settle(h, "rep", reason)}
+                      />
+                    </div>
+                  )}
+                  {h.status === "disputed" && role !== "owner" && <p className="muted">Only the owner settles a dispute.</p>}
+                  {h.status === "pending" && (
+                    <div className="row">
+                      <ConfirmAction
+                        label="Withdraw this count"
+                        confirmLabel="Withdraw the count"
+                        reasonLabel="Why it is withdrawn"
+                        reasonMinLength={REASON_MIN}
+                        danger
+                        onConfirm={(reason) => withdraw(h, reason)}
+                      />
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
