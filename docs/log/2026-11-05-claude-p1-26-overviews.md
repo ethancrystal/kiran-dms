@@ -53,3 +53,4 @@ Security checklist (tick honestly):
 [x] Docs match code; deviations logged (H-25)
 [x] Tests actually run; real results recorded (H-23, H-24)
 **Next / needs:** CI on a pull request (MJ decides when to push), above all the e2e-stack job with overviews.spec.ts. MJ: confirm or change A-20 (above all which orders count for a rep, and investor reversals counting in the original month); D-43 numbering against PR 62. A later slice: a browser test of the rep My-month block, and order links to /office/orders/[id] once slice 8 merges.
+Addition, after the entry commit: node scripts/activity-log-check.mjs origin/main: OK (2 new log entries, 26 changed files; owner terms checked: 0, the secret is not set locally). pnpm agent:preflight: PREFLIGHT OK, worktree clean.
