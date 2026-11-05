@@ -24,14 +24,14 @@ Target baseline: OWASP ASVS Level 2. Everything below is a launch requirement un
 
 Three roles at launch. **Manager = Owner for operations; Owner alone holds governance.** The split exists so that no single person below the owner can both commit and conceal (doc 13).
 
-**Amended by MJ on 2026-11-05 (D-33 to D-41; decision file `2026-11-05-mj-reps-salons-orders`, H-26).** A row marked "approved, not built" states the approved rule; until its slice ships, the database still behaves as the earlier rule said (for example a rep can edit a salon and a manager cannot invite). Do not read such a row as current behaviour; the status board says what exists.
+**Amended by MJ on 2026-11-05 (D-33 to D-41; decision file `2026-11-05-mj-reps-salons-orders`, H-26).** A row marked "approved, not built" states the approved rule; until its slice ships, the database still behaves as the earlier rule said (for example, before slice 7, a rep could edit a salon). Do not read such a row as current behaviour; the status board says what exists.
 
 | Capability | Rep | Manager | Owner |
 |---|---|---|---|
 | See salons | Reachable salons only, read-only (a direct assignment, else territory coverage, D-36; built in slice 1, migration 20261105100000, not verified); phones masked in lists | All | All |
-| Edit a salon | No, read-only (D-35; approved, not built: slice 7) | All | All |
+| Edit a salon | No, read-only (D-35; built in slice 7: `app.update_salon` refuses every rep, migration 20261105160000, not verified) | All | All |
 | Salon notes | Reachable salons | All | All |
-| Propose a new salon, pin included | Yes, stays pending (D-35; approved, not built: slice 7) | Adds approved salons directly | Same as manager |
+| Propose a new salon, pin included | Yes, stays pending (D-35; built in slice 7: `app.create_salon` by a rep makes a pending salon with no assignment, reachable under D-36 territory coverage meanwhile; no card or order until approved, migration 20261105160000, not verified) | Adds approved salons directly | Same as manager |
 | Approve or reject a proposed salon; assign or change a rep; set the rate | — | Yes (D-35, D-36; built in slice 1: `app.office_decide_salon`, `app.office_assign_salon_rep`, not verified) | Yes |
 | Change salon stage manually | — | With reason | With reason |
 | Log visits, deliveries, payments | Own | Own + on behalf (flagged) | Same as manager |
@@ -59,7 +59,7 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | **Commission rates** (per rep and salon with a rep default, D-38; built in slice 5, not verified) | View own (D-31) | Set and change rates; view all (D-31; MJ, ACTIVITY L-0385) | Set and change rates; view all (D-31; MJ, ACTIVITY L-0385) |
 | Commission payments and reversals (D-38, supersedes earned-only; built in slice 5, not verified) | View own earned, paid, owed and history, read-only | Record; view all | Record; view all |
 | Investor ledger: investors, investments, typed profit decisions, payouts, reversals (D-40; built in slice 3: `app.office_create_investor`, `app.office_update_investor`, `app.office_add_investment`, `app.office_decide_profit`, `app.office_record_payout`, `app.office_reverse_investor_entry` and the `app.office_investor*` reads, at AAL2, not verified; no second person, OQ-34 default) | — (reads no row, refused by every function) | Yes | Yes |
-| Salon and order timelines (scoped office functions over `control.audit_event`, D-39; approved, not built: slice 7) | — | Yes | Yes |
+| Salon and order timelines (scoped office functions over `control.audit_event`, D-39; built in slice 7: `app.office_salon_timeline`, `app.office_order_timeline` at AAL2, allow-listed fields only: when, actor name and kind, an action label, an enum detail or the names of changed salon fields, the entity and its id; never the row images, ip, device, purpose or hash; the phone-reveal log, stock, vault and investor tables are not read; migration 20261105160000, not verified) | — | Yes | Yes |
 | **Vault (supplier, costs, POs, receipts)** | — | If granted by owner (default: granted) | Yes; grants are owner-only |
 | Exports (watermarked) | — | Operational reports | All |
 | **Audit log, anomaly flags, cases** (the full log; timelines are the row above) | — | Read own-team flags | **Owner: read all; nobody can write** |

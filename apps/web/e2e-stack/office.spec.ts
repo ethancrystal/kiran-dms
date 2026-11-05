@@ -313,6 +313,12 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByRole("heading", { name: salonName })).toBeVisible();
   await expect(page.getByText("prospect").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Stage history" })).toBeVisible();
+  // Slice 7 (P1-24; R3, D-35): a salon the rep adds is a proposal, pending until the office decides, so
+  // no order details can be saved for it yet; salon details are read-only for a rep (no Edit link).
+  await expect(page.getByTestId("salon-pending")).toBeVisible();
+  await expect(page.getByLabel("What the salon needs")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Edit", exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("salon-readonly")).toContainText("The office keeps the salon's details");
   // P1-07 (PAY-02, PAY-04): the salon's account comes from app.salon_balance and app.salon_installments.
   // A new salon owes nothing, so the database's zero is shown and no payment form is offered.
   await expect(page.getByRole("heading", { name: "Account · حساب" })).toBeVisible();
@@ -323,6 +329,14 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("button", { name: "Add note" }).click();
   await expect(page.getByText("Note added.")).toBeVisible();
   await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();
+  // The owner approves the proposal on Salon approvals with no rep, so the territory's rep keeps it (R4).
+  await office.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Salon approvals", exact: true }).click();
+  const proposal = office.getByRole("region", { name: salonName });
+  await expect(proposal).toContainText(`proposed by ${rep.name}`);
+  await proposal.getByRole("button", { name: "Approve" }).click();
+  await expect(office.getByText(`Approved ${salonName}.`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("salon-pending")).toHaveCount(0);
   // D-30 (ORD-14): the rep does not place orders; it saves what the salon wants as an order card
   // (app.rep_create_card, open day), listed under My cards as Open until the office acts on it.
   await page.getByLabel("What the salon needs").fill(CARD_TEXT);
@@ -344,42 +358,30 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.goto("/app/salons");
   await expect(page.getByRole("link", { name: salonName })).toBeVisible();
 
-  // SAL-01 edit (slice 3): the form starts from the database's values; the saved values come back
-  // from the database after a reload; the note and stage history are untouched.
   await page.getByRole("link", { name: salonName }).click();
-  await page.getByRole("link", { name: "Edit", exact: true }).click();
-  await page.waitForURL(/\/edit$/);
-  await expect(page.getByLabel("Salon name")).toHaveValue(salonName);
-  await page.getByLabel("Address").fill("[Test] 7 Fake Market Road");
-  await page.getByLabel("Chairs").fill("4");
-  await page.getByRole("button", { name: "Save changes" }).click();
-  // The confirmation shows the row app.update_salon returned, then the salon page reloads it.
-  await expect(page.getByText(`Salon updated: ${salonName} · [Test] 7 Fake Market Road · 4 chairs.`)).toBeVisible();
-  await page.getByRole("link", { name: "Back to the salon" }).click();
   await page.waitForURL(/\/app\/salons\/[0-9a-f-]{36}$/);
-  await page.reload();
-  await expect(page.getByText("[Test] 7 Fake Market Road")).toBeVisible();
-  await expect(page.getByText("4 chairs")).toBeVisible();
-  await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();
-  // A recorded field cannot be emptied (null keeps the old value in app.update_salon).
-  await page.getByRole("link", { name: "Edit", exact: true }).click();
-  await page.getByLabel("Address").fill("");
-  await expect(page.getByText(/cannot be emptied/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
 
-  // Office side of slice 3: the owner finds the salon, sets its pin (office only while B-31 a is
-  // open), overrides the stage with a reason, and the history shows it; the rep sees the new pin.
+  // SAL-01 edit (slice 3), by the office since slice 7 (D-35): the owner finds the salon, records the
+  // address and chairs and sets its pin; a recorded field cannot be emptied (null keeps the old value
+  // in app.update_salon); the owner overrides the stage with a reason, and the history shows it.
   await office.getByRole("link", { name: "Salons", exact: true }).click();
   await office.getByLabel("Name contains").fill(salonName);
   await office.getByRole("button", { name: "Search" }).click();
   await office.getByRole("link", { name: salonName }).click();
   await expect(office.getByRole("heading", { name: salonName })).toBeVisible();
-  await expect(office.getByLabel("Address")).toHaveValue("[Test] 7 Fake Market Road");
+  await expect(office.getByLabel("Salon name")).toHaveValue(salonName);
+  await office.getByLabel("Address").fill("[Test] 7 Fake Market Road");
+  await office.getByLabel("Chairs").fill("4");
   await office.getByLabel("Pin latitude").fill("24.8607");
   await expect(office.getByText("A pin needs both latitude and longitude.")).toBeVisible();
   await office.getByLabel("Pin longitude").fill("67.0011");
   await office.getByRole("button", { name: "Save changes" }).click();
   await expect(office.getByText("Salon updated.")).toBeVisible();
+  await office.getByLabel("Address").fill("");
+  await expect(office.getByText(/cannot be emptied/)).toBeVisible();
+  await expect(office.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  await office.reload();
+  await expect(office.getByLabel("Address")).toHaveValue("[Test] 7 Fake Market Road");
   // L-0362: the office salon page has the account section in office mode; a new salon owes nothing.
   await expect(office.getByTestId("balance")).toHaveText("Rs 0");
   await expect(office.getByRole("button", { name: "Record payment" })).toHaveCount(0);
@@ -391,7 +393,18 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await office.reload();
   await expect(office.getByText("[Test] confirmed by phone")).toBeVisible();
   await expect(office.getByLabel("Pin latitude")).toHaveValue("24.8607");
+  // Slice 7: the salon's timeline (app.office_salon_timeline) says who did what, from the audit chain.
+  const timeline = office.getByTestId("salon-timeline");
+  await expect(timeline).toContainText(`salon proposed · pending · ${rep.name}`);
+  await expect(timeline).toContainText(`salon approved · ${owner.name}`);
+  await expect(timeline).toContainText(`note added · ${rep.name}`);
+  await expect(timeline).toContainText(`salon updated · address, pin, chairs · ${owner.name}`);
+  await expect(timeline).not.toContainText("[Test] owner asked for a price list");
+  // The rep reads what the office recorded, read-only, after a reload; its note is untouched.
   await page.reload();
+  await expect(page.getByText("[Test] 7 Fake Market Road")).toBeVisible();
+  await expect(page.getByText("4 chairs")).toBeVisible();
+  await expect(page.getByText("[Test] owner asked for a price list")).toBeVisible();
   await expect(page.getByText("Pin: 24.8607, 67.0011.")).toBeVisible();
 
   // CTL-03, the rep's side: the handover page reads app.my_cash_position and app.my_handovers. The
@@ -486,6 +499,13 @@ test("a manager makes an order from the rep's card; the card leaves the queue an
   await expect(page.getByRole("row").filter({ hasText: journeySalon })).toContainText("confirmed");
   await expect(queue.locator("[aria-busy]")).toHaveCount(0);
   await expect(page.getByRole("listitem").filter({ hasText: CARD_TEXT })).toHaveCount(0);
+  // Slice 7: the order's timeline (app.office_order_timeline): the rep's card, its conversion and the order.
+  await page.getByRole("row").filter({ hasText: journeySalon }).getByRole("button", { name: "Timeline" }).click();
+  const orderTimeline = page.getByTestId("order-timeline");
+  await expect(orderTimeline).toContainText(`order card saved · ${rep.name}`);
+  await expect(orderTimeline).toContainText(`request converted · converted · ${manager.name}`);
+  await expect(orderTimeline).toContainText(`order created · draft · ${manager.name}`);
+  await expect(orderTimeline).not.toContainText(CARD_TEXT);
 
   // The rep's phone: the order is in its territory list, assigned to it, and still nothing makes an order.
   const phoneContext = await browser.newContext({ storageState: repPhone ?? undefined });

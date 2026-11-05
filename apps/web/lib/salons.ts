@@ -45,8 +45,15 @@ export function salonPage(after?: Salon) {
   return rpc<Salon[]>("my_salons", { p_after_name: after?.name ?? null, p_after_id: after?.id ?? null, p_limit: 50 });
 }
 
-/** One salon with the fields the edit form needs, as returned by app.my_salon (migration 0016). */
-export type SalonDetail = Salon & { address: string | null; chairs: number | null };
+/**
+ * One salon as app.my_salon returns it (migration 0016; approval_status since slice 7, migration
+ * 20261105160000): read-only for the rep (D-35). A salon the rep proposed reads pending until the office decides.
+ */
+export type SalonDetail = Salon & {
+  address: string | null;
+  chairs: number | null;
+  approval_status: "pending" | "approved" | "rejected";
+};
 
 /** One of the rep's own salons (app.my_salon: same territory scope as app.my_salons, phone masked), or null. */
 export async function findSalon(id: string): Promise<SalonDetail | null> {

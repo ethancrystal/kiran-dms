@@ -96,9 +96,23 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
       </p>
       <p>
         {salon.address ?? <span className="muted">No address.</span>}
-        {salon.chairs !== null && <span className="muted"> · {salon.chairs} chairs</span>}{" "}
-        <a href={`/app/salons/${id}/edit`}>Edit</a>
+        {salon.chairs !== null && <span className="muted"> · {salon.chairs} chairs</span>}
       </p>
+      {/* D-35 (slice 7): salon details are read-only for a rep; app.update_salon refuses reps. */}
+      <p className="muted" data-testid="salon-readonly">
+        Pin: {salon.lat !== null && salon.lng !== null ? `${salon.lat}, ${salon.lng}` : "not set"}. The office keeps the salon's
+        details; to report a change, add a note.
+      </p>
+      {salon.approval_status === "pending" && (
+        <p className="badge" data-testid="salon-pending">
+          Proposed: waiting for the office's approval. Notes and visits work now; order details wait until it is approved.
+        </p>
+      )}
+      {salon.approval_status === "rejected" && (
+        <p className="badge" data-testid="salon-rejected">
+          The office did not approve this salon.
+        </p>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -136,7 +150,10 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
         }}
       />
 
-      <CardForm salonId={id} onDone={() => done("Order details saved. The office makes the order from them.")} />
+      {/* app.rep_create_card refuses a salon that is not approved (55000), so the form waits for it. */}
+      {salon.approval_status === "approved" && (
+        <CardForm salonId={id} onDone={() => done("Order details saved. The office makes the order from them.")} />
+      )}
 
       <MoneySection salonId={id} mode="rep" />
 

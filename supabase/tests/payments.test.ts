@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  approveSalon,
   errorOf,
   fx,
   MANAGER,
@@ -189,6 +190,9 @@ beforeAll(async () => {
       ]),
     ),
   );
+  // D-35 (slice 7): a rep's salon is a proposal; the office approves both before any order.
+  await approveSalon(SALON);
+  await approveSalon(SALON_B);
   await one(OWNER, "select app.owner_set_credit($1, 'INST4', 100000000, 'payments tests, owner decision')", [SALON]);
   await one(MANAGER, "select app.office_upsert_product_group($1, $2, 21)", [GROUP, `[Test] Payment colour ${tag()}`]);
   await one(MANAGER, "select app.office_upsert_product($1, $2, '[Dummy] Kiran', '[Dummy] Payment colour')", [PRODUCT, GROUP]);
@@ -1094,6 +1098,7 @@ describe("replay, server time and concurrency of a payment's client_id (H-08, H-
       `[Test] Payment salon C ${tag()}`,
       AREA_A,
     ]);
+    await approveSalon(salon); // D-35 (slice 7): the office approves a rep's proposal before any order
     return salon;
   };
   const deliverOffice = (ord: string) =>

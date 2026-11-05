@@ -1,7 +1,8 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
 import { type CreatedOrder, type OrderCard, OrderForm, orderSummary, requestFrom } from "@/components/order-form";
+import { Timeline } from "@/components/timeline";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
@@ -26,6 +27,8 @@ const CHANNELS = ["office", "rep_visit", "salon_portal"];
 const NAME_CHUNK = 50;
 // app.office_dismiss_card refuses a reason shorter than 5 characters (22023).
 const DISMISS_REASON_MIN_LENGTH = 5;
+// The orders table's columns, so an open timeline row spans them all.
+const ORDER_COLUMNS = 8;
 
 const when = (t: string) => new Date(t).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
 
@@ -73,6 +76,8 @@ export default function Orders() {
   const [channel, setChannel] = useState("");
   const [form, setForm] = useState<FormState>({ kind: "closed" });
   const [notice, setNotice] = useState<string | null>(null);
+  // The order whose timeline (app.office_order_timeline, slice 7) is open; one at a time.
+  const [openTimeline, setOpenTimeline] = useState<string | null>(null);
 
   const loadCards = useCallback(async () => {
     setCardsLoading(true);
@@ -321,23 +326,44 @@ export default function Orders() {
                 <th>Total</th>
                 <th>Delivering rep</th>
                 <th>Channel</th>
+                <th>History</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={o.id}>
-                  <td data-label="Created">{when(o.created_at)}</td>
-                  <td data-label="Salon">
-                    <a href={`/office/salons/${o.salon_id}`}>{salonText(o.salon_id)}</a>
-                  </td>
-                  <td data-label="Status">
-                    <span className="badge">{label(o.status)}</span>
-                  </td>
-                  <td data-label="Plan">{o.plan}</td>
-                  <td data-label="Total">{rupees(Number(o.total_paisa))}</td>
-                  <td data-label="Delivering rep">{repText(o)}</td>
-                  <td data-label="Channel">{label(o.source_channel)}</td>
-                </tr>
+                <Fragment key={o.id}>
+                  <tr>
+                    <td data-label="Created">{when(o.created_at)}</td>
+                    <td data-label="Salon">
+                      <a href={`/office/salons/${o.salon_id}`}>{salonText(o.salon_id)}</a>
+                    </td>
+                    <td data-label="Status">
+                      <span className="badge">{label(o.status)}</span>
+                    </td>
+                    <td data-label="Plan">{o.plan}</td>
+                    <td data-label="Total">{rupees(Number(o.total_paisa))}</td>
+                    <td data-label="Delivering rep">{repText(o)}</td>
+                    <td data-label="Channel">{label(o.source_channel)}</td>
+                    <td data-label="History">
+                      <button
+                        type="button"
+                        className="inline"
+                        aria-expanded={openTimeline === o.id}
+                        aria-controls={`timeline-${o.id}`}
+                        onClick={() => setOpenTimeline((cur) => (cur === o.id ? null : o.id))}
+                      >
+                        {openTimeline === o.id ? "Hide timeline" : "Timeline"}
+                      </button>
+                    </td>
+                  </tr>
+                  {openTimeline === o.id && (
+                    <tr id={`timeline-${o.id}`}>
+                      <td colSpan={ORDER_COLUMNS} aria-label={`Timeline of the order for ${salonText(o.salon_id)}`}>
+                        <Timeline kind="order" id={o.id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

@@ -2,7 +2,8 @@
  * Salon approval and direct rep assignment (migration 20261105100000, slice 1, P1-18; D-35, D-36,
  * spec rulings R3 and R4). Office-created salons are approved; a pending or rejected salon cannot get
  * an order or a card. A direct assignment limits the salon to that rep; otherwise territory coverage
- * applies. Nothing creates a pending salon until slice 7, so these tests insert one as postgres.
+ * applies. These tests insert their pending salons as postgres; since slice 7 a rep's app.create_salon
+ * makes one too (rep-readonly-timelines.test.ts).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -139,11 +140,13 @@ afterAll(async () => {
 });
 
 describe("a salon's approval status", () => {
-  it("salons added by the office or a rep today read approved; a rep's proposal becomes pending in slice 7", async () => {
+  // Slice 7 (migration 20261105160000, R3) made a rep's new salon a pending proposal; until then this
+  // test pinned that a rep's add read approved.
+  it("salons added by the office read approved; a salon a rep adds is a pending proposal (slice 7)", async () => {
     expect(await approvalOf(await approvedSalon())).toBe("approved");
     const id = uuid();
     await run(REP_A, "select app.create_salon($1, '[Test] Rep add', 'unisex', $2, 'map_pin')", [id, AREA_A], C);
-    expect(await approvalOf(id)).toBe("approved");
+    expect(await approvalOf(id)).toBe("pending");
   });
 
   it("moves only with a decision: a direct update is refused even for the table owner", async () => {

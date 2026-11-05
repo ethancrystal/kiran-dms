@@ -157,8 +157,8 @@ try {
   );
 
   // Slice 1 (D-35, D-39): a territory and area for a salon the manager creates while inviting it,
-  // and a salon a rep proposed, waiting on Salon approvals. Nothing in the app makes a pending salon
-  // until slice 7, so it is written here as postgres, the way the database tests do.
+  // and a salon a rep proposed, waiting on Salon approvals. Since slice 7 a rep's app.create_salon makes one
+  // too (the rep journey does); this one is written as postgres, the way the database tests do.
   const territory = { id: randomUUID(), name: `[Test] Seed territory ${tag}` };
   const area = { id: randomUUID(), name: `[Test] Seed area ${tag}` };
   await as(people.owner.id, "aal2", null, "select app.office_upsert_territory($1, $2)", [territory.id, territory.name]);

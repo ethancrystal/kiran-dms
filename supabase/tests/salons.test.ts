@@ -116,7 +116,8 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
   });
 
   it("my_salon (migration 0016) gives the rep one own salon with address and chairs, and nobody else anything", async () => {
-    await one(REP_A, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] 1 Fake Street')", [S1, A1]);
+    // Since slice 7 (D-35) only the office edits a salon, so the office records the address.
+    await one(MANAGER, "select app.update_salon($1, null, 'ladies_parlor', $2, '[Test] 1 Fake Street')", [S1, A1]);
     expect(await one(REP_A, "select id, phone_masked, address, chairs, lat, lng from app.my_salon($1)", [S1])).toEqual({
       id: S1,
       phone_masked: "+920*******34",
@@ -147,10 +148,23 @@ describe("salons are scoped to the rep's territories (SAL-09, H-14)", () => {
     expect(next.some((n) => page.some((p) => p.id === n.id))).toBe(false);
   });
 
-  it("a rep moves a salon only between areas of its own territories", async () => {
-    expect(await errorOf(REP_A, "select app.update_salon($1, 'renamed', 'unisex', $2)", [S1, A2])).toMatch(/own territories/);
-    expect(await errorOf(REP_B, "select app.update_salon($1, 'renamed', 'unisex', $2)", [S1, A2])).toMatch(/own territories/);
-    const r = await one(REP_A, "select (app.update_salon($1, '[Test] Renamed', 'unisex', $2, null, 24.9, 67.1, 4)).*", [S1, A1b]);
+  // Slice 7 (D-35, R3): reps no longer edit or move a salon, even within their own territories; the
+  // office does. This was "a rep moves a salon only between areas of its own territories": the rep's
+  // own-territory move is now refused as well, and every other refusal stands.
+  it("a rep cannot move or edit a salon at all; the office moves it", async () => {
+    // The refusal app.update_salon gives a rep: "only the office edits a salon: reps read ..." matches;
+    // "reps edit salons only in their own territories" does not.
+    // https://regex101.com/?regex=only%20the%20office%20edits%20a%20salon&flavor=javascript
+    const officeOnly = /only the office edits a salon/;
+    expect(await errorOf(REP_A, "select app.update_salon($1, 'renamed', 'unisex', $2)", [S1, A2])).toMatch(officeOnly);
+    expect(await errorOf(REP_B, "select app.update_salon($1, 'renamed', 'unisex', $2)", [S1, A2])).toMatch(officeOnly);
+    expect(
+      await sqlstate(REP_A, "select app.update_salon($1, '[Test] Renamed', 'unisex', $2, null, 24.9, 67.1, 4)", [S1, A1b]),
+    ).toBe("42501");
+    const r = await one(MANAGER, "select (app.update_salon($1, '[Test] Renamed', 'unisex', $2, null, 24.9, 67.1, 4)).*", [
+      S1,
+      A1b,
+    ]);
     expect(r.area_id).toBe(A1b);
     expect(r.stage).toBe("prospect");
   });
