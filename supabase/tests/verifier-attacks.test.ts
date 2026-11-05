@@ -246,7 +246,7 @@ describe("internal functions are not callable by app roles", () => {
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon",
       "decide_approval", "due_list", "duplicate_phones", "has_vault_grant", "invitation_preview", "invoice_document", "is_aal2", "is_office", "is_owner",
       "is_rep", "log_visit", "low_stock", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_day", "my_handovers", "my_orders", "my_route",
-      "my_salon", "my_salons", "my_session", "my_territory_ids", "my_territory_orders", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue",
+      "my_salon", "my_salons", "my_session", "my_submissions", "my_territory_ids", "my_territory_orders", "office_assign_salon_rep", "office_assign_territory", "office_cancel_stock_issue",
       "office_cash_position", "office_count_handover", "office_create_location", "office_create_order", "office_decide_salon", "office_deliver", "office_dismiss_card", "office_end_territory",
       "office_force_close_rep_day", "office_handovers", "office_invitations", "office_invite", "office_open_cards", "office_orders", "office_override_stage", "office_pending_salons", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receivables_ageing",
       "office_record_cash", "office_record_payment", "office_release_credit_hold", "office_rep_cash_position", "office_revoke_invitation", "office_set_blocked", "office_set_last_purchase", "office_set_member_status",
@@ -256,7 +256,7 @@ describe("internal functions are not callable by app roles", () => {
       "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "receipt_document", "recheck_order",
       "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_check_in", "rep_check_out",
       "rep_confirm_stock_issue", "rep_create_card", "rep_deliver", "rep_device_ok", "rep_park_salon", "rep_record_payment", "rep_reorder_route",
-      "rep_respond_handover", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_credit_status", "salon_installments", "salon_me",
+      "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_balance", "salon_credit_status", "salon_installments", "salon_me",
       "salon_notes", "salon_stages", "salon_visits", "self_ok", "stock_on_hand", "update_salon", "user_role",
       "warehouse_availability",
       // my_session, self_ok: added by migration 0004 (L-0026). Inventory RPCs and the my_bag_id RLS
@@ -277,6 +277,7 @@ describe("internal functions are not callable by app roles", () => {
       // office_create_order: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // order cards: migration 0025 (D-30 PR A); MJ standing approval L-0144.
       // my_territory_orders, office_orders: migration 0025 (D-30 PR A); MJ standing approval L-0144.
+      // my_submissions, rep_submit_delivery: migration 20261105130100 (slice 4, P1-21, D-32 PR B); MJ standing approval L-0144.
     ]);
     const sr = await run("postgres", `
       select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace

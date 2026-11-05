@@ -16,6 +16,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fx, MANAGER, OWNER, REP_A, run } from "./helpers/db";
+import { legacyOrderSql } from "./helpers/legacy-order";
 
 const C = { commit: true };
 const DENIED = "42501";
@@ -409,6 +410,264 @@ describe("the internal finalising function stamps who delivered and who earns (D
     expect(codes).toEqual([DENIED, DENIED, DENIED]);
     const gone = await tx([["postgres", "select to_regproc('app.deliver') is null gone;"]]);
     expect(gone).toEqual([{ gone: true }]);
+  });
+});
+
+// ------------------------------------------------------------ Task 3: submission ----
+const HANDED = 2; // units handed over in most tests
+const ORDER_OF_THREE = 3;
+const BACKDATED = "2026-01-01T09:00:00+05:00";
+const OWN_ORDERS = "own orders";
+const LEFT = "at most what is left";
+const NOTHING_LEFT = "nothing is left";
+// Stock on hand of rep A's bag and pending location before the steps that follow (temp table b).
+const baseline: Step = [
+  "postgres",
+  `create temp table b on commit drop as
+   select ${onHand(BAG_A, SKU1)} bag1, ${onHand(PENDING_A, SKU1)} pend1, ${onHand(BAG_A, SKU2)} bag2, ${onHand(PENDING_A, SKU2)} pend2;`,
+];
+const deltas = `(select ${onHand(BAG_A, SKU1)} - b.bag1 from b) bag1, (select ${onHand(PENDING_A, SKU1)} - b.pend1 from b) pend1,
+                (select ${onHand(BAG_A, SKU2)} - b.bag2 from b) bag2, (select ${onHand(PENDING_A, SKU2)} - b.pend2 from b) pend2`;
+const failOf = async (steps: Step[]) => {
+  const f = await txFail(steps);
+  return [f?.code ?? null, f?.message ?? null] as const;
+};
+const closeDay: Step = [
+  "manager",
+  `select app.office_force_close_rep_day((select id from public.rep_day where rep_id = '${fx.repA.id}' and day = ${TODAY}), 'test: day closed');`,
+];
+
+describe("a rep's delivery is a submission: goods to pending, nothing official changes (D-32)", () => {
+  it("a submission moves goods to pending and changes nothing official", async () => {
+    const o = id(),
+      s = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      baseline,
+      submit(s, o, null, "repA", `, false, '${BACKDATED}'`),
+      [
+        "postgres",
+        `select ${deltas}, o.status::text status,
+                (select count(*)::int from public.delivery d where d.order_id = o.id) deliveries,
+                (select count(*)::int from public.delivery_line dl join public.delivery d on d.id = dl.delivery_id where d.order_id = o.id) delivery_lines,
+                (select count(*)::int from public.invoice i where i.order_id = o.id) invoices,
+                (select count(*)::int from public.installment x join public.invoice i on i.id = x.invoice_id where i.order_id = o.id) installments,
+                (select count(*)::int from public.stock_movement m where m.kind = 'sale' and m.source_id = s.id) sales,
+                (select count(*)::int from public.stock_movement m where m.kind = 'submitted_to_salon' and m.source_type = 'delivery_submission' and m.source_id = s.id and m.actor_id = '${fx.repA.id}') moved,
+                (select sum(x.remaining)::int from app.order_lines_left(o.id) x) remaining,
+                s.submitted_at > now() - interval '1 minute' server_time, s.submitted_at_client = '${BACKDATED}'::timestamptz client_kept,
+                s.lines = ${lines([[SKU1, HANDED]])} lines, s.rep_day_id = (select id from public.rep_day where rep_id = '${fx.repA.id}' and day = ${TODAY}) on_day,
+                s.device_fingerprint = '${fx.repA.device}' device, s.distance_from_pin_m dist, s.flags
+         from public.sales_order o join public.delivery_submission s on s.order_id = o.id where o.client_id = '${o}';`,
+      ],
+    ]);
+    expect(r).toEqual({
+      bag1: -HANDED,
+      pend1: HANDED,
+      bag2: 0,
+      pend2: 0,
+      status: "confirmed",
+      deliveries: 0,
+      delivery_lines: 0,
+      invoices: 0,
+      installments: 0,
+      sales: 0,
+      moved: 1,
+      remaining: HANDED,
+      server_time: true,
+      client_kept: true,
+      lines: true,
+      on_day: true,
+      device: true,
+      dist: 0,
+      flags: [],
+    });
+  });
+
+  it("a replay returns the same submission and moves nothing twice", async () => {
+    const o = id(),
+      o2 = id(),
+      s = id();
+    const [r] = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o, [[SKU1, HANDED]]),
+      ["postgres", `create temp table first on commit drop as select id from public.delivery_submission where client_id = '${s}';`],
+      submit(s, o, [[SKU1, HANDED]]),
+      submit(s, o),
+      [
+        "postgres",
+        `select (select count(*)::int from public.delivery_submission where client_id = '${s}') subs,
+                (select id from first) = ${sid(s)} same,
+                (select count(*)::int from public.stock_movement m where m.source_id = ${sid(s)}) moves;`,
+      ],
+    ]);
+    expect(r).toEqual({ subs: 1, same: true, moves: 1 });
+    const other = await inSeries(
+      [
+        [order(o2, [[SKU1, 1]]), submit(s, o, [[SKU1, HANDED]]), submit(s, o2)],
+        [submit(s, o, [[SKU1, HANDED]]), submit(s, o, [[SKU1, 1]])],
+      ] as Step[][],
+      (steps) => txCode([order(o, [[SKU1, HANDED]]), ...steps]),
+    );
+    expect(other).toEqual([DUPLICATE, DUPLICATE]);
+    expect(
+      await txCode([
+        order(o, [[SKU1, HANDED]]),
+        ["repA", `select app.rep_submit_delivery(null, ${oid(o)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG});`],
+      ]),
+    ).toBe(BAD_INPUT);
+  });
+
+  it("who may submit", async () => {
+    const o = id();
+    const mine = order(o, [[SKU1, 1]]);
+    const cases: Array<[Step[], string, string | null]> = [
+      [[mine, submit(id(), o, null, "repB")], DENIED, OWN_ORDERS],
+      [[order(o, [[SKU1, 1]], SALON, null), submit(id(), o)], DENIED, OWN_ORDERS],
+      [[mine, submit(id(), o, null, "manager")], DENIED, null],
+      [[mine, submit(id(), o, null, "owner")], DENIED, null],
+      [[mine, submit(id(), o, null, "repAWrongDevice")], DENIED, null],
+      [[mine, submit(id(), o, null, "suspended")], DENIED, null],
+      [[mine, closeDay, submit(id(), o)], DENIED, "check in"],
+      [
+        [mine, ["manager", `select app.office_end_territory('${fx.repA.id}', '${T_A}', 'test: moved away');`], submit(id(), o)],
+        DENIED,
+        "own territories",
+      ],
+    ];
+    const got = await inSeries(cases, ([steps]) => failOf(steps));
+    expect(got.map(([code, msg], i) => [code, cases[i][2] === null || Boolean(msg?.includes(cases[i][2] ?? ""))])).toEqual(
+      cases.map(([, code]) => [code, true]),
+    );
+  });
+
+  it("what a submission needs", async () => {
+    const o = id();
+    const mine = order(o, [[SKU1, 1]]);
+    const raw = (name: string, lat: string, lng: string, l = "null"): Step => [
+      "repA",
+      `select app.rep_submit_delivery('${id()}', ${oid(o)}, ${name}, ${lat}, ${lng}, ${l});`,
+    ];
+    const legacyDraft = legacyOrderSql({
+      clientId: o,
+      salonId: SALON,
+      skuId: SKU1,
+      qty: 1,
+      unitPaisa: SKU1_PAISA,
+      repId: fx.repA.id,
+      plan: "CASH",
+      status: "draft",
+    });
+    const cases: Array<[Step[], string, string]> = [
+      [[mine, raw("''", `${PIN_LAT}`, `${PIN_LNG}`)], BAD_INPUT, "name of the person"],
+      [[mine, raw("'A'", `${PIN_LAT}`, `${PIN_LNG}`)], BAD_INPUT, "name of the person"],
+      [[mine, raw("'Ayesha'", "null", `${PIN_LNG}`)], BAD_INPUT, "GPS is required"],
+      [[mine, raw("'Ayesha'", `${PIN_LAT}`, "null")], BAD_INPUT, "GPS is required"],
+      [[mine, raw("'Ayesha'", "999", `${PIN_LNG}`)], CHECK, "delivery_lat_check"],
+      [[["postgres", legacyDraft], submit(id(), o)], BAD_INPUT, "only a confirmed order"],
+      [[mine, ["manager", `select app.cancel_order(${oid(o)}, 'test: cancelled');`], submit(id(), o)], BAD_INPUT, "only a confirmed order"],
+      [[mine, submit(id(), o, [[SKU3, 1]])], BAD_INPUT, LEFT],
+    ];
+    const got = await inSeries(cases, ([steps]) => failOf(steps));
+    expect(got.map(([code, msg], i) => [code, Boolean(msg?.includes(cases[i][2]))])).toEqual(cases.map(([, code]) => [code, true]));
+    // More than the bag holds: refused with the rep path's words, and nothing is written.
+    const big = id();
+    const BEYOND_BAG = 90;
+    const [code, msg] = await failOf([order(big, [[SKU1, BEYOND_BAG]]), submit(id(), big)]);
+    expect([code, msg?.includes("insufficient stock at the delivery location")]).toEqual([CHECK, true]);
+    const [n] = await tx([
+      order(big, [[SKU1, BEYOND_BAG]]),
+      [
+        "repA",
+        `do $t$ begin perform app.rep_submit_delivery('${id()}', ${oid(big)}, 'Ayesha at the counter', ${PIN_LAT}, ${PIN_LNG});
+         exception when check_violation then null; end $t$;`,
+      ],
+      ["postgres", `select count(*)::int subs from public.delivery_submission where order_id = ${oid(big)};`],
+    ]);
+    expect(n).toEqual({ subs: 0 });
+  });
+
+  it("undecided submissions reserve quantity (Review Focus 1)", async () => {
+    const o = id();
+    const three = order(o, [[SKU1, ORDER_OF_THREE]]);
+    const first = submit(id(), o, [[SKU1, HANDED]]);
+    expect(await failOf([three, first, submit(id(), o, [[SKU1, HANDED]])]).then(([c, m]) => [c, m?.includes(LEFT)])).toEqual([
+      BAD_INPUT,
+      true,
+    ]);
+    const [r] = await tx([
+      three,
+      first,
+      submit(id(), o, [[SKU1, 1]]),
+      ["postgres", `select count(*)::int subs from public.delivery_submission where order_id = ${oid(o)};`],
+    ]);
+    expect(r).toEqual({ subs: HANDED });
+    expect(
+      await failOf([three, first, submit(id(), o, [[SKU1, 1]]), submit(id(), o)]).then(([c, m]) => [c, m?.includes(NOTHING_LEFT)]),
+    ).toEqual([BAD_INPUT, true]);
+  });
+
+  it("the rep of a legacy rep_visit order may submit it", async () => {
+    const o = id();
+    const legacy = legacyOrderSql({
+      clientId: o,
+      salonId: SALON,
+      skuId: SKU1,
+      qty: 1,
+      unitPaisa: SKU1_PAISA,
+      repId: fx.repA.id,
+      plan: "CASH",
+    });
+    const [r] = await tx([
+      ["postgres", legacy],
+      submit(id(), o),
+      ["postgres", `select count(*)::int subs, bool_and(rep_id = '${fx.repA.id}') mine from public.delivery_submission where order_id = ${oid(o)};`],
+    ]);
+    expect(r).toEqual({ subs: 1, mine: true });
+  });
+
+  it("flags record a mock location and an unknown distance", async () => {
+    const o = id(),
+      p = id(),
+      s1 = id(),
+      s2 = id();
+    const r = await tx([
+      order(o, [[SKU1, 1]]),
+      order(p, [[SKU2, 1]], SALON_NOPIN),
+      submit(s1, o, null, "repA", ", true"),
+      submit(s2, p),
+      [
+        "postgres",
+        `select s.client_id = '${s1}' mocked, s.mock_location, s.flags, s.distance_from_pin_m dist
+         from public.delivery_submission s where s.client_id in ('${s1}', '${s2}') order by s.client_id = '${s1}' desc;`,
+      ],
+    ]);
+    expect(r).toEqual([
+      { mocked: true, mock_location: true, flags: ["mock_location"], dist: 0 },
+      { mocked: false, mock_location: false, flags: ["distance_unknown"], dist: null },
+    ]);
+  });
+
+  it("my_submissions shows a rep its own only", async () => {
+    const o = id(),
+      s = id();
+    const mineRows = await tx([
+      order(o, [[SKU1, HANDED]]),
+      submit(s, o),
+      ["repA", `select status, salon_name is not null named, lines, unsettled, invoice_id from app.my_submissions() where submission_id = ${sid(s)};`],
+    ]);
+    expect(mineRows).toEqual([
+      {
+        status: "pending",
+        named: true,
+        lines: [{ sku_id: SKU1, code: expect.any(String), variant: "[Dummy] shade", qty: HANDED }],
+        unsettled: 0,
+        invoice_id: null,
+      },
+    ]);
+    const theirs = await tx([order(o, [[SKU1, HANDED]]), submit(s, o), ["repB", `select count(*)::int n from app.my_submissions() where submission_id = ${sid(s)};`]]);
+    expect(theirs).toEqual([{ n: 0 }]);
+    expect(await txCode([["manager", "select * from app.my_submissions();"]])).toBe(DENIED);
   });
 });
 

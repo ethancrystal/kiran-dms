@@ -453,3 +453,181 @@ begin
 end $$;
 
 drop function app.deliver(uuid, uuid, uuid, jsonb, text, numeric, numeric, boolean, timestamptz, uuid);
+
+-- =============================================================================
+-- Rep submission (plan Task 3)
+-- =============================================================================
+-- Internal: a rep's pending-delivery location.
+create function app.pending_location_of(p_rep_id uuid) returns uuid
+language sql stable security definer set search_path = '' as $$
+  select l.id from public.stock_location l where l.kind = 'pending_delivery' and l.owner_user_id = p_rep_id
+$$;
+
+-- Internal: per order line, what is left to deliver, how much of it undecided submissions already
+-- hold (reserved), and what is still open to submit (Review Focus 1: a second phone, or a second tap
+-- with a new client_id, cannot submit the same goods twice).
+create function app.order_lines_open(p_order_id uuid)
+returns table (order_line_id uuid, sku_id uuid, remaining integer, reserved integer, open integer)
+language sql stable security definer set search_path = '' as $$
+  with r as (
+    select (e ->> 'sku_id')::uuid sku_id, sum((e ->> 'qty')::integer)::integer qty
+    from public.delivery_submission s, jsonb_array_elements(s.lines) e
+    where s.order_id = p_order_id
+      and not exists (select 1 from public.delivery_submission_decision x where x.submission_id = s.id)
+    group by 1)
+  select x.order_line_id, x.sku_id, x.remaining, coalesce(r.qty, 0), x.remaining - coalesce(r.qty, 0)
+  from app.order_lines_left(p_order_id) x left join r on r.sku_id = x.sku_id
+  order by x.line_no
+$$;
+
+-- D-32: the rep hands the goods over and records the handover. The goods move from the bag to the
+-- rep's pending location; the order, the official delivery, the sale and the invoice do not change
+-- until the office approves. Same checks and messages as the rep path it replaces (app.rep_deliver),
+-- in the same order, so the moved test fixtures fail the same way. p_lines null: everything still
+-- open. Idempotent on client_id (H-08): the same rep, order, receiver and (when given) lines get the
+-- same submission back.
+create function app.rep_submit_delivery(
+  p_client_id uuid, p_order_id uuid, p_received_by_name text, p_lat numeric, p_lng numeric,
+  p_lines jsonb default null, p_mock_location boolean default false, p_submitted_at_client timestamptz default null)
+returns public.delivery_submission
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_role  public.app_role := app.assert_actor_ready();
+  sub     public.delivery_submission;
+  o       public.sales_order;
+  s       public.salon;
+  v_day   uuid;
+  v_bag   uuid := app.my_bag_id();
+  v_pend  uuid;
+  v_given jsonb;
+  v_lines jsonb;                                           -- [{sku_id, qty}] ordered by sku_id
+  v_bad   integer;
+  v_dist  integer;
+  v_flags jsonb := '[]'::jsonb;
+begin
+  if v_role <> 'rep' then perform app.raise_denied('reps deliver from their bag; the office uses office_deliver'); end if;
+  if p_client_id is null then
+    raise exception using errcode = '22023', message = 'a delivery needs a client_id (idempotency key, H-08)';
+  end if;
+  if p_lines is not null then
+    select jsonb_agg(jsonb_build_object('sku_id', x.sku_id, 'qty', x.qty) order by x.sku_id) into v_given
+    from app.parse_lines(p_lines) x;
+  end if;
+  select * into sub from public.delivery_submission where client_id = p_client_id;
+  if sub.id is not null then
+    if sub.rep_id = auth.uid() and sub.order_id = p_order_id and sub.received_by_name = btrim(p_received_by_name)
+       and (v_given is null or sub.lines = v_given) then
+      return sub;                                                                -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  select * into o from public.sales_order where id = p_order_id;
+  if o.id is null or (o.rep_id is distinct from auth.uid() and o.assigned_rep_id is distinct from auth.uid()) then
+    perform app.raise_denied('reps deliver only their own orders');
+  end if;
+  v_day := app.my_open_day_id();
+  if v_day is null then perform app.raise_denied('check in before delivering (PIP-09)'); end if;
+  if not app.rep_can_reach_salon(o.salon_id) then
+    perform app.raise_denied('reps deliver only to salons in their own territories');
+  end if;
+  if v_bag is null then perform app.raise_denied('this rep has no bag to deliver from'); end if;
+  if p_lat is null or p_lng is null then
+    raise exception using errcode = '22023', message = 'GPS is required for a delivery (MJ L-0163)';
+  end if;
+  -- One submission of an order at a time; a retry that waited on this lock finds its own row now.
+  select * into o from public.sales_order where id = p_order_id for update;
+  select * into sub from public.delivery_submission where client_id = p_client_id;
+  if sub.id is not null then
+    if sub.rep_id = auth.uid() and sub.order_id = p_order_id and sub.received_by_name = btrim(p_received_by_name)
+       and (v_given is null or sub.lines = v_given) then
+      return sub;                                                                -- replay
+    end if;
+    raise exception using errcode = '23505', message = 'client_id already used with different content';
+  end if;
+  if o.status not in ('confirmed', 'partially_delivered') then
+    raise exception using errcode = '22023', message = 'only a confirmed order is delivered (ORD-03)';
+  end if;
+  if length(btrim(coalesce(p_received_by_name, ''))) not between 2 and 80 then
+    raise exception using errcode = '22023', message = 'the name of the person who received the goods is required (MJ L-0163)';
+  end if;
+  if v_given is null then
+    select jsonb_agg(jsonb_build_object('sku_id', x.sku_id, 'qty', x.open) order by x.sku_id) into v_lines
+    from app.order_lines_open(o.id) x where x.open > 0;
+  else
+    select count(*) into v_bad
+    from jsonb_to_recordset(v_given) as g(sku_id uuid, qty integer)
+    left join app.order_lines_open(o.id) x on x.sku_id = g.sku_id
+    where x.order_line_id is null or g.qty > x.open;
+    if v_bad > 0 then
+      raise exception using errcode = '22023', message = 'every line must be a SKU of this order, at most what is left to deliver';
+    end if;
+    v_lines := v_given;
+  end if;
+  if v_lines is null then
+    raise exception using errcode = '22023', message = 'nothing is left to deliver on this order';
+  end if;
+  v_pend := app.pending_location_of(auth.uid());
+  if v_pend is null then
+    raise exception using errcode = '55000', message = 'this rep has no pending-delivery location; the office re-creates the bag';
+  end if;
+  -- Units promised to a pending issue back to the warehouse are not available (migration 0008).
+  if exists (select 1 from jsonb_to_recordset(v_lines) as t(sku_id uuid, qty integer)
+             where app.on_hand(v_bag, t.sku_id) - app.pending_out(v_bag, t.sku_id) < t.qty) then
+    raise exception using errcode = '23514', message = 'insufficient stock at the delivery location (part delivery is allowed)';
+  end if;
+  select * into s from public.salon where id = o.salon_id;
+  if s.lat is null then
+    v_flags := v_flags || '["distance_unknown"]'::jsonb;
+  elsif p_lat between -90 and 90 and p_lng between -180 and 180 then
+    v_dist := app.distance_m(s.lat, s.lng, p_lat, p_lng);
+  end if;
+  if coalesce(p_mock_location, false) then v_flags := '["mock_location"]'::jsonb || v_flags; end if;
+  perform app.set_purpose('delivery submitted for approval');
+  insert into public.delivery_submission (client_id, order_id, salon_id, rep_id, rep_day_id, lines, received_by_name,
+                                          lat, lng, distance_from_pin_m, device_fingerprint, mock_location, flags,
+                                          submitted_at_client)
+  values (p_client_id, o.id, o.salon_id, auth.uid(), v_day, v_lines, btrim(p_received_by_name),
+          p_lat, p_lng, v_dist, coalesce(app.request_device_id(), ''), coalesce(p_mock_location, false), v_flags,
+          p_submitted_at_client)
+  returning * into sub;
+  insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, source_type, source_id, actor_id)
+  select gen_random_uuid(), t.sku_id, t.qty, v_bag, v_pend, 'submitted_to_salon', 'delivery_submission', sub.id, auth.uid()
+  from jsonb_to_recordset(v_lines) as t(sku_id uuid, qty integer);
+  return sub;
+end $$;
+
+-- The rep's own submissions, newest 50, with how each stands: pending, approved (with its invoice) or
+-- rejected (with the reason and what is still in pending custody). The salon's name only while the rep
+-- reaches it, as app.my_orders. Lines carry the SKU code and variant.
+create function app.my_submissions()
+returns table (submission_id uuid, order_id uuid, salon_id uuid, salon_name text, lines jsonb, received_by_name text,
+               submitted_at timestamptz, status text, reason text, invoice_id uuid, invoice_number text, unsettled integer)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.assert_actor_ready() <> 'rep' then perform app.raise_denied('delivery submissions are listed for reps only'); end if;
+  return query
+  select s.id, s.order_id, s.salon_id, case when app.rep_can_reach_salon(s.salon_id) then sa.name end,
+         (select jsonb_agg(jsonb_build_object('sku_id', k.id, 'code', k.code, 'variant', k.variant, 'qty', (e ->> 'qty')::integer)
+                           order by k.code)
+          from jsonb_array_elements(s.lines) e join public.sku k on k.id = (e ->> 'sku_id')::uuid),
+         s.received_by_name, s.submitted_at, coalesce(x.outcome, 'pending'), x.reason, i.id, i.number,
+         case when x.outcome = 'rejected' then
+           (select coalesce(sum((e ->> 'qty')::integer), 0) from jsonb_array_elements(s.lines) e)::integer
+           - (select coalesce(sum(r.qty), 0) from public.pending_stock_resolution r where r.submission_id = s.id)::integer
+         else 0 end
+  from public.delivery_submission s
+  join public.salon sa on sa.id = s.salon_id
+  left join public.delivery_submission_decision x on x.submission_id = s.id
+  left join public.invoice i on i.delivery_id = x.delivery_id
+  where s.rep_id = auth.uid()
+  order by s.submitted_at desc, s.id
+  limit 50;
+end $$;
+
+revoke all on function
+  app.pending_location_of(uuid), app.order_lines_open(uuid),
+  app.rep_submit_delivery(uuid, uuid, text, numeric, numeric, jsonb, boolean, timestamptz), app.my_submissions()
+  from public, anon, authenticated, service_role;
+grant execute on function
+  app.rep_submit_delivery(uuid, uuid, text, numeric, numeric, jsonb, boolean, timestamptz), app.my_submissions()
+  to authenticated;

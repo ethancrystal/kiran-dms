@@ -199,11 +199,13 @@ describe("§7.6 backdated client timestamps", () => {
     // Migration 0021 (P1-07 part a; standing approval L-0144): rep_record_payment(p_recorded_at_client) stores the
     // phone's time as evidence only, in recorded_at_client, next to the server's recorded_at (H-09); a test in
     // payments.test.ts proves recorded_at is database time whatever the phone sends.
+    // Migration 20261105130100 (D-32 PR B; L-0144): rep_submit_delivery(p_submitted_at_client) stores the phone's time
+    // as evidence only, in submitted_at_client, next to the server's submitted_at.
     expect(rows.map((x) => x.f)).toEqual([
       "app.add_salon_note", "app.create_order", "app.create_salon", "app.due_list", "app.log_visit", "app.my_route",
       "app.office_propose_stock_issue", "app.office_set_last_purchase", "app.office_set_route", "app.owner_create_user",
       "app.record_count", "app.record_demand", "app.rep_check_in", "app.rep_check_out", "app.rep_deliver", "app.rep_record_payment",
-      "app.rep_reorder_route"]);
+      "app.rep_reorder_route", "app.rep_submit_delivery"]);
   });
 });
 
