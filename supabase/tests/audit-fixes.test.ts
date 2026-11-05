@@ -10,7 +10,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fx, MANAGER, OWNER, run, sqlstate } from "./helpers/db";
+import { fx, MANAGER, MANAGER_AAL1, OWNER, OWNER_AAL1, run, sqlstate } from "./helpers/db";
 import { asLogin, asLoginRows, type Login, newLogin } from "./helpers/invite";
 import { submitApproveSql } from "./helpers/submit-approve";
 
@@ -261,6 +261,21 @@ describe("AUTH-05: an invited rep acts only with an emailed-code session", () =>
         )) as unknown as Multi
       ).at(-1)?.rows ?? [];
     expect(codeRows[0]).toMatchObject({ ok: true, s: expect.objectContaining({ role: "rep", device_status: "approved" }) });
+
+    // Review of P1-30: the two RLS helpers granted to authenticated return nothing to the password token
+    // either (they checked only the role); the code session gets its territory and bag.
+    await run(MANAGER, "select app.office_assign_territory($1, $2)", [l.id, T], C);
+    await run(
+      OWNER,
+      "select app.office_create_location(gen_random_uuid(), 'rep_bag', $1, $2, $3)",
+      [`[Test] Invited rep bag ${tag()}`, l.id, BAG_LIMIT],
+      C,
+    );
+    const helpers = "select (select count(*)::int from app.my_territory_ids()) as t, app.my_bag_id() is not null as b;";
+    expect((await pwRows(helpers))[0]).toEqual({ t: 0, b: false });
+    const codeHelpers = ((await run("postgres", `${as(l, "otp", device)} ${helpers}`)) as unknown as Multi).at(-1)?.rows ?? [];
+    expect(codeHelpers[0]).toEqual({ t: 1, b: true });
+    await run(MANAGER, "select app.office_end_territory($1, $2, 'audit fixes tests finished')", [l.id, T], C);
   });
 
   it("reps the owner created without an invitation are unaffected (the fixture reps carry no amr claim)", async () => {
@@ -416,6 +431,42 @@ describe("D-45: the owner's own stock adjustment takes effect at once", () => {
         ],
       ]),
     ).toBe(LIMIT);
+    // Review of P1-30: the label alone is not enough. A movement naming an owner adjustment needs that record,
+    // with the same SKU, quantity, location and direction (42501), even from the table owner.
+    const planted = (source: string, qty = FEW) => `insert into public.stock_movement
+        (client_id, sku_id, qty, to_location_id, kind, source_type, source_id, actor_id)
+        values (gen_random_uuid(), '${SKU}', ${qty}, '${WH}', 'adjustment', 'owner_stock_adjustment', ${source}, '${fx.owner.id}');`;
+    expect(await txCode([["postgres", planted("gen_random_uuid()")]])).toBe(DENIED);
+    const own = id();
+    expect(
+      await txCode([
+        adjust("owner", own, FEW),
+        ["postgres", planted(`(select a.id from public.owner_stock_adjustment a where a.client_id = '${own}')`, FEW + 1)],
+      ]),
+    ).toBe(DENIED);
+  });
+
+  it("when the owner settles goods as missing, a pending request for them that no longer fits is cancelled", async () => {
+    const ocid = id(),
+      scid = id(),
+      rcid = id();
+    const sub = `(select id from public.delivery_submission where client_id = '${scid}')`;
+    const r = await tx([
+      order(ocid, TWO),
+      ["repA", `select app.rep_submit_delivery('${scid}', ${orderOf(ocid)}, 'Counter', 24.9, 67.1, null);`],
+      ["manager", `select app.office_reject_delivery(${sub}, gen_random_uuid(), 'salon refused the goods');`],
+      [
+        "manager",
+        `select app.request_approval('${rcid}', 'adjustment', 'stock_location', ${PENDING_A},
+         jsonb_build_object('sku_id', '${SKU}', 'qty_delta', -${TWO}, 'submission_id', ${sub}), 'two units missing');`,
+      ],
+      [
+        "owner",
+        `select app.office_resolve_pending(gen_random_uuid(), ${sub}, '${SKU}', 1, 'missing', 'one counted gone', null, null);`,
+      ],
+      mark("s", `(select status::text from control.approval_request where client_id = '${rcid}') as s`),
+    ]);
+    expect(r.s[0].s).toBe("cancelled");
   });
 
   it("goods of a rejected delivery: the owner settles them as missing at once; the manager still needs an approved request", async () => {
@@ -649,6 +700,76 @@ describe("D-48: payment reversal", () => {
     expect(n(r.a[0].cash)).toBe(n(r.b[0].cash));
   });
 
+  // Review of P1-30: a count made after the payment already holds that cash in its expected figure. If the
+  // reversal took the cash from the rep while that count was open, the rep's later answer (or the owner's
+  // settlement) would take it out a second time. So the reversal waits until the open handover is answered,
+  // settled or withdrawn.
+  const countAll = (hcid: string): Step => [
+    "manager",
+    `select app.office_count_handover('${hcid}', '${fx.repA.id}', ${repBalance});`,
+  ];
+  const hOf = (hcid: string) => `(select id from public.handover where client_id = '${hcid}')`;
+  const disputeOf = (hcid: string): Step => [
+    "repA",
+    `select app.rep_respond_handover(gen_random_uuid(), ${hOf(hcid)}, false, 'I handed over more than that');`,
+  ];
+
+  it("is refused (55000) while the rep's count waits for an answer or is under dispute", async () => {
+    const [o, p, hc] = [id(), id(), id()];
+    const counted: Step[] = [...setup(o), repCash(p, UNIT), countAll(hc)];
+    expect(await txCode([...counted, reverse("manager", id(), p)])).toBe(WRONG_STATE);
+    expect(await txCode([...counted, disputeOf(hc), reverse("owner", id(), p)])).toBe(WRONG_STATE);
+  });
+
+  it("after the owner settles the dispute, the reversal takes the cash from the office and the rep's ledger is not touched again", async () => {
+    const [o, p, hc] = [id(), id(), id()];
+    const r = await tx([
+      ...setup(o),
+      repCash(p, UNIT),
+      countAll(hc),
+      disputeOf(hc),
+      ["owner", `select app.owner_settle_handover(gen_random_uuid(), ${hOf(hc)}, 'counted', 'checked the till roll');`],
+      mark("b", `${repBalance} as rep, ${officeCash} as office`),
+      reverse("manager", id(), p),
+      mark("a", `${repBalance} as rep, ${officeCash} as office`),
+    ]);
+    expect(r.rev[0].cash_holder).toBe("office");
+    expect(n(r.a[0].rep)).toBe(n(r.b[0].rep));
+    expect(n(r.a[0].office)).toBe(n(r.b[0].office) - UNIT);
+  });
+
+  it("after the office withdraws the count, the rep still holds the cash, so the reversal takes it from the rep", async () => {
+    const [o, p, hc] = [id(), id(), id()];
+    const r = await tx([
+      ...setup(o),
+      mark("b", `${repBalance} as rep, ${officeCash} as office`),
+      repCash(p, UNIT),
+      countAll(hc),
+      ["owner", `select app.office_withdraw_handover(gen_random_uuid(), ${hOf(hc)}, 'phone lost, counting again');`],
+      reverse("manager", id(), p),
+      mark("a", `${repBalance} as rep, ${officeCash} as office`),
+    ]);
+    expect(r.rev[0].cash_holder).toBe("rep");
+    expect(n(r.a[0].rep)).toBe(n(r.b[0].rep));
+    expect(n(r.a[0].office)).toBe(n(r.b[0].office));
+  });
+
+  it("a count that took the rep's lock after the payment counts it, even in the same transaction (counted_at is the clock after the lock)", async () => {
+    const [o, p, hc] = [id(), id(), id()];
+    const r = await tx([
+      ...setup(o),
+      repCash(p, UNIT),
+      countAll(hc),
+      ["repA", `select app.rep_respond_handover(gen_random_uuid(), ${hOf(hc)}, true);`],
+      repCash(id(), UNIT),
+      mark("b", `${repBalance} as rep`),
+      reverse("manager", id(), p),
+      mark("a", `${repBalance} as rep`),
+    ]);
+    expect(r.rev[0].cash_holder).toBe("office");
+    expect(n(r.a[0].rep)).toBe(n(r.b[0].rep));
+  });
+
   it("the reversal row is append-only", async () => {
     const [o, p, rc] = [id(), id(), id()];
     expect(
@@ -776,7 +897,9 @@ describe("D-46: the owner settles a disputed handover; the office withdraws an u
     expect(await txCode([order(o), deliver(o), repCash(id(), UNIT), count(plain), settle("owner", plain)])).toBe(WRONG_STATE);
   });
 
-  it("an unanswered count: the manager withdraws it, nothing moves, the rep can no longer answer, the next count goes ahead", async () => {
+  // Review of P1-30 (SEC-11, as D-48 does for reversals): the manager who made a count cannot withdraw it;
+  // the owner can. The fixtures have one manager, who makes every count here, so the owner withdraws.
+  it("an unanswered count: the owner withdraws it, nothing moves, the rep can no longer answer, the next count goes ahead", async () => {
     const hc = id();
     const withdraw = (who: P): Step => [
       who,
@@ -788,7 +911,7 @@ describe("D-46: the owner settles a disputed handover; the office withdraws an u
       repCash(id(), UNIT),
       count(hc),
       mark("b", `${repBalance} as rep, ${officeCash} as office`),
-      withdraw("manager"),
+      withdraw("owner"),
       mark("a", `${repBalance} as rep, ${officeCash} as office`),
       count(id()),
       mark("next", "1 as ok"),
@@ -802,12 +925,14 @@ describe("D-46: the owner settles a disputed handover; the office withdraws an u
         deliver(o),
         repCash(id(), UNIT),
         count(hc),
-        withdraw("manager"),
+        withdraw("owner"),
         ["repA", `select app.rep_respond_handover(gen_random_uuid(), ${h(hc)}, true);`],
       ]),
     ).toBe(WRONG_STATE);
-    expect(await txCode([...base(hc), withdraw("manager")])).toBe(WRONG_STATE);
+    expect(await txCode([...base(hc), withdraw("owner")])).toBe(WRONG_STATE);
     expect(await txCode([order(o), deliver(o), repCash(id(), UNIT), count(hc), withdraw("repA")])).toBe(DENIED);
+    // The manager who made the count cannot withdraw it (42501).
+    expect(await txCode([order(o), deliver(o), repCash(id(), UNIT), count(hc), withdraw("manager")])).toBe(DENIED);
   });
 
   it("the settlement row is append-only", async () => {
@@ -1045,5 +1170,30 @@ describe("AUTH-10, AUTH-09: what the salon is told", () => {
     expect(r.s[0].me).toBeNull();
     expect(r.p[0].x).toBeNull();
     expect(r.staff[0].x).toBeNull();
+  });
+});
+
+// =============================================================================
+// Review of P1-30: every new office write and read refuses an office login at AAL1 and a salon login
+// (the master prompt's negative case per operation). assert_office and assert_owner refuse before any input
+// is looked at, so made-up ids are enough.
+describe("the new office functions refuse AAL1 office sessions and a salon login (42501)", () => {
+  const u = () => `'${id()}'`;
+  const calls: Array<[string, string]> = [
+    ["owner_adjust_stock", `select app.owner_adjust_stock(${u()}, ${u()}, ${u()}, 1, 'opening stock, counted')`],
+    ["office_adjustment_checker", `select app.office_adjustment_checker(${u()}, 1)`],
+    ["office_resolve_pending", `select app.office_resolve_pending(${u()}, ${u()}, ${u()}, 1, 'missing', 'counted gone', null, null)`],
+    ["office_pending_stock", "select * from app.office_pending_stock()"],
+    ["office_refused_approvals", "select * from app.office_refused_approvals()"],
+    ["office_reverse_payment", `select app.office_reverse_payment(${u()}, ${u()}, 'recorded by mistake')`],
+    ["office_salon_payments", `select * from app.office_salon_payments(${u()})`],
+    ["office_cash_cap_reps", "select * from app.office_cash_cap_reps()"],
+    ["owner_settle_handover", `select app.owner_settle_handover(${u()}, ${u()}, 'counted', 'checked the till roll')`],
+    ["office_withdraw_handover", `select app.office_withdraw_handover(${u()}, ${u()}, 'phone lost, counting again')`],
+  ];
+  it.each(calls)("%s", async (_name, sql) => {
+    expect(await sqlstate(MANAGER_AAL1, sql)).toBe(DENIED);
+    expect(await sqlstate(OWNER_AAL1, sql)).toBe(DENIED);
+    expect(await sqlstate("postgres", `${asLogin(salonLogin)} ${sql};`)).toBe(DENIED);
   });
 });

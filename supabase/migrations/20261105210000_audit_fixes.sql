@@ -155,6 +155,21 @@ language sql stable security definer set search_path = '' as $$
   where p.id = auth.uid() and (p.role <> 'rep' or app.rep_session_ok())
 $$;
 
+-- The two RLS helpers granted to authenticated (migrations 0008 and 0009) checked only the role, so a
+-- password token of an invited rep still got its territory ids and bag id (no rows: every policy using them
+-- also needs self_ok). Review of P1-30: they now need the same session as everything else.
+create or replace function app.my_bag_id() returns uuid
+language sql stable security definer set search_path = '' as $$
+  select l.id from public.stock_location l
+  where l.kind = 'rep_bag' and l.owner_user_id = auth.uid() and app.user_role() = 'rep' and app.rep_session_ok()
+$$;
+
+create or replace function app.my_territory_ids() returns setof uuid
+language sql stable security definer set search_path = '' as $$
+  select rt.territory_id from public.rep_territory rt
+  where rt.rep_id = auth.uid() and rt.to_date is null and app.user_role() = 'rep' and app.rep_session_ok()
+$$;
+
 -- =============================================================================
 -- H7: the stage unblock is a CTL-08 override with its credit event
 -- =============================================================================
@@ -282,6 +297,27 @@ alter table public.stock_movement
 -- The movement of an owner adjustment is its only one.
 create unique index stock_movement_one_per_owner_adjustment on public.stock_movement (source_id)
   where source_type = 'owner_stock_adjustment';
+
+-- A check cannot read another table, so the label above is backed by this guard (review of P1-30): a
+-- movement naming an owner adjustment is an adjustment of that record's SKU, quantity, location and
+-- direction, whoever inserts it.
+create function control.owner_adjustment_movement_guard() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not exists (
+       select 1 from public.owner_stock_adjustment a
+       where a.id = new.source_id and new.kind = 'adjustment' and a.sku_id = new.sku_id
+         and abs(a.qty_delta) = new.qty
+         and a.location_id = coalesce(new.to_location_id, new.from_location_id)
+         and (a.qty_delta > 0) = (new.to_location_id is not null)) then
+    raise exception using errcode = '42501',
+      message = 'an owner adjustment movement must match its owner_stock_adjustment record (D-45)';
+  end if;
+  return new;
+end $$;
+create trigger owner_adjustment_movement_guard before insert on public.stock_movement
+  for each row when (new.source_type = 'owner_stock_adjustment')
+  execute function control.owner_adjustment_movement_guard();
 
 -- A missing-goods settlement is authorised by an approval or by the owner's own adjustment, never both.
 alter table public.pending_stock_resolution add column owner_adjustment_id uuid references public.owner_stock_adjustment (id);
@@ -439,6 +475,18 @@ begin
           case when p_outcome = 'missing' and m.source_type is distinct from 'owner_stock_adjustment' then p_approval_id end,
           case when m.source_type = 'owner_stock_adjustment' then m.source_id end, auth.uid())
   returning * into r;
+  -- Review of P1-30: after the owner's own settlement, a pending request for these goods that asks for more
+  -- than is still unsettled could never be posted; it is cancelled (as app.cancel_order does for a discount),
+  -- so it leaves the queue instead of waiting for a decision that cannot be used.
+  if m.source_type = 'owner_stock_adjustment' then
+    update control.approval_request q
+       set status = 'cancelled', decided_at = now(),
+           decision_reason = 'the owner settled these goods directly; the request no longer fits'
+     where q.status = 'pending' and q.kind = 'adjustment' and q.subject_type = 'stock_location' and q.subject_id = v_pend
+       and q.payload ->> 'submission_id' = s.id::text and q.payload ->> 'sku_id' = p_sku_id::text
+       and (jsonb_typeof(q.payload -> 'qty_delta') is distinct from 'number'
+            or abs((q.payload ->> 'qty_delta')::numeric) > app.pending_unsettled(s.id, p_sku_id));
+  end if;
   return r;
 end $$;
 
@@ -973,6 +1021,18 @@ begin
   if exists (select 1 from public.payment_reversal r where r.payment_id = p.id) then
     raise exception using errcode = '55000', message = 'this payment is already reversed';
   end if;
+  -- Review of P1-30: an open count (no answer yet, or disputed and not settled) fixed its expected figure
+  -- from the rep's ledger, which may hold this cash; the rep's answer or the owner's settlement would then
+  -- take it out of the rep's ledger a second time. The reversal waits for that handover to close. Any open
+  -- handover of the rep counts, not only one stamped after the payment, so the two clocks are never compared.
+  if p.method = 'cash' and p.recorded_by_role = 'rep'
+     and exists (select 1 from public.handover h
+                 left join public.handover_response r on r.handover_id = h.id
+                 where h.rep_id = p.recorded_by and (r.id is null or r.kind = 'dispute')
+                   and not exists (select 1 from public.handover_settlement st where st.handover_id = h.id)) then
+    raise exception using errcode = '55000',
+      message = 'this rep has a cash handover waiting for an answer or under dispute; it must be answered, settled or withdrawn before this cash payment is reversed';
+  end if;
   if p.method = 'cash' then
     v_holder := 'office';
     if p.recorded_by_role = 'rep'
@@ -1206,7 +1266,7 @@ begin
 end $$;
 
 -- The second reader's case: a count the rep never answers (a lost phone, a rep who does not respond)
--- blocked every later count. The owner or the manager withdraws it with a reason; no cash moved, so
+-- blocked every later count. The owner, or a manager who did not make the count, withdraws it with a reason; no cash moved, so
 -- none moves now, and the rep can no longer answer it. Idempotent on client_id.
 create function app.office_withdraw_handover(p_client_id uuid, p_handover_id uuid, p_reason text)
 returns public.handover_settlement
@@ -1237,6 +1297,10 @@ begin
   end if;
   if exists (select 1 from public.handover_response y where y.handover_id = h.id) then
     raise exception using errcode = '55000', message = 'the rep has answered this handover; only an unanswered one is withdrawn';
+  end if;
+  -- Review of P1-30 (SEC-11, as D-48 for reversals): the manager who made the count does not withdraw it alone.
+  if v_role = 'manager' and h.counted_by = auth.uid() then
+    perform app.raise_denied('a manager cannot withdraw a count they made; the owner can');
   end if;
   perform app.set_purpose('handover withdrawn: ' || v_reason);
   insert into public.handover_settlement (client_id, handover_id, outcome, reason, settled_by, settled_by_role)
@@ -1296,12 +1360,14 @@ begin
                        to_char(v_expected / 100.0, 'FM999,999,990.00'));
   end if;
 
+  -- counted_at is the clock after the per-rep lock (review of P1-30), not now(): a payment that held the lock
+  -- first is stamped with clock_timestamp() too, so "counted after the payment" follows the ledger order.
   insert into public.handover (client_id, rep_id, rep_day_id, expected_paisa, counted_paisa, variance_reason,
-                               counted_by, counted_by_role)
+                               counted_by, counted_by_role, counted_at)
   values (p_client_id, p_rep_id,
           (select d.id from public.rep_day d where d.rep_id = p_rep_id and d.day = app.karachi_today()),
           v_expected, p_counted_paisa, case when v_expected = p_counted_paisa then null else v_reason end,
-          auth.uid(), v_role)
+          auth.uid(), v_role, clock_timestamp())
   returning * into h;
   return h;
 end $$;
@@ -1621,7 +1687,8 @@ revoke all on function
   app.rep_session_ok(), app.adjustment_needs_owner(uuid, bigint),
   app.owner_post_adjustment(uuid, uuid, uuid, integer, text, uuid),
   app.order_undelivered_paisa(uuid), app.rep_month_orders(uuid, date, date),
-  control.owner_stock_adjustment_guard(), control.payment_reversal_guard()
+  control.owner_stock_adjustment_guard(), control.payment_reversal_guard(),
+  control.owner_adjustment_movement_guard()
   from public, anon, authenticated, service_role;
 
 revoke all on function
@@ -1648,7 +1715,7 @@ grant execute on function
 comment on function app.owner_adjust_stock(uuid, uuid, uuid, integer, text) is
   'D-45. The owner (AAL2) adjusts a warehouse or a rep bag at once, with a reason of 5 to 300 characters. Idempotent on client_id.';
 comment on function app.office_reverse_payment(uuid, uuid, text) is
-  'D-48, PAY-10. Owner or manager (AAL2), with a reason; a manager never reverses a payment they recorded. Idempotent on client_id.';
+  'D-48, PAY-10. Owner or manager (AAL2), with a reason; a manager never reverses a payment they recorded; a rep''s cash waits while the rep has an open handover. Idempotent on client_id.';
 comment on function app.owner_settle_handover(uuid, uuid, text, text) is
   'D-46. The owner (AAL2) settles a disputed handover: counted (the difference stays against the rep) or rep (an office difference), with a reason.';
 comment on function app.office_withdraw_handover(uuid, uuid, text) is
