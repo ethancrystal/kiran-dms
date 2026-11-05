@@ -1842,13 +1842,13 @@ test("reorder point and low stock, a bag return the rep confirms, a count with i
   const level = page.getByTestId("sku-level").filter({ hasText: code });
   const low = page.getByTestId("low-stock").filter({ hasText: code });
   await expect(low).toHaveCount(0);
-  await level.getByLabel(`Reorder point for ${code}`).fill(String(R11_POINT));
+  await level.getByLabel(`Reorder point for ${code}`, { exact: true }).fill(String(R11_POINT));
   await level.getByRole("button", { name: `Save the reorder point for ${code}` }).click();
   await expect(page.getByText(`Reorder point of ${code} set to ${R11_POINT}.`)).toBeVisible();
   await expect(low.getByTestId("low-on-hand")).toHaveText("0");
   await expect(low.getByTestId("low-point")).toHaveText(String(R11_POINT));
   await page.reload();
-  await expect(level.getByLabel(`Reorder point for ${code}`)).toHaveValue(String(R11_POINT));
+  await expect(level.getByLabel(`Reorder point for ${code}`, { exact: true })).toHaveValue(String(R11_POINT));
   await expect(low).toHaveCount(1);
 
   // Stock arrives above the point: the SKU leaves the list and availability shows it.
