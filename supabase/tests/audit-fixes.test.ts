@@ -530,6 +530,49 @@ describe("D-45: the owner's own stock adjustment takes effect at once", () => {
     expect(r.a[0].x).toMatchObject({ why: "recount first please" });
   });
 
+  it("a refused request stops showing once a newer request for the same goods was withdrawn", async () => {
+    const ocid = id(),
+      scid = id(),
+      rcid = id();
+    const sub = `(select id from public.delivery_submission where client_id = '${scid}')`;
+    const shown = (m: string) =>
+      mark(
+        m,
+        `(select jsonb_build_object('id', request_id, 'status', request_status, 'why', request_decision_reason)
+                  from app.office_pending_stock() where submission_id = ${sub}) as x`,
+        "manager",
+      );
+    const r = await tx([
+      order(ocid, TWO),
+      ["repA", `select app.rep_submit_delivery('${scid}', ${orderOf(ocid)}, 'Counter', 24.9, 67.1, null);`],
+      ["manager", `select app.office_reject_delivery(${sub}, gen_random_uuid(), 'salon refused the goods');`],
+      // An older request, already refused. Planted with an earlier created_at: two requests made through
+      // the API inside one transaction would share now(), and the newest could not be told apart.
+      [
+        "postgres",
+        `insert into control.approval_request (client_id, kind, subject_type, subject_id, payload, maker_id,
+           checker_role_required, checker_id, status, reason, decision_reason, created_at, decided_at)
+         values (gen_random_uuid(), 'adjustment', 'stock_location', ${PENDING_A},
+           jsonb_build_object('sku_id', '${SKU}', 'qty_delta', -${TWO}, 'submission_id', ${sub}), '${fx.manager.id}',
+           'manager', '${fx.owner.id}', 'rejected', 'two units missing', 'recount first please',
+           now() - interval '1 hour', now() - interval '50 minutes');`,
+      ],
+      shown("before"),
+      [
+        "manager",
+        `select app.request_approval('${rcid}', 'adjustment', 'stock_location', ${PENDING_A},
+         jsonb_build_object('sku_id', '${SKU}', 'qty_delta', -${TWO}, 'submission_id', ${sub}), 'two units missing again');`,
+      ],
+      [
+        "manager",
+        `select app.cancel_approval((select id from control.approval_request where client_id = '${rcid}'), 'made by mistake');`,
+      ],
+      shown("after"),
+    ]);
+    expect(r.before[0].x).toMatchObject({ status: "rejected", why: "recount first please" });
+    expect(r.after[0].x).toEqual({ id: null, status: null, why: null });
+  });
+
   it("the maker withdraws its own pending request (app.cancel_approval); nobody else can", async () => {
     const cid = id();
     const reqStep: Step = [
