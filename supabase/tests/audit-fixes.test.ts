@@ -1273,6 +1273,64 @@ describe("AUTH-10, AUTH-09: what the salon is told", () => {
 // Review of P1-30: every new office write and read refuses an office login at AAL1 and a salon login
 // (the master prompt's negative case per operation). assert_office and assert_owner refuse before any input
 // is looked at, so made-up ids are enough.
+describe("timelines cover delivery submissions, decisions, signatures and payment reversals (plan C2)", () => {
+  const KEYS = ["action", "actor_kind", "actor_name", "detail", "entity", "entity_id", "occurred_at", "seq"];
+  const timeline = (m: string, fn: "salon" | "order", arg: string): Step =>
+    mark(
+      m,
+      `(select coalesce(jsonb_agg(to_jsonb(t) order by t.seq), '[]'::jsonb) from app.office_${fn}_timeline(${arg}) t) as x`,
+      "manager",
+    );
+  const actionsOf = (rows: unknown) => (rows as Row[]).map((e) => String(e.action));
+
+  it("a delivered order shows the submission, the acknowledgement and the approval; the salon also shows a reversal", async () => {
+    const ocid = id(),
+      pcid = id();
+    const r = await tx([
+      order(ocid),
+      deliver(ocid),
+      repCash(pcid, UNIT),
+      [
+        "manager",
+        `select app.office_reverse_payment(gen_random_uuid(), (select id from public.payment where client_id = '${pcid}'), '[Test] tl-secret reversal');`,
+      ],
+      timeline("o", "order", orderOf(ocid)),
+      timeline("s", "salon", `'${SALON}'`),
+    ]);
+    const orderRows = r.o[0].x as Row[];
+    const salonRows = r.s[0].x as Row[];
+    expect(actionsOf(orderRows)).toEqual(
+      expect.arrayContaining(["delivery submitted", "receipt acknowledgement", "delivery approved"]),
+    );
+    expect(actionsOf(salonRows)).toEqual(
+      expect.arrayContaining(["delivery submitted", "receipt acknowledgement", "delivery approved", "payment reversed"]),
+    );
+    expect(orderRows.find((e) => e.action === "receipt acknowledgement")?.detail).toBe("signed");
+    for (const e of [...orderRows, ...salonRows]) expect(Object.keys(e).sort()).toEqual(KEYS);
+    const all = JSON.stringify([...orderRows, ...salonRows]);
+    for (const s of ["tl-secret", "Ayesha Khan", "token", "hash", "purpose"]) expect(all, s).not.toContain(s);
+    for (const e of [...orderRows, ...salonRows]) {
+      expect(String(e.entity), String(e.entity)).not.toMatch(/commission|handover|stock|signature_(use|image|access)/);
+    }
+  });
+
+  it("a rejected delivery reads delivery rejected on the order, without the office's reason", async () => {
+    const ocid = id(),
+      scid = id();
+    const sub = `(select id from public.delivery_submission where client_id = '${scid}')`;
+    const r = await tx([
+      order(ocid, TWO),
+      ["repA", `select app.rep_submit_delivery('${scid}', ${orderOf(ocid)}, '[Test] Tl Receiver', 24.9, 67.1, null);`],
+      ["manager", `select app.office_reject_delivery(${sub}, gen_random_uuid(), '[Test] tl-secret reject');`],
+      timeline("o", "order", orderOf(ocid)),
+    ]);
+    const rows = r.o[0].x as Row[];
+    expect(actionsOf(rows)).toEqual(expect.arrayContaining(["delivery submitted", "delivery rejected"]));
+    const all = JSON.stringify(rows);
+    for (const s of ["tl-secret", "Tl Receiver"]) expect(all, s).not.toContain(s);
+  });
+});
+
 describe("the new office functions refuse AAL1 office sessions and a salon login (42501)", () => {
   const u = () => `'${id()}'`;
   const calls: Array<[string, string]> = [
