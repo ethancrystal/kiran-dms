@@ -1022,6 +1022,8 @@ const ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42
 const CATALOGUE_LIST_RS = 1000;
 const CATALOGUE_SALON_RS = 900;
 const PAISA_PER_RUPEE = 100;
+// The product the P1-19 journey gave a picture, kept for the salon portal journey below (AUTH-08).
+let pictureProduct: { name: string; code: string } | null = null;
 
 test("a manager adds a product, prices it, sets a salon price, and an order for that salon uses it (P1-19)", async ({ page }) => {
   test.setTimeout(JOURNEY_TIMEOUT_MS);
@@ -1050,6 +1052,7 @@ test("a manager adds a product, prices it, sets a salon price, and an order for 
     .setInputFiles({ name: "shade.png", mimeType: "image/png", buffer: Buffer.from(ONE_PIXEL_PNG, "base64") });
   await card.getByRole("button", { name: "Upload picture" }).click();
   await expect(page.getByText(`Picture of ${productName} saved.`)).toBeVisible();
+  pictureProduct = { name: productName, code };
   const picture = page.getByRole("region", { name: `Product ${productName}` }).getByRole("img", { name: productName });
   await expect(picture).toBeVisible();
   await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
@@ -1194,6 +1197,13 @@ test("a salon sends a request, the manager converts it in one click, and the sal
   await salon.goto("/salon");
   await expect(salon.getByRole("heading", { name: portalSalon.name })).toBeVisible();
   await expect(salon.getByTestId(`price-${seed.sku.code}`)).toHaveText(rupees(seed.sku.list_price_paisa));
+  // AUTH-08: the product the manager gave a picture in the P1-19 journey shows that picture on the salon's own
+  // page, through a signed URL that the bucket's policies allow a signed-in salon login to read.
+  expect(pictureProduct, "the P1-19 journey kept the product it gave a picture").not.toBeNull();
+  const pictured = salon.getByTestId("catalogue-item").filter({ hasText: pictureProduct?.code ?? "" });
+  const shownPicture = pictured.getByRole("img", { name: pictureProduct?.name ?? "" });
+  await expect(shownPicture).toBeVisible();
+  await expect.poll(() => shownPicture.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await salon.getByLabel(`Quantity of ${seed.sku.code} to add`).fill(String(PORTAL_QTY));
   await salon.getByRole("button", { name: `Add ${seed.sku.code} to the basket` }).click();
   await expect(salon.getByTestId("basket-estimate")).toContainText(total);
