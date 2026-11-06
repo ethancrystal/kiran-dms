@@ -494,7 +494,14 @@ function EditRequest({
   onDone: () => Promise<void>;
   onCancel: () => void;
 }) {
-  const [picks, setPicks] = useState<PickLine[]>(() => request.lines.map((l) => newPick(l.sku_id, String(l.qty))));
+  // A line whose product is no longer in the catalogue cannot be saved (the database refuses the whole
+  // edit), so it is left out of the form and named below.
+  const sellable = new Set(catalogue.map((i) => i.sku_id));
+  const gone = request.lines.filter((l) => !sellable.has(l.sku_id));
+  const [picks, setPicks] = useState<PickLine[]>(() => {
+    const kept = request.lines.filter((l) => sellable.has(l.sku_id));
+    return kept.length > 0 ? kept.map((l) => newPick(l.sku_id, String(l.qty))) : [newPick()];
+  });
   const [note, setNote] = useState(request.note ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -525,6 +532,12 @@ function EditRequest({
         }
       }}
     >
+      {gone.length > 0 && (
+        <p className="muted" data-testid="removed-lines">
+          No longer sold and taken off this request: {gone.map((l) => `${l.code} · ${l.product_name} ${l.variant}`).join(", ")}.
+          Save to keep the rest, or cancel the request.
+        </p>
+      )}
       <LinePicker
         name="Request"
         options={catalogue.map((i) => ({ id: i.sku_id, label: itemText(i) }))}
