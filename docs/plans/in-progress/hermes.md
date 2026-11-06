@@ -173,7 +173,7 @@ Steps.
 5. If the planted `insert` is refused by a constraint or trigger, STOP and put the exact message in a
    BLOCKER. Do not loosen the constraint.
 6. Checks: `pnpm db:test audit-fixes delivery-approval`, then the three guard files.
-7. In `docs/superpowers/plans/2026-11-05-remaining-implementation.md`, on the row that starts `| Stale
+7. In `docs/plans/in-progress/2026-11-05-remaining-implementation.md`, on the row that starts `| Stale
    refused request shown on pending stock`, append to the first cell: ` (done on branch
    claude/stale-refused-request)`. Change nothing else in that file.
 8. Commit: `A superseded refusal no longer shows on rejected goods (plan C2)`.

@@ -130,9 +130,9 @@ Each item: what to add, what it extends, and what it waits for.
 F8 test helpers (sign in as each role, wait-for-loaded), F1 generated database types in `packages/shared`, F2 typed RPC client over `lib/rpc.ts`, F3 one component set, F4 one table pattern with paging. Convert a page when its slice touches it.
 
 ### C8. Records and housekeeping
-- Give MJ's frontend-structure rulings their number (D-44 is reserved) and add work packages S-A to S-F to `docs/superpowers/plans/2026-11-05-project-completion.md` and the board.
+- Give MJ's frontend-structure rulings their number (D-44 is reserved) and add work packages S-A to S-F to `docs/plans/implemented/2026-11-05-project-completion.md` and the board.
 - Update board rows P1-18 to P1-31: their PRs are merged and CI was green; the cells still say "awaiting CI".
-- Final review against `docs/superpowers/plans/2026-11-05-final-review-checklist.md` and the handoff report required by the master prompt.
+- Final review against `docs/plans/implemented/2026-11-05-final-review-checklist.md` and the handoff report required by the master prompt.
 - Independent verification of slices 1 to 11 has not been done (MJ removed the rule; CI is the evidence).
 - Remove merged local branches and worktrees after MJ's OK.
 
