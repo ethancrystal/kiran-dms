@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { karachiToday } from "@/lib/commission";
 import { mySession, rpc } from "@/lib/rpc";
-import { label, salonPage } from "@/lib/salons";
+import { label, type Salon, salonPage } from "@/lib/salons";
 
 type Stop = {
   stop_id: string;
@@ -41,6 +41,7 @@ export default function MyRoute() {
   const [route, setRoute] = useState<Stop[]>([]);
   const [due, setDue] = useState<Due[]>([]);
   const [salons, setSalons] = useState<Mine[]>([]);
+  const [more, setMore] = useState(false);
   const [pick, setPick] = useState("");
   const [denied, setDenied] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,6 +74,7 @@ export default function MyRoute() {
       setRoute(r ?? []);
       setDue(u ?? []);
       setSalons((s ?? []) as Mine[]);
+      setMore((s ?? []).length === SALON_PAGE);
     } catch (e) {
       if (mine === latest.current) setError((e as Error).message);
     } finally {
@@ -107,6 +109,15 @@ export default function MyRoute() {
   };
   const add = (salonId: string, name: string) =>
     act(() => rpc("rep_add_stop", { p_salon_id: salonId }), `Added ${name} to today's route.`);
+  const showMore = async () => {
+    try {
+      const next = await salonPage(salons[salons.length - 1] as Salon);
+      setSalons((s) => [...s, ...(next as Mine[])]);
+      setMore(next.length === SALON_PAGE);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
   const onRoute = (salonId: string) => route.some((r) => r.salon_id === salonId);
 
   return (
@@ -239,7 +250,11 @@ export default function MyRoute() {
                     </option>
                   ))}
               </select>
-              {salons.length === SALON_PAGE && <p className="muted">Showing your first {SALON_PAGE} salons by name.</p>}
+              {more && (
+                <button type="button" onClick={() => void showMore()}>
+                  Show more salons
+                </button>
+              )}
               <button type="submit" disabled={busy}>
                 Add stop
               </button>
