@@ -518,6 +518,23 @@ describe("a salon sends, edits and cancels its own request (ORD-11, B-40 d)", ()
     );
   });
 
+  it("edit: a request holding a product that was since deactivated cannot be saved with it, but can without it (AUTH-13)", async () => {
+    const [cid, vid] = [uuid(), uuid()];
+    const deactivateSku2: Step = [
+      "manager",
+      `select app.office_upsert_sku('${SKU_2}', '${PRODUCT}', (select code from public.sku where id = '${SKU_2}'),
+                                    '[Dummy] shade', 'ml', 100, null, null, false);`,
+    ];
+    expect(await stxCode([submit(A(), cid), deactivateSku2, edit(A(), vid, cid, L12(), null)])).toBe(BAD_INPUT);
+    const rows = await stx([
+      submit(A(), cid),
+      deactivateSku2,
+      edit(A(), vid, cid, lines([{ sku_id: SKU_1, qty: QTY_1 }]), null),
+      [A(), `select version, jsonb_array_length(lines::jsonb) n from app.salon_my_requests() where request_id = ${CARD(cid)};`],
+    ]);
+    expect(rows).toEqual([{ version: SECOND_VERSION, n: 1 }]);
+  });
+
   it("cancel: the request closes as cancelled; a replay returns it; it cannot then be edited, converted or rejected", async () => {
     const cid = uuid();
     const rows = await stx([
