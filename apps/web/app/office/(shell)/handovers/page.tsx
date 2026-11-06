@@ -135,7 +135,8 @@ export default function Handovers() {
         <p>
           Office cash: <strong data-testid="office-cash">{rupees(office.balance_paisa)}</strong>{" "}
           <span className="muted">
-            (handed over and acknowledged or settled, and cash the office collected itself; bank deposits are not built yet)
+            (cash reps handed over, once acknowledged or settled, plus cash the office collected itself, less cash payments that
+            were reversed. Bank deposits are not recorded here yet, so this figure does not go down when cash is banked.)
           </span>
         </p>
       )}
