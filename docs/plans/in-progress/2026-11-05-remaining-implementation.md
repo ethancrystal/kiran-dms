@@ -76,7 +76,7 @@ Each item: what to add, what it extends, and what it waits for.
 | Unreconciled handover blocks the next check-in, with a manager override (PIP-09, FLOW-07 part) | `app.rep_check_in`, `/app/day`, `/office/handovers` | — |
 | Receivables by rep follow direct assignment (M4, FLOW-12) | `app.office_receivables_ageing`, reuse `app.rep_holds_salon` | A-14 |
 | Cash held by a suspended or offboarded rep is visible (M7): built on `claude/m7-suspended-cash` (`app.office_inactive_rep_cash`, a section on `/office/handovers`). Counting it without the rep's answer is not built | `/office/handovers` reads | MJ: how cash of a rep who cannot answer is brought in |
-| Timelines cover delivery submissions, commission, signatures, reversals, settlements | `app.timeline_label` and the two timeline functions, in a forward migration | — |
+| Timelines cover delivery submissions, commission, signatures, reversals, settlements (delivery submissions, decisions, signatures and reversals done on branch claude/timeline-coverage; commission and handover settlements name no salon or order and wait for MJ) | `app.timeline_label` and the two timeline functions, in a forward migration | — |
 | Stale refused request shown on pending stock (done on branch claude/stale-refused-request) | `app.office_pending_stock` | — |
 | AUTH-05 residual: a password token still reads its own profile and device rows | policies on `user_profile` and `device` | — |
 
