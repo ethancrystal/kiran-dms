@@ -114,8 +114,8 @@ export function MoneySection({
       {receipt && (
         <output className="ok">
           Payment recorded. Receipt{" "}
-          {mode === "office" && receipt.id ? (
-            <Link href={`/office/receipts/${receipt.id}`}>{receipt.number}</Link>
+          {receipt.id ? (
+            <Link href={`${mode === "office" ? "/office/receipts" : "/app/receipts"}/${receipt.id}`}>{receipt.number}</Link>
           ) : (
             receipt.number
           )}
