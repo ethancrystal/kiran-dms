@@ -7,7 +7,19 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { approveSalon, errorOf, fx, MANAGER, REP_A, REP_A_WRONG_DEVICE, REP_B, run, SUSPENDED, sqlstate, type Who } from "./helpers/db";
+import {
+  approveSalon,
+  errorOf,
+  fx,
+  MANAGER,
+  REP_A,
+  REP_A_WRONG_DEVICE,
+  REP_B,
+  run,
+  SUSPENDED,
+  sqlstate,
+  type Who,
+} from "./helpers/db";
 
 const C = { commit: true };
 const id = () => randomUUID();
