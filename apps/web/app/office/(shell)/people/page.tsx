@@ -360,6 +360,11 @@ function InviteForm({ onInvited }: { onInvited: () => Promise<void> }) {
                   </option>
                 ))}
               </select>
+              {salons.length === LIST_LIMIT && (
+                <p className="muted">
+                  Showing the first {LIST_LIMIT} salons by name. A salon further down the list cannot be picked here yet.
+                </p>
+              )}
             </>
           ) : (
             <>
