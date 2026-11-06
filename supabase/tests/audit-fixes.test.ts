@@ -253,6 +253,9 @@ describe("AUTH-05: an invited rep acts only with an emailed-code session", () =>
     expect((await pwRows("select app.rep_device_ok() as ok;"))[0].ok).toBe(false);
     expect(await pw(`select app.register_device('audit-other-${tag()}-000', 'web', 'squatter');`)).toBe(DENIED);
     expect(await pw("select * from app.my_handovers();")).toBe(DENIED);
+    // The residual of AUTH-05: the same password token reads neither its profile row nor its device rows.
+    expect((await pwRows("select count(*)::int as n from public.user_profile;"))[0].n).toBe(0);
+    expect((await pwRows("select count(*)::int as n from public.device;"))[0].n).toBe(0);
     const codeRows =
       (
         (await run(
