@@ -83,7 +83,7 @@ Each item: what to add, what it extends, and what it waits for.
 ### C3. Rep app polish (all over existing pages and functions)
 - REP-05: the blind stock count sends the office's quantities to the browser. Add a rep read that withholds quantities until the count is sent; `/app/stock` uses it.
 - REP-07: a rep can add only due salons to the route. Let `/app/route` add any salon the rep reaches (`app.my_salons`).
-- REP-12, REP-13: hide Park where the database refuses it; make reorder survive a stop whose salon moved.
+- REP-12, REP-13: hide Park where the database refuses it; make reorder survive a stop whose salon moved. (REP-13 done on branch claude/reorder-hidden-stop.)
 - REP-14, L1: a deactivated SKU shows as "Unknown SKU". Read inactive SKU names where stock or orders still hold them.
 - REP-16, L3: refusals that quote paisa. Word amounts in rupees in the database messages that reach a screen.
 - REP-19: pass the phone's mock-location flag from the delivery and payment forms.

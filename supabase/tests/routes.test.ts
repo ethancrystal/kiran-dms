@@ -7,7 +7,19 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { errorOf, fx, MANAGER, REP_A, REP_A_WRONG_DEVICE, REP_B, run, SUSPENDED, sqlstate, type Who } from "./helpers/db";
+import {
+  approveSalon,
+  errorOf,
+  fx,
+  MANAGER,
+  REP_A,
+  REP_A_WRONG_DEVICE,
+  REP_B,
+  run,
+  SUSPENDED,
+  sqlstate,
+  type Who,
+} from "./helpers/db";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -279,6 +291,29 @@ describe("routes (PIP-03)", () => {
        select visited, last_outcome from app.my_route() where salon_id = '${S1}';`,
     );
     expect(last(r)).toEqual([{ visited: true, last_outcome: "quote" }]);
+  });
+
+  it("the rep can still reorder after one stop's salon is given to another rep (REP-13)", async () => {
+    await approveSalon(S3);
+    const r = await run(
+      "postgres",
+      `${asUser(fx.manager, "aal2")}
+       select app.office_assign_salon_rep(gen_random_uuid(), '${S3}', '${fx.repB.id}', null);
+       ${asUser(fx.repA, "aal1")}
+       select 'n' as mark, app.rep_reorder_route(${TODAY}, (select array_agg(stop_id order by sequence desc) from app.my_route())) as n;
+       select 'visible' as mark, salon_id, sequence from app.my_route() order by sequence;
+       reset role;
+       select 'hidden' as mark, st.salon_id, st.sequence from public.route_stop st join public.route ro on ro.id = st.route_id
+        where ro.rep_id = '${fx.repA.id}' and ro.day = ${TODAY} and st.salon_id = '${S3}';`,
+    );
+    // Every statement returns a result, so the three reads are found by their mark, not by position.
+    const marked = (m: string) => (r as unknown as Multi).find((x) => x.rows?.[0]?.mark === m)?.rows ?? [];
+    expect(marked("n")[0].n).toBe(2);
+    expect(marked("visible").map((v) => [v.salon_id, v.sequence])).toEqual([
+      [S2, 1],
+      [S1, 2],
+    ]);
+    expect(marked("hidden").map((v) => [v.salon_id, v.sequence])).toEqual([[S3, 3]]);
   });
 
   it("a stop outside the rep's current territories disappears from its route at once", async () => {
