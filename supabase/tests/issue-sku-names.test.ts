@@ -34,9 +34,12 @@ const GROUP = id(),
   ACTIVE_SKU = id(),
   DEACTIVATED_SKU = id(),
   UNRELATED_SKU = id();
-const WH = id(),
-  BAG_A = id(),
-  BAG_B = id();
+const WH = id();
+// One bag per rep: other files share this database and may have made it already, so create it only
+// if absent and look the id up (the same approach as audit-fixes.test.ts).
+let BAG_A = "",
+  BAG_B = "";
+let ISSUE_A = "";
 const CODES = { active: code(), deactivated: code(), unrelated: code() };
 const PRICE = 100_000; // Rs 1,000 per unit, in paisa
 const STOCK = 5;
@@ -70,13 +73,22 @@ beforeAll(async () => {
     await one(OWNER, "select app.owner_set_sku_price($1, $2, 'dummy price list')", [s, PRICE]);
   });
   await one(MANAGER, "select app.office_create_location($1, 'warehouse', '[Test] Main store')", [WH]);
-  await one(OWNER, "select app.office_create_location($1, 'rep_bag', '[Test] Bag A', $2, 2000000)", [BAG_A, fx.repA.id]);
-  await one(OWNER, "select app.office_create_location($1, 'rep_bag', '[Test] Bag B', $2, 2000000)", [BAG_B, fx.repB.id]);
+  const bagOf = async (rep: string, name: string) => {
+    await one(
+      OWNER,
+      "select app.office_create_location($1, 'rep_bag', $3, $2, 2000000) where not exists (select 1 from public.stock_location l where l.kind = 'rep_bag' and l.owner_user_id = $2)",
+      [id(), rep, name],
+    );
+    return (await run("postgres", "select id from public.stock_location where kind = 'rep_bag' and owner_user_id = $1", [rep]))
+      .rows[0].id as string;
+  };
+  BAG_A = await bagOf(fx.repA.id, "[Test] Bag A");
+  BAG_B = await bagOf(fx.repB.id, "[Test] Bag B");
   await openingStock(ACTIVE_SKU, STOCK);
   await openingStock(DEACTIVATED_SKU, STOCK);
   await openingStock(UNRELATED_SKU, STOCK);
   // A pending issue to rep A names two SKUs; a pending issue to rep B names the unrelated one.
-  await one(MANAGER, "select app.office_propose_stock_issue($1, 'to_rep', $2, $3, $4)", [
+  const issueA = await one(MANAGER, "select (app.office_propose_stock_issue($1, 'to_rep', $2, $3, $4)).id", [
     id(),
     WH,
     BAG_A,
@@ -85,6 +97,7 @@ beforeAll(async () => {
       { sku_id: DEACTIVATED_SKU, qty: ISSUED },
     ]),
   ]);
+  ISSUE_A = issueA.id;
   await one(MANAGER, "select app.office_propose_stock_issue($1, 'to_rep', $2, $3, $4)", [
     id(),
     WH,
@@ -100,26 +113,34 @@ beforeAll(async () => {
 });
 
 describe("app.my_issue_skus (REP-14, L1)", () => {
+  // Other files share this database and may leave their own pending issues, so each check is about
+  // this file's SKUs only.
+  const idsOf = (got: { sku_id: string }[]) => got.map((r) => r.sku_id);
+
   it("the rep cannot read a deactivated SKU from the table, which is why the function exists", async () => {
     const direct = await run(REP_A, "select id from public.sku where id = $1", [DEACTIVATED_SKU]);
     expect(direct.rows).toEqual([]);
   });
 
-  it("names every SKU of the rep's own pending issue, the deactivated one included, and nothing else", async () => {
+  it("names the SKUs of the rep's own pending issue, the deactivated one included, and not another bag's", async () => {
     const got = await names(REP_A);
-    expect(got.map((r) => [r.sku_id, r.code]).sort()).toEqual(
-      [
-        [ACTIVE_SKU, CODES.active],
-        [DEACTIVATED_SKU, CODES.deactivated],
-      ].sort(),
-    );
+    expect(got.filter((r) => r.sku_id === ACTIVE_SKU).map((r) => r.code)).toEqual([CODES.active]);
+    expect(got.filter((r) => r.sku_id === DEACTIVATED_SKU).map((r) => r.code)).toEqual([CODES.deactivated]);
+    expect(idsOf(got)).not.toContain(UNRELATED_SKU);
     // Only id, code and variant: no quantity and no price leave through this function.
     expect(Object.keys(got[0]).sort()).toEqual(["code", "sku_id", "variant"]);
   });
 
-  it("another rep sees only the SKUs of its own bag's issue, never rep A's", async () => {
-    const got = await names(REP_B);
-    expect(got.map((r) => r.sku_id)).toEqual([UNRELATED_SKU]);
+  it("each SKU is named once, however many pending issues hold it", async () => {
+    const got = idsOf(await names(REP_A));
+    expect(got.length).toBe(new Set(got).size);
+  });
+
+  it("another rep sees the SKUs of its own bag's issue, never rep A's", async () => {
+    const got = idsOf(await names(REP_B));
+    expect(got).toContain(UNRELATED_SKU);
+    expect(got).not.toContain(ACTIVE_SKU);
+    expect(got).not.toContain(DEACTIVATED_SKU);
   });
 
   it("the office reads the table directly and is given no rows here; a manager at AAL1 neither", async () => {
@@ -134,9 +155,10 @@ describe("app.my_issue_skus (REP-14, L1)", () => {
   });
 
   it("a settled issue no longer names its SKUs", async () => {
-    // Cancel rep A's pending issue; nothing is pending any more.
-    const pending = await run("postgres", "select id from public.stock_issue where bag_id = $1 and status = 'pending'", [BAG_A]);
-    await inOrder(pending.rows, (row) => one(MANAGER, "select app.office_cancel_stock_issue($1, 'no longer needed')", [row.id]));
-    expect(await names(REP_A)).toEqual([]);
+    // Cancel only this file's issue; any other pending issue of the bag is left alone.
+    await one(MANAGER, "select app.office_cancel_stock_issue($1, 'no longer needed')", [ISSUE_A]);
+    const got = idsOf(await names(REP_A));
+    expect(got).not.toContain(ACTIVE_SKU);
+    expect(got).not.toContain(DEACTIVATED_SKU);
   });
 });
