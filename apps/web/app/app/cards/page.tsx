@@ -1,9 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { ListCapNote } from "@/components/list-cap-note";
 import { LinePicker, newPick, type PickLine, type PickOption, picksPayload, repProductOptions } from "@/components/request-lines";
 import { rpc } from "@/lib/rpc";
 import { when } from "@/lib/time";
+
+// app.my_cards reads the newest 50 (migration 20261105150000).
+const CAP = 50;
 
 type CardLine = { line_no: number; sku_id: string; code: string; product_name: string; variant: string; qty: number };
 type Card = {
@@ -87,6 +91,7 @@ export default function MyCards() {
         </p>
       )}
       {!loading && !error && list.length === 0 && <p className="muted">No order cards yet.</p>}
+      <ListCapNote shown={list.length} cap={CAP} what="order cards" />
       {list.length > 0 && (
         <ul className="plain">
           {list.map((c) => (

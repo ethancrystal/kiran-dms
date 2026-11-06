@@ -1,12 +1,16 @@
 "use client";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
+import { ListCapNote } from "@/components/list-cap-note";
 import { type CreatedOrder, type OrderCard, OrderForm, orderSummary, requestFrom } from "@/components/order-form";
 import { Timeline } from "@/components/timeline";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 import { when } from "@/lib/time";
+
+// app.office_orders reads the newest 200 (migration 20261104090000).
+const CAP = 200;
 
 type Order = {
   id: string;
@@ -333,6 +337,7 @@ export default function Orders() {
           </label>
         </div>
         <ListState loading={ordersLoading} error={ordersError} empty={orders.length === 0} emptyText="No orders match." />
+        <ListCapNote shown={orders.length} cap={CAP} what="orders" />
         {!ordersLoading && !ordersError && orders.length > 0 && (
           <table>
             <thead>
