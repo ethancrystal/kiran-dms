@@ -1,4 +1,4 @@
-// Applies the 13 pending migrations (after office_orders_cards) to the Kiran project, one transaction each,
+// Applies the migrations not yet recorded (after office_orders_cards) to the Kiran project, one transaction each,
 // and records each in supabase_migrations.schema_migrations the way the project's earlier ones were recorded
 // (applied-time version, snake_case name). MJ runs this with his own connection string; nothing here reads
 // or prints a secret, and it refuses any database that is not the Kiran project.
@@ -9,27 +9,20 @@
 //
 // H-19: run it only with MJ's approval of exactly this change. Stops at the first error; the failing
 // migration is rolled back whole, and the ones before it stay applied and recorded.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import pg from "pg";
 
 const REF = "iurvazdyxzlspegygldo";
 const LAST_APPLIED = "office_orders_cards";
-const EXPECTED_COUNT = 25;
-const FILES = [
-  "20261105100000_invitations_salon_approval",
-  "20261105110000_catalogue_prices",
-  "20261105120000_investor_ledger",
-  "20261105130000_delivery_approval_enums",
-  "20261105130100_delivery_approval",
-  "20261105140000_commission",
-  "20261105150000_requests_portal",
-  "20261105160000_rep_readonly_timelines",
-  "20261105170000_office_pending_approvals",
-  "20261105180000_overviews",
-  "20261105190000_office_documents_rep_detail",
-  "20261105220000_invoice_composer_signature",
-  "20261105230000_audit_fixes",
-];
+// Every migration from the first after office_orders_cards on, in file-name order.
+const FIRST_PENDING = "20261105100000";
+const FILES = readdirSync(new URL("../supabase/migrations/", import.meta.url))
+  .filter((f) => f.endsWith(".sql") && f >= FIRST_PENDING)
+  .map((f) => f.slice(0, -".sql".length))
+  .sort();
+// Recorded under other names on the project: audit_fixes went in as three parts on 2026-11-05.
+const RECORDED_AS = { audit_fixes: ["audit_fixes_part1_of_3", "audit_fixes_part2_of_3", "audit_fixes_part3_of_3"] };
+const isRecorded = (names, name) => (RECORDED_AS[name] ?? [name]).every((n) => names.includes(n));
 
 const url = process.env.KIRAN_DB_URL ?? "";
 const dry = process.argv.includes("--dry-run");
@@ -47,9 +40,9 @@ try {
   const { rows } = await c.query("select version, name from supabase_migrations.schema_migrations order by version");
   const names = rows.map((r) => r.name);
   console.log(`Kiran has ${rows.length} migrations; the last is ${names.at(-1)}.`);
-  const todo = FILES.filter((f) => !names.includes(f.slice(f.indexOf("_") + 1)));
-  if (todo.length === FILES.length && (rows.length !== EXPECTED_COUNT || names.at(-1) !== LAST_APPLIED)) {
-    throw new Error(`Expected ${EXPECTED_COUNT} migrations ending at ${LAST_APPLIED}. Stop and tell Claude what differs.`);
+  const todo = FILES.filter((f) => !isRecorded(names, f.slice(f.indexOf("_") + 1)));
+  if (!names.includes(LAST_APPLIED)) {
+    throw new Error(`Expected ${LAST_APPLIED} to be applied already. Stop and tell Claude what differs.`);
   }
   console.log(`${todo.length} to apply:`);
   for (const f of todo) console.log(`  ${f}`);
