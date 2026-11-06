@@ -42,6 +42,7 @@ const wholeInRange = (text: string, max: number) => {
 // function). A count never changes stock (doc 10 section 4). The rep's daily close appears here too.
 export default function StockLevels() {
   const [skus, setSkus] = useState<Sku[]>([]);
+  const [names, setNames] = useState<Map<string, Sku>>(new Map());
   const [available, setAvailable] = useState<Available[]>([]);
   const [low, setLow] = useState<Low[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -78,7 +79,13 @@ export default function StockLevels() {
         ),
         rows<Person>(db().from("user_profile").select("id, full_name")),
       ]);
+      // A count line can name a SKU that is no longer active: look those names up by id, so the history
+      // never says "Unknown SKU" for a product the office deactivated (REP-14, L1).
+      const known = new Set(s.map((x) => x.id));
+      const missing = [...new Set(c.flatMap((x) => x.lines.map((l) => l.sku_id)))].filter((id) => !known.has(id));
+      const extra = missing.length ? await rows<Sku>(db().from("sku").select("id, code, variant").in("id", missing)) : [];
       setSkus(s);
+      setNames(new Map([...s, ...extra].map((x) => [x.id, x])));
       setAvailable(a ?? []);
       setLow(l ?? []);
       setRules(r);
@@ -99,7 +106,7 @@ export default function StockLevels() {
     setNotice(m);
     await load();
   };
-  const skuById = (id: string) => skus.find((s) => s.id === id);
+  const skuById = (id: string) => names.get(id);
   const locName = (id: string) => locations.find((l) => l.id === id)?.name ?? "Unknown location";
   const personName = (id: string) => people.find((p) => p.id === id)?.full_name ?? "Unknown";
 
