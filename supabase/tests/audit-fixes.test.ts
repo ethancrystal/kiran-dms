@@ -834,6 +834,59 @@ describe("D-47: the intraday cash cap (CTL-17)", () => {
 });
 
 // =============================================================================
+describe("M7: cash held by a rep who is no longer active is listed for the office", () => {
+  const status = (to: string): Step => ["owner", `select app.owner_set_status('${fx.repA.id}', '${to}', 'left the company');`];
+  const listed = (m: string): Step =>
+    mark(
+      m,
+      `(select count(*)::int from app.office_inactive_rep_cash() where rep_id = '${fx.repA.id}') as c,
+       (select cash_paisa from app.office_inactive_rep_cash() where rep_id = '${fx.repA.id}') as cash,
+       (select status::text from app.office_inactive_rep_cash() where rep_id = '${fx.repA.id}') as st,
+       ${repBalance} as ledger`,
+      "manager",
+    );
+  it("an active rep is not listed; a suspended or offboarded one with cash is, with the ledger's amount; reactivated, it leaves the list", async () => {
+    const o = id();
+    const r = await tx([
+      order(o),
+      deliver(o),
+      repCash(id(), UNIT),
+      listed("active"),
+      status("suspended"),
+      listed("suspended"),
+      status("active"),
+      listed("back"),
+    ]);
+    expect(r.active[0].c).toBe(0);
+    expect(r.suspended[0].c).toBe(1);
+    expect(r.suspended[0].st).toBe("suspended");
+    expect(n(r.suspended[0].cash)).toBe(n(r.suspended[0].ledger));
+    expect(n(r.suspended[0].cash)).toBeGreaterThanOrEqual(UNIT);
+    expect(r.back[0].c).toBe(0);
+  });
+
+  it("an offboarded rep (final) with cash is listed as offboarded", async () => {
+    const o = id();
+    const r = await tx([order(o), deliver(o), repCash(id(), UNIT), status("offboarded"), listed("gone")]);
+    expect(r.gone[0].c).toBe(1);
+    expect(r.gone[0].st).toBe("offboarded");
+    expect(n(r.gone[0].cash)).toBe(n(r.gone[0].ledger));
+  });
+
+  it("a rep who is not active and holds nothing is not listed", async () => {
+    const r = await tx([
+      status("suspended"),
+      mark(
+        "n",
+        `(select count(*)::int from app.office_inactive_rep_cash() where rep_id = '${fx.repA.id}' and cash_paisa <= 0) as c`,
+        "manager",
+      ),
+    ]);
+    expect(r.n[0].c).toBe(0);
+  });
+});
+
+// =============================================================================
 describe("D-46: the owner settles a disputed handover; the office withdraws an unanswered one", () => {
   const [o] = [id()];
   const count = (cid: string, less = 0): Step => [
@@ -1191,6 +1244,7 @@ describe("the new office functions refuse AAL1 office sessions and a salon login
     ["office_reverse_payment", `select app.office_reverse_payment(${u()}, ${u()}, 'recorded by mistake')`],
     ["office_salon_payments", `select * from app.office_salon_payments(${u()})`],
     ["office_cash_cap_reps", "select * from app.office_cash_cap_reps()"],
+    ["office_inactive_rep_cash", "select * from app.office_inactive_rep_cash()"],
     ["owner_settle_handover", `select app.owner_settle_handover(${u()}, ${u()}, 'counted', 'checked the till roll')`],
     ["office_withdraw_handover", `select app.office_withdraw_handover(${u()}, ${u()}, 'phone lost, counting again')`],
   ];

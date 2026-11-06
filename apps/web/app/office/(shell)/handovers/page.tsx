@@ -7,6 +7,8 @@ import { when } from "@/lib/time";
 
 type Rep = { id: string; full_name: string };
 type Cash = { in_paisa: number; out_paisa: number; balance_paisa: number };
+// app.office_inactive_rep_cash (M7): reps who are suspended or offboarded and still hold cash.
+type InactiveCash = { rep_id: string; full_name: string; status: "suspended" | "offboarded"; cash_paisa: number };
 type Handover = {
   handover_id: string;
   rep_name: string;
@@ -63,6 +65,7 @@ export default function Handovers() {
   const [reps, setReps] = useState<Rep[]>([]);
   const [list, setList] = useState<Handover[]>([]);
   const [office, setOffice] = useState<Cash | null>(null);
+  const [inactive, setInactive] = useState<InactiveCash[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -72,15 +75,17 @@ export default function Handovers() {
     setLoading(true);
     setError(null);
     try {
-      const [r, h, c, me] = await Promise.all([
+      const [r, h, c, me, idle] = await Promise.all([
         rows<Rep>(db().from("user_profile").select("id, full_name").eq("role", "rep").eq("status", "active").order("full_name")),
         rpc<Handover[]>("office_handovers"),
         rpc<Cash[]>("office_cash_position"),
         mySession(),
+        rpc<InactiveCash[]>("office_inactive_rep_cash"),
       ]);
       setReps(r);
       setList(h ?? []);
       setOffice(c?.[0] ?? null);
+      setInactive(idle ?? []);
       setRole(me?.role ?? null);
     } catch (e) {
       setError((e as Error).message);
@@ -142,6 +147,24 @@ export default function Handovers() {
           await load();
         }}
       />
+      {inactive.length > 0 && (
+        <section className="card" aria-labelledby="inactive-cash-h">
+          <h2 id="inactive-cash-h">Cash held by reps who are not active</h2>
+          <p className="muted">
+            These reps are suspended or have left, and the cash ledger still shows cash with them. They cannot answer a count on
+            their phone, so they are not in the list above. To count one, make the rep active again on People first; the owner
+            decides what to do when the rep will not come back.
+          </p>
+          <ul className="plain">
+            {inactive.map((x) => (
+              <li key={x.rep_id} data-testid="inactive-cash">
+                {x.full_name} <span className="badge">{x.status === "suspended" ? "Suspended" : "Left"}</span>{" "}
+                <strong>{rupees(x.cash_paisa)}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <h2>Handovers</h2>
       <ListState loading={loading} error={error} empty={list.length === 0} emptyText="No handovers yet." />
       {!loading && !error && list.length > 0 && (
