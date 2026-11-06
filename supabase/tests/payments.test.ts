@@ -385,7 +385,7 @@ describe("recording a payment (PAY-02, PAY-11, CTL-01)", () => {
 
   it("refuses a payment above what the salon owes, any payment from a salon that owes nothing, and a zero amount", async () => {
     expect(await txError([...delivered(CASH_SMALL_QTY, "CASH"), repPay(id(), ABOVE_OWED)])).toContain(
-      `more than the salon owes (${UNIT} paisa)`,
+      `more than the salon owes (Rs ${(UNIT / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
     );
     expect(await txError([repPay(id(), HALF_UNIT, "", GPS_NEAR, SALON_X)])).toContain("owes nothing");
     expect(await txError([...delivered(CASH_SMALL_QTY, "CASH"), repPay(id(), 0)])).toContain("amount above zero");
