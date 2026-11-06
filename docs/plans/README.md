@@ -69,7 +69,7 @@ checks. That is a board clean-up for a later pull request (C8 of the remaining-i
 | Plan | Assessment |
 |---|---|
 | `2026-11-05-remaining-implementation.md` | The master list of what is left. Accurate as a list, but one line an item: not enough for an agent that only implements. Several lines are out of date: C1 is done (pull requests 71 and 73); REP-20, AUTH-08, AUTH-15 and AUTH-16 are done (74 to 77); M7 is merged (pull request 78); REP-07 was already built before the plan was written; the AUTH-05 residual looks closed in code; REP-05 describes the wrong screen. The audit that defines its item ids is not in the repository, so each item's meaning had to be read from the code. |
-| `hermes.md` | The step-level work order for ten unblocked items of the list above (H1 to H10). Complete enough to follow literally: branch, migration version, code, test, checks, commit message and stop conditions for each. Not executed: none of its SQL or test code has been run. Its Part 3 names what must not be started. |
+| `hermes.md` | The step-level work order for fifteen unblocked items (H1 to H15; H14 and H15 come from outside the list above: the migration script, and the records). Complete enough to follow literally: branch, migration version, code, test, checks, commit message and stop conditions for each. Not executed: none of its SQL or test code has been run. Its Part 3 names what must not be started. |
 | `2026-11-05-frontend-structure.md` | The page map and the shared frontend foundation. Its work packages S-A (stock), S-C (routes), the office shell, Rep detail and the invoice views are built. Still open: the foundation F1 to F4 and F8 (generated types, typed RPC client, one component set, one table pattern, test helpers), S-B leftovers (receipt views, statement, deposits), S-D2 (digest, offboarding screen), S-F (offline). Its header still says DRAFT FOR REVIEW and its screen catalogue keeps older status words. It is a roadmap, not step-level: F1 to F4 and F8 need their own plan before anyone builds them. |
 
 ### will-be-implemented/
@@ -80,8 +80,35 @@ checks. That is a board clean-up for a later pull request (C8 of the remaining-i
 
 ## Verdict
 
-- Plans ready for an implement-only agent: one, `in-progress/hermes.md` (ten tasks).
+- Plans ready for an implement-only agent: one, `in-progress/hermes.md` (fifteen tasks).
 - Everything else that remains is either waiting for a decision of MJ's or has no step-level plan yet;
   both kinds are listed in `will-be-implemented/2026-11-06-not-yet-planned.md`.
 - The largest unplanned pieces before a field pilot are the offline rep app (P1-09), the control layer
   (P1-08) and the security acceptance suite (P1-12).
+
+## How many tasks until the system is ready for use (2026-11-06)
+
+"Ready" means two different things. Task counts are given only where a step-level plan exists.
+
+| Ready for | What it takes | Count |
+|---|---|---|
+| Office use with real data, reps online | MJ's go-live actions below, then a first sign-in on the hosted app. No code task blocks this: the 15 tasks of `hermes.md` fix defects and gaps and are recommended first | 15 tasks recommended, 6 actions of MJ's |
+| Field pilot and Gate 1 (doc 11) | The 15, plus the work below, none of it planned yet | 15 tasks, plus 4 work packages that cannot be counted in tasks until each is planned |
+
+MJ's six actions (`in-progress/2026-11-05-remaining-implementation.md` section A): rotate the database
+password; create the owner account with TOTP; check the hosted sign-in settings; set the two web deployment
+variables; enter the real company details; enter the real products and salons. Which of these are already
+done was not checked: the project is production, so even the read-only `pnpm staging:smoke` needs MJ's OK.
+The migrations are applied (decision file `2026-11-06-mj-apply-inactive-rep-cash`).
+
+The four unplanned packages, each tied to a Gate 1 criterion in doc 11:
+
+| Package | Gate 1 criterion | Waits for |
+|---|---|---|
+| P1-09 offline rep app | 6, offline capture and sync in the field | A plan |
+| P1-12 security acceptance suite and restore drill | 1 and 7 | A plan |
+| Receipts delivered by SMS or WhatsApp | 3, every pilot payment has a delivered receipt | MJ's provider decision (OQ-11), then a plan |
+| P1-05 supplier vault | 5, vault tests of doc 07 section 5 | A plan |
+
+Gate 1 also needs 20 consecutive working days of pilot, which no task shortens. P1-08 (control layer) is
+due before Gate 1 by the remaining-implementation plan's order, though no Gate 1 criterion names it.
