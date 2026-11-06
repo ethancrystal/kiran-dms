@@ -20,7 +20,7 @@ edit, open the file and find the quoted text. If the quoted text is not there, S
    in your task, STOP that task.
 3. Never work on `main`. Never touch the folders under `.claude/worktrees/` that you did not create.
    Two of them hold other sessions' work:
-   - `claude/m7-suspended-cash` (PR 78, migration `20261106020000`): waiting for MJ's OK to merge.
+   - `claude/m7-suspended-cash` (PR 78, migration `20261106020000`): merged to `main` on 2026-11-06.
    - `claude/inactive-sku-names` (not pushed, migration `20261106010000`): REP-14 in progress.
 4. This machine has a global `DATABASE_URL` that points at a hosted project. Never read it, never pass
    it to a command. The database tests use their own embedded Postgres.
