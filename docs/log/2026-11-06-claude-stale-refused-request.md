@@ -15,8 +15,9 @@
 - `pnpm db:test verifier-attacks schema-hygiene rls-matrix`: 3 files, 2900 of 2900 passed (rls-matrix 2843, schema-hygiene 14, verifier-attacks 43).
 - `pnpm typecheck`: exit 0 (supabase tests, packages/import, apps/web).
 - `pnpm lint`: exit 0, 24 warnings and 43 infos, none in the files of this task.
-- `pnpm activity:check`: see the line added below after the run.
-- Not run: the whole database suite at once (memory), the browser tests, every stack journey. The commit SHA, push and pull request are recorded below once they exist.
+- `node scripts/activity-log-check.mjs origin/main HEAD`: activity-log-check OK (1 new log entry, 4 changed files). The first run failed on a backslash in a Windows path in this entry; the path was rewritten with forward slashes.
+- Commit 0d03e8a on claude/stale-refused-request, pull request 81 (open, not merged). The first local commit also swept in two files already staged before this task (the two files under .codex); it was never pushed, was undone with a soft reset, and recommitted with only the four files of H1. The two .codex files are staged again exactly as before.
+- Not run: the whole database suite at once (memory), the browser tests, every stack journey. CI on pull request 81, head 0d03e8a, all required jobs passed: activity-log-check, agent-policy-files, lint + format (Biome), typecheck + service-role scan, migrations + RLS matrix (local Supabase stack), office browser tests (Playwright, local Supabase stack), rep PWA browser tests (Playwright). So the stack journeys did run, in CI.
 
 **Next / needs:** Commit the four files of H1, push, open the pull request, watch CI. Then H2 (`claude/timeline-coverage`) as the work order says: it edits the same test file, so it waits for this to merge or rebases onto it. Draft PR 80 rewrites `hermes.md` to fifteen tasks; the ten here are unchanged until it merges. MJ to say what to do with the ten stray modified files.
 
