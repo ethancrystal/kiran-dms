@@ -23,6 +23,8 @@ type Stage = { from_stage: string | null; to_stage: string; trigger: string; rea
 // app.rep_create_card: an order card holds a note of 1 to 2000 characters.
 const CARD_MAX = 2000;
 const CARD_ROWS = 4;
+// app.rep_park_salon: the only stages a rep may park.
+const PARKABLE = ["prospect", "visited", "trial"];
 
 // One salon, the whole relationship the rep may see (execution map slice 3; SAL-05 in part,
 // PIP-02 visits, MAP-03 notes, doc 06 §4 phone reveal, B-28 parking). Every list and action is
@@ -218,7 +220,7 @@ export default function SalonPage({ params }: { params: Promise<{ id: string }> 
         </ul>
       </section>
 
-      {salon.stage !== "parked" && (
+      {PARKABLE.includes(salon.stage) && (
         <section aria-labelledby="park-h">
           <h2 id="park-h">Park this salon</h2>
           <p className="muted">For a salon that is not worth visiting for now. The office sees the reason.</p>
