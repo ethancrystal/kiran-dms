@@ -98,6 +98,7 @@ export type ReceiptDocument = {
   allocations: Array<{ invoice_number: string; seq: number; of: number; amount_paisa: number }>;
   remaining: Array<{ invoice_number: string; seq: number; of: number; due_on: string; remaining_paisa: number }>;
   notices: Notice[];
+  reversed?: { reversed_at: string; reason: string };
 };
 
 export type InvoiceRow = {
