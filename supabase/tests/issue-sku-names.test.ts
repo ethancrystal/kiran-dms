@@ -1,5 +1,5 @@
 /**
- * app.my_issue_skus (migration 20261106040000, REP-14 / L1): the SKU names a rep needs for the
+ * app.my_issue_skus (migration 20261106070000, REP-14 / L1): the SKU names a rep needs for the
  * pending stock issues of its own bag, including a SKU the office has deactivated since.
  *
  * Steps that need several personas commit (one persona per transaction, like the real app); every
