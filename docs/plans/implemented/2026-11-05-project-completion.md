@@ -49,7 +49,7 @@ Each slice is one pull request, built one at a time, stacked on the last until m
 
 ## Slice 4 (P1-21): delivery approval
 
-- Execute `docs/superpowers/plans/2026-11-04-delivery-submission-approval.md`, as updated by its Status note.
+- Execute `docs/plans/implemented/2026-11-04-delivery-submission-approval.md`, as updated by its Status note.
 
 ## Slice 5 (P1-22): commission
 
