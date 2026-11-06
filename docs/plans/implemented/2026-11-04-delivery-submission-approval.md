@@ -1,5 +1,7 @@
 # Delivery submission and approval with pending stock custody (PR B) Implementation Plan
 
+**Status, 2026-11-06:** built and merged to `main` as completion slice 4 (P1-21), with the signed acknowledgement of P1-31 added on top. The Status line below still reads NOT STARTED and is kept as history; this file now lives in `docs/plans/implemented/`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A rep's delivery becomes an immutable submission that moves goods from the bag to a per-rep pending location; only an owner's or manager's approval writes the delivery, the sale movement, the invoice, the installments and the order status, and rejected goods stay in pending custody until the office settles them.
@@ -353,7 +355,7 @@ Depends on Task 6.
 ### Task 10: Docs, verify, log
 
 **Files:**
-- Modify: `docs/06-security-plan.md` (section 2: add spec section 5's classification table verbatim, citing D-32 and L-0390), `docs/03-requirements.md` (ORD-04 rewritten: "A rep's delivery is an immutable submission that moves goods to the rep's pending location; only the owner's or manager's approval writes the delivery, the sale movement from pending, the invoice and installments and advances the order (D-32). A rep-less order is delivered by the office (A-18)"; ORD-03 cross-reference), `docs/04-domain-model.md` (rows for the three tables; `stock_location` and `stock_movement` kinds; `delivery` and `invoice` rows; ERD lines 28 to 40), `docs/09-payments-credit-installments.md` (collection follows approval, per Decision 1's answer), `docs/12-decisions-and-open-questions.md` (D-32 status "PR B built, not verified"), `SPEC.md` (rows at lines 54, 55, 121, 125, 275), the spec (header, section 2 state, new "as built" under section 4 PR B, section 9 additions), `docs/superpowers/plans/2026-11-03-office-orders-and-cards.md` (status block), `docs/ACTIVITY.md` (PROGRESS, HANDOFF, board row, claim)
+- Modify: `docs/06-security-plan.md` (section 2: add spec section 5's classification table verbatim, citing D-32 and L-0390), `docs/03-requirements.md` (ORD-04 rewritten: "A rep's delivery is an immutable submission that moves goods to the rep's pending location; only the owner's or manager's approval writes the delivery, the sale movement from pending, the invoice and installments and advances the order (D-32). A rep-less order is delivered by the office (A-18)"; ORD-03 cross-reference), `docs/04-domain-model.md` (rows for the three tables; `stock_location` and `stock_movement` kinds; `delivery` and `invoice` rows; ERD lines 28 to 40), `docs/09-payments-credit-installments.md` (collection follows approval, per Decision 1's answer), `docs/12-decisions-and-open-questions.md` (D-32 status "PR B built, not verified"), `SPEC.md` (rows at lines 54, 55, 121, 125, 275), the spec (header, section 2 state, new "as built" under section 4 PR B, section 9 additions), `docs/plans/implemented/2026-11-03-office-orders-and-cards.md` (status block), `docs/ACTIVITY.md` (PROGRESS, HANDOFF, board row, claim)
 
 **Interfaces:** none (documentation and evidence).
 

@@ -1,5 +1,7 @@
 # Office orders and rep order cards (PR A) Implementation Plan
 
+**Status, 2026-11-06:** built and merged to `main` (pull request A, branch `claude/orders-delivery-commission`). The Status block below is the builder's from 2026-11-04 and is kept as history; this file now lives in `docs/plans/implemented/`.
+
 ## Status (2026-11-04)
 
 - **Tasks 1 to 8: complete.** Task 9: steps 1 and 2 complete; step 3 open (MJ decides on pushing the branch and opening the pull request, ACTIVITY L-0392).

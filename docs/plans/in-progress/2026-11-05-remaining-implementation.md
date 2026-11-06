@@ -75,7 +75,7 @@ Each item: what to add, what it extends, and what it waits for.
 | Close a part-delivered order (M6, FLOW-08) | `sales_order.status` `closed` already exists; add `app.office_close_order` and a button on `/office/orders/[id]` | B-45 |
 | Unreconciled handover blocks the next check-in, with a manager override (PIP-09, FLOW-07 part) | `app.rep_check_in`, `/app/day`, `/office/handovers` | — |
 | Receivables by rep follow direct assignment (M4, FLOW-12) | `app.office_receivables_ageing`, reuse `app.rep_holds_salon` | A-14 |
-| Cash held by a suspended or offboarded rep is visible and countable (M7) | `/office/handovers` reads | — |
+| Cash held by a suspended or offboarded rep is visible (M7): built on `claude/m7-suspended-cash` (`app.office_inactive_rep_cash`, a section on `/office/handovers`). Counting it without the rep's answer is not built | `/office/handovers` reads | MJ: how cash of a rep who cannot answer is brought in |
 | Timelines cover delivery submissions, commission, signatures, reversals, settlements | `app.timeline_label` and the two timeline functions, in a forward migration | — |
 | Stale refused request shown on pending stock | `app.office_pending_stock` | — |
 | AUTH-05 residual: a password token still reads its own profile and device rows | policies on `user_profile` and `device` | — |
@@ -130,9 +130,9 @@ Each item: what to add, what it extends, and what it waits for.
 F8 test helpers (sign in as each role, wait-for-loaded), F1 generated database types in `packages/shared`, F2 typed RPC client over `lib/rpc.ts`, F3 one component set, F4 one table pattern with paging. Convert a page when its slice touches it.
 
 ### C8. Records and housekeeping
-- Give MJ's frontend-structure rulings their number (D-44 is reserved) and add work packages S-A to S-F to `docs/superpowers/plans/2026-11-05-project-completion.md` and the board.
+- Give MJ's frontend-structure rulings their number (D-44 is reserved) and add work packages S-A to S-F to `docs/plans/implemented/2026-11-05-project-completion.md` and the board.
 - Update board rows P1-18 to P1-31: their PRs are merged and CI was green; the cells still say "awaiting CI".
-- Final review against `docs/superpowers/plans/2026-11-05-final-review-checklist.md` and the handoff report required by the master prompt.
+- Final review against `docs/plans/implemented/2026-11-05-final-review-checklist.md` and the handoff report required by the master prompt.
 - Independent verification of slices 1 to 11 has not been done (MJ removed the rule; CI is the evidence).
 - Remove merged local branches and worktrees after MJ's OK.
 

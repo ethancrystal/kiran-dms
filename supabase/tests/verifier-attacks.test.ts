@@ -259,7 +259,7 @@ describe("internal functions are not callable by app roles", () => {
       "office_assign_territory", "office_attach_signature", "office_cancel_stock_issue", "office_cash_cap_reps", "office_cash_position", "office_catalogue",
       "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location", "office_create_order",
       "office_decide_profit", "office_decide_salon", "office_deliver", "office_delivery_signature", "office_dismiss_card", "office_end_territory",
-      "office_force_close_rep_day", "office_handovers", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors",
+      "office_force_close_rep_day", "office_handovers", "office_inactive_rep_cash", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors",
       "office_invitations", "office_invite", "office_invoice_preview", "office_invoices", "office_open_cards", "office_order_signature", "office_order_timeline",
       "office_orders", "office_override_stage", "office_overview_counts", "office_overview_rows", "office_pending_approvals", "office_pending_deliveries",
       "office_pending_salons", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receipts",
@@ -329,6 +329,8 @@ describe("internal functions are not callable by app roles", () => {
       // office_withdraw_handover (owner or manager): migration 20261105230000 (P1-30, decision file
       // 2026-11-05-mj-audit-decisions); MJ standing approval L-0144. Their helpers rep_session_ok,
       // adjustment_needs_owner, owner_post_adjustment and order_undelivered_paisa have no grant.
+      // office_inactive_rep_cash (owner or manager at AAL2; suspended or offboarded reps who still hold cash; a
+      // read, nothing moves): migration 20261106020000 (audit M7, plan C2); MJ standing approval L-0144.
       // my_territory_order, my_collections (a rep, own scope, at most 50 rows) and salon_login_status (a salon
       // login with an emailed-code session, its own account status only): migration 20261105230000 part 2
       // (P1-30, audit REP-03, REP-09, AUTH-09); MJ standing approval L-0144.
