@@ -10,7 +10,7 @@ type Issue = {
   decision_note: string | null;
   created_at: string;
 };
-type Sku = { id: string; code: string; variant: string | null };
+type IssueSku = { sku_id: string; code: string; variant: string | null };
 type BagLine = { sku_id: string; code: string; variant: string | null; on_hand: number };
 type Confirmed = { status: string };
 type Available = { sku_id: string; code: string; available: number };
@@ -25,7 +25,7 @@ type Available = { sku_id: string; code: string; available: number };
 // app.my_bag. Every refusal is the database's words.
 export default function MyStock() {
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [skus, setSkus] = useState<Map<string, Sku>>(new Map());
+  const [skus, setSkus] = useState<Map<string, IssueSku>>(new Map());
   const [bag, setBag] = useState<BagLine[]>([]);
   const [available, setAvailable] = useState<Available[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,12 +46,13 @@ export default function MyStock() {
         rpc<BagLine[]>("my_bag"),
         rpc<Available[]>("warehouse_availability"),
       ]);
-      const ids = [...new Set(i.flatMap((x) => x.lines.map((l) => l.sku_id)))];
-      const s = ids.length ? await rows<Sku>(db().from("sku").select("id, code, variant").in("id", ids)) : [];
+      // Names come from app.my_issue_skus, not the sku table: the rep sees only active SKUs there, and the
+      // office may have deactivated one that a pending issue still names (REP-14).
+      const s = i.length ? ((await rpc<IssueSku[]>("my_issue_skus")) ?? []) : [];
       setIssues(i);
       setBag(b ?? []);
       setAvailable(a ?? []);
-      setSkus(new Map(s.map((x) => [x.id, x])));
+      setSkus(new Map(s.map((x) => [x.sku_id, x])));
     } catch (e) {
       setError((e as Error).message);
     } finally {
