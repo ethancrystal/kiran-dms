@@ -25,7 +25,7 @@ All six came from `docs/superpowers/plans/`; `hermes.md` came from the repositor
 | `2026-11-05-final-review-checklist.md` | `implemented/` | `docs/superpowers/plans/` |
 | `2026-11-05-frontend-structure.md` | `in-progress/` | `docs/superpowers/plans/` |
 | `2026-11-05-remaining-implementation.md` | `in-progress/` | `docs/superpowers/plans/` |
-| `hermes.md` | `in-progress/` | repository root |
+| `hermes.md` | `implemented/` | repository root |
 | `2026-11-06-not-yet-planned.md` | `will-be-implemented/` | new |
 
 Old paths still appear where they cannot be changed: merged log entries in `docs/log/` (append-only),
@@ -56,7 +56,7 @@ Read from the plans, the board, the log and the merged pull requests. Nothing he
 | Plan | Assessment |
 |---|---|
 | `2026-11-03-office-orders-and-cards.md` (PR A) | Built and merged. Its Status block is from 2026-11-04 and still says the branch is not pushed: that is stale. Its "open for MJ" points live on as A-18 and B-14 in the rulebook. The plan itself is step-level and complete; nothing in it is left to build. |
-| `2026-11-04-delivery-submission-approval.md` (PR B) | Built and merged as slice 4 (P1-21), with the invoice signature rule added on top by P1-31. Its Status line still reads NOT STARTED: stale. Step-level and complete. One follow-up it names, extending the timelines to its tables, is task H2 in `in-progress/hermes.md`. |
+| `2026-11-04-delivery-submission-approval.md` (PR B) | Built and merged as slice 4 (P1-21), with the invoice signature rule added on top by P1-31. Its Status line still reads NOT STARTED: stale. Step-level and complete. One follow-up it names, extending the timelines to its tables, is task H2 in `implemented/hermes.md`. |
 | `2026-11-05-project-completion.md` (slices 1 to 7) | All seven slices merged (pull requests 53 to 65). It is a checklist per slice, not step-level, and it was enough because each slice had its own builder session. Nothing left. |
 | `2026-11-05-final-review-checklist.md` | The end-to-end journey was built in slice 8 (its section 5), in a changed form the file records. One open line: the timeline maps, same as H2. |
 
@@ -80,7 +80,7 @@ checks. That is a board clean-up for a later pull request (C8 of the remaining-i
 
 ## Verdict
 
-- Plans ready for an implement-only agent: one, `in-progress/hermes.md` (ten tasks).
+- Plans ready for an implement-only agent: none. The Hermes work order (`implemented/hermes.md`) is done: H1 to H10 from this file, and H11 to H15 from the draft branch claude/hermes-15-tasks (pull request 80, not merged), all merged as pull requests 81, 82 and 84 to 96.
 - Everything else that remains is either waiting for a decision of MJ's or has no step-level plan yet;
   both kinds are listed in `will-be-implemented/2026-11-06-not-yet-planned.md`.
 - The largest unplanned pieces before a field pilot are the offline rep app (P1-09), the control layer
