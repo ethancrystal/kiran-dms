@@ -41,7 +41,8 @@ let BAG_A = "",
   BAG_B = "";
 let ISSUE_A = "";
 const CODES = { active: code(), deactivated: code(), unrelated: code() };
-const PRICE = 100_000; // Rs 1,000 per unit, in paisa
+// Rs 100 per unit, in paisa: three units stay far below the smallest bag limit another file may have set (Rs 1,500).
+const PRICE = 10_000;
 const STOCK = 5;
 const ISSUED = 3;
 
