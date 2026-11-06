@@ -75,7 +75,7 @@ Each item: what to add, what it extends, and what it waits for.
 | Close a part-delivered order (M6, FLOW-08) | `sales_order.status` `closed` already exists; add `app.office_close_order` and a button on `/office/orders/[id]` | B-45 |
 | Unreconciled handover blocks the next check-in, with a manager override (PIP-09, FLOW-07 part) | `app.rep_check_in`, `/app/day`, `/office/handovers` | — |
 | Receivables by rep follow direct assignment (M4, FLOW-12) | `app.office_receivables_ageing`, reuse `app.rep_holds_salon` | A-14 |
-| Cash held by a suspended or offboarded rep is visible and countable (M7) | `/office/handovers` reads | — |
+| Cash held by a suspended or offboarded rep is visible (M7): built on `claude/m7-suspended-cash` (`app.office_inactive_rep_cash`, a section on `/office/handovers`). Counting it without the rep's answer is not built | `/office/handovers` reads | MJ: how cash of a rep who cannot answer is brought in |
 | Timelines cover delivery submissions, commission, signatures, reversals, settlements | `app.timeline_label` and the two timeline functions, in a forward migration | — |
 | Stale refused request shown on pending stock | `app.office_pending_stock` | — |
 | AUTH-05 residual: a password token still reads its own profile and device rows | policies on `user_profile` and `device` | — |

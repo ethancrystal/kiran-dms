@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import pg from "pg";
+import { rupees } from "../lib/money";
 
 // P1-30 part 2 (the wiring audit's screens package) on a real local stack. Runs last (files run by name,
 // one worker) and touches no earlier spec's data: it makes its own owner and manager logins, territory,
@@ -576,4 +577,32 @@ test("a rep at the cash limit is refused more cash and shows on the office home 
   const page = await officePage(browser, manager);
   await page.goto("/office");
   await expect(page.getByTestId("cash-cap-rep").filter({ hasText: rep.name })).toBeVisible();
+});
+
+test("cash held by a suspended rep shows on Cash handover, and leaves when the rep is active again (M7)", async ({ browser }) => {
+  // The rep holds cash from the test above. The status is set as postgres (the owner's People screen is
+  // covered elsewhere) and always put back, so later files find the rep active.
+  const [held] = await sql(
+    null,
+    `select coalesce(sum(case direction when 'in' then amount_paisa else -amount_paisa end), 0)::bigint v
+       from public.cash_ledger_entry where holder_type = 'rep' and holder_id = $1`,
+    [rep.id],
+  );
+  expect(BigInt(String(held.v)) > BigInt(0), "the rep holds cash from the cash-limit test").toBe(true);
+  const page = await officePage(browser, manager);
+  await page.goto("/office/handovers");
+  await expect(page.getByRole("heading", { name: "Cash handover", exact: true })).toBeVisible();
+  await expect(page.getByTestId("inactive-cash").filter({ hasText: rep.name })).toHaveCount(0);
+  await sql(null, "update public.user_profile set status = 'suspended' where id = $1", [rep.id]);
+  try {
+    await page.reload();
+    const row = page.getByTestId("inactive-cash").filter({ hasText: rep.name });
+    await expect(row).toContainText("Suspended");
+    await expect(row).toContainText(rupees(Number(held.v)));
+  } finally {
+    await sql(null, "update public.user_profile set status = 'active' where id = $1", [rep.id]);
+  }
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Cash handover", exact: true })).toBeVisible();
+  await expect(page.getByTestId("inactive-cash").filter({ hasText: rep.name })).toHaveCount(0);
 });
