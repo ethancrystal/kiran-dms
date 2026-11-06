@@ -92,16 +92,25 @@ checks. That is a board clean-up for a later pull request (C8 of the remaining-i
 
 | Ready for | What it takes | Count |
 |---|---|---|
-| Office use with real data, reps online | MJ's go-live actions below, then a first sign-in on the hosted app. No code task blocks this: the 15 tasks of `hermes.md` fix defects and gaps and are recommended first | 15 tasks recommended, 6 actions of MJ's |
-| Field pilot and Gate 1 (doc 11) | The 15, plus the work below, none of it planned yet | 15 tasks, plus 4 work packages that cannot be counted in tasks until each is planned |
+| Office use with real data, reps online | MJ's go-live actions below, and a way to get the real salons in. No other code task blocks this: the 15 tasks of `hermes.md` fix defects and gaps and are recommended first | 15 tasks recommended, plus the Excel import unless MJ enters every salon by hand |
+| Field pilot and Gate 1 (doc 11) | The above, plus the work below, none of it planned yet | 15 tasks, plus 4 more work packages that cannot be counted in tasks until each is planned |
 
-MJ's six actions (`in-progress/2026-11-05-remaining-implementation.md` section A): rotate the database
-password; create the owner account with TOTP; check the hosted sign-in settings; set the two web deployment
-variables; enter the real company details; enter the real products and salons. Which of these are already
-done was not checked: the project is production, so even the read-only `pnpm staging:smoke` needs MJ's OK.
-The migrations are applied (decision file `2026-11-06-mj-apply-inactive-rep-cash`).
+**The real salons.** `packages/import` is a dry run and writes nothing. The real import, P1-02 part d
+(SAL-10), was never built and has no plan. Until it exists, each salon goes in one at a time through
+Adding a salon from the office (`docs/runbooks/operator-guide.md`). Plan section A8 says "import salons
+from Excel", which cannot be done today. Whether by-hand entry is acceptable depends on how many salons the
+sheet holds (OQ-01, not delivered).
 
-The four unplanned packages, each tied to a Gate 1 criterion in doc 11:
+**MJ's go-live actions** are section A of `in-progress/2026-11-05-remaining-implementation.md`. A1, the
+migrations, is done (decision file `2026-11-06-mj-apply-inactive-rep-cash`). The rest are still listed
+there: owner account with TOTP, hosted sign-in settings, the web deployment variables and its protection,
+rotating the service-role key, secret key and database password, the `KIRAN_SENSITIVE_TERMS` secret, the real
+company details, products, prices and pictures, and adviser input on investor terms before any live payout.
+Which of them are already done was not checked: the project is production, so even the read-only
+`pnpm staging:smoke` needs MJ's OK. The app has never been exercised against the hosted project in this
+review.
+
+The four packages behind Gate 1, each tied to a criterion in doc 11:
 
 | Package | Gate 1 criterion | Waits for |
 |---|---|---|

@@ -38,6 +38,7 @@ Each needs a plan of its own before an implement-only agent can take it.
 
 | Board row | What | Why it matters |
 |---|---|---|
+| P1-02 part d | The real Excel import (SAL-10). `packages/import` is a dry run and writes nothing; it also needs MJ's file (OQ-01) | Until it exists, every salon is entered by hand; plan section A8 cannot be done as written |
 | P1-09 | Offline rep app: outbox, idempotent sync, rejection display | Needed before the field pilot |
 | P1-08 | Approval registry (`control.approval_use`, D-25), daily owner digest, bank-detail lock, offboarding in one screen | Before Gate 1; part of it waits on B-39 |
 | P1-12 | Security acceptance suite and a backup restore drill | Before Gate 1 |

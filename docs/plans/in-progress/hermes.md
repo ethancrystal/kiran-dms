@@ -1010,8 +1010,9 @@ merged. For this task alone, rule 1.3's "leave section 12 alone" is lifted for t
 
 Steps, board.
 
-1. For each row below, in the Status cell of `docs/ACTIVITY.md` section 12, first run `gh pr checks <PR>`.
-   If a required check is not a pass, leave that row and name it in the log entry.
+1. For each row below, in the Status cell of `docs/ACTIVITY.md` section 12, first run `gh pr checks <PR> --required`.
+   If a required check is not a pass, leave that row and name it in the log entry. Use `--required`: without
+   it, optional checks such as CodeRabbit show as skipping.
 2. Otherwise replace the words from `implemented on branch` through `an independent check` with
    `merged in pull request <PR> at <merge>; required checks green; awaiting an independent check`. Keep the
    words `IN PROGRESS (` before and everything after them. Do not write the word VERIFIED anywhere in a cell:
@@ -1083,7 +1084,7 @@ Do not start any of these. Each needs a business decision that the documents do 
 | Salon statement | A period statement or a printable current position; SAL-12 is Phase 1, CTL-10 is Phase 2 | Balance, invoices and payments on the portal |
 | Correction from a count variance | Which difference to post, one correction per line, who checks | Counts are stored; no link to an adjustment |
 | Timelines for commission and handover settlements | Neither names a salon or an order; they would need a rep timeline | Not shown |
-| P1-03, P1-05, P1-08, P1-09, P1-10, P1-12, P1-15, P1-17 | No implementation plan is written for any of them | Not started |
+| P1-02 part d (the real Excel import), P1-03, P1-05, P1-08, P1-09, P1-10, P1-12, P1-15, P1-17 | No implementation plan is written for any of them | Not started |
 
 ## Part 4. When all fifteen are done
 
