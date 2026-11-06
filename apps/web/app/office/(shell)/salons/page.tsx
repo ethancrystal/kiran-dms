@@ -24,6 +24,8 @@ type Row = {
 export default function OfficeSalons() {
   const [list, setList] = useState<Row[]>([]);
   const [stage, setStage] = useState("");
+  const [approval, setApproval] = useState("");
+  const [reasons, setReasons] = useState<Map<string, string>>(new Map());
   const [search, setSearch] = useState("");
   // The term actually queried: set when the filter form is submitted, which also goes back to page 1.
   const [term, setTerm] = useState("");
@@ -43,16 +45,28 @@ export default function OfficeSalons() {
         .order("id")
         .range(page * PAGE, page * PAGE + PAGE);
       if (stage) q = q.eq("stage", stage);
+      if (approval) q = q.eq("approval_status", approval);
       if (term) q = q.ilike("name", `%${term.replace(/[%_\\]/g, "\\$&")}%`);
       const r = await rows<Row>(q);
       setMore(r.length > PAGE);
       setList(r.slice(0, PAGE));
+      const rejected = r
+        .slice(0, PAGE)
+        .filter((s) => s.approval_status === "rejected")
+        .map((s) => s.id);
+      const why =
+        rejected.length === 0
+          ? []
+          : await rows<{ salon_id: string; reason: string | null }>(
+              db().from("salon_approval_decision").select("salon_id, reason").eq("decision", "rejected").in("salon_id", rejected),
+            );
+      setReasons(new Map(why.map((w) => [w.salon_id, w.reason ?? ""])));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [page, stage, term]);
+  }, [page, stage, term, approval]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -96,6 +110,21 @@ export default function OfficeSalons() {
             ))}
           </select>
         </label>
+        <label>
+          Approval
+          <select
+            value={approval}
+            onChange={(e) => {
+              setApproval(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </label>
       </form>
       <ListState loading={loading} error={error} empty={list.length === 0} emptyText="No salons match." />
       {!loading && !error && list.length > 0 && (
@@ -122,6 +151,11 @@ export default function OfficeSalons() {
                   <span className="badge">{label(s.stage)}</span>
                   {s.approval_status !== "approved" && (
                     <span className={`badge ${s.approval_status}`}> {label(s.approval_status)}</span>
+                  )}
+                  {s.approval_status === "rejected" && reasons.get(s.id) && (
+                    <div className="muted" data-testid="rejection-reason">
+                      Rejected: {reasons.get(s.id)}
+                    </div>
                   )}
                 </td>
               </tr>
