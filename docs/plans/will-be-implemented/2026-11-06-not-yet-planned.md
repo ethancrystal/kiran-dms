@@ -19,8 +19,8 @@ Source: `docs/plans/in-progress/2026-11-05-remaining-implementation.md`, the boa
 | Office messages that quote paisa (REP-16, L3) | Change all eight office-only messages too? Which format? | Quoted in paisa |
 | Office user on the rep page gets a phone row (AUTH-12) | Refuse only emailed-code office sessions, or every office session? Should office powers require a password session at all? | A row is created |
 | Request lines keep the price (AUTH-14) | The price of the order made from the request, or the price when the request was sent? The second puts a price on a table whose rule is "never a price" | Today's price is shown |
-| Salon pickers past 500 (L7) | Type-to-filter above the list or a combobox; one cap or three | Capped at 500, 500 and 200 |
-| Rep and salon receipt views, a payments list (C5) | What is the payments list and for whom; may a salon see the bank reference and the office's reversal reason? | Office receipt view only |
+| Searching salon pickers past 500 (L7) | Type-to-filter above the list or a combobox; one cap or three | Capped at 500, 500 and 200 |
+| Salon receipt view, a payments list, a receipt link in the rep's list (C5) | What is the payments list and for whom; may a salon see the bank reference and the office's reversal reason? The link needs a new field on `app.my_collections` | Office view; the rep's view is H12 of `hermes.md` |
 | Salon statement (C5) | A period statement with opening and closing balance, or a printable current position? SAL-12 is Phase 1; the monthly sent statement (CTL-10) is Phase 2 | Balance, invoices and payments on the portal |
 | Correction from a count variance (C5) | Post the difference at count time or against stock now; one correction per count line; who checks | Counts are stored; no link to an adjustment |
 | Timelines for commission and handover settlements | Neither names a salon or an order. A rep timeline would be new | Not shown |
@@ -38,6 +38,7 @@ Each needs a plan of its own before an implement-only agent can take it.
 
 | Board row | What | Why it matters |
 |---|---|---|
+| P1-02 part d | The real Excel import (SAL-10). `packages/import` is a dry run and writes nothing; it also needs MJ's file (OQ-01) | Until it exists, every salon is entered by hand; plan section A8 cannot be done as written |
 | P1-09 | Offline rep app: outbox, idempotent sync, rejection display | Needed before the field pilot |
 | P1-08 | Approval registry (`control.approval_use`, D-25), daily owner digest, bank-detail lock, offboarding in one screen | Before Gate 1; part of it waits on B-39 |
 | P1-12 | Security acceptance suite and a backup restore drill | Before Gate 1 |
@@ -49,7 +50,7 @@ Each needs a plan of its own before an implement-only agent can take it.
 | P1-11 | The rest of admin config and the rep profile | |
 | Frontend foundation | F8 test helpers, F1 generated types, F2 typed RPC client, F3 one component set, F4 one table pattern (`in-progress/2026-11-05-frontend-structure.md` section 3) | Convert a page when its slice touches it |
 | Bank deposits with slip photo (CTL-04) | Cash ledger plus storage | |
-| Board clean-up (C8) | Rows P1-18 to P1-31 still say "awaiting CI" after their pull requests merged; work packages S-A to S-F are not on the board; D-44 is reserved and unused | Records only |
+| Board clean-up, the rest (C8) | Work packages S-A to S-F are not on the board; D-44 is reserved and unused. The "awaiting CI" rows are H15 of `hermes.md` | Records only |
 
 ## 3. MJ's own actions before go-live (no agent may do these)
 
