@@ -183,9 +183,9 @@ const MATRIX: Row[] = [
     writeCol: "decision_note",
     select: {
       anon: "denied",
-      repA: `bag_id = ${bag("repA")}`,
+      repA: "false",
       repAWrongDevice: "false",
-      repB: `bag_id = ${bag("repB")}`,
+      repB: "false",
       manager: "true",
       managerAal1: "false",
       owner: "true",
