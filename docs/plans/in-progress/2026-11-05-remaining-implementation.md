@@ -78,14 +78,14 @@ Each item: what to add, what it extends, and what it waits for.
 | Cash held by a suspended or offboarded rep is visible (M7): built on `claude/m7-suspended-cash` (`app.office_inactive_rep_cash`, a section on `/office/handovers`). Counting it without the rep's answer is not built | `/office/handovers` reads | MJ: how cash of a rep who cannot answer is brought in |
 | Timelines cover delivery submissions, commission, signatures, reversals, settlements (delivery submissions, decisions, signatures and reversals done in migration 20261106040000 on branch claude/timeline-on-main; pull request 82 merged into the stacked branch and left this migration off main; commission and handover settlements name no salon or order and wait for MJ) | `app.timeline_label` and the two timeline functions, in a forward migration | — |
 | Stale refused request shown on pending stock (done on branch claude/stale-refused-request) (done, H1) | `app.office_pending_stock` | — |
-| AUTH-05 residual: a password token still reads its own profile and device rows | policies on `user_profile` and `device` | — |
+| AUTH-05 residual: a password token still reads its own profile and device rows (already closed by app.self_ok; proved by a test, H5) | policies on `user_profile` and `device` | — |
 
 ### C3. Rep app polish (all over existing pages and functions)
 - REP-05: the blind stock count sends the office's quantities to the browser. Add a rep read that withholds quantities until the count is sent; `/app/stock` uses it.
-- REP-07: a rep can add only due salons to the route. Let `/app/route` add any salon the rep reaches (`app.my_salons`).
-- REP-12, REP-13: hide Park where the database refuses it; make reorder survive a stop whose salon moved. (REP-13 done on branch claude/reorder-hidden-stop.)
+- REP-07: a rep can add only due salons to the route. Let `/app/route` add any salon the rep reaches (`app.my_salons`). (Adding any reachable salon was already built in P1-29; paging past 50 done, H10.)
+- REP-12, REP-13: hide Park where the database refuses it; make reorder survive a stop whose salon moved. (REP-13 done on branch claude/reorder-hidden-stop.) (Done, H6 and H3.)
 - REP-14, L1: a deactivated SKU shows as "Unknown SKU". Read inactive SKU names where stock or orders still hold them.
-- REP-16, L3: refusals that quote paisa. Word amounts in rupees in the database messages that reach a screen.
+- REP-16, L3: refusals that quote paisa. Word amounts in rupees in the database messages that reach a screen. (The rep-facing payment refusal done, H4; the office-only messages wait for MJ.)
 - REP-19: pass the phone's mock-location flag from the delivery and payment forms.
 - REP-20, L2: show times in Karachi time on every rep and office page (one shared formatter; several pages still use the browser's zone).
 - Rep home has no Salons link; add it.
@@ -93,15 +93,15 @@ Each item: what to add, what it extends, and what it waits for.
 ### C4. Salon portal and sign-in polish
 - AUTH-08: the office side is covered by PR 71 (the manager uploads a picture and it loads, also after a reload). Still to add: a stack test that a salon and a rep load a product picture through their own screens.
 - AUTH-12: an office user signing in by email code on the rep or salon page gets a device row; refuse it.
-- AUTH-13, AUTH-14: editing a request that holds a removed product; request lines should keep the price shown when the order was made.
+- AUTH-13, AUTH-14: editing a request that holds a removed product; request lines should keep the price shown when the order was made. (AUTH-13 done for the salon page, H7.)
 - AUTH-15, FLOW-19: lists capped at 50 or 100 say "showing N of M".
 - AUTH-16: two dead ends (no way back on the salon code screen; an accepted invitation offers no link onward).
-- L6, L7, L8: Office cash note wording; searchable salon pickers past 500; rejected-salon reason and a filter on `/office/salons`.
+- L6, L7, L8: Office cash note wording; searchable salon pickers past 500; rejected-salon reason and a filter on `/office/salons`. (L6 done, H9; L8 done, H8; for L7 only the note on the invitation form, H13.)
 
 ### C5. Documents and money (extend the invoice and payment work, no new path)
 | Item | Extends | Waits for |
 |---|---|---|
-| Rep and salon receipt views; a payments list page | `app.receipt_document`, `app.office_salon_payments`, `components/invoice-sheet.tsx` pattern | — |
+| Rep and salon receipt views; a payments list page (the rep's view and the reversal on a receipt done, H11 and H12) | `app.receipt_document`, `app.office_salon_payments`, `components/invoice-sheet.tsx` pattern | — |
 | Salon statement | existing installment and payment reads | — |
 | Server-side PDF file of an invoice (ORD-05) | `invoice_snapshot.document` as the only source | B-46 |
 | Logo on documents | `company.profile` plus an asset store | B-46 |
