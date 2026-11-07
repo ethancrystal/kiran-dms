@@ -1,6 +1,6 @@
-# Hermes handoff: Kiran DMS, the next ten tasks
+# Hermes handoff: Kiran DMS, the next fifteen tasks
 
-Written 2026-11-06 against `origin/main` at `c2348fb` (PR 77 merged). This file is a work order for an
+Written 2026-11-06 against `origin/main` at `b109024` (PR 79 merged). This file is a work order for an
 agent that implements and does not plan. Follow it literally. Where it says STOP, stop that task, write
 a BLOCKER entry in `docs/log/`, and go to the next task. Do not fill a gap with your own rule.
 
@@ -14,6 +14,9 @@ edit, open the file and find the quoted text. If the quoted text is not there, S
 
 ### 1.1 Before the first task (once per session)
 
+0. This fifteen-task version must be on `main` first, because every task branches from `origin/main`.
+   Run `git show origin/main:docs/plans/in-progress/hermes.md` and look for `### H15.`. If it is not there,
+   STOP everything and tell MJ.
 1. Read `CLAUDE.md`, then `docs/ACTIVITY.md` in full, then the 20 newest files in `docs/log/` (sort by
    name; never read `docs/log/archive.md`).
 2. Run `git fetch origin` and `gh pr list --state open`. If an open pull request touches a file named
@@ -21,7 +24,8 @@ edit, open the file and find the quoted text. If the quoted text is not there, S
 3. Never work on `main`. Never touch the folders under `.claude/worktrees/` that you did not create.
    Two of them hold other sessions' work:
    - `claude/m7-suspended-cash` (PR 78, migration `20261106020000`): merged to `main` on 2026-11-06.
-   - `claude/inactive-sku-names` (not pushed, migration `20261106010000`): REP-14 in progress.
+   - `claude/inactive-sku-names` (not pushed, migration `20261106010000`): REP-14 in progress. Its version
+     sorts before `20261106020000`, which is already applied to the Kiran project; that is its owner's to fix.
 4. This machine has a global `DATABASE_URL` that points at a hosted project. Never read it, never pass
    it to a command. The database tests use their own embedded Postgres.
 5. This machine has no Docker. The office browser journeys (`apps/web/e2e-stack/`) run only in CI. Say
@@ -49,7 +53,7 @@ edit, open the file and find the quoted text. If the quoted text is not there, S
 ### 1.3 Things you never do
 
 - Never edit a migration file that is already on `main`. Every database change is a new file.
-- Never apply a migration to any hosted project, and never edit `scripts/apply-kiran-migrations.mjs`.
+- Never apply a migration to any hosted project. Never edit `scripts/apply-kiran-migrations.mjs`, except in H14.
 - Never add a table, a column, a role, a permission, a status value or a business rule that a task
   does not spell out.
 - Never change an existing test's expectation unless the task names that exact line.
@@ -85,7 +89,8 @@ delete the folder `apps/web/.next/dev` and run it again.
 ## Part 2. The tasks, in order
 
 Do them in this order. Tasks H1, H2 and H5 edit `supabase/tests/audit-fixes.test.ts`, so each must be
-merged, or at least rebased onto the one before, before the next starts.
+merged, or at least rebased onto the one before, before the next starts. H12 needs H11 merged. H15 comes
+last. No task edits the plan list; H15 does that once, so the pull requests do not conflict.
 
 ### H1. A superseded refusal no longer shows on rejected goods
 
@@ -173,10 +178,7 @@ Steps.
 5. If the planted `insert` is refused by a constraint or trigger, STOP and put the exact message in a
    BLOCKER. Do not loosen the constraint.
 6. Checks: `pnpm db:test audit-fixes delivery-approval`, then the three guard files.
-7. In `docs/plans/in-progress/2026-11-05-remaining-implementation.md`, on the row that starts `| Stale
-   refused request shown on pending stock`, append to the first cell: ` (done on branch
-   claude/stale-refused-request)`. Change nothing else in that file.
-8. Commit: `A superseded refusal no longer shows on rejected goods (plan C2)`.
+7. Commit: `A superseded refusal no longer shows on rejected goods (plan C2)`.
 
 Done means: the new test passes, the M8 test still passes, the guard files pass.
 
@@ -340,11 +342,7 @@ describe("timelines cover delivery submissions, decisions, signatures and paymen
 9. Docs, same pull request (H-25). In `docs/06-security-plan.md` find the sentence near line 62 that
    lists the tables the timelines read; add the four table names to that list. Do the same in
    `SPEC.md` near line 134 if it lists tables. Change no other sentence.
-10. In the plan file, on the row that starts `| Timelines cover delivery submissions`, append to the
-    first cell: ` (delivery submissions, decisions, signatures and reversals done on branch
-    claude/timeline-coverage; commission and handover settlements name no salon or order and wait for
-    MJ)`.
-11. Commit: `Timelines show delivery submissions, decisions, signatures and payment reversals (plan C2)`.
+10. Commit: `Timelines show delivery submissions, decisions, signatures and payment reversals (plan C2)`.
 
 ### H3. Reordering a route still works after one stop's salon moved away
 
@@ -439,9 +437,7 @@ end $$;
    `./helpers/db`. If it is refused for any other reason, STOP.
 5. Checks: `pnpm db:test routes`, then the three guard files. Every existing test in `routes.test.ts`
    must pass unchanged.
-6. In the plan file, on the line that starts `- REP-12, REP-13:`, append: ` (REP-13 done on branch
-   claude/reorder-hidden-stop.)`.
-7. Commit: `A rep can reorder a route after one stop's salon moved away (REP-13)`.
+6. Commit: `A rep can reorder a route after one stop's salon moved away (REP-13)`.
 
 ### H4. The one refusal a rep sees with a paisa figure now says rupees
 
@@ -487,9 +483,7 @@ Steps.
    This is the only existing expectation you may change in this task, because the message it pins is
    the thing being changed. Say so in the log entry.
 5. Checks: `pnpm db:test payments office-cash audit-fixes`, then the three guard files.
-6. In the plan file, on the line that starts `- REP-16, L3:`, append: ` (The rep-facing payment
-   refusal done on branch claude/rupees-in-refusals; the office-only messages wait for MJ.)`.
-7. Commit: `The payment refusal a rep sees quotes rupees, not paisa (REP-16)`.
+6. Commit: `The payment refusal a rep sees quotes rupees, not paisa (REP-16)`.
 
 ### H5. Prove that an invited rep's password token reads no profile or device row
 
@@ -518,9 +512,7 @@ Steps.
 ```
 
 2. Run `pnpm db:test audit-fixes`.
-3. If both new lines pass: in the plan file, on the row that starts `| AUTH-05 residual`, append to
-   the first cell: ` (already closed by app.self_ok; proved by a test on branch claude/auth05-proof)`.
-   In the log entry, state that the earlier note in `2026-11-05-claude-p1-30-audit-fixes` was
+3. If both new lines pass: in the log entry, state that the earlier note in `2026-11-05-claude-p1-30-audit-fixes` was
    inaccurate and that no policy changed.
 4. If either new line fails: STOP. Do not change a policy. Remove nothing. Write a BLOCKER with the
    count the test returned. Commit the test as `it.fails` only if `docs/ACTIVITY.md` section 14 shows
@@ -548,10 +540,8 @@ const PARKABLE = ["prospect", "visited", "trial"];
    `aria-labelledby="park-h"`). Replace it with `{PARKABLE.includes(salon.stage) && (`.
 4. Change nothing else. No test file changes: no browser test mentions Park.
 5. Checks: `pnpm typecheck`, `pnpm lint`.
-6. In the plan file, on the line that starts `- REP-12, REP-13:`, append: ` (REP-12 done on branch
-   claude/park-where-allowed.)`.
-7. Log entry: say the page was not exercised in a browser (it needs a signed-in rep).
-8. Commit: `Rep salon page offers Park only for stages the database allows (REP-12)`.
+6. Log entry: say the page was not exercised in a browser (it needs a signed-in rep).
+7. Commit: `Rep salon page offers Park only for stages the database allows (REP-12)`.
 
 ### H7. Editing a request that holds a product no longer sold
 
@@ -625,9 +615,7 @@ Finish.
    `edit` with both lines to return `22023`, and expects `edit` with only the first line to succeed.
    If the file has no helper that deactivates a SKU and you cannot find the upsert call in its
    `beforeAll`, skip this step and say so in the log entry.
-9. In the plan file, on the line that starts `- AUTH-13, AUTH-14:`, append: ` (AUTH-13 done for the
-   salon page on branch claude/request-removed-product.)`.
-10. Commit: `Salon request edit drops and names lines whose product is no longer sold (AUTH-13)`.
+9. Commit: `Salon request edit drops and names lines whose product is no longer sold (AUTH-13)`.
 
 ### H8. The salon list filters by approval and shows why a salon was rejected
 
@@ -703,9 +691,7 @@ Steps.
 8. Checks: `pnpm typecheck`, `pnpm lint`.
 9. Log entry: the page was not exercised in a browser locally; the existing journeys do not use the
    new control.
-10. In the plan file, on the line that starts `- L6, L7, L8:`, append: ` (L8 done on branch
-    claude/salon-list-approval.)`.
-11. Commit: `Salon list filters by approval and shows the rejection reason (L8)`.
+10. Commit: `Salon list filters by approval and shows the rejection reason (L8)`.
 
 ### H9. The Office cash note says what the figure really holds
 
@@ -727,10 +713,7 @@ Steps.
 
 3. Do not touch the element with `data-testid="office-cash"`.
 4. Checks: `pnpm typecheck`, `pnpm lint`.
-5. In the plan file, on the line that starts `- L6, L7, L8:`, append: ` (L6 done on branch
-   claude/office-cash-note.)`. If H8 is not merged yet, expect a one-line conflict on that line when
-   the second of the two merges; keep both notes.
-6. Commit: `Office cash note names everything the figure holds (L6)`.
+5. Commit: `Office cash note names everything the figure holds (L6)`.
 
 ### H10. The rep can reach salons past the first 50 when adding a route stop
 
@@ -784,9 +767,303 @@ Steps.
    way. If that page handles a failed load with a shared error state, wrap `showMore` the same way.
 7. Checks: `pnpm typecheck`, `pnpm lint`.
 8. Log entry: paging is not browser-tested (no fixture holds more than 50 salons).
-9. In the plan file, on the line that starts `- REP-07:`, append: ` (Adding any reachable salon was
-   already built in P1-29; paging past 50 done on branch claude/route-picker-more.)`.
-10. Commit: `Route stop picker can load salons past the first 50 (REP-07)`.
+9. Commit: `Route stop picker can load salons past the first 50 (REP-07)`.
+
+### H11. A receipt says when its payment was reversed
+
+Plan item: C5 "Rep and salon receipt views" (first part). Branch `claude/receipt-shows-reversal`. Pages
+only. `app.receipt_document` already returns `reversed` with `reversed_at` and `reason` when a payment was
+reversed, but `ReceiptDocument` drops it, so a reversed receipt prints as if it were good. This task also
+moves the receipt body into one shared component, which H12 reuses.
+
+Steps.
+
+1. In `apps/web/lib/documents.ts`, inside `export type ReceiptDocument = {`, directly under the line
+   `  remaining: Array<{ invoice_number: string; seq: number; of: number; due_on: string; remaining_paisa: number }>;`
+   and its neighbour `  notices: Notice[];`, add after `notices`:
+
+```ts
+  reversed?: { reversed_at: string; reason: string };
+```
+
+2. Open `apps/web/app/office/(shell)/receipts/[id]/page.tsx`. Create
+   `apps/web/components/receipt-sheet.tsx` starting with these lines:
+
+```tsx
+import { fullDay, METHOD_TEXT, ONLY_VALID_PROOF, type ReceiptDocument } from "@/lib/documents";
+import { rupees } from "@/lib/money";
+import { when } from "@/lib/overview";
+
+// One receipt's printable body (F6; CTL-01), shared by the office and rep pages. Everything printed is
+// app.receipt_document's: nothing is added up here. The office sees why a payment was reversed; a rep sees
+// only that it was, as app.my_collections tells it.
+export function ReceiptSheet({ doc: d, showReversalReason = false }: { doc: ReceiptDocument; showReversalReason?: boolean }) {
+  return (
+    <>
+```
+
+3. Move into that component, between `<>` and the closing below, every line of the office page from
+   `<div className="doc-head">` down through the closing of `{d.notices.map(...)}`, unchanged. Directly
+   above the moved `<dl>`, add:
+
+```tsx
+      {d.reversed && (
+        <p className="error" data-testid="doc-reversed">
+          This payment was reversed on {when(d.reversed.reversed_at)} and no longer counts as paid.
+          {showReversalReason && ` Reason: ${d.reversed.reason}`}
+        </p>
+      )}
+```
+
+4. Close the component with:
+
+```tsx
+    </>
+  );
+}
+```
+
+5. In the office page, where the moved lines were, put `<ReceiptSheet doc={d} showReversalReason />`. Add
+   `import { ReceiptSheet } from "@/components/receipt-sheet";`. Reduce the documents import to
+   `import { isUuid, type ReceiptDocument } from "@/lib/documents";`. Delete the imports of `rupees` and
+   `when`. Keep the `<article>` and the back link and Print button, which stay on the page.
+6. Test. In `apps/web/e2e-stack/p130-screens.spec.ts`, in the test whose name starts `payment reversal:
+   the manager cannot reverse`, find where it opens the receipt after the owner reverses. Add there:
+   `await expect(page.getByTestId("doc-reversed")).toContainText("was reversed");` using that test's
+   real page variable. If the test does not open `/office/receipts/...`, skip this step and say so in the
+   log entry. Do not add a navigation.
+7. Checks: `pnpm typecheck`, `pnpm lint`, `pnpm db:test audit-fixes`. The test near `-> 'reversed' ->>
+   'reason'` already pins what the function returns.
+8. Commit: `A receipt says when its payment was reversed; one shared receipt sheet`.
+
+### H12. A rep can open the receipt of a payment they just recorded
+
+Plan item: C5 "Rep and salon receipt views" (second part). Branch `claude/rep-receipt-view`. Page only,
+after H11 is merged. `app.receipt_document` already serves the rep who recorded the payment, on their
+approved phone. The link is added only on the "Payment recorded" message, where the id is already in hand.
+A link from the rep's list of collections needs a new field on `app.my_collections` and a receipt view for
+the salon needs a new function; both stay in Part 3.
+
+Steps.
+
+1. Create `apps/web/app/app/receipts/[id]/page.tsx` with exactly:
+
+```tsx
+"use client";
+import Link from "next/link";
+import { use } from "react";
+import { ReceiptSheet } from "@/components/receipt-sheet";
+import { useRpcRead } from "@/components/use-rpc-read";
+import { isUuid, type ReceiptDocument } from "@/lib/documents";
+
+// A receipt for the rep who recorded the payment. app.receipt_document answers null both for an id that
+// does not exist and for a caller it refuses, so the page has one message for both.
+export default function RepReceiptView({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return isUuid(id) ? <Receipt id={id} /> : <NotFound />;
+}
+
+const NotFound = () => (
+  <>
+    <h1>Receipt</h1>
+    <p className="error" role="alert">
+      This receipt does not exist, or it is not one you recorded.
+    </p>
+    <Link href="/app/handovers">Back to your payments</Link>
+  </>
+);
+
+function Receipt({ id }: { id: string }) {
+  const read = useRpcRead<ReceiptDocument | null>("receipt_document", { p_receipt_id: id }, id);
+  if (read.loading)
+    return (
+      <p className="muted" aria-busy="true">
+        Loading…
+      </p>
+    );
+  if (read.error)
+    return (
+      <p className="error" role="alert">
+        {read.error}
+      </p>
+    );
+  if (!read.data) return <NotFound />;
+  return (
+    <article>
+      <p className="row no-print">
+        <Link href="/app/handovers">Back to your payments</Link>
+      </p>
+      <ReceiptSheet doc={read.data} />
+    </article>
+  );
+}
+```
+
+2. In `apps/web/components/money-section.tsx`, replace
+
+```tsx
+          {mode === "office" && receipt.id ? (
+            <Link href={`/office/receipts/${receipt.id}`}>{receipt.number}</Link>
+          ) : (
+```
+
+   with
+
+```tsx
+          {receipt.id ? (
+            <Link href={`${mode === "office" ? "/office/receipts" : "/app/receipts"}/${receipt.id}`}>{receipt.number}</Link>
+          ) : (
+```
+
+3. Checks: `pnpm typecheck`, `pnpm lint`, `pnpm -C apps/web test:e2e`.
+4. Log entry: the page was not exercised in a browser locally; say that the database side is covered by
+   `supabase/tests/payments.test.ts` and `rep-detail-documents.test.ts`, which you did not change.
+5. Commit: `A rep can open the receipt of a payment they just recorded`.
+
+### H13. The salon picker on the invitation form says when it is at its cap
+
+Plan item: C4 L7 (the note only; the search stays in Part 3). Branch `claude/invite-picker-note`. Page
+only. The list reads at most 500 salons and says nothing when a salon further down cannot be picked. The
+order form already says so; this copies its wording, not `ListCapNote`, whose words are about newest rows
+and do not fit a list sorted by name.
+
+Steps.
+
+1. In `apps/web/app/office/(shell)/people/page.tsx`, find the `</select>` that closes the element with
+   `id="invite-salon"`. Directly after it, inside the same fragment, add:
+
+```tsx
+              {salons.length === LIST_LIMIT && (
+                <p className="muted">
+                  Showing the first {LIST_LIMIT} salons by name. A salon further down the list cannot be picked here yet.
+                </p>
+              )}
+```
+
+2. Checks: `pnpm typecheck`, `pnpm lint`.
+3. Log entry: not exercised in a browser (no fixture holds 500 salons); `LIST_LIMIT` also caps the areas
+   list, which is not touched.
+4. Commit: `The invitation form's salon picker says when it is at its cap (L7, the note)`.
+
+### H14. The migration script recognises what the Kiran project already holds
+
+Plan item: none; found on 2026-11-06 (decision file `2026-11-06-mj-apply-inactive-rep-cash`). Branch
+`claude/apply-script-parts`. This task alone may edit `scripts/apply-kiran-migrations.mjs` (rule 1.3 is
+lifted for this file only). You still never run it against a hosted project, and never with `--dry-run`
+against one either: MJ does that.
+
+The defects: the script has a fixed list of files, and it matches by exact name, so it reports
+`audit_fixes` as pending although the project holds it in three parts, and it would miss every newer file.
+
+Steps.
+
+1. Replace the block from `const FILES = [` through its closing `];` with:
+
+```js
+// Every migration from the first after office_orders_cards on, in file-name order.
+const FIRST_PENDING = "20261105100000";
+const FILES = readdirSync(new URL("../supabase/migrations/", import.meta.url))
+  .filter((f) => f.endsWith(".sql") && f >= FIRST_PENDING)
+  .map((f) => f.slice(0, -".sql".length))
+  .sort();
+// Recorded under other names on the project: audit_fixes went in as three parts on 2026-11-05.
+const RECORDED_AS = { audit_fixes: ["audit_fixes_part1_of_3", "audit_fixes_part2_of_3", "audit_fixes_part3_of_3"] };
+const isRecorded = (names, name) => (RECORDED_AS[name] ?? [name]).every((n) => names.includes(n));
+```
+
+2. Change `import { readFileSync } from "node:fs";` to `import { readdirSync, readFileSync } from "node:fs";`.
+3. Replace the line
+
+```js
+  const todo = FILES.filter((f) => !names.includes(f.slice(f.indexOf("_") + 1)));
+```
+
+   with
+
+```js
+  const todo = FILES.filter((f) => !isRecorded(names, f.slice(f.indexOf("_") + 1)));
+```
+
+4. Replace the block starting `if (todo.length === FILES.length && (rows.length !== EXPECTED_COUNT` through
+   its closing `}` with:
+
+```js
+  if (!names.includes(LAST_APPLIED)) {
+    throw new Error(`Expected ${LAST_APPLIED} to be applied already. Stop and tell Claude what differs.`);
+  }
+```
+
+   Delete the now unused line `const EXPECTED_COUNT = 25;`.
+5. In the comment at the top of the file, replace `Applies the 13 pending migrations (after
+   office_orders_cards)` with `Applies the migrations not yet recorded (after office_orders_cards)`.
+6. Checks: `node --check scripts/apply-kiran-migrations.mjs`, and run
+   `node scripts/apply-kiran-migrations.mjs` with `KIRAN_DB_URL` unset: it must stop with
+   `Set KIRAN_DB_URL`. Then `pnpm lint`.
+7. Log entry: say the script was not run against any database, and that MJ's next dry run is its first
+   real check.
+8. Commit: `Migration script reads the folder and knows audit_fixes went in as three parts`.
+
+### H15. Bring the records up to date
+
+Plan item: C8. Branch `claude/records-after-hermes`. Documents only. Do this last, after H1 to H14 are
+merged. For this task alone, rule 1.3's "leave section 12 alone" is lifted for the rows named here.
+
+Steps, board.
+
+1. For each row below, in the Status cell of `docs/ACTIVITY.md` section 12, first run `gh pr checks <PR> --required`.
+   If a required check is not a pass, leave that row and name it in the log entry. Use `--required`: without
+   it, optional checks such as CodeRabbit show as skipping.
+2. Otherwise replace the words from `implemented on branch` through `an independent check` with
+   `merged in pull request <PR> at <merge>; required checks green; awaiting an independent check`. Keep the
+   words `IN PROGRESS (` before and everything after them. Do not write the word VERIFIED anywhere in a cell:
+   the log check refuses it, and this task verifies nothing. Plain ASCII only, no backticks.
+
+| Row | PR | Merge |
+|---|---|---|
+| P1-18 | 56 | e7209f4 |
+| P1-19 | 57 | 72cc365 |
+| P1-20 | 58 | 903cd29 |
+| P1-21 | 59 | e703fe3 |
+| P1-22 | 61 | fae0690 |
+| P1-23 | 63 | d92191d |
+| P1-24 | 64 | 348d0e1 |
+| P1-25 | 65 | 50e7162 |
+| P1-26 | 66 | 609f317 |
+| P1-28 | 68 | 518716e |
+| P1-31 | 68 | 518716e |
+| P1-29 | 69 | a83b095 |
+| P1-30 | 70 | 67671ec |
+
+3. In the P1-19 cell, also replace everything from `picture upload not exercised` through `not merged and
+   not run` with `product group screen and the picture upload check merged in pull request 71`.
+4. In the P1-24 cell, replace `the end-to-end journey of the completion design waits for slices 4 to 6,
+   listed in docs/plans/implemented/2026-11-05-final-review-checklist.md` with `the end-to-end journey was
+   built in P1-25`.
+
+Steps, plan list. In `docs/plans/in-progress/2026-11-05-remaining-implementation.md`:
+
+5. On the line for each merged item, append the note in this table. Leave out any item whose pull request
+   did not merge.
+
+| Line starts | Append |
+|---|---|
+| `\| Stale refused request shown on pending stock` (first cell) | ` (done, H1)` |
+| `\| Timelines cover delivery submissions` (first cell) | ` (delivery submissions, decisions, signatures and reversals done, H2; commission and handover settlements name no salon or order and wait for MJ)` |
+| `\| AUTH-05 residual` (first cell) | ` (already closed by app.self_ok; proved by a test, H5)` |
+| `- REP-07:` | ` (Adding any reachable salon was already built in P1-29; paging past 50 done, H10.)` |
+| `- REP-12, REP-13:` | ` (Done, H6 and H3.)` |
+| `- REP-16, L3:` | ` (The rep-facing payment refusal done, H4; the office-only messages wait for MJ.)` |
+| `- AUTH-13, AUTH-14:` | ` (AUTH-13 done for the salon page, H7.)` |
+| `- L6, L7, L8:` | ` (L6 done, H9; L8 done, H8; for L7 only the note on the invitation form, H13.)` |
+| `\| Rep and salon receipt views; a payments list page` (first cell) | ` (the rep's view and the reversal on a receipt done, H11 and H12)` |
+
+Steps, plan folder.
+
+6. Run `git mv docs/plans/in-progress/hermes.md docs/plans/implemented/hermes.md`. In `docs/plans/README.md`
+   change the two paths and the row for `hermes.md` to say all fifteen tasks are done, naming any that
+   stopped. Search `docs/plans` for `in-progress/hermes.md` and fix what you find.
+7. Checks: `pnpm activity:check`.
+8. Commit: `Records: board rows name their merged pull requests; plan list and folders up to date`.
 
 ## Part 3. Not for Hermes: these wait for MJ
 
@@ -802,15 +1079,15 @@ Do not start any of these. Each needs a business decision that the documents do 
 | REP-16, office-only messages in paisa | Eight messages; scope and format | Quoted in paisa |
 | AUTH-12, office user on the rep page gets a phone row | The audit left it to MJ; refusing every office session breaks an existing test | A row is created |
 | AUTH-14, request lines keep the price | Is it the price of the order made from the request, or the price when the request was sent? The second needs a price on a table whose rule is "never a price" | Today's price is shown |
-| L7, salon pickers past 500 | Type-to-filter above the list, or a combobox; one threshold or three | Capped at 500, 500 and 200 |
-| Rep and salon receipt views, a payments list | What "payments list" means; may a salon see the bank reference and the reversal reason | Office receipt view only |
+| L7, searching salon pickers past 500 | Type-to-filter above the list, or a combobox; one threshold or three | Capped at 500, 500 and 200 |
+| Salon receipt view, a payments list, a receipt link in the rep's list | What "payments list" means; may a salon see the bank reference and the reversal reason; the link needs a new field on `app.my_collections` | Office view, and the rep's view from H12 |
 | Salon statement | A period statement or a printable current position; SAL-12 is Phase 1, CTL-10 is Phase 2 | Balance, invoices and payments on the portal |
 | Correction from a count variance | Which difference to post, one correction per line, who checks | Counts are stored; no link to an adjustment |
 | Timelines for commission and handover settlements | Neither names a salon or an order; they would need a rep timeline | Not shown |
-| P1-03, P1-05, P1-08, P1-09, P1-10, P1-12, P1-15, P1-17 | No implementation plan is written for any of them | Not started |
+| P1-02 part d (the real Excel import), P1-03, P1-05, P1-08, P1-09, P1-10, P1-12, P1-15, P1-17 | No implementation plan is written for any of them | Not started |
 
-## Part 4. When all ten are done
+## Part 4. When all fifteen are done
 
-Write one final log line in the last task's entry listing the ten branches and pull request numbers,
+Write one final log line in the entry of H15 listing the fifteen branches and pull request numbers,
 which checks were green on each, and what was not run locally (every stack journey). Then stop. Do not
 pick a task from Part 3 or from the plan file on your own.
