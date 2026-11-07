@@ -254,7 +254,7 @@ describe("internal functions are not callable by app roles", () => {
       "add_salon_note", "approve_device", "cancel_approval", "cancel_order", "create_order", "create_salon", "decide_approval", "delivery_ack_text", "due_list",
       "duplicate_phones", "has_vault_grant", "invitation_preview", "invoice_document", "is_aal2", "is_office", "is_owner", "is_rep", "log_visit", "low_stock",
       "may_read_product_images", "my_areas", "my_bag", "my_bag_id", "my_cards", "my_cash_position", "my_collections", "my_commission", "my_day", "my_handovers", "my_issue_skus",
-      "my_month_orders", "my_orders", "my_route", "my_salon", "my_salons", "my_session", "my_signature_status", "my_submissions", "my_territory_ids",
+      "my_month_orders", "my_orders", "my_pending_issues", "my_route", "my_salon", "my_salons", "my_session", "my_signature_status", "my_submissions", "my_territory_ids",
       "my_territory_order", "my_territory_orders", "office_add_investment", "office_adjustment_checker", "office_approve_delivery", "office_assign_salon_rep",
       "office_assign_territory", "office_attach_signature", "office_cancel_stock_issue", "office_cash_cap_reps", "office_cash_position", "office_catalogue",
       "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location", "office_create_order",

@@ -81,7 +81,7 @@ Each item: what to add, what it extends, and what it waits for.
 | AUTH-05 residual: a password token still reads its own profile and device rows (already closed by app.self_ok; proved by a test, H5) | policies on `user_profile` and `device` | — |
 
 ### C3. Rep app polish (all over existing pages and functions)
-- REP-05: the blind stock count sends the office's quantities to the browser. Add a rep read that withholds quantities until the count is sent; `/app/stock` uses it.
+- REP-05: the blind stock count sends the office's quantities to the browser. Add a rep read that withholds quantities until the count is sent; `/app/stock` uses it. (Done: app.my_pending_issues, and reps no longer read stock_issue directly.)
 - REP-07: a rep can add only due salons to the route. Let `/app/route` add any salon the rep reaches (`app.my_salons`). (Adding any reachable salon was already built in P1-29; paging past 50 done, H10.)
 - REP-12, REP-13: hide Park where the database refuses it; make reorder survive a stop whose salon moved. (REP-13 done on branch claude/reorder-hidden-stop.) (Done, H6 and H3.)
 - REP-14, L1: a deactivated SKU shows as "Unknown SKU". Read inactive SKU names where stock or orders still hold them.
