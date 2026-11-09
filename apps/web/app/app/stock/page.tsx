@@ -27,7 +27,7 @@ type Available = { sku_id: string; code: string; available: number };
 // a stock issue to this rep's bag, or a return from it (direction to_warehouse), on /office/stock; the rep counts what it was handed and confirms with
 // its own count (app.rep_confirm_stock_issue). The count is blind: the fields start empty and the page
 // does not show the office's quantities, so the confirmation is a real second count, not a click
-// (the rep still sees which SKUs to count; the issue row is readable under RLS). The same count posts the
+// (the rep still sees which SKUs to count, through app.my_pending_issues; it reads no stock_issue row). The same count posts the
 // movements; any other count marks the issue disputed and moves nothing (the office cancels and proposes
 // again). Pending issues are read through app.my_pending_issues (REP-05: no quantities); the bag is
 // app.my_bag. Every refusal is the database's words.
