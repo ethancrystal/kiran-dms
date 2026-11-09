@@ -87,14 +87,10 @@ test("capturedAt is stored exactly as given and never rewritten", async () => {
 test("an item that depends on another is refused unless that item is in the store", async () => {
   const store = new MemoryStore();
   const dependsOn = { itemId: "delivery", argName: "p_submission_id" };
-  await expect(enqueue(store, input("signature", { fn: "rep_attach_signature", dependsOn }))).rejects.toThrow(
-    MISSING_PARENT,
-  );
+  await expect(enqueue(store, input("signature", { fn: "rep_attach_signature", dependsOn }))).rejects.toThrow(MISSING_PARENT);
   // Another rep's item does not count as the parent.
   await enqueue(store, input("delivery", { userId: REP_B, fn: "rep_submit_delivery" }));
-  await expect(enqueue(store, input("signature", { fn: "rep_attach_signature", dependsOn }))).rejects.toThrow(
-    MISSING_PARENT,
-  );
+  await expect(enqueue(store, input("signature", { fn: "rep_attach_signature", dependsOn }))).rejects.toThrow(MISSING_PARENT);
   expect(await store.list(REP_A)).toHaveLength(0);
 });
 

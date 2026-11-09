@@ -29,12 +29,8 @@ const REFUSAL_SQLSTATES = ["22023", "23505", "23514", "55000", "P0001"];
 test("no connection is transient", () => {
   expect(classifyFailure(new TypeError("Failed to fetch"))).toBe("transient");
   // What supabase-js returns instead of throwing when fetch fails or is aborted.
-  expect(classifyFailure({ status: NO_RESPONSE, code: "", message: "TypeError: Failed to fetch" })).toBe(
-    "transient",
-  );
-  expect(
-    classifyFailure({ status: NO_RESPONSE, code: "", message: "AbortError: The operation timed out." }),
-  ).toBe("transient");
+  expect(classifyFailure({ status: NO_RESPONSE, code: "", message: "TypeError: Failed to fetch" })).toBe("transient");
+  expect(classifyFailure({ status: NO_RESPONSE, code: "", message: "AbortError: The operation timed out." })).toBe("transient");
 });
 
 test("a busy or slow server is transient", () => {
@@ -53,9 +49,7 @@ test("an expired session is auth", () => {
   expect(classifyFailure({ status: UNAUTHORIZED })).toBe("auth");
   expect(classifyFailure({ status: UNAUTHORIZED, code: "PGRST301", message: "JWT expired" })).toBe("auth");
   // PostgREST answers 401 for a permission error when the request carried no valid session.
-  expect(
-    classifyFailure({ status: UNAUTHORIZED, code: "42501", message: "permission denied for schema app" }),
-  ).toBe("auth");
+  expect(classifyFailure({ status: UNAUTHORIZED, code: "42501", message: "permission denied for schema app" })).toBe("auth");
 });
 
 test("a phone that is not approved, or a profile that is not active, is auth", () => {
@@ -64,18 +58,16 @@ test("a phone that is not approved, or a profile that is not active, is auth", (
 });
 
 test("a business refusal is rejected", () => {
-  expect(
-    classifyFailure({ status: FORBIDDEN, code: "42501", message: "check in before logging visits (PIP-09)" }),
-  ).toBe("rejected");
+  expect(classifyFailure({ status: FORBIDDEN, code: "42501", message: "check in before logging visits (PIP-09)" })).toBe(
+    "rejected",
+  );
   const classes = REFUSAL_SQLSTATES.map((code) => classifyFailure({ status: BAD_REQUEST, code, message: "x" }));
   expect(classes).toEqual(REFUSAL_SQLSTATES.map(() => "rejected"));
 });
 
 test("a request the server answered and refused for another reason is rejected", () => {
   // For example a function the deployed database does not have yet.
-  expect(
-    classifyFailure({ status: NOT_FOUND, code: "PGRST202", message: "Could not find the function" }),
-  ).toBe("rejected");
+  expect(classifyFailure({ status: NOT_FOUND, code: "PGRST202", message: "Could not find the function" })).toBe("rejected");
 });
 
 test("an unknown shape is transient: the item is kept, never discarded", () => {

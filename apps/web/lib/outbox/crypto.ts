@@ -20,8 +20,7 @@ const toBase64 = (bytes: Uint8Array): string => {
   return btoa(chunks.join(""));
 };
 
-const fromBase64 = (text: string): Uint8Array<ArrayBuffer> =>
-  Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
+const fromBase64 = (text: string): Uint8Array<ArrayBuffer> => Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
 
 /** Seals a JSON value. The result is base64 of a fresh random IV followed by the ciphertext. */
 export async function sealJson(key: CryptoKey, value: unknown): Promise<string> {

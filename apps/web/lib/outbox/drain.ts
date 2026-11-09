@@ -25,8 +25,7 @@ const BACKOFF_BASE_MS = 5_000;
 const BACKOFF_FACTOR = 2;
 const BACKOFF_CAP_MS = 30_000;
 /** A reconnect is picked up well inside 60 s (NFR-01): 5 s, 10 s, 20 s, then every 30 s. */
-export const backoffMs = (attempts: number): number =>
-  Math.min(BACKOFF_BASE_MS * BACKOFF_FACTOR ** attempts, BACKOFF_CAP_MS);
+export const backoffMs = (attempts: number): number => Math.min(BACKOFF_BASE_MS * BACKOFF_FACTOR ** attempts, BACKOFF_CAP_MS);
 
 // A store that never changes an item would otherwise keep a pass going for ever.
 const MAX_STEPS_PER_PASS = 500;

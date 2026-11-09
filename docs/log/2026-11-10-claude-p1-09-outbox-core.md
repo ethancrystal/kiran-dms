@@ -16,3 +16,6 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or "temporarily" disabled (H-16)
 [x] Docs match code; deviations logged (H-25) (rulings listed above; the plan file is not yet updated to match them)
 [ ] Tests actually run; real results recorded (H-23, H-24) (the specs ran; typecheck and lint did not finish)
+
+Addendum 2026-11-10 21:30 PKT, same task, before the pull request:
+**Evidence:** tsc --noEmit in apps/web: exit 0. biome check on apps/web/lib/outbox and the four spec files: four formatting differences, fixed with biome check --write, then no errors. The four specs again after formatting: 40 passed (4.6s), same local config with no web server. origin/main merged into this branch because main had moved (the log check read main's newer entries as deleted); pnpm activity:check origin/main HEAD result is in the pull request checks. Still not run: the repository's own Playwright config, pnpm db:test, the stack journeys. store-idb.ts and index.ts still have no test. The tenth checklist line above stays unticked for those two files.
