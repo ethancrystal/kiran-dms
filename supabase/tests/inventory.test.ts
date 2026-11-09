@@ -188,12 +188,14 @@ describe("two-party issue to a rep bag (CTL-05)", () => {
   });
 
   it("a matching count moves the stock; a replay changes nothing", async () => {
-    const r = await one(REP_A, "select (app.rep_confirm_stock_issue($1, $2)).*", [
+    const r = await one(REP_A, "select app.rep_confirm_stock_issue($1, $2) as r", [
       issue,
       JSON.stringify([{ sku_id: S1, qty: 10 }]),
     ]);
-    expect(r.status).toBe("confirmed");
-    expect(r.decided_by).toBe(fx.repA.id);
+    expect(r.r.status).toBe("confirmed");
+    expect((await run("postgres", "select decided_by from public.stock_issue where id = $1", [issue])).rows[0].decided_by).toBe(
+      fx.repA.id,
+    );
     expect(await onHand(BAG_A, S1)).toBe(10);
     expect(await onHand(WH, S1)).toBe(45);
     await one(REP_A, "select app.rep_confirm_stock_issue($1, $2)", [issue, JSON.stringify([{ sku_id: S1, qty: 10 }])]);
@@ -209,7 +211,7 @@ describe("two-party issue to a rep bag (CTL-05)", () => {
       BAG_A,
       JSON.stringify([{ sku_id: S2, qty: 5 }]),
     ]);
-    const r = await one(REP_A, "select (app.rep_confirm_stock_issue($1, $2)).status", [
+    const r = await one(REP_A, "select app.rep_confirm_stock_issue($1, $2) ->> 'status' as status", [
       p.id,
       JSON.stringify([{ sku_id: S2, qty: 4 }]),
     ]);
