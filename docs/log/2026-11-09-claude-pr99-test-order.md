@@ -1,0 +1,18 @@
+# 2026-11-09 20:15 PKT · Claude · Sonnet 5.5 · branch worktree-pr99-test-order · TASK
+**Task:** fix for the failing required check on pull request 99 (REP-05, areas: supabase/tests/blind-stock-issues.test.ts renamed, apps/web/app/app/stock/page.tsx comment)
+**What / why:** Pull request 99 (head 945dc5d) fails the check migrations + RLS matrix with duplicate key value violates unique constraint stock_location_one_bag_per_rep in inventory.test.ts. Test files share one database and run in file-name order. The new blind-stock-issues.test.ts sorts before inventory.test.ts and commits a bag for rep B; inventory.test.ts lines 65 and 66 then insert both bags without an existence check. No file sorting before inventory commits a bag for rep B (grep), and main is green. The PR's own log noted an unexplained inventory.test.ts failure when the files ran together. Fix: rename the file to rep-blind-stock-issues.test.ts so it sorts after inventory and reuses the bags inventory made (its create-if-absent step already allows that). Also corrected one stale comment in the stock page that said the issue row is readable under RLS.
+**Evidence:** Applied on top of 945dc5d. With env DATABASE_URL, KIRAN_TEST_DATABASE_URL and NODE_ENV unset: pnpm db:test inventory rep-blind-stock-issues: 2 files, 31 tests passed. Not run: the same two files under the old name (the failing order was inferred from the CI log and the code, not reproduced here), the full suite, rls-matrix and verifier-attacks after the rename, the stack journeys. CI on the pushed head is the proof. Not pushed: pull request 99 belongs to its own branch claim.
+**Residuals found by the review council, not fixed here:** app.rep_confirm_stock_issue returns the whole stock_issue row including lines, so a rep calling it directly with a wrong count learns the office quantities at the cost of one dispute. Narrowing the table policy without trimming that return leaves the count not fully blind. The narrowing of stock_issue_select and whether a disputed issue stays hidden are still listed as awaiting MJ in the plans, and no DECISION entry exists. The PR log checklist has 8 of the 10 template lines.
+**Next / needs:** push this commit onto claude/blind-stock-issues (or cherry-pick it) with the PR owner's OK; MJ decision on the two points above.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) (no table or policy touched)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) (no function touched)
+[x] Audit trigger present; hash chain verifies (H-17) (unchanged)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15) (unchanged)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[x] Tests actually run; real results recorded (H-23, H-24) (partial run stated above)
