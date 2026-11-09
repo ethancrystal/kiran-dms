@@ -6,6 +6,7 @@ import { percent, toBasisPoints } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
 import { label } from "@/lib/salons";
 import { when } from "@/lib/time";
+import { type Area, type Signup, SignupRequests } from "./signups";
 
 type Pending = {
   salon_id: string;
@@ -20,14 +21,18 @@ type Pending = {
 type Rep = { id: string; full_name: string };
 
 const REP_LIMIT = 500;
+const AREA_LIMIT = 500;
 // app.office_decide_salon refuses a rejection reason shorter than 5 characters (22023).
 const REJECT_REASON_MIN_LENGTH = 5;
 
-// Salon approvals (D-35, D-36; spec section 3): pending salons, oldest first (app.office_pending_salons).
+// Salon approvals (D-35, D-36; spec section 3): salons that signed up on their own (app.office_pending_signups,
+// MJ 2026-11-09) and salons a rep proposed (app.office_pending_salons), oldest first.
 // The owner or a manager approves one, optionally with a rep (who alone then reaches it, R4) and a
 // commission rate, or rejects it with a reason. A salon is decided once. The database decides.
 export default function SalonApprovals() {
   const [pending, setPending] = useState<Pending[]>([]);
+  const [signups, setSignups] = useState<Signup[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [reps, setReps] = useState<Rep[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +42,12 @@ export default function SalonApprovals() {
     setLoading(true);
     setError(null);
     try {
-      const [p, r] = await Promise.all([
+      const [p, g, a, r] = await Promise.all([
         rpc<Pending[]>("office_pending_salons"),
+        rpc<Signup[]>("office_pending_signups"),
+        rows<Area>(
+          db().from("area").select("id, name, territory:territory_id(name)").eq("active", true).order("name").limit(AREA_LIMIT),
+        ),
         rows<Rep>(
           db()
             .from("user_profile")
@@ -50,6 +59,8 @@ export default function SalonApprovals() {
         ),
       ]);
       setPending(p ?? []);
+      setSignups(g ?? []);
+      setAreas(a);
       setReps(r);
     } catch (e) {
       setError((e as Error).message);
@@ -73,6 +84,9 @@ export default function SalonApprovals() {
       </p>
       <h1>Salon approvals</h1>
       {notice && <output className="ok">{notice}</output>}
+      <h2>Signed up on their own</h2>
+      {!loading && !error && <SignupRequests signups={signups} areas={areas} reps={reps} onDone={done} />}
+      <h2>Proposed by reps</h2>
       <ListState loading={loading} error={error} empty={pending.length === 0} emptyText="No salons are waiting for a decision." />
       {!loading && !error && pending.map((p) => <Decision key={p.salon_id} salon={p} reps={reps} onDone={done} />)}
     </>

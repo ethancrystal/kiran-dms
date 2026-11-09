@@ -123,7 +123,7 @@ Primary capabilities:
 - Confirm/reject/hold/release actions according to approved workflow and role.
 - Dispatch, delivery, invoice, return, payment, reconciliation and receivables.
 - Exception review, audit trail and management reporting.
-- Secure rep and salon account invitations, suspension and account-to-salon membership management by the owner or manager (D-30, D-39): invitation-only, one salon per login (ACTIVITY L-0376).
+- Secure rep and salon account invitations, suspension and account-to-salon membership management by the owner or manager (D-30, D-39): rep accounts by invitation only; salon accounts by invitation or by the salon's own sign-up that the office approves (D-51); one salon per login (ACTIVITY L-0376).
 
 ## 4. Module map
 
@@ -366,7 +366,7 @@ The customer-facing part stays Phase 2 (INV-12, D-41); the ledger part is curren
 4. Server normalizes/validates fields and checks likely duplicates.
 5. Salon receives internal ID and source/acquisition attribution.
 6. Authorized office user verifies details and assigns territory/current representative.
-7. If portal access is approved, the owner or manager invites a verified contact, by invitation only, one salon per login (D-30, D-39, ACTIVITY L-0376). A salon invited with no rep has no rep (D-36).
+7. If portal access is approved, the owner or manager invites a verified contact, or approves the salon's own sign-up (D-51), one salon per login (D-30, D-39, ACTIVITY L-0376). A salon invited with no rep has no rep (D-36).
 
 ### 5.2 Representative visits a salon and records the order details
 
