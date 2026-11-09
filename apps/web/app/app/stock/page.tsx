@@ -1,14 +1,22 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { db, rows, rpc } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 import { when } from "@/lib/time";
 
 type Issue = {
   id: string;
   direction: "to_rep" | "to_warehouse";
-  lines: Array<{ sku_id: string; qty: number }>;
+  lines: Array<{ sku_id: string }>;
   decision_note: string | null;
   created_at: string;
+};
+// app.my_pending_issues: the SKUs to count, never the office's quantities (the count is blind, CTL-05).
+type PendingIssue = {
+  id: string;
+  direction: Issue["direction"];
+  decision_note: string | null;
+  created_at: string;
+  sku_ids: string[];
 };
 type IssueSku = { sku_id: string; code: string; variant: string | null };
 type BagLine = { sku_id: string; code: string; variant: string | null; on_hand: number };
@@ -19,9 +27,9 @@ type Available = { sku_id: string; code: string; available: number };
 // a stock issue to this rep's bag, or a return from it (direction to_warehouse), on /office/stock; the rep counts what it was handed and confirms with
 // its own count (app.rep_confirm_stock_issue). The count is blind: the fields start empty and the page
 // does not show the office's quantities, so the confirmation is a real second count, not a click
-// (the rep still sees which SKUs to count; the issue row is readable under RLS). The same count posts the
+// (the rep still sees which SKUs to count, through app.my_pending_issues; it reads no stock_issue row). The same count posts the
 // movements; any other count marks the issue disputed and moves nothing (the office cancels and proposes
-// again). Pending issues are read under RLS (stock_issue: only this rep's own bag); the bag is
+// again). Pending issues are read through app.my_pending_issues (REP-05: no quantities); the bag is
 // app.my_bag. Every refusal is the database's words.
 export default function MyStock() {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -36,20 +44,14 @@ export default function MyStock() {
     setError(null);
     try {
       const [i, b, a] = await Promise.all([
-        rows<Issue>(
-          db()
-            .from("stock_issue")
-            .select("id, direction, lines, decision_note, created_at")
-            .eq("status", "pending")
-            .order("created_at"),
-        ),
+        rpc<PendingIssue[]>("my_pending_issues"),
         rpc<BagLine[]>("my_bag"),
         rpc<Available[]>("warehouse_availability"),
       ]);
       // Names come from app.my_issue_skus, not the sku table: the rep sees only active SKUs there, and the
       // office may have deactivated one that a pending issue still names (REP-14).
-      const s = i.length ? ((await rpc<IssueSku[]>("my_issue_skus")) ?? []) : [];
-      setIssues(i);
+      const s = (i ?? []).length ? ((await rpc<IssueSku[]>("my_issue_skus")) ?? []) : [];
+      setIssues((i ?? []).map(({ sku_ids, ...rest }) => ({ ...rest, lines: sku_ids.map((sku_id) => ({ sku_id })) })));
       setBag(b ?? []);
       setAvailable(a ?? []);
       setSkus(new Map(s.map((x) => [x.sku_id, x])));
