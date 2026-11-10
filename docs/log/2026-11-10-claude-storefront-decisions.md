@@ -1,0 +1,20 @@
+# 2026-11-10 17:55 PKT · Claude · Fable 5.2 · branch claude/storefront-decisions · TASK
+**Task:** P1-32 (D-51 to D-57; H-21, H-22, D-41). Docs only. Areas touched: docs/12, docs/ACTIVITY.md sections 12, 14 and 15, docs/plans/will-be-implemented, docs/plans/README.md, CONTEXT-MAP.md, docs/log
+**What / why:** MJ asked for a public shop at khsalon.com on the DMS, with unique product pages, metadata and ids per product and category, a Shopify checkout and every interaction recorded. That is outside Phase 1 (H-22), opens the catalogue to visitors (D-41), adds a third party and analytics (H-21) and names brands (doc 07), so it needed MJ's decisions before any code. This pull request records them and adds the plan set, so the executors of plans B to F are not stopped by those rules. No code, no migration, no change to any environment.
+What was added: decisions D-51 to D-57 (DECISION entry 2026-11-10-mj-khsalon-storefront); board rows P1-32 to P1-37; blockers B-54 to B-59; B-10 marked part answered; assumption A-23 (ASSUMPTION entry 2026-11-10-claude-storefront-decisions-2); eight plan files (overview, plans A to F, one prompt per plan); one row in docs/plans/README.md; the storefront context in CONTEXT-MAP.md, marked planned and not built.
+Three things were left out on purpose because the repository is public: every trade and retail price (plan C's seed creates SKUs with no price; B-54), the name of the buyer on the bill MJ showed (H-03), and MJ's remark about the distribution arrangement (H-01; B-59).
+Not changed: docs/16-project-completion-goal.md, which is MJ's. Proposed wording for it is in the pull request text. CLAUDE.md and AGENTS.md still say "seven contexts"; they are instruction files and were left for MJ.
+The plans are task level, not step level. Each executor expands its plan first. Schema facts in the plans come from reading supabase/migrations at 8b80918 (20261028050000_inventory.sql and 20261105110000_catalogue_prices.sql); the hosted database was not queried.
+**Evidence:** base: main at 77006e3. Read before starting: CLAUDE.md, docs/ACTIVITY.md (rules, board, blockers, assumptions), the newest entries in docs/log, both project snapshot documents. git branch -r showed only origin/main. Commands run and results are added below after the first commit.
+**Next / needs:** MJ reviews the plans, answers B-54 to B-59, confirms or rejects A-23, and says in chat whether this pull request may merge. Plan B (P1-33) is the next pull request and starts only after this one is merged.
+
+Security checklist (tick honestly):
+[n/a] RLS enabled+forced; policies + role×table tests added/updated (H-13): docs only, no table
+[n/a] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07): docs only
+[n/a] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08): docs only
+[n/a] Audit trigger present; hash chain verifies (H-17): docs only
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05): no cost, price or supply source in the diff; no tests apply
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20): read the diff; no price, no buyer name, no secret
+[x] Governance powers still owner-only + AAL2 (H-15): nothing changed; plan B gives the manager only what D-39 already gives
+[x] No control weakened, skipped or "temporarily" disabled (H-16): D-52 adds visitor read functions on paper only, with deny-by-default tables
+[x] Docs match code; deviations logged (H-25): the plans say nothing is built
