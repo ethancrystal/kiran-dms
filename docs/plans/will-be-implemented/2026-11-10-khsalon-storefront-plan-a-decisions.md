@@ -7,13 +7,13 @@
 **Docs only. No code, no migration.**
 
 Tasks
-- [ ] One `DECISION` log entry recording D-51 to D-57, quoting MJ's words from section 2 exactly, and one `ASSUMPTION` entry for A-23.
-- [ ] Add D-51 to D-57 to the decision log in `docs/12-decisions-and-open-questions.md`.
+- [ ] `DECISION` log entries recording D-51 to D-58, quoting MJ's words from section 2 exactly, and one `ASSUMPTION` entry for A-23.
+- [ ] Add D-51 to D-58 to the decision log in `docs/12-decisions-and-open-questions.md`.
 - [ ] Add rows P1-32 to P1-37 to the status board, all NOT STARTED.
 - [ ] Add blockers B-54 to B-59 (check the next free number first; B-53 was the last seen) and assumption A-23.
 - [ ] Mark B-10 (real catalogue) as part answered: MJ delivered one bill and two photos.
 - [ ] Copy this plan set into `docs/plans/will-be-implemented/` as one file per plan, plus this overview and the agent prompts.
-- [ ] Add the shop to `CONTEXT-MAP.md` as an eighth context, "storefront", with its vocabulary: visitor, visit, published, retail price, storefront event.
+- [ ] Add the shop to `CONTEXT-MAP.md` as an eighth context, "storefront", with its vocabulary: visitor, visit, published, default price, storefront event.
 
 Not in this plan: any change to `docs/16-project-completion-goal.md`. It is MJ's document; propose the wording in the pull request text and let MJ decide.
 

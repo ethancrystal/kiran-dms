@@ -1,6 +1,6 @@
 # khsalon.com storefront: plan set overview
 
-**Status:** DRAFT FOR MJ REVIEW. Written 10 Nov 2026 against `ethancrystal/kiran-dms` `main` at `8b80918`; revised the same day against `77006e3` with MJ's answer on who the shop serves (section 3). Nothing here has been built or run. The schema facts come from reading the migrations in the repo; the live database was not queried. Task status lives only on the board (`docs/ACTIVITY.md` section 12).
+**Status:** DRAFT FOR MJ REVIEW. Written 10 Nov 2026 against `ethancrystal/kiran-dms` `main` at `8b80918`; revised the same day against `77006e3` with MJ's answers on who the shop serves and on prices (section 3). Nothing here has been built or run. The schema facts come from reading the migrations in the repo; the live database was not queried. Task status lives only on the board (`docs/ACTIVITY.md` section 12).
 
 **Level of detail:** these are task-level plans. Before coding, each executor expands its plan to step level (exact files, SQL, tests) and commits that as the first change of its pull request, as the repo requires.
 
@@ -11,8 +11,8 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 1. every category, product and shade has its own ID, slug, meta title and meta description, edited in the office and shown on a unique, indexable page;
 2. every button, link and scroll on the shop has a registered meaning and is recorded as first-party data that a person or an AI can read without a decoder;
 3. a direct buyer's cart and payment run on Shopify, and the paid order comes back into the DMS office review queue;
-4. a client salon can go from any product page to its own order request at its own trade price, inside the salon portal;
-5. no trade price, per-salon price, stock figure, cost or supply source can reach a visitor.
+4. a client salon can go from any product page to its own order request inside the salon portal, at the default price or, where the manager has set one for that salon, at its own price;
+5. no per-salon price, stock figure, cost or supply source can reach a visitor.
 
 ## 2. What MJ decided in chat (10 Nov 2026)
 
@@ -26,30 +26,38 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | 6 | Tracking | "every single button and scroll should derive a meaning, and that meaning will be translated to analytical data that in turn could be fed into an AI or human can read it easily" |
 | 7 | Who the shop serves | "products on the page is for direct purchase and for Client Salon to order too" |
 | 8 | Order of work | "first update plans then do implementation" |
+| 9 | Prices | "yes public pages shows the default price for the product and unless the price is not explicitly set for a Client Salon (dedicatedly for them only) they order at the same default rate, but if the manager sets customer plan and pricing for a Client Salon then after reaching that inside of their Client Salon Area the prices will get updated before checkout." |
 
-## 3. Who the shop serves, and one assumption
+## 3. Who the shop serves, and how prices work
 
-**Decided by MJ (D-57):** the product pages serve two buyers. A direct buyer pays the retail price through Shopify. A client salon orders the same product at its own trade price.
+**Two buyers (D-57).** A direct buyer pays through Shopify. A client salon orders the same product through its own salon area.
 
-**A-23 (assumption, MJ may overrule): how a client salon orders from a product page.** The public page never shows a trade price. It carries a second action, "Salon client? Order at your price", which opens the existing salon portal on the DMS host, signed in, with that product already in a new order request. The salon's price, the request and everything after it use the existing portal path (`app.salon_submit_request`, the office review queue). A parlor with no account uses the "Become a client salon" enquiry page. Reason: a public page that can be cached and indexed must not be able to contain a trade price under any condition, and D-41 keeps trade prices behind the invitation-only portal. If MJ wants trade prices on khsalon.com itself after sign-in, plan D changes and the shop pages can no longer be cached as one public copy.
+**One default price, shown publicly (D-58).** Every SKU has one default price, and the public page shows it. It is the existing `sku.list_price_paisa`; no second "retail" price is stored. A direct buyer pays the default price. A client salon pays the default price too, unless the manager has set a price for that salon alone (the existing `salon_sku_price`), in which case the salon sees its own price inside its salon area before it sends the order request.
+
+**What stays private.** A price set for one salon is shown to that salon only, inside the portal, never on a public page and never to another salon. Stock quantities, cost and the supply source stay private as before.
+
+**How a client salon orders from a product page (A-23, confirmed by MJ as amended by D-58).** The page carries a second action, "Salon client? Order at your price", which opens the existing salon portal on the DMS host with that product already in a new order request. The price shown there, the request and everything after it use the existing portal path (`app.salon_submit_request`, the office review queue). A parlor with no account uses the "Become a client salon" enquiry page.
+
+**One reading to confirm:** MJ's words are read as one default price for direct buyers and salons alike. If direct buyers should pay a different price from the salons' default, plan B gains a separate retail price per SKU; say so before plan B is built.
 
 ## 4. Rules these plans change, and how
 
 | Rule | Today | Change (needs a DECISION entry quoting section 2) |
 |---|---|---|
 | H-22, Phase 1 only | A public shop is not in Phase 1 | D-51: MJ adds the public shop to Phase 1 as rows P1-32 to P1-37 |
-| D-41, catalogue by invitation only | No anonymous access to anything | D-52: visitors may read published storefront rows through two functions only; D-41 stays as is for the salon portal and trade prices |
+| D-41, catalogue by invitation only | No anonymous access to anything | D-52: visitors may read published storefront rows, with each SKU's default price, through two functions only; D-41 stays as is for the salon portal and per-salon prices |
 | H-21, no new third party | Shopify is not approved | D-53: Shopify approved for cart, checkout and payment, reached only through one adapter |
 | Doc 16, one catalogue | One catalogue in the DMS | D-54: unchanged and reinforced; Shopify is a copy, never a source |
 | Doc 07, public labels | `brand_label` is Kiran's public label | D-55: Musk, Lunex and Kemon are public brand names; KH Enterprises is the trading name; KH Salon is the salon. The supply source, cost and terms stay vault-only |
 | H-21, analytics | No analytics allowed without approval | D-56: first-party tracking stored in the DMS database; no outside analytics, pixel or session replay |
 | D-41, salon ordering | A salon orders only inside the portal | D-57: the shop serves direct buyers and client salons; the salon still orders inside the portal, reached from the product page (A-23) |
+| Price visibility | Every price sits behind a login | D-58: the default price of a published SKU is public; a price set for one salon stays visible to that salon only |
 
 ## 5. Questions still open (to log as blockers; defaults in brackets)
 
 | Ref | Question | Blocks | Default until answered |
 |---|---|---|---|
-| B-54 | Trade and retail price for every SKU, entered by MJ or the manager in the office and never in the repository; reorder cycle days per category | C (publishing) | SKUs without a price stay unsold and unpublished; cycle days use the existing `[default-unconfirmed]` values |
+| B-54 | The default price of every SKU, entered by MJ or the manager in the office and not written in the repository; reorder cycle days per category | C (publishing) | SKUs without a price stay unsold and unpublished; cycle days use the existing `[default-unconfirmed]` values |
 | B-55 | Confirm the shade numbers as printed on the bill, including the ones with a leading dot; the pack artwork reads "Leather Textured Sulfate Free Shampoo" (is "Lather" meant?) | C | Enter as printed; do not publish the shampoo until confirmed |
 | B-56 | How does a consumer's online order enter the one order engine, which needs a salon on every order? | F | One internal customer account named for the online shop; Shopify keeps the buyer's name, phone and address, the DMS stores only the Shopify order number |
 | B-57 | Does the Shopify store exist? Plan, payment methods (cash on delivery?), delivery areas | F | Nothing built against a live store |
@@ -61,7 +69,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 - Approve each migration before it is applied to the Kiran Supabase project (H-19).
 - Create the Shopify store and its app, and set every Shopify secret himself.
 - Point khsalon.com at the deployment (DNS).
-- Supply retail prices, final product pictures and approve the page copy.
+- Enter the default prices in the office, supply final product pictures and approve the page copy.
 - Say in chat, per pull request, when it may merge.
 
 ## 7. Build order

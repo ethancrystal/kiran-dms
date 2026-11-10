@@ -6,7 +6,7 @@
 
 **Source:** one scanned bill dated 2 Nov 2026 and two product photos, shown by MJ in chat. The buyer named on the bill is not entered anywhere.
 
-**Prices stay out of the repository.** The repository is public, so no trade price and no retail price is written in this plan, the seed, a test or a log. The seed creates categories, products and SKUs with no price; the owner or manager enters trade and retail prices in `/office/products`. A SKU with no price cannot be sold or published, which is the existing rule.
+**Prices are entered in the office, not in the repository.** No real price is written in this plan, the seed, a test or a log (H-04; a price set for one salon must never be in a public repository). The seed creates categories, products and SKUs with no price; the owner or manager enters each default price in `/office/products`. A SKU with no price cannot be sold or published, which is the existing rule.
 
 | Category | Product | SKUs |
 |---|---|---|

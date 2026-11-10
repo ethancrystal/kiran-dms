@@ -2,7 +2,7 @@
 
 **Status:** DRAFT FOR MJ REVIEW, task level. Nothing here has been built or run. Read `2026-11-10-khsalon-storefront-overview.md` first: it holds MJ's decisions, the open questions and the build order. The prompt for the executor is in `2026-11-10-khsalon-storefront-agent-prompts.md`. Status lives only on the board (`docs/ACTIVITY.md` section 12, row P1-35).
 
-**Goal:** a visitor on khsalon.com can browse, open a unique page per product, fill a cart and reach checkout; a client salon can go from the same page to an order request at its own price in the portal; search engines can index every published page.
+**Goal:** a visitor on khsalon.com can browse, open a unique page per product, fill a cart and reach checkout; a client salon can go from the same page to an order request in the portal, at the default price or its own; search engines can index every published page.
 
 **Routes** (a `(shop)` route group in `apps/web/app`, server-rendered, no sign-in)
 
@@ -21,7 +21,7 @@ The current `/` page (three links into the DMS) moves to `/staff`. `proxy.ts` ke
 
 **SEO on every page**
 - `generateMetadata` from the storefront rows: title, description, canonical URL, Open Graph picture.
-- JSON-LD: `Product` with `sku`, `productID`, `brand`, `category` and one `Offer` per SKU in PKR; `BreadcrumbList`; on the home page `HairSalon` for KH Salon once MJ enters the address.
+- JSON-LD: `Product` with `sku`, `productID`, `brand`, `category` and one `Offer` per SKU in PKR at the default price; `BreadcrumbList`; on the home page `HairSalon` for KH Salon once MJ enters the address.
 - The product, category and SKU IDs also sit on the page as `data-` attributes, which plan E reads.
 - One `h1` per page; picture `alt` text from the product name and variant.
 
@@ -30,10 +30,10 @@ The current `/` page (three links into the DMS) moves to `/staff`. `proxy.ts` ke
 - Then one small set of shop components under `apps/web/components/shop/`, separate from the office components. English only (D-42). Mobile first.
 - Budget: the product page stays usable on a mid-range phone on 4G; measure with Lighthouse and record the scores.
 
-**Client salon ordering (D-57, A-23):** every product page has a second action beside "Add to cart": "Salon client? Order at your price". It links to the salon portal on the DMS host with the product id (`/salon?order=<product id>`). The portal, after sign-in, opens a new order request with that product chosen and shows the salon's own price from the existing functions. This plan adds only the link on the shop and the reading of that one parameter in the portal's request form; it adds no new price path and no new order path. The public page's HTML never contains a trade price, signed in or not.
+**Client salon ordering (D-57, A-23):** every product page has a second action beside "Add to cart": "Salon client? Order at your price". It links to the salon portal on the DMS host with the product id (`/salon?order=<product id>`). The portal, after sign-in, opens a new order request with that product chosen. The price shown there comes from the existing functions: the default price, or the salon's own where the manager has set one, visible before the salon sends the request (D-58). This plan adds only the link on the shop and the reading of that one parameter in the portal's request form; it adds no new price path and no new order path. The public page shows the default price to everyone and never a price set for one salon, signed in or not.
 
 **Trade enquiry:** the form writes through one new function, `app.storefront_trade_enquiry` (anon, rate limited, idempotent), which creates an item for the office to review. It does not create a salon; the office does that through the existing "Adding a salon" path.
 
-**Tests:** Playwright on the real local stack: home to category to product to cart; an unpublished slug gives 404; a product page's HTML contains no trade price for a seeded product whose trade and retail prices differ; metadata and JSON-LD present and valid; sitemap lists exactly the published pages; a signed-in salon following the product page's salon link lands on a request with that product chosen and its own price, and a different salon following the same link sees its own price, never the first salon's.
+**Tests:** Playwright on the real local stack: home to category to product to cart; an unpublished slug gives 404; for a seeded salon whose own price differs from the default, the public product page shows the default price and its HTML does not contain that salon's price, with and without that salon signed in; metadata and JSON-LD present and valid; sitemap lists exactly the published pages; a signed-in salon following the product page's salon link lands on a request with that product chosen: a salon with a price of its own sees that price, a salon with none sees the default price, and neither ever sees the other's.
 
 Done when: the journey passes in CI and MJ has approved the look on a preview.

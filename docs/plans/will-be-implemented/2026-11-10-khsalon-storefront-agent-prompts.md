@@ -19,7 +19,8 @@ Rules that are not preferences:
   an anonymous visitor.
 - Writes only through security definer functions in the app schema with set search_path = '' and an
   idempotency client_id. Append-only tables are never updated or deleted.
-- Trade prices, per-salon prices, stock quantities, cost, margin and anything about the supply
+- The default price of a published SKU is public (D-58). A price set for one salon is readable by
+  that salon and the office only. Stock quantities, cost, margin and anything about the supply
   source must never be readable by a visitor, a rep or a salon. Never weaken or skip a control.
 - No secrets, real people's names, phone numbers or customer names in code, docs, tests or logs.
 - Migrations are forward-only. Do not apply anything to the hosted Supabase project. Do not deploy.
@@ -56,9 +57,13 @@ MJ's decisions, made in chat on 2026-11-10. Quote these words exactly in the DEC
   translated to analytical data that in turn could be fed into an AI or human can read it easily"
 - Who the shop serves: "products on the page is for direct purchase and for Client Salon to order
   too"
+- Prices: "yes public pages shows the default price for the product and unless the price is not
+  explicitly set for a Client Salon (dedicatedly for them only) they order at the same default
+  rate, but if the manager sets customer plan and pricing for a Client Salon then after reaching
+  that inside of their Client Salon Area the prices will get updated before checkout."
 
 Do:
-1. Write one DECISION log entry recording D-51 to D-57 as listed in section 4 of the plan set,
+1. Write DECISION log entries recording D-51 to D-58 as listed in section 4 of the plan set,
    and one ASSUMPTION entry for A-23.
    Check the next free D number in docs/12 first and renumber if D-51 is taken.
 2. Add them to the decision log in docs/12-decisions-and-open-questions.md.
@@ -81,16 +86,18 @@ Task: Plan B. Build the public catalogue data layer. Depends on Plan A being mer
 not in docs/12, stop and say so.
 
 Build exactly what Plan B specifies:
-- Tables storefront_category, storefront_product, storefront_sku and the append-only
-  retail_price_change, with the constraints listed (slug format and immutability after publish,
-  meta length limits, uniqueness, price checks).
-- Write functions app.office_upsert_storefront_category, app.office_upsert_storefront_product,
-  app.office_set_retail_price, app.office_set_storefront_published. Owner or manager at AAL2.
+- Tables storefront_category, storefront_product and storefront_sku, with the constraints listed
+  (slug format and immutability after publish, meta length limits, uniqueness). Add no price
+  column: the public price is the existing sku.list_price_paisa (D-58), set by the existing
+  app.office_set_sku_price and recorded in the existing sku_price_change.
+- Write functions app.office_upsert_storefront_category, app.office_upsert_storefront_product
+  and app.office_set_storefront_published. Owner or manager at AAL2.
   Follow the style of app.office_upsert_product and app.office_set_sku_price in
   supabase/migrations/20261105110000_catalogue_prices.sql.
 - Visitor read functions app.storefront_catalogue() and app.storefront_product(p_slug), granted to
-  anon and authenticated, returning fixed column lists. "available" is a boolean computed inside
-  the function. No quantity leaves the database.
+  anon and authenticated, returning fixed column lists with the default price. They never read
+  salon_sku_price. "available" is a boolean computed inside the function. No quantity leaves the
+  database.
 - No SELECT policy for anon on any table. Verify with a test that anon is denied on every table
   in public, old and new.
 - A public-read bucket storefront-images, written only by owner and manager. Leave the private
@@ -101,10 +108,11 @@ Reuse the existing catalogue tables and functions. Do not add columns to product
 public fields. Do not create a second catalogue.
 
 Tests required, negative cases first: the role by table by operation matrix for the new tables;
-a test that fails if either read function returns a column whose name contains list_price, cost,
-margin, supplier, qty or stock; unpublished slug returns nothing; replayed client_id writes once;
-slug change after publish refused; publish without a retail price refused; UPDATE and DELETE on
-retail_price_change refused for every role.
+a test that fails if either read function returns a column whose name contains salon, cost,
+margin, supplier, qty or stock; with a seeded salon price that differs from the default, both
+read functions return the default price when called as a visitor and when called as that salon;
+unpublished slug returns nothing; replayed client_id writes once; slug change after publish
+refused; publish without a default price refused.
 
 Do not apply the migration to the hosted project. List that as MJ's action.
 ```
@@ -117,8 +125,8 @@ Task: Plan C. Load MJ's first products as a rerunnable seed. Depends on Plan B.
 Stop first and check: is blocker B-55 (shade numbers, label wording) answered in docs/ACTIVITY.md
 or a DECISION entry? Build only what is answered. Never invent a shade number or a product claim.
 
-The repository is public. Write no trade price and no retail price in the seed, a test, a doc or
-a log. The seed creates SKUs with no price; MJ or the manager enters prices in /office/products.
+Write no real price in the seed, a test, a doc or a log. The seed creates SKUs with no price; MJ
+or the manager enters each default price in /office/products.
 
 Data (from the bill and photos MJ showed in chat on 2026-11-10):
 - Category Hair Colour: product "Musk Hair Colour 100 ml", 14 shades as printed: 66/0, 77/0,
@@ -161,7 +169,8 @@ Step 2, build:
   in shop code. No hardcoded product, price or figure, no dead button, no fake success message.
 - One page per product; shades are options on that page, each carrying its own SKU id and code.
 - generateMetadata on every page from the storefront rows; canonical URL; Open Graph picture.
-- JSON-LD Product (sku, productID, brand, category, one Offer per SKU in PKR) and BreadcrumbList.
+- JSON-LD Product (sku, productID, brand, category, one Offer per SKU in PKR at the default
+  price) and BreadcrumbList.
 - data- attributes for the category, product and SKU ids on the page, for Plan E.
 - /office, /app, /salon and /invite disallowed in robots.txt and marked noindex.
 - /trade ("Become a client salon"): an enquiry form that writes through a new function app.storefront_trade_enquiry (anon,
@@ -172,17 +181,19 @@ Step 2, build:
 Client salons (D-57, A-23): every product page has a second action beside "Add to cart": "Salon
 client? Order at your price". It links to the salon portal on the DMS host with the product id.
 In the portal's existing request form, read that one parameter and open a new request with the
-product chosen, priced by the existing functions. Add no new price path and no new order path.
-The public page's HTML must never contain a trade price, whoever is signed in. Check A-23 in
-docs/ACTIVITY.md first: if MJ rejected it, stop, because this plan must be rewritten.
+product chosen, priced by the existing functions: the default price, or the salon's own where the
+manager set one, shown before the salon sends the request. Add no new price path and no new order
+path. The public page shows the default price to everyone and must never contain a price set for
+one salon, whoever is signed in.
 
 Print nothing about the distribution arrangement for these brands until B-59 gives the wording.
 
 Tests on the real local stack with Playwright: home to category to product to cart; unpublished
-slug is a 404; for a seeded product whose trade and retail prices differ, the page HTML does not
-contain the trade price; metadata and JSON-LD present and valid; sitemap lists exactly the
-published pages; a signed-in salon following the salon link lands on a request with that product
-chosen and its own price, and a second salon following the same link sees only its own price.
+slug is a 404; for a seeded salon whose own price differs from the default, the public page shows
+the default price and its HTML does not contain that salon's price, signed in or not; metadata
+and JSON-LD present and valid; sitemap lists exactly the published pages; following the salon
+link, a salon with its own price sees it, a salon with none sees the default price, and neither
+sees the other's.
 Record Lighthouse scores for the product page on a mobile profile.
 ```
 
@@ -244,9 +255,9 @@ Build:
    fake used in CI.
 2. shopify_link table (entity kind, entity id, Shopify id, synced hash, synced at). Office read
    only.
-3. Catalogue out: a sync queue filled by triggers on published storefront rows and retail price
+3. Catalogue out: a sync queue filled by triggers on published storefront rows and default price
    changes; a worker that pushes title, description, SEO title and description, variants with SKU
-   code and retail price, pictures, one collection per category, and metafields kh.product_id,
+   code and default price, pictures, one collection per category, and metafields kh.product_id,
    kh.category_id and kh.sku_id. Unpublish here means unpublish there. The DMS always wins.
 4. Availability out: in stock yes or no per SKU. Never a quantity.
 5. Cart and checkout: the shop cart creates a Shopify cart carrying visit_id and visitor_id as
@@ -259,7 +270,7 @@ Build:
 7. An office reconciliation list: Shopify paid orders against DMS requests.
 
 Tests against the fake: a tampered webhook body is refused; a replayed order creates one request;
-no payload sent to Shopify contains a trade price, a per-salon price, a stock quantity or a cost
+no payload sent to Shopify contains a price set for one salon, a stock quantity or a cost
 (assert on the fake's recorded calls); unpublish propagates.
 
 A real order on a Shopify test store is placed by MJ, not by you. List it as MJ's action and
