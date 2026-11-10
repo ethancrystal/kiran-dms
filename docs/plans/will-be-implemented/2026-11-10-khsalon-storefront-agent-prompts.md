@@ -64,6 +64,10 @@ MJ's decisions, made in chat on 2026-11-10. Quote these words exactly in the DEC
 - Order processing: "The order for processing will be divided into 1, Regular User 2, Client
   Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible
   for relasing the product and delivery and completing and marking it delivered"
+- Regular User price and salon discount: "No Regular User pay a default market price that will be
+  same for any regular user and not a Client Salon, Client Salon because of the bulk buying can
+  avail discount and it will be mentioned as such in their and in the managers area where they
+  could see accounts of all client salons"
 - Delivery timeline and reminders: "I want atomic changes in the product delivery timeline so
   everything can be tracked and can be run automatedly and the things that will need the Manager
   or Owner approval, it will send email to them repeatedly until thats done"
@@ -191,6 +195,10 @@ product chosen, priced by the existing functions: the default price, or the salo
 manager set one, shown before the salon sends the request. Add no new price path and no new order
 path. The public page shows the default price to everyone and must never contain a price set for
 one salon, whoever is signed in.
+
+Show a discount as a discount: in the salon's own area and on the office's account page for a
+salon, a product with a price set for that salon shows the default price, the salon's price and
+the discount. A salon with no price of its own sees the default price and no discount line.
 
 Print nothing about the distribution arrangement for these brands until B-59 gives the wording.
 

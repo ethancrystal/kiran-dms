@@ -29,6 +29,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | 9 | Prices | "yes public pages shows the default price for the product and unless the price is not explicitly set for a Client Salon (dedicatedly for them only) they order at the same default rate, but if the manager sets customer plan and pricing for a Client Salon then after reaching that inside of their Client Salon Area the prices will get updated before checkout." |
 | 10 | Order processing | "The order for processing will be divided into 1, Regular User 2, Client Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible for relasing the product and delivery and completing and marking it delivered" |
 | 11 | Delivery timeline and reminders | "I want atomic changes in the product delivery timeline so everything can be tracked and can be run automatedly and the things that will need the Manager or Owner approval, it will send email to them repeatedly until thats done" |
+| 12 | Regular User price and salon discount | "No Regular User pay a default market price that will be same for any regular user and not a Client Salon, Client Salon because of the bulk buying can avail discount and it will be mentioned as such in their and in the managers area where they could see accounts of all client salons" |
 
 ## 3. Who the shop serves, and how prices work
 
@@ -42,7 +43,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 
 **Two kinds of order in one queue (D-59).** Every order for processing is one of two kinds: Regular User (a direct buyer's paid order from the shop) or Client Salon (a salon's order request). Both sit in the existing office review queue, marked with their kind and filterable by it. The manager and the owner see the queue and are the ones who release the goods, arrange delivery, complete the order and mark it delivered. No new role and no second queue.
 
-**One reading to confirm:** MJ's words are read as one default price for direct buyers and salons alike. If direct buyers should pay a different price from the salons' default, plan B gains a separate retail price per SKU; say so before plan B is built.
+**Confirmed by MJ (row 12).** Every Regular User pays the same default market price; there is no separate retail price. A Client Salon may get a discount for buying in bulk. Where a salon has one, it is shown as a discount: the default price, the salon's price and the difference, both in the salon's own area and in the office's account page for that salon, where the manager sees every client salon's account.
 
 ## 4. Rules these plans change, and how
 
