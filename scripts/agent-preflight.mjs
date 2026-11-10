@@ -225,7 +225,7 @@ export function buildReport(root, { ci = false, hook = false } = {}) {
 export function buildHookContext(root) {
   const { lines, errors } = buildReport(root, { hook: true });
   lines.push(
-    `Read ${ACTIVITY_PATH} and the 20 newest entries in ${LOG_DIR} (not ${ARCHIVE_PATH}) before any edit. Check git branch -r and open pull requests for overlap; your branch and pull request are the claim. Keep one log entry for your task. Re-run pnpm agent:preflight once you are on your feature branch.`,
+    `Read ${ACTIVITY_PATH} and the 5 newest entries in ${LOG_DIR} for your task's area (not ${ARCHIVE_PATH}) before any edit. Check git branch -r and open pull requests for overlap; your branch and pull request are the claim. Keep one log entry for your task. Re-run pnpm agent:preflight once you are on your feature branch.`,
   );
   return { text: lines.join("\n"), errors };
 }

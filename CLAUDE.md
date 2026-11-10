@@ -2,7 +2,7 @@
 
 ## Mandatory build protocol
 
-Before ANY repository work, every agent MUST read `docs/ACTIVITY.md` (rules, status board, blockers, assumptions) and the 20 newest entries in `docs/log/`, and follow them. `docs/log/archive.md` is the frozen old log: search it for an old `L-nnnn` citation, do not read it. Do not treat a session-start hook or preflight result as a substitute for the required source-document review or the task's log entry.
+Before ANY repository work, every agent MUST read `docs/ACTIVITY.md` (rules, status board, blockers, assumptions) and the 5 newest entries in `docs/log/` for your task's area (`docs/ACTIVITY.md` §4), and follow them. `docs/log/archive.md` is the frozen old log: search it for an old `L-nnnn` citation, do not read it. Do not treat a session-start hook or preflight result as a substitute for the required source-document review or the task's log entry.
 
 Run `pnpm agent:preflight` before implementation. Do not work directly on `main`. Preserve all pre-existing changes. A failed preflight is a stop condition; do not bypass it.
 
@@ -11,7 +11,7 @@ The authoritative task lifecycle, hard rules, status board, blockers, phase gate
 **Cross-domain brief:** For work involving supplier/procurement, salons/customers, salaried Reps, Independent Agents, Investors/capital, office administration, or workflows spanning these areas, read `docs/14-unified-business-domain-prompt.md` in full before planning or editing. It supplements the existing planning set; it does not authorise a new role, permission, portal, financial term, phase change or production action.
 
 Before doing ANYTHING in this repository you MUST:
-1. Read docs/ACTIVITY.md (rules, status board, blockers) and the 20 newest entries in docs/log/.
+1. Read docs/ACTIVITY.md (rules, status board, blockers) and the 5 newest entries in docs/log/ for your task's area.
 2. Check open branches and pull requests, keep one log entry for your task in docs/log/, and follow every hard rule (H-01…H-27).
 3. Never touch production, secrets, real supplier data, or real personal data.
 4. Never weaken or skip a security control (RLS, MFA, approvals, audit, append-only).

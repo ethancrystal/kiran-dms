@@ -256,7 +256,7 @@ The business specification is [doc 16](docs/16-project-completion-goal.md). The 
 The full list is the hard rules H-01 to H-27 (ACTIVITY §5), "stop and ask MJ" (§9) and the human-only actions (§10). In short:
 
 **Always**
-- Read `docs/ACTIVITY.md` and the 20 newest entries in `docs/log/`, then keep one log entry for your task.
+- Read `docs/ACTIVITY.md` and the 5 newest entries in `docs/log/` for your task's area, then keep one log entry for your task.
 - Work on a feature branch.
 - Record real evidence: commands, counts, SHAs (H-23, H-24).
 - Enforce controls in the database, not only in the UI.
