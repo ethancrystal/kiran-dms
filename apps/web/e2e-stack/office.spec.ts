@@ -2274,5 +2274,17 @@ test("the rep's Waiting to send page shows what waits, what was refused and why,
   await expect(phone.getByTestId("outbox-refused-count")).toHaveText("Needs attention (0)");
   await expect(phone.getByTestId("outbox-waiting-count")).toHaveText("Waiting (1)");
   await expect(phone.getByTestId("outbox-history").getByRole("listitem")).toHaveCount(OUTBOX_MY_SENDS);
+
+  // With signal the page asked app.my_session like every rep page (the loads above passed that
+  // check with a real answer). With no signal the question cannot be asked, and the page still
+  // opens: the request is cut off here, which is what a phone out of range sees.
+  await phone.route("**/rest/v1/rpc/my_session", (route) => route.abort("internetdisconnected"));
+  await phone.reload();
+  await expect(phone.getByTestId("outbox-waiting-count")).toHaveText("Waiting (1)");
+  await expect(phone.getByTestId("rep-gate")).toHaveCount(0);
+  // Another rep page is not let through the same way: it reports that it could not check.
+  await phone.goto("/app/account");
+  await expect(phone.getByTestId("rep-gate")).toBeVisible();
+  await phone.unroute("**/rest/v1/rpc/my_session");
   await ctx.close();
 });
