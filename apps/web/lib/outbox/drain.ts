@@ -1,5 +1,5 @@
 import { classifyFailure, failureMessage } from "./classify";
-import type { OutboxFn, OutboxItem, OutboxStore } from "./types";
+import type { AttemptResult, OutboxFn, OutboxItem, OutboxStore } from "./types";
 
 // One pass over a rep's queue (P1-09, NFR-01). Items are sent strictly in capture order, one at a
 // time: a visit must not reach the database before the check-in captured ahead of it. So the
@@ -12,6 +12,8 @@ export type DrainDeps = {
   /** Sends one item through its app.* function. Throws on any failure, with `code` and `status` when known. */
   send: (fn: OutboxFn, args: Record<string, unknown>) => Promise<unknown>;
   now: () => number;
+  /** Makes the id of a history entry; the phone uses `crypto.randomUUID`. */
+  newId?: () => string;
   /** Runs one drain at a time across tabs; answers "busy" when another drain holds the lock. */
   lock: <T>(run: () => Promise<T>) => Promise<T | "busy">;
 };
@@ -65,6 +67,24 @@ const settleDependents = async (store: OutboxStore, sent: OutboxItem, queue: Out
   return id === null ? dependents.filter((dependent) => dependent.state === "pending").length : 0;
 };
 
+/** Notes how a send went in the sync history. A history that cannot be written never stops the queue. */
+const note = async (deps: DrainDeps, item: OutboxItem, started: number, result: AttemptResult, message: string | null) => {
+  try {
+    await deps.store.record({
+      id: deps.newId ? deps.newId() : `${item.id}:${started}`,
+      userId: deps.userId,
+      at: started,
+      fn: item.fn,
+      label: item.label,
+      result,
+      message,
+      durationMs: Math.max(0, deps.now() - started),
+    });
+  } catch {
+    // The history is a diagnostic aid; losing one line of it must not hold up a rep's work.
+  }
+};
+
 type Outcome = { report: DrainReport; goOn: boolean };
 
 /** Sends the oldest pending item, or decides why it cannot be sent. */
@@ -80,13 +100,16 @@ const step = async (deps: DrainDeps, report: DrainReport): Promise<Outcome> => {
     return { report: { ...report, rejected: report.rejected + 1 }, goOn: true };
   }
 
+  const started = deps.now();
   try {
     const result = await deps.send(head.fn, head.args);
+    await note(deps, head, started, "sent", null);
     const refused = await settleDependents(deps.store, head, queue, result);
     await deps.store.remove(head.id);
     return { report: { ...report, sent: report.sent + 1, rejected: report.rejected + refused }, goOn: true };
   } catch (error) {
     const failure = classifyFailure(error);
+    await note(deps, head, started, failure === "transient" ? "offline" : failure, failureMessage(error));
     if (failure === "auth") return { report: { ...report, held: "auth" }, goOn: false };
     if (failure === "transient") {
       const nextAttemptAt = deps.now() + backoffMs(head.attempts);

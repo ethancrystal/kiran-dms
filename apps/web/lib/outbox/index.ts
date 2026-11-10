@@ -3,7 +3,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import { type DrainReport, drain } from "./drain";
 import { enqueue, retry } from "./queue";
 import { openIdbStore } from "./store-idb";
-import type { Dependency, OutboxFn, OutboxItem } from "./types";
+import type { Dependency, OutboxFn, OutboxItem, SyncAttempt } from "./types";
 
 // The rep app's way to save an action (P1-09, NFR-01): `submit` writes it to the phone first and
 // then tries to send it. With signal the rep gets the database's answer at once; without, the item
@@ -115,7 +115,7 @@ const runDrain = async (): Promise<DrainReport> => {
   const userId = await sessionUserId();
   if (!userId) return { sent: 0, rejected: 0, held: offline() ? "offline" : "auth" };
   const store = await openIdbStore();
-  return drain({ store, userId, send, now: Date.now, lock: withDrainLock });
+  return drain({ store, userId, send, now: Date.now, newId: () => crypto.randomUUID(), lock: withDrainLock });
 };
 
 /** Sends what can be sent now. Calls that overlap in this tab share one pass. */
@@ -171,6 +171,15 @@ export async function submit(input: SubmitInput): Promise<"sent" | "queued" | "r
 export async function listItems(): Promise<OutboxItem[]> {
   const store = await openIdbStore();
   return store.list(await captureUserId());
+}
+
+/**
+ * The signed-in rep's last 50 send attempts, newest first, whether they worked or not. It shows
+ * when the phone last reached the server and what the server or the network said when it did not.
+ */
+export async function syncHistory(): Promise<SyncAttempt[]> {
+  const store = await openIdbStore();
+  return store.history(await captureUserId());
 }
 
 /** Sends a refused or waiting item again, as the same request. */

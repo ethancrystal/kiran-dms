@@ -1,0 +1,21 @@
+# 2026-11-11 01:30 PKT · Claude · Sonnet 5.5 · branch claude/sync-history · TASK
+**Task:** P1-09 (NFR-01; areas: apps/web/lib/outbox types, queue, drain, store-idb, index; apps/web/e2e/outbox-history.spec.ts)
+**What / why:** MJ asked in chat for a Sync History log in the Outbox Inspector tab, showing the last 50 successful and failed sync attempts so a rep can see why the phone is not syncing. There is no Outbox Inspector tab or page in the repo (git grep for inspector and sync history finds nothing); the status screen is plan task 8 of 2026-11-08-p1-09-offline-rep-app and is not built. So this builds the data under it and no screen: every send the drain makes is noted as an attempt (time, function, label, result sent, offline, auth or rejected, the failure's own words, duration), the store keeps each rep's newest 50 and drops older ones, and syncHistory() in the outbox entry points returns them newest first. Offline in this log means a passing failure (no signal, server busy), the same class the queue retries by itself. A pass that sends nothing because an item is still waiting out its backoff is not an attempt and adds nothing. A history that cannot be written never stops the queue. On a phone the label and message are sealed with the rep's key like the queue's own (the label can carry a salon name); the rest is plain so the list can be ordered and trimmed. The IndexedDB database goes from version 1 to 2 (a new history store; the upgrade keeps the queue and keys). Clearing the outbox on sign-out or device revoke clears the history too.
+**Not built:** the screen. It needs a decision from MJ: the Outbox Inspector as a separate page or as a section of the status component in plan task 8 (task 8 already lists the waiting count, last sync time and Needs attention). Nothing calls syncHistory() yet.
+**Evidence:** base b7ce562, pnpm agent:preflight: PREFLIGHT OK, no open pull requests. tsc --noEmit in apps/web: exit 0. Playwright with a local config that has no web server (the specs are pure Node): 48 passed, which is the 40 existing outbox specs plus 8 new in outbox-history.spec.ts (sent noted with no message; refused, no-signal and expired-session sends each noted with their words; a try inside the backoff adds nothing; newest 50 kept and oldest dropped; one rep's history never shown to or trimmed by another; an unwritable history does not stop the queue; clear empties it). biome check --write on apps/web/lib/outbox and the new spec: two formatting fixes, then clean. Not run and not claimed: the repository's own Playwright config, pnpm db:test (no migration, function, policy or test under supabase changed), the stack journeys, pnpm activity:check (result in the addendum). The IndexedDB side (store-idb.ts record and history, the version 2 upgrade) has no test, like the rest of that file: it runs only in a browser and the plan proves it in the task 9 journey. Dependencies were linked into this worktree from the main checkout with directory junctions to run the checks; they are git-ignored and were not committed.
+**Next / needs:** MJ: where the screen goes (see Not built). Then a task 8 follow-up renders syncHistory().
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) (n/a: no table or policy)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) (n/a: phone storage only)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) (n/a: sending is unchanged)
+[x] Audit trigger present; hash chain verifies (H-17) (unchanged)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) (n/a)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20) (the spec uses a dummy salon label)
+[x] Governance powers still owner-only + AAL2 (H-15) (unchanged)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25)
+[ ] Tests actually run; real results recorded (H-23, H-24) (the Node specs and typecheck ran; store-idb.ts has no test)
+
+Addendum 2026-11-11 01:50 PKT, same task, after formatting:
+**Evidence:** the 48 outbox specs again after biome's two fixes: 48 passed. pnpm activity:check origin/main: OK, 1 new log entry, 7 changed files. tsc --noEmit: exit 0.

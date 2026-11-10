@@ -1,4 +1,4 @@
-import type { OutboxItem, OutboxPatch, OutboxStore } from "./types";
+import { type OutboxItem, type OutboxPatch, type OutboxStore, SYNC_HISTORY_LIMIT, type SyncAttempt } from "./types";
 
 // Queue rules over any store (P1-09, NFR-01). The rules live here so they are the same for the
 // in-memory store the specs use and the encrypted IndexedDB store a phone uses.
@@ -12,6 +12,7 @@ const copy = (item: OutboxItem): OutboxItem => ({ ...item, args: { ...item.args 
 export class MemoryStore implements OutboxStore {
   private readonly items = new Map<string, OutboxItem>();
   private lastSeq = 0;
+  private attempts: SyncAttempt[] = [];
 
   add(item: Omit<OutboxItem, "seq">): Promise<OutboxItem> {
     const existing = this.items.get(item.id);
@@ -38,8 +39,25 @@ export class MemoryStore implements OutboxStore {
     return Promise.resolve();
   }
 
+  record(attempt: SyncAttempt): Promise<void> {
+    this.attempts.push({ ...attempt });
+    const mine = this.attempts.filter((other) => other.userId === attempt.userId);
+    const surplus = mine.length - SYNC_HISTORY_LIMIT;
+    if (surplus > 0) {
+      const drop = new Set(mine.slice(0, surplus));
+      this.attempts = this.attempts.filter((other) => !drop.has(other));
+    }
+    return Promise.resolve();
+  }
+
+  history(userId: string): Promise<SyncAttempt[]> {
+    const mine = this.attempts.filter((attempt) => attempt.userId === userId);
+    return Promise.resolve(mine.reverse().map((attempt) => ({ ...attempt })));
+  }
+
   clear(): Promise<void> {
     this.items.clear();
+    this.attempts = [];
     return Promise.resolve();
   }
 }

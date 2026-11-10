@@ -47,6 +47,29 @@ export type OutboxItem = {
   error: string | null;
 };
 
+/** How one send ended. "offline" is a passing failure (no signal, server busy); "auth" holds the whole queue. */
+export type AttemptResult = "sent" | "offline" | "auth" | "rejected";
+
+/** One try at sending an item, kept so a rep can see why the phone is not syncing (P1-09, NFR-01). */
+export type SyncAttempt = {
+  /** Unique per attempt. */
+  id: string;
+  userId: string;
+  /** Epoch milliseconds when the send started. */
+  at: number;
+  fn: OutboxFn;
+  /** The item's label, for example "Visit". It can carry a salon name, so a phone seals it. */
+  label: string;
+  result: AttemptResult;
+  /** The failure's own words, or null for a send that worked. */
+  message: string | null;
+  /** How long the send took, in milliseconds. */
+  durationMs: number;
+};
+
+/** The history keeps this many attempts per rep, newest first; older ones are dropped. */
+export const SYNC_HISTORY_LIMIT = 50;
+
 export type OutboxPatch = Partial<Pick<OutboxItem, "args" | "state" | "attempts" | "nextAttemptAt" | "error">>;
 
 /**
@@ -60,6 +83,10 @@ export interface OutboxStore {
   list(userId: string): Promise<OutboxItem[]>;
   update(id: string, patch: OutboxPatch): Promise<void>;
   remove(id: string): Promise<void>;
+  /** Saves one attempt and drops that user's attempts beyond the newest `SYNC_HISTORY_LIMIT`. */
+  record(attempt: SyncAttempt): Promise<void>;
+  /** One user's attempts, newest first, at most `SYNC_HISTORY_LIMIT`. */
+  history(userId: string): Promise<SyncAttempt[]>;
   /** Removes everything, for every user (sign-out and device revoke). */
   clear(): Promise<void>;
 }
