@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -9,7 +10,7 @@ const DIGITS = "0123456789";
 const digitsOnly = (text: string) => [...text].filter((c) => DIGITS.includes(c)).join("");
 
 // Salon sign-in for an account that already exists: email + 6-digit code. shouldCreateUser is false:
-// a salon's login is created only by its invitation link (D-39, /invite).
+// a salon's login is created only by its invitation link (D-39, /invite) or its own sign-up (/salon/signup).
 export default function SalonLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -98,6 +99,11 @@ export default function SalonLogin() {
       {error && (
         <p className="error" role="alert">
           {error}
+        </p>
+      )}
+      {!sent && (
+        <p className="muted">
+          New salon? <Link href="/salon/signup">Sign up</Link>
         </p>
       )}
     </main>

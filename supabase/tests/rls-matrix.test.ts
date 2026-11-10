@@ -842,6 +842,14 @@ const MATRIX: Row[] = [
     writeCol: "full_name",
     select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
   },
+  // Salon sign-up requests (migration 20261109200000, MJ 2026-11-09): like invitations, no grant and no
+  // policy. The office lists them with app.office_pending_signups; an applicant reads only the answer from
+  // app.salon_login_status.
+  {
+    table: "public.salon_signup_request",
+    writeCol: "contact_name",
+    select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
+  },
   {
     table: "public.salon_membership",
     writeCol: "status_reason",

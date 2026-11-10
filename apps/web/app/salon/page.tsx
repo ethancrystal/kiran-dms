@@ -111,6 +111,8 @@ const REQUEST_STATUS: Record<Request["status"], string> = {
 };
 // AUTH-09 (P1-30): the account's own status (app.salon_login_status); the office's reason is not shown.
 const ACCOUNT_STATE: Record<string, string> = {
+  application_rejected:
+    "The office did not accept this application. If you think this is a mistake, contact the office, or ask them for an invitation.",
   suspended: "This salon account is suspended by the office. Contact the office to have it reactivated.",
   revoked: "This salon account is closed. If the office sends you a new invitation, open its link.",
 };
@@ -174,7 +176,15 @@ export default function SalonHome() {
           {state.message}
         </p>
       )}
-      {state.kind === "none" && (
+      {state.kind === "none" && state.status === "applied" && (
+        <section className="card" data-testid="salon-account-state">
+          <h2>Application received</h2>
+          <p>
+            The office is checking your salon. You will be able to see prices and order once it is approved. Sign in again later.
+          </p>
+        </section>
+      )}
+      {state.kind === "none" && state.status !== "applied" && (
         <p className="error" role="alert" data-testid="salon-account-state">
           {ACCOUNT_STATE[state.status ?? ""] ??
             "This login has no active salon account. If the office sent you an invitation, open its link; otherwise ask the office."}

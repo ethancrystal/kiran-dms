@@ -173,10 +173,11 @@ enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
-# Signup is ON for invitations (D-39, slice 1): /invite/{token} is the only page that asks for a
-# new login (shouldCreateUser true); every sign-in page keeps it false. The email code is the only
-# method the app offers, and the invitation is redeemed only from a session whose signed amr claim
-# shows the code (app.redeem_invitation). GoTrue cannot turn password signup off on its own: a
+# Signup is ON for invitations (D-39, slice 1) and for a salon's own sign-up (D-51, MJ 2026-11-09):
+# /invite/{token} and /salon/signup are the only pages that ask for a new login (shouldCreateUser
+# true); every sign-in page keeps it false. The email code is the only method the app offers, and an
+# invitation is redeemed, or a salon application made, only from a session whose signed amr claim
+# shows the code (app.redeem_invitation, app.salon_apply). GoTrue cannot turn password signup off on its own: a
 # password self-signup gets a login with no profile and no membership, which RLS shows nothing, and
 # redeeming clears any password on the login (migration 20261105100000). Owners and managers are
 # still created by the owner (H-15, docs/runbooks/owner-bootstrap.md). Pinned by the auth provider
