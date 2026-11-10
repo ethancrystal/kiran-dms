@@ -8,7 +8,7 @@
 
 **1. Atomic steps**
 - A fixed registry of order steps: key, plain-language meaning, who performs it (system, manager or owner, rep, salon, direct buyer), and whether it needs an approval.
-- Proposed steps: request received; request reviewed; official order created; price or credit approval (only when needed); goods released; out for delivery; delivery submitted; customer acknowledged (Client Salon); delivery approved; invoice issued; delivered; closed. A Regular User order starts at "paid on Shopify" and its last steps wait on B-60.
+- Proposed steps: request received; request reviewed; official order created; price or credit approval (only when needed); goods released; out for delivery; delivery submitted; customer acknowledged (Client Salon); delivery approved; invoice issued; delivered; closed. A Regular User order starts at "paid on Shopify" and ends at "dispatched with a rider and marked delivered by the manager or owner" (D-61), with no customer acknowledgement step.
 - The order timeline returns every step for an order: done steps with actor and time, the step it is on now, and the steps still to come. One step is one record; a step is never edited, only followed by the next or reversed by a reversing record.
 - First task of the executor: map each step to the record that already proves it and list the gaps. A gap is closed by writing the missing record through the existing function for that operation, not by a second history table.
 
@@ -27,4 +27,4 @@
 
 **Tests:** each step appears once, in order, with the right actor, for a Client Salon order taken end to end on the local stack; a waiting item produces one send through a fake adapter; a second run in the same round sends nothing; the next round sends again; a resolved item sends nothing more; the maker is not a recipient of their own item; the e-mail body contains no price and no phone number; a rep and a salon cannot read the reminder log; a manager cannot change the reminder settings.
 
-Done when: the timeline shows every step for both order kinds as far as B-60 allows, and the reminder job is proven against the fake adapter. Real e-mail is IMPLEMENTED - NOT VERIFIED until MJ has set the service and received one reminder.
+Done when: the timeline shows every step for both order kinds, and the reminder job is proven against the fake adapter. Real e-mail is IMPLEMENTED - NOT VERIFIED until MJ has set the service and received one reminder.

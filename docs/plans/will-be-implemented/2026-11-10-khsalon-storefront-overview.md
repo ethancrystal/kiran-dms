@@ -30,6 +30,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | 10 | Order processing | "The order for processing will be divided into 1, Regular User 2, Client Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible for relasing the product and delivery and completing and marking it delivered" |
 | 11 | Delivery timeline and reminders | "I want atomic changes in the product delivery timeline so everything can be tracked and can be run automatedly and the things that will need the Manager or Owner approval, it will send email to them repeatedly until thats done" |
 | 12 | Regular User price and salon discount | "No Regular User pay a default market price that will be same for any regular user and not a Client Salon, Client Salon because of the bulk buying can avail discount and it will be mentioned as such in their and in the managers area where they could see accounts of all client salons" |
+| 13 | Delivering a Regular User order | "So we have riders for delivery so as soon as we dispatch it we will mark it delivered as we keep tabs on the riders too but manager or owner wil mark it delivered" |
 
 ## 3. Who the shop serves, and how prices work
 
@@ -42,6 +43,8 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 **How a client salon orders from a product page (A-23, confirmed by MJ as amended by D-58).** The page carries a second action, "Salon client? Order at your price", which opens the existing salon portal on the DMS host with that product already in a new order request. The price shown there, the request and everything after it use the existing portal path (`app.salon_submit_request`, the office review queue). A parlor with no account uses the "Become a client salon" enquiry page.
 
 **Two kinds of order in one queue (D-59).** Every order for processing is one of two kinds: Regular User (a direct buyer's paid order from the shop) or Client Salon (a salon's order request). Both sit in the existing office review queue, marked with their kind and filterable by it. The manager and the owner see the queue and are the ones who release the goods, arrange delivery, complete the order and mark it delivered. No new role and no second queue.
+
+**Delivering a Regular User order (D-61).** The business's own riders deliver. When a Regular User order is dispatched with a rider, the manager or owner marks it delivered; no customer signature is taken. The record keeps who marked it, when, and which rider took it. This is an exception to D-49 for Regular User orders only. A Client Salon order still needs the salon's signed acknowledgement plus the office's approval. If a dispatched parcel does not reach the buyer, the delivery is reversed by a reversing record, never edited.
 
 **Confirmed by MJ (row 12).** Every Regular User pays the same default market price; there is no separate retail price. A Client Salon may get a discount for buying in bulk. Where a salon has one, it is shown as a discount: the default price, the salon's price and the difference, both in the salon's own area and in the office's account page for that salon, where the manager sees every client salon's account.
 
@@ -57,6 +60,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | H-21, analytics | No analytics allowed without approval | D-56: first-party tracking stored in the DMS database; no outside analytics, pixel or session replay |
 | D-41, salon ordering | A salon orders only inside the portal | D-57: the shop serves direct buyers and client salons; the salon still orders inside the portal, reached from the product page (A-23) |
 | Review queue (D-34) | One queue for rep and salon requests | D-59: the same queue also carries Regular User orders; each item shows its kind, Regular User or Client Salon; manager and owner release, deliver and mark delivered |
+| D-49, signed acknowledgement | Every delivery needs the customer's signature plus office approval | D-61: a Regular User order is marked delivered by the manager or owner when it is dispatched with a rider, with no signature. Client Salon orders are unchanged |
 | Internal notifications (MSG-03) and H-21 | In-app only in Phase 1; no e-mail service approved | D-60: every order step is one tracked event; steps with no human judgment run by themselves; anything waiting on the manager or owner sends them e-mail reminders until it is done. E-mail goes through one adapter. Approvals themselves stay human |
 | Price visibility | Every price sits behind a login | D-58: the default price of a published SKU is public; a price set for one salon stays visible to that salon only |
 
@@ -70,7 +74,6 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | B-57 | Does the Shopify store exist? Plan, payment methods (cash on delivery?), delivery areas | F | Nothing built against a live store |
 | B-58 | Wording of the tracking notice, and how long raw events are kept | E | Short notice in the footer; raw events 12 months, daily totals kept |
 | B-59 | May the site state the distribution arrangement for these brands, and in what words? | D | Nothing about it is printed, here or on the site, until MJ gives the wording |
-| B-60 | D-49 says an order is completed and invoiced only with the customer's signed acknowledgement plus the office's approval. A Regular User order is delivered to a member of the public, often by courier. May the manager or owner mark a Regular User order delivered without that signature, and what proof replaces it (courier reference, Shopify fulfilment)? | F (completing a Regular User order) | Plan F stops at putting the paid order in the queue as Regular User; completing it is not built until MJ answers. Client Salon orders keep D-49 unchanged |
 | B-61 | Reminders (D-60): which e-mail service and sender address; how often to repeat, during which hours, and when the owner is added | G (sending) | One e-mail per person listing everything waiting on them: at once, then every 2 hours between 09:00 and 21:00 Karachi time; an item waiting over 24 hours also goes to the owner. Nothing is sent until MJ names the service and sets its secret |
 
 ## 6. MJ's own actions (no agent may do these)
@@ -91,7 +94,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | 3 | P1-34 | C. Catalogue load from the bill and photos | B, B-55 |
 | 4 | P1-35 | D. Storefront pages and SEO | B (C for real content) |
 | 5 | P1-36 | E. Meaningful tracking | D |
-| 6 | P1-37 | F. Shopify link | B, D, E, B-56, B-57 (B-60 for completing a Regular User order) |
+| 6 | P1-37 | F. Shopify link | B, D, E, B-56, B-57 |
 | 7 | P1-38 | G. Order timeline and approval reminders | A only; it does not need the shop and may be built alongside B |
 
 One branch, one pull request and one log entry per plan. D and E may be built by the same agent back to back; they are separate pull requests.

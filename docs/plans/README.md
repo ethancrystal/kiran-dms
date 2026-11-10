@@ -78,7 +78,7 @@ checks. That is a board clean-up for a later pull request (C8 of the remaining-i
 | Plan | Assessment |
 |---|---|
 | `2026-11-06-not-yet-planned.md` | A register, not a plan. It lists every remaining item that has no step-level plan, with what blocks it. Nothing in it may be built until MJ answers the question beside it or a plan is written. |
-| `2026-11-10-khsalon-storefront-overview.md` and its seven plan files and prompts file | Added 2026-11-10 (log entry `2026-11-10-claude-storefront-decisions`), not part of the 2026-11-06 assessment. The public shop at khsalon.com that MJ added to Phase 1 (D-51 to D-60): task-level plans A to G for board rows P1-32 to P1-38, with one prompt per plan. Draft for MJ's review; nothing built. Each executor must expand its plan to step level first. Plans C, D and F wait on blockers B-54 to B-59. |
+| `2026-11-10-khsalon-storefront-overview.md` and its seven plan files and prompts file | Added 2026-11-10 (log entry `2026-11-10-claude-storefront-decisions`), not part of the 2026-11-06 assessment. The public shop at khsalon.com that MJ added to Phase 1 (D-51 to D-61): task-level plans A to G for board rows P1-32 to P1-38, with one prompt per plan. Draft for MJ's review; nothing built. Each executor must expand its plan to step level first. Plans C, D and F wait on blockers B-54 to B-59. |
 
 ## Verdict
 

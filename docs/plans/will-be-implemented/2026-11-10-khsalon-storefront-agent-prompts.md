@@ -68,12 +68,15 @@ MJ's decisions, made in chat on 2026-11-10. Quote these words exactly in the DEC
   same for any regular user and not a Client Salon, Client Salon because of the bulk buying can
   avail discount and it will be mentioned as such in their and in the managers area where they
   could see accounts of all client salons"
+- Delivering a Regular User order: "So we have riders for delivery so as soon as we dispatch it we
+  will mark it delivered as we keep tabs on the riders too but manager or owner wil mark it
+  delivered"
 - Delivery timeline and reminders: "I want atomic changes in the product delivery timeline so
   everything can be tracked and can be run automatedly and the things that will need the Manager
   or Owner approval, it will send email to them repeatedly until thats done"
 
 Do:
-1. Write DECISION log entries recording D-51 to D-60 as listed in section 4 of the plan set,
+1. Write DECISION log entries recording D-51 to D-61 as listed in section 4 of the plan set,
    and one ASSUMPTION entry for A-23.
    Check the next free D number in docs/12 first and renumber if D-51 is taken.
 2. Add them to the decision log in docs/12-decisions-and-open-questions.md.
@@ -281,13 +284,18 @@ Build:
    the existing office review queue as B-56 was answered, marked Regular User (D-59). The queue
    shows each item's kind, Regular User or Client Salon, and filters by it; a rep and a salon
    never see a Regular User item. Manager and owner release the goods through the existing path.
-   Do not build "mark delivered" for a Regular User order until B-60 is answered: D-49 requires a
-   signed acknowledgement and MJ must say what replaces it. Reuse the existing request and order
+   Mark delivered (D-61): one new office function for Regular User orders only. When the order is
+   dispatched with a rider, the manager or owner marks it delivered; the function records who
+   marked it, when and which rider, finalises the stock movement and completes the order with no
+   customer signature. It must refuse a Client Salon order, which keeps D-49 unchanged. A wrong
+   mark is reversed by a reversing record, never edited. Reuse the existing request and order
    path. No second order table, ledger or payment path. Do not store the buyer's name, phone or
    address in the DMS.
 7. An office reconciliation list: Shopify paid orders against DMS requests.
 
 Tests against the fake: a tampered webhook body is refused; a replayed order creates one request;
+mark delivered completes a Regular User order with no signature, is refused for a Client Salon
+order, a rep, a salon and a manager without MFA, and a replay writes once;
 no payload sent to Shopify contains a price set for one salon, a stock quantity or a cost
 (assert on the fake's recorded calls); unpublish propagates.
 
@@ -329,8 +337,9 @@ Build:
 6. Owner-only reminder settings in /office/settings: on or off per kind, interval, sending hours.
    Defaults are in blocker B-61 until MJ answers it.
 
-Stop and ask MJ, do not guess: the e-mail service and sender address (B-61), and how a Regular
-User order is marked delivered (B-60). Check which scheduler the project may use and where a
+Stop and ask MJ, do not guess: the e-mail service and sender address (B-61). A Regular User order
+has no customer acknowledgement step: it ends when the manager or owner marks it delivered at
+dispatch (D-61). Check which scheduler the project may use and where a
 server secret may live under H-18 before choosing; you never see or set a secret.
 
 Tests: every step once and in order for a Client Salon order end to end on the local stack; one
