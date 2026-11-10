@@ -71,12 +71,14 @@ checks. That is a board clean-up for a later pull request (C8 of the remaining-i
 |---|---|
 | `2026-11-05-remaining-implementation.md` | The master list of what is left. Accurate as a list, but one line an item: not enough for an agent that only implements. Several lines are out of date: C1 is done (pull requests 71 and 73); REP-20, AUTH-08, AUTH-15 and AUTH-16 are done (74 to 77); M7 is merged (pull request 78); REP-07 was already built before the plan was written; the AUTH-05 residual looks closed in code; REP-05 describes the wrong screen. The audit that defines its item ids is not in the repository, so each item's meaning had to be read from the code. |
 | `2026-11-05-frontend-structure.md` | The page map and the shared frontend foundation. Its work packages S-A (stock), S-C (routes), the office shell, Rep detail and the invoice views are built. Still open: the foundation F1 to F4 and F8 (generated types, typed RPC client, one component set, one table pattern, test helpers), S-B leftovers (receipt views, statement, deposits), S-D2 (digest, offboarding screen), S-F (offline). Its header still says DRAFT FOR REVIEW and its screen catalogue keeps older status words. It is a roadmap, not step-level: F1 to F4 and F8 need their own plan before anyone builds them. |
+| `2026-11-08-p1-09-offline-rep-app.md` | Step-level draft plan for P1-09 (outbox, encrypted cache, offline shell, B-20, a whole offline day including check-in, check-out, deliveries and signatures), eleven tasks in five pull requests. Written 2026-11-08 against main at 4e0c690, revised 2026-11-09 with MJ's chat answers; not yet reviewed by MJ and none of it has been run. Its first pull request is a server migration that derives the rep's day from the captured time within 48 hours (a DEVIATION from "server time authoritative"; MJ must approve the window and apply the migration, H-19). Board row P1-09 is still NOT STARTED. |
 
 ### will-be-implemented/
 
 | Plan | Assessment |
 |---|---|
 | `2026-11-06-not-yet-planned.md` | A register, not a plan. It lists every remaining item that has no step-level plan, with what blocks it. Nothing in it may be built until MJ answers the question beside it or a plan is written. |
+| `2026-11-10-khsalon-storefront-overview.md` and its seven plan files and prompts file | Added 2026-11-10 (log entry `2026-11-10-claude-storefront-decisions`), not part of the 2026-11-06 assessment. The public shop at khsalon.com that MJ added to Phase 1 (D-51 to D-61): task-level plans A to G for board rows P1-32 to P1-38, with one prompt per plan. Draft for MJ's review; nothing built. Each executor must expand its plan to step level first. Plans C, D and F wait on blockers B-54 to B-59. |
 
 ## Verdict
 

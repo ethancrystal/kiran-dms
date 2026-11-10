@@ -1,0 +1,8 @@
+# 2026-11-10 18:15 PKT · Claude · Fable 5.2 · branch claude/storefront-decisions · DECISION
+**Task:** P1-32. D-59: two kinds of order in the one review queue (D-34, D-49, P1-37)
+**What / why:** MJ said in chat on 2026-11-10, quoted: "The order for processing will be divided into 1, Regular User 2, Client Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible for relasing the product and delivery and completing and marking it delivered"
+What it decides: every order for processing is a Regular User order (a direct buyer's paid order from the public shop) or a Client Salon order (a salon's request). Both sit in the existing office review queue, marked with their kind. The manager and the owner see the queue and are responsible for releasing the goods, delivery, completing the order and marking it delivered. The plans add no role and no second queue; a rep and a salon never see a Regular User item.
+What it leaves open (B-60): D-49 completes and invoices an order only with the customer's signed acknowledgement plus the office's approval. A Regular User order has no salon to sign. MJ's words say the manager and owner mark it delivered; they do not say that the signature rule is lifted for Regular User orders or what proof replaces it. That is a control (H-16), so it is not assumed: plan F puts the paid order in the queue and stops there until MJ answers.
+**What this does not approve:** any change to D-49 for Client Salon orders; any migration on the hosted project; a merge.
+**Evidence:** row D-59 in docs/12-decisions-and-open-questions.md; row B-60 in docs/ACTIVITY.md section 14; the revised plan F in docs/plans/will-be-implemented. Nothing is built.
+**Next / needs:** MJ answers B-60.
