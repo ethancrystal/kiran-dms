@@ -61,9 +61,12 @@ MJ's decisions, made in chat on 2026-11-10. Quote these words exactly in the DEC
   explicitly set for a Client Salon (dedicatedly for them only) they order at the same default
   rate, but if the manager sets customer plan and pricing for a Client Salon then after reaching
   that inside of their Client Salon Area the prices will get updated before checkout."
+- Order processing: "The order for processing will be divided into 1, Regular User 2, Client
+  Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible
+  for relasing the product and delivery and completing and marking it delivered"
 
 Do:
-1. Write DECISION log entries recording D-51 to D-58 as listed in section 4 of the plan set,
+1. Write DECISION log entries recording D-51 to D-59 as listed in section 4 of the plan set,
    and one ASSUMPTION entry for A-23.
    Check the next free D number in docs/12 first and renumber if D-51 is taken.
 2. Add them to the decision log in docs/12-decisions-and-open-questions.md.
@@ -264,7 +267,11 @@ Build:
    attributes, then sends the visitor to Shopify's checkout URL. Fire checkout.start.
 6. Order in: a webhook receiver for paid orders that verifies the signature, is idempotent on the
    Shopify order id, writes checkout.completed with the visit and SKUs, and creates one request in
-   the existing office review queue as B-56 was answered. Reuse the existing request and order
+   the existing office review queue as B-56 was answered, marked Regular User (D-59). The queue
+   shows each item's kind, Regular User or Client Salon, and filters by it; a rep and a salon
+   never see a Regular User item. Manager and owner release the goods through the existing path.
+   Do not build "mark delivered" for a Regular User order until B-60 is answered: D-49 requires a
+   signed acknowledgement and MJ must say what replaces it. Reuse the existing request and order
    path. No second order table, ledger or payment path. Do not store the buyer's name, phone or
    address in the DMS.
 7. An office reconciliation list: Shopify paid orders against DMS requests.
