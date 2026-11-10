@@ -20,6 +20,7 @@ const SEND_TIMEOUT_MS = 20_000;
 const SUBMIT_WAIT_MS = 4_000;
 
 const NOT_SIGNED_IN = "Sign in again before saving. Nothing was saved.";
+const SIGN_IN_TO_VIEW = "Sign in to see what this phone is holding.";
 
 export type SubmitInput = {
   /** The action's client_id (`p_id` for create_salon), made when the rep taps. */
@@ -90,9 +91,9 @@ const sessionUserId = async (): Promise<string | null> => {
  * Whose queue a new item goes into. Out of signal for hours the session cannot be renewed, so the
  * id remembered from the last time it was valid is used. Sending always needs the real session.
  */
-const captureUserId = async (): Promise<string> => {
+const captureUserId = async (whenUnknown = NOT_SIGNED_IN): Promise<string> => {
   const id = (await sessionUserId()) ?? window.localStorage.getItem(USER_KEY);
-  if (!id) throw new Error(NOT_SIGNED_IN);
+  if (!id) throw new Error(whenUnknown);
   return id;
 };
 
@@ -170,7 +171,7 @@ export async function submit(input: SubmitInput): Promise<"sent" | "queued" | "r
 /** The signed-in rep's waiting and refused items, oldest first. */
 export async function listItems(): Promise<OutboxItem[]> {
   const store = await openIdbStore();
-  return store.list(await captureUserId());
+  return store.list(await captureUserId(SIGN_IN_TO_VIEW));
 }
 
 /**
@@ -179,7 +180,7 @@ export async function listItems(): Promise<OutboxItem[]> {
  */
 export async function syncHistory(): Promise<SyncAttempt[]> {
   const store = await openIdbStore();
-  return store.history(await captureUserId());
+  return store.history(await captureUserId(SIGN_IN_TO_VIEW));
 }
 
 /** Sends a refused or waiting item again, as the same request. */

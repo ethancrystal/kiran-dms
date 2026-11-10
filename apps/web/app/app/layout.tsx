@@ -11,7 +11,8 @@ type Gate =
   | { kind: "error"; message: string };
 
 // Today (/app) registers the phone and explains its own state; the sign-in page needs no session.
-const UNGATED = new Set(["/app", "/app/login"]);
+// The outbox page reads only what this phone holds, and has to open with no signal (P1-09).
+const UNGATED = new Set(["/app", "/app/login", "/app/outbox"]);
 
 // REP-04 (P1-30). Every rep page except Today and sign-in asks app.my_session first (the one call that
 // still answers on an unapproved phone or a suspended account) and, when the rep cannot work, says why
