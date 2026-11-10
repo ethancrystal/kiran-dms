@@ -28,6 +28,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | 8 | Order of work | "first update plans then do implementation" |
 | 9 | Prices | "yes public pages shows the default price for the product and unless the price is not explicitly set for a Client Salon (dedicatedly for them only) they order at the same default rate, but if the manager sets customer plan and pricing for a Client Salon then after reaching that inside of their Client Salon Area the prices will get updated before checkout." |
 | 10 | Order processing | "The order for processing will be divided into 1, Regular User 2, Client Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible for relasing the product and delivery and completing and marking it delivered" |
+| 11 | Delivery timeline and reminders | "I want atomic changes in the product delivery timeline so everything can be tracked and can be run automatedly and the things that will need the Manager or Owner approval, it will send email to them repeatedly until thats done" |
 
 ## 3. Who the shop serves, and how prices work
 
@@ -47,7 +48,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 
 | Rule | Today | Change (needs a DECISION entry quoting section 2) |
 |---|---|---|
-| H-22, Phase 1 only | A public shop is not in Phase 1 | D-51: MJ adds the public shop to Phase 1 as rows P1-32 to P1-37 |
+| H-22, Phase 1 only | A public shop is not in Phase 1 | D-51: MJ adds the public shop to Phase 1 as rows P1-32 to P1-38 |
 | D-41, catalogue by invitation only | No anonymous access to anything | D-52: visitors may read published storefront rows, with each SKU's default price, through two functions only; D-41 stays as is for the salon portal and per-salon prices |
 | H-21, no new third party | Shopify is not approved | D-53: Shopify approved for cart, checkout and payment, reached only through one adapter |
 | Doc 16, one catalogue | One catalogue in the DMS | D-54: unchanged and reinforced; Shopify is a copy, never a source |
@@ -55,6 +56,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | H-21, analytics | No analytics allowed without approval | D-56: first-party tracking stored in the DMS database; no outside analytics, pixel or session replay |
 | D-41, salon ordering | A salon orders only inside the portal | D-57: the shop serves direct buyers and client salons; the salon still orders inside the portal, reached from the product page (A-23) |
 | Review queue (D-34) | One queue for rep and salon requests | D-59: the same queue also carries Regular User orders; each item shows its kind, Regular User or Client Salon; manager and owner release, deliver and mark delivered |
+| Internal notifications (MSG-03) and H-21 | In-app only in Phase 1; no e-mail service approved | D-60: every order step is one tracked event; steps with no human judgment run by themselves; anything waiting on the manager or owner sends them e-mail reminders until it is done. E-mail goes through one adapter. Approvals themselves stay human |
 | Price visibility | Every price sits behind a login | D-58: the default price of a published SKU is public; a price set for one salon stays visible to that salon only |
 
 ## 5. Questions still open (to log as blockers; defaults in brackets)
@@ -68,11 +70,13 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | B-58 | Wording of the tracking notice, and how long raw events are kept | E | Short notice in the footer; raw events 12 months, daily totals kept |
 | B-59 | May the site state the distribution arrangement for these brands, and in what words? | D | Nothing about it is printed, here or on the site, until MJ gives the wording |
 | B-60 | D-49 says an order is completed and invoiced only with the customer's signed acknowledgement plus the office's approval. A Regular User order is delivered to a member of the public, often by courier. May the manager or owner mark a Regular User order delivered without that signature, and what proof replaces it (courier reference, Shopify fulfilment)? | F (completing a Regular User order) | Plan F stops at putting the paid order in the queue as Regular User; completing it is not built until MJ answers. Client Salon orders keep D-49 unchanged |
+| B-61 | Reminders (D-60): which e-mail service and sender address; how often to repeat, during which hours, and when the owner is added | G (sending) | One e-mail per person listing everything waiting on them: at once, then every 2 hours between 09:00 and 21:00 Karachi time; an item waiting over 24 hours also goes to the owner. Nothing is sent until MJ names the service and sets its secret |
 
 ## 6. MJ's own actions (no agent may do these)
 
 - Approve each migration before it is applied to the Kiran Supabase project (H-19).
 - Create the Shopify store and its app, and set every Shopify secret himself.
+- Choose the e-mail service for reminders and set its secret himself.
 - Point khsalon.com at the deployment (DNS).
 - Enter the default prices in the office, supply final product pictures and approve the page copy.
 - Say in chat, per pull request, when it may merge.
@@ -87,6 +91,7 @@ A public shop at khsalon.com, served by the same Next.js + Supabase app as the D
 | 4 | P1-35 | D. Storefront pages and SEO | B (C for real content) |
 | 5 | P1-36 | E. Meaningful tracking | D |
 | 6 | P1-37 | F. Shopify link | B, D, E, B-56, B-57 (B-60 for completing a Regular User order) |
+| 7 | P1-38 | G. Order timeline and approval reminders | A only; it does not need the shop and may be built alongside B |
 
 One branch, one pull request and one log entry per plan. D and E may be built by the same agent back to back; they are separate pull requests.
 
@@ -115,6 +120,7 @@ One app, one database, one deployment. Not one system per role.
 - `2026-11-10-khsalon-storefront-plan-d-pages-seo.md`
 - `2026-11-10-khsalon-storefront-plan-e-tracking.md`
 - `2026-11-10-khsalon-storefront-plan-f-shopify.md`
+- `2026-11-10-khsalon-storefront-plan-g-timeline-reminders.md`
 - `2026-11-10-khsalon-storefront-agent-prompts.md`
 
 ## 10. Not in this plan set

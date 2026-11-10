@@ -1,0 +1,9 @@
+# 2026-11-10 18:30 PKT · Claude · Fable 5.2 · branch claude/storefront-decisions · DECISION
+**Task:** P1-32. D-60: atomic order steps, automation and e-mail reminders (MSG-03, H-21, P1-38)
+**What / why:** MJ said in chat on 2026-11-10, quoted: "I want atomic changes in the product delivery timeline so everything can be tracked and can be run automatedly and the things that will need the Manager or Owner approval, it will send email to them repeatedly until thats done"
+What it decides: every step of an order is one tracked event with who did it and when; steps that need no human judgment run by themselves; anything waiting on the manager or owner sends them e-mail reminders until it is done. It adds board row P1-38 to Phase 1 and brings the e-mail part of MSG-03 forward from Phase 2. E-mail is a new outbound service (H-21) and goes through one adapter.
+What it does not decide, and the plan does not assume: "run automatedly" is read as automating steps that have no human judgment and no control in them. It is not read as letting the system approve, release goods or decide a price or credit question: those are controls (H-16), the maker is never the checker, and the manager and owner act signed in with MFA. No e-mail carries a link that approves. If MJ meant more than that, it needs his explicit word.
+Open with MJ (B-61): the e-mail service and sender address, how often a reminder repeats and in which hours, and when the owner is added. The defaults in B-61 are mine.
+**What this does not approve:** any e-mail service account or secret; any migration on the hosted project; a merge.
+**Evidence:** row D-60 in docs/12-decisions-and-open-questions.md; rows P1-38 and B-61 in docs/ACTIVITY.md; plan G in docs/plans/will-be-implemented/2026-11-10-khsalon-storefront-plan-g-timeline-reminders.md. Nothing is built.
+**Next / needs:** MJ answers B-61.

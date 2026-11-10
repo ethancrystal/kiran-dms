@@ -64,13 +64,16 @@ MJ's decisions, made in chat on 2026-11-10. Quote these words exactly in the DEC
 - Order processing: "The order for processing will be divided into 1, Regular User 2, Client
   Salon. The Manager will see the review ques, Manager and Owner too as they will be responsible
   for relasing the product and delivery and completing and marking it delivered"
+- Delivery timeline and reminders: "I want atomic changes in the product delivery timeline so
+  everything can be tracked and can be run automatedly and the things that will need the Manager
+  or Owner approval, it will send email to them repeatedly until thats done"
 
 Do:
-1. Write DECISION log entries recording D-51 to D-59 as listed in section 4 of the plan set,
+1. Write DECISION log entries recording D-51 to D-60 as listed in section 4 of the plan set,
    and one ASSUMPTION entry for A-23.
    Check the next free D number in docs/12 first and renumber if D-51 is taken.
 2. Add them to the decision log in docs/12-decisions-and-open-questions.md.
-3. Add status board rows P1-32 to P1-37, all NOT STARTED. Check the numbers are free.
+3. Add status board rows P1-32 to P1-38, all NOT STARTED. Check the numbers are free.
 4. Add the open questions in section 5 as blockers (next free B numbers) and assumption A-23.
 5. Mark B-10 as part answered.
 6. Add the plan set to docs/plans/will-be-implemented/, one file per plan plus the overview.
@@ -282,4 +285,51 @@ no payload sent to Shopify contains a price set for one salon, a stock quantity 
 
 A real order on a Shopify test store is placed by MJ, not by you. List it as MJ's action and
 report the task as IMPLEMENTED - NOT VERIFIED until that evidence is in the log.
+```
+
+## Prompt G: order timeline and approval reminders (P1-38)
+
+```
+Task: Plan G. Make every order step a tracked event, automate the steps that need no human
+judgment, and e-mail the manager and owner about anything waiting on them until it is done.
+Depends on Plan A only. Applies to both kinds of order, Regular User and Client Salon (D-59).
+
+Read first: app.office_order_timeline, app.timeline_label, app.timeline_actor, the order_status
+enum, the approval records, and app.office_pending_approvals, app.office_pending_deliveries,
+app.office_pending_stock and app.office_pending_salons. Reuse them. Do not build a second history
+table for orders.
+
+Build:
+1. A registry of order steps (key, meaning, who performs it, whether it needs an approval) with
+   the steps in Plan G. Map each step to the existing record that proves it and list the gaps in
+   the step-level plan. Close a gap by writing the missing record through the existing function
+   for that operation.
+2. The order timeline returns done steps (actor, time), the current step and the steps to come.
+   Show it on the office order page; the salon sees its own orders' steps without office-only
+   detail. A step is never edited.
+3. Automation only where there is no human judgment and no control: status that follows from
+   records, and the entry of a paid Shopify order into the queue (built in Plan F). Never automate
+   an approval, a release of goods or a price or credit decision. The maker is never the checker.
+4. Reminders: a scheduled job over the existing waiting lists. One e-mail per person per round
+   listing everything waiting on them; repeat until each item is approved, refused or cancelled;
+   never remind the person who raised the item. Idempotent per item, recipient and round.
+   approval_reminder_log is append-only and office read only.
+5. E-mail through one adapter behind an interface, with a fake in CI. The e-mail holds the kind
+   of item, the order reference, how long it has waited and a link to the office page. No price,
+   no customer name or phone, nothing about the supply source, and no link that approves: the
+   manager or owner still signs in with MFA to act.
+6. Owner-only reminder settings in /office/settings: on or off per kind, interval, sending hours.
+   Defaults are in blocker B-61 until MJ answers it.
+
+Stop and ask MJ, do not guess: the e-mail service and sender address (B-61), and how a Regular
+User order is marked delivered (B-60). Check which scheduler the project may use and where a
+server secret may live under H-18 before choosing; you never see or set a secret.
+
+Tests: every step once and in order for a Client Salon order end to end on the local stack; one
+send per waiting item per round through the fake; a rerun in the same round sends nothing; a
+resolved item sends nothing more; the maker is not a recipient; the body has no price and no
+phone number; a rep and a salon cannot read the reminder log; a manager cannot change the
+settings.
+
+Report real e-mail as IMPLEMENTED - NOT VERIFIED until MJ has set the service and received one.
 ```
