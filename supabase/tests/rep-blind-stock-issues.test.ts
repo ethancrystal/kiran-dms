@@ -162,4 +162,20 @@ describe("app.my_pending_issues (REP-05, CTL-05)", () => {
     expect(r.status).toBe("confirmed");
     expect(await mine(REP_A)).toEqual([]);
   });
+
+  it("a disputed count never reveals the office lines to the rep in the return composite", async () => {
+    const disputeIssue = await one(MANAGER, "select (app.office_propose_stock_issue($1, 'to_rep', $2, $3, $4)).id", [
+      id(),
+      WH,
+      BAG_A,
+      JSON.stringify([{ sku_id: ACTIVE_SKU, qty: 77 }]),
+    ]);
+    const disp = await one(REP_A, "select (app.rep_confirm_stock_issue($1, $2)).*", [
+      disputeIssue.id,
+      JSON.stringify([{ sku_id: ACTIVE_SKU, qty: 1 }]),
+    ]);
+    expect(disp.status).toBe("disputed");
+    expect(disp.lines).toEqual([]);
+    expect(JSON.stringify(disp)).not.toContain("77");
+  });
 });
