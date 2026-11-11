@@ -2117,3 +2117,174 @@ test("reorder point and low stock, a bag return the rep confirms, a count with i
   expect(await sqlstateAs(rep, "aal1", "select * from app.low_stock()")).toBe("42501");
   expect(await sqlstateAs(rep, "aal1", "select * from app.stock_on_hand(null)")).toBe("42501");
 });
+
+// P1-09, NFR-01: the rep's "Waiting to send" page against the phone's own IndexedDB, on the rep's
+// signed-in phone. The page reads only what the phone holds. No page queues anything yet (plan task
+// 8), so the spec writes the rows itself, sealed the way lib/outbox/crypto.ts seals them (AES-GCM,
+// base64 of the IV followed by the ciphertext): the page's own code has to open them. Nothing here
+// is sent to the server; Discard only removes a row from the phone.
+const OUTBOX_OTHER_REP = "00000000-0000-4000-8000-00000000000b";
+const OUTBOX_REFUSAL = "check in before logging visits (PIP-09)";
+const OUTBOX_KEY_BITS = 256;
+const OUTBOX_IV_BYTES = 12;
+const OUTBOX_TRIES_SO_FAR = 2;
+const OUTBOX_SEND_TOOK_MS = 120;
+const OUTBOX_CAPTURED_AT = "2026-11-10T04:00:00.000Z";
+const OUTBOX_MY_SENDS = 3;
+const OUTBOX_NEWEST = 0;
+const OUTBOX_MIDDLE = 1;
+const OUTBOX_OLDEST = 2;
+
+type OutboxSeed = {
+  userId: string;
+  otherUserId: string;
+  refusal: string;
+  keyBits: number;
+  ivBytes: number;
+  tries: number;
+  tookMs: number;
+  capturedAt: string;
+};
+const OUTBOX_SEED: OutboxSeed = {
+  userId: rep.id,
+  otherUserId: OUTBOX_OTHER_REP,
+  refusal: OUTBOX_REFUSAL,
+  keyBits: OUTBOX_KEY_BITS,
+  ivBytes: OUTBOX_IV_BYTES,
+  tries: OUTBOX_TRIES_SO_FAR,
+  tookMs: OUTBOX_SEND_TOOK_MS,
+  capturedAt: OUTBOX_CAPTURED_AT,
+};
+
+/** Writes sealed rows straight into the database the page has already created. */
+const seedOutbox = (page: Page) =>
+  page.evaluate(async (s: OutboxSeed) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("kiran-outbox");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const newKey = () => crypto.subtle.generateKey({ name: "AES-GCM", length: s.keyBits }, false, ["encrypt", "decrypt"]);
+    const seal = async (key: CryptoKey, value: unknown) => {
+      const iv = crypto.getRandomValues(new Uint8Array(s.ivBytes));
+      const plain = new TextEncoder().encode(JSON.stringify(value));
+      const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain));
+      const packed = new Uint8Array(iv.length + sealed.length);
+      packed.set(iv);
+      packed.set(sealed, iv.length);
+      return btoa(String.fromCharCode(...packed));
+    };
+    const mine = await newKey();
+    const theirs = await newKey();
+    const item = async (key: CryptoKey, owner: string, id: string, label: string, error: string | null) => ({
+      id,
+      userId: owner,
+      fn: "log_visit",
+      salonId: null,
+      capturedAt: s.capturedAt,
+      dependsOn: null,
+      state: error === null ? "pending" : "rejected",
+      attempts: error === null ? s.tries : 0,
+      nextAttemptAt: 0,
+      sealed: await seal(key, { args: { p_client_id: id }, error, label }),
+    });
+    const attempt = async (key: CryptoKey, owner: string, id: string, label: string, result: string, message: string | null) => ({
+      id,
+      userId: owner,
+      at: Date.parse(s.capturedAt),
+      fn: "log_visit",
+      result,
+      durationMs: s.tookMs,
+      sealed: await seal(key, { label, message }),
+    });
+    const items = [
+      await item(mine, s.userId, "i-wait", "Visit to [Dummy] Salon One", null),
+      await item(mine, s.userId, "i-refused", "Visit to [Dummy] Salon Two", s.refusal),
+      await item(theirs, s.otherUserId, "i-other", "Visit to [Dummy] Other Rep Salon", null),
+    ];
+    const history = [
+      await attempt(mine, s.userId, "h-1", "Visit to [Dummy] Salon Two", "rejected", s.refusal),
+      await attempt(mine, s.userId, "h-2", "Visit to [Dummy] Salon One", "offline", "Failed to fetch"),
+      await attempt(mine, s.userId, "h-3", "Note for [Dummy] Salon Three", "sent", null),
+      await attempt(theirs, s.otherUserId, "h-other", "Visit to [Dummy] Other Rep Salon", "sent", null),
+    ];
+    const tx = db.transaction(["items", "keys", "history"], "readwrite");
+    tx.objectStore("keys").put(mine, s.userId);
+    tx.objectStore("keys").put(theirs, s.otherUserId);
+    items.forEach((row) => {
+      tx.objectStore("items").add(row);
+    });
+    history.forEach((row) => {
+      tx.objectStore("history").add(row);
+    });
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+  }, OUTBOX_SEED);
+
+test("the rep's Waiting to send page shows what waits, what was refused and why, and the recent sends (NFR-01)", async ({
+  browser,
+}) => {
+  const { ctx, phone } = await repPhoneOpen(browser);
+  // Reached from Today, and empty before anything is written.
+  await phone.goto("/app");
+  await phone.getByRole("link", { name: "Waiting to send" }).click();
+  await phone.waitForURL("**/app/outbox");
+  await expect(phone.getByTestId("outbox-waiting-count")).toHaveText("Waiting (0)");
+  await expect(phone.getByTestId("outbox-refused-count")).toHaveText("Needs attention (0)");
+  await expect(phone.getByText("This phone has not tried to send anything yet.")).toBeVisible();
+
+  await seedOutbox(phone);
+  await phone.reload();
+
+  await expect(phone.getByTestId("outbox-waiting-count")).toHaveText("Waiting (1)");
+  const waiting = phone.getByRole("region", { name: "Waiting to send" });
+  await expect(waiting.getByText("Visit to [Dummy] Salon One")).toBeVisible();
+  await expect(waiting.getByText(`Tried ${OUTBOX_TRIES_SO_FAR} times.`, { exact: false })).toBeVisible();
+
+  await expect(phone.getByTestId("outbox-refused-count")).toHaveText("Needs attention (1)");
+  const refused = phone.getByRole("region", { name: "Needs attention" });
+  await expect(refused.getByText("Visit to [Dummy] Salon Two")).toBeVisible();
+  await expect(refused.getByText(`The server refused it: ${OUTBOX_REFUSAL}`)).toBeVisible();
+
+  const sends = phone.getByTestId("outbox-history").getByRole("listitem");
+  await expect(sends).toHaveCount(OUTBOX_MY_SENDS);
+  // Newest first: the last one written is the first one shown.
+  await expect(sends.nth(OUTBOX_NEWEST)).toContainText("Sent: Note for [Dummy] Salon Three");
+  await expect(sends.nth(OUTBOX_MIDDLE)).toContainText("Not sent: no signal, or the server was busy: Visit to [Dummy] Salon One");
+  await expect(sends.nth(OUTBOX_MIDDLE)).toContainText("Failed to fetch");
+  await expect(sends.nth(OUTBOX_OLDEST)).toContainText("Refused: Visit to [Dummy] Salon Two");
+
+  // Another rep's rows on the same phone are never shown.
+  await expect(phone.getByText("Other Rep Salon", { exact: false })).toHaveCount(0);
+
+  // Discard asks first; Cancel keeps the item.
+  await refused.getByRole("button", { name: "Discard" }).click();
+  await refused.getByRole("button", { name: "Cancel" }).click();
+  await expect(phone.getByTestId("outbox-refused-count")).toHaveText("Needs attention (1)");
+  await refused.getByRole("button", { name: "Discard" }).click();
+  await refused.getByRole("button", { name: "Yes, discard" }).click();
+  await expect(phone.getByTestId("outbox-refused-count")).toHaveText("Needs attention (0)");
+
+  // Gone after a reload too; the waiting item and the history are untouched.
+  await phone.reload();
+  await expect(phone.getByTestId("outbox-refused-count")).toHaveText("Needs attention (0)");
+  await expect(phone.getByTestId("outbox-waiting-count")).toHaveText("Waiting (1)");
+  await expect(phone.getByTestId("outbox-history").getByRole("listitem")).toHaveCount(OUTBOX_MY_SENDS);
+
+  // With signal the page asked app.my_session like every rep page (the loads above passed that
+  // check with a real answer). With no signal the question cannot be asked, and the page still
+  // opens: the request is cut off here, which is what a phone out of range sees.
+  await phone.route("**/rest/v1/rpc/my_session", (route) => route.abort("internetdisconnected"));
+  await phone.reload();
+  await expect(phone.getByTestId("outbox-waiting-count")).toHaveText("Waiting (1)");
+  await expect(phone.getByTestId("rep-gate")).toHaveCount(0);
+  // Another rep page is not let through the same way: it reports that it could not check.
+  await phone.goto("/app/account");
+  await expect(phone.getByTestId("rep-gate")).toBeVisible();
+  await phone.unroute("**/rest/v1/rpc/my_session");
+  await ctx.close();
+});

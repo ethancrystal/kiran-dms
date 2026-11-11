@@ -139,6 +139,9 @@ export default function RepHome() {
               My account
             </a>
           </p>
+          <p>
+            <a href="/app/outbox">Waiting to send</a>
+          </p>
         </>
       )}
       {state.kind !== "loading" && (

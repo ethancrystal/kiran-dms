@@ -3,7 +3,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import { type DrainReport, drain } from "./drain";
 import { enqueue, retry } from "./queue";
 import { openIdbStore } from "./store-idb";
-import type { Dependency, OutboxFn, OutboxItem } from "./types";
+import type { Dependency, OutboxFn, OutboxItem, SyncAttempt } from "./types";
 
 // The rep app's way to save an action (P1-09, NFR-01): `submit` writes it to the phone first and
 // then tries to send it. With signal the rep gets the database's answer at once; without, the item
@@ -20,6 +20,7 @@ const SEND_TIMEOUT_MS = 20_000;
 const SUBMIT_WAIT_MS = 4_000;
 
 const NOT_SIGNED_IN = "Sign in again before saving. Nothing was saved.";
+const SIGN_IN_TO_VIEW = "Sign in to see what this phone is holding.";
 
 export type SubmitInput = {
   /** The action's client_id (`p_id` for create_salon), made when the rep taps. */
@@ -90,9 +91,9 @@ const sessionUserId = async (): Promise<string | null> => {
  * Whose queue a new item goes into. Out of signal for hours the session cannot be renewed, so the
  * id remembered from the last time it was valid is used. Sending always needs the real session.
  */
-const captureUserId = async (): Promise<string> => {
+const captureUserId = async (whenUnknown = NOT_SIGNED_IN): Promise<string> => {
   const id = (await sessionUserId()) ?? window.localStorage.getItem(USER_KEY);
-  if (!id) throw new Error(NOT_SIGNED_IN);
+  if (!id) throw new Error(whenUnknown);
   return id;
 };
 
@@ -115,7 +116,7 @@ const runDrain = async (): Promise<DrainReport> => {
   const userId = await sessionUserId();
   if (!userId) return { sent: 0, rejected: 0, held: offline() ? "offline" : "auth" };
   const store = await openIdbStore();
-  return drain({ store, userId, send, now: Date.now, lock: withDrainLock });
+  return drain({ store, userId, send, now: Date.now, newId: () => crypto.randomUUID(), lock: withDrainLock });
 };
 
 /** Sends what can be sent now. Calls that overlap in this tab share one pass. */
@@ -170,7 +171,16 @@ export async function submit(input: SubmitInput): Promise<"sent" | "queued" | "r
 /** The signed-in rep's waiting and refused items, oldest first. */
 export async function listItems(): Promise<OutboxItem[]> {
   const store = await openIdbStore();
-  return store.list(await captureUserId());
+  return store.list(await captureUserId(SIGN_IN_TO_VIEW));
+}
+
+/**
+ * The signed-in rep's last 50 send attempts, newest first, whether they worked or not. It shows
+ * when the phone last reached the server and what the server or the network said when it did not.
+ */
+export async function syncHistory(): Promise<SyncAttempt[]> {
+  const store = await openIdbStore();
+  return store.history(await captureUserId(SIGN_IN_TO_VIEW));
 }
 
 /** Sends a refused or waiting item again, as the same request. */

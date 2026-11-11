@@ -2,7 +2,9 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RepSignOut } from "@/components/rep-sign-out";
-import { mySession, rpc } from "@/lib/rpc";
+import { classifyFailure } from "@/lib/outbox/classify";
+import { messageOf, mySession, rpc, type Session } from "@/lib/rpc";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type Gate =
   | { kind: "checking" }
@@ -12,6 +14,19 @@ type Gate =
 
 // Today (/app) registers the phone and explains its own state; the sign-in page needs no session.
 const UNGATED = new Set(["/app", "/app/login"]);
+// The outbox page reads only what this phone holds and has to open with no signal (P1-09). With
+// signal it is gated like every other page; it is let through only when the question could not be
+// asked at all (no signal, server busy), never when the database answered.
+const OPENS_WITHOUT_SIGNAL = new Set(["/app/outbox"]);
+
+/** app.my_session, or "unreachable" when the request never got an answer. A refusal still throws. */
+const sessionOrUnreachable = async (): Promise<Session | null | "unreachable"> => {
+  if (navigator.onLine === false) return "unreachable";
+  const { data, error, status } = await supabaseBrowser().schema("app").rpc("my_session");
+  if (!error) return (data as Session | null) ?? null;
+  if (classifyFailure({ ...error, status }) === "transient") return "unreachable";
+  throw new Error(messageOf(error));
+};
 
 // REP-04 (P1-30). Every rep page except Today and sign-in asks app.my_session first (the one call that
 // still answers on an unapproved phone or a suspended account) and, when the rep cannot work, says why
@@ -27,9 +42,11 @@ export default function RepPages({ children }: { children: React.ReactNode }) {
     let live = true;
     const check = async () => {
       try {
-        const s = await mySession();
+        const s = OPENS_WITHOUT_SIGNAL.has(path) ? await sessionOrUnreachable() : await mySession();
         let next: Gate = { kind: "ok" };
-        if (!s) {
+        if (s === "unreachable") {
+          next = { kind: "ok" };
+        } else if (!s) {
           const salon = await rpc<unknown>("salon_me");
           next = salon
             ? { kind: "stop", salon: true, message: "This is a salon's login, not a rep's. Your account is in the salon portal." }
@@ -56,7 +73,7 @@ export default function RepPages({ children }: { children: React.ReactNode }) {
     return () => {
       live = false;
     };
-  }, [open]);
+  }, [open, path]);
 
   if (open || gate.kind === "ok") return <>{children}</>;
   if (gate.kind === "checking")
