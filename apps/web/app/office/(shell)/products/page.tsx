@@ -4,6 +4,7 @@ import { ListState } from "@/components/confirm-action";
 import { rupees, toPaisa } from "@/lib/money";
 import { IMAGE_ACCEPT, signedImageUrls, uploadProductImage } from "@/lib/product-images";
 import { db, mySession, rows, rpc, type Session } from "@/lib/rpc";
+import { OnlineShop, type ShopRow } from "./online-shop";
 
 type Sku = {
   id: string;
@@ -64,6 +65,7 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [shop, setShop] = useState<ShopRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -71,14 +73,16 @@ export default function Products() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [s, p, g] = await Promise.all([
+      const [s, p, g, pages] = await Promise.all([
         mySession(),
         rpc<Product[]>("office_catalogue"),
         rows<Group>(db().from("product_group").select("id, name, default_cycle_days, active").order("name").limit(GROUP_LIMIT)),
+        rpc<ShopRow[]>("office_storefront_sheet"),
       ]);
       setMe(s);
       setProducts(p ?? []);
       setGroups(g);
+      setShop(pages ?? []);
       setUrls(await signedImageUrls((p ?? []).map((x) => x.image_path)));
     } catch (e) {
       setError((e as Error).message);
@@ -113,6 +117,7 @@ export default function Products() {
             product={p}
             groups={groups}
             imageUrl={p.image_path ? urls[p.image_path] : undefined}
+            shop={shop.find((page) => page.product_id === p.product_id)}
             onDone={done}
           />
         ))}
@@ -377,11 +382,13 @@ function ProductCard({
   product,
   groups,
   imageUrl,
+  shop,
   onDone,
 }: {
   product: Product;
   groups: Group[];
   imageUrl: string | undefined;
+  shop: ShopRow | undefined;
   onDone: (m: string) => Promise<void>;
 }) {
   return (
@@ -411,6 +418,7 @@ function ProductCard({
         ))}
       </ul>
       <AddSku product={product} onDone={onDone} />
+      <OnlineShop product={product} row={shop} onDone={onDone} />
     </section>
   );
 }

@@ -1,6 +1,6 @@
 # khsalon.com storefront, plan B (P1-33): public catalogue data
 
-**Status:** DRAFT FOR MJ REVIEW, task level. Nothing here has been built or run. Read `2026-11-10-khsalon-storefront-overview.md` first: it holds MJ's decisions, the open questions and the build order. The prompt for the executor is in `2026-11-10-khsalon-storefront-agent-prompts.md`. Status lives only on the board (`docs/ACTIVITY.md` section 12, row P1-33).
+**Status:** IN PROGRESS, step level expanded 2026-11-11 on `claude/p1-33-catalogue` from `main` at `727ebb3`. Plan A is merged (pull request 105). D-52 is in `docs/12`. Read `2026-11-10-khsalon-storefront-overview.md` first. Status lives only on the board (`docs/ACTIVITY.md` section 12, row P1-33).
 
 **Goal:** the office can give every category, product and SKU its public fields, and a visitor can read published rows and nothing else.
 
@@ -46,3 +46,40 @@ No policy grants `anon` a SELECT on any table. The functions read `sku.list_pric
 - Unpublished product returns nothing by slug. Replay of the same `client_id` writes once. Slug change after publish is refused. Publish without a default price is refused.
 
 Done when: migration, functions, office panel and tests are merged green, with the security checklist in the log entry. Applying the migration to the hosted project waits for MJ (H-19).
+
+## Step level (2026-11-11)
+
+Migration `supabase/migrations/20261111010000_storefront_catalogue.sql`. No price column. The public price is `sku.list_price_paisa`.
+
+Tables, all in `public`, RLS enabled and forced, no policy, privileges revoked from `anon`, `authenticated` and `service_role`. Audit trigger `control.audit_row` on each. Deletes refused.
+
+- `storefront_category` (`product_group_id` primary key). `slug`, `meta_title`, `meta_description`, `body`, `published`, `published_at`, `created_by`, `created_at`, `updated_at`.
+- `storefront_product` (`product_id` primary key). Same text fields plus `how_to_use` and `image_path`.
+- `storefront_sku` (`sku_id` primary key). `published` and the audit columns.
+- `storefront_write` (`client_id` primary key). Append-only record of each write: `kind`, `subject_id`, `payload_hash`, `actor_id`, `created_at`. This is how a replay of `p_client_id` writes once (H-08).
+
+Checks: slug `^[a-z0-9]+(-[a-z0-9]+)*$`, length 3 to 80, unique per table. `meta_title` 10 to 60, `meta_description` 50 to 160, each unique per table. `body` at most 4000 characters, `how_to_use` at most 2000 (the task-level plan did not name a cap). `image_path` null or `storefront/{product id}/{uuid}.png|jpg|jpeg|webp`. A slug cannot change once `published_at` is set. `published_at` is stamped on first publish and never cleared.
+
+Functions, `security definer`, `set search_path = ''`, owner or manager at AAL2 via `app.assert_office()`:
+
+- `app.office_upsert_storefront_category(p_client_id uuid, p_product_group_id uuid, p_slug text, p_meta_title text, p_meta_description text, p_body text) returns public.storefront_category`
+- `app.office_upsert_storefront_product(p_client_id uuid, p_product_id uuid, p_slug text, p_meta_title text, p_meta_description text, p_body text, p_how_to_use text, p_image_path text) returns public.storefront_product`
+- `app.office_set_storefront_published(p_client_id uuid, p_kind text, p_subject_id uuid, p_published boolean) returns table (kind text, subject_id uuid, published boolean)`
+- `app.office_storefront_sheet() returns table (...)` so the office panel can read what it wrote. The task-level plan named no office read. Direct table reads stay denied, so the panel needs this function. It is office-only.
+
+Publish rules inside `office_set_storefront_published`: a SKU needs an active product and its own default price. A product needs to be active, to have `image_path`, and to have at least one published SKU with a default price. A category needs an active product group and a saved row. Unpublishing the only published SKU of a published product is refused. A catalogue listing includes a product only when its category is published. A product slug still resolves when the product itself is published.
+
+Visitor reads, granted to `anon` and `authenticated`. This is the one exception to the hygiene rule that anon executes nothing, and the test names these two functions:
+
+- `app.storefront_catalogue()` columns: `category_id`, `category_slug`, `category_name`, `category_meta_title`, `category_meta_description`, `product_id`, `product_slug`, `product_name`, `brand_label`, `meta_title`, `meta_description`, `image_path`, `lowest_default_price_paisa`.
+- `app.storefront_product(p_slug text)` columns: `product_id`, `slug`, `name`, `brand_label`, `meta_title`, `meta_description`, `body`, `how_to_use`, `image_path`, `sku_id`, `code`, `variant`, `unit`, `size_value`, `default_price_paisa`, `available`.
+
+`available` is true only when some active warehouse has on-hand minus pending issues above zero. The number stays inside the function. Neither function reads a per-salon price. An unpublished or unknown slug returns no row.
+
+Bucket `storefront-images`, public read, created only where `storage.buckets` exists. Writes require `app.is_office()` and the same object-name shape. The private `product-images` bucket is unchanged.
+
+Office panel: `apps/web/app/office/(shell)/products/online-shop.tsx`, rendered on each product in `products/page.tsx`. Slug, meta title, meta description with character counts, page text, how to use, picture upload, publish and unpublish, and each SKU's default price read-only with a link to `#price-{sku id}`.
+
+Tests: `supabase/tests/storefront-catalogue.test.ts`, plus new rows in `rls-matrix.test.ts`, plus the anon-execute exception in `schema-hygiene.test.ts`.
+
+Not in this migration: Plan C seed, pages, tracking, Shopify, reminders. Two rows are both numbered D-51. This plan means the public-shop row dated 2026-11-10. They are not renumbered here.
