@@ -1,5 +1,5 @@
 /**
- * Order steps and approval reminders (migration 20261111010000, P1-38; D-59, D-60, MSG-03, ORD-04).
+ * Order steps and approval reminders (migration 20261111020000, P1-38; D-59, D-60, MSG-03, ORD-04).
  *
  * Steps are projected from the records that already exist. Closed stays upcoming (B-45).
  * Reminders are prepared for the service role and recorded; no mail is sent (B-61).

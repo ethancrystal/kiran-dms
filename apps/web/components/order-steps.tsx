@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { rpc } from "@/lib/rpc";
 import { when } from "@/lib/time";
 
-/** One row of app.office_order_steps (migration 20261111010000). No price, phone or reason. */
+/** One row of app.office_order_steps (migration 20261111020000). No price, phone or reason. */
 export type OfficeStep = {
   step_key: string;
   meaning: string;

@@ -337,7 +337,7 @@ describe("internal functions are not callable by app roles", () => {
       // office_rep_detail, office_invoices, office_receipts (owner or manager at AAL2; allow-listed fields, masked
       // phone, no GPS, fingerprint, cost or vault data): read-only, migration 20261105190000 (slice 10, P1-28); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
-      // office_order_steps, salon_order_steps and office_reminder_log (P1-38, D-60, migration 20261111010000):
+      // office_order_steps, salon_order_steps and office_reminder_log (P1-38, D-60, migration 20261111020000):
       // the office reads at AAL2; a salon member reads only its own order and gets no actor name. Helpers
       // order_step_registry, order_steps_projected, reminder_config_int, reminder_enabled, reminder_body and
       // assert_service_role have no grant.
