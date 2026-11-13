@@ -152,30 +152,31 @@ describe("app.my_pending_issues (REP-05, CTL-05)", () => {
   });
 
   it("the count still posts when the rep counts what the office sent, with no quantity read first", async () => {
-    const r = await one(REP_A, "select (app.rep_confirm_stock_issue($1, $2)).status", [
+    const r = await one(REP_A, "select app.rep_confirm_stock_issue($1, $2) as r", [
       ISSUE_A,
       JSON.stringify([
         { sku_id: ACTIVE_SKU, qty: ISSUED },
         { sku_id: DEACTIVATED_SKU, qty: ISSUED },
       ]),
     ]);
-    expect(r.status).toBe("confirmed");
+    expect(r.r.status).toBe("confirmed");
+    // The answer names the issue and its outcome only: never the office's lines or the count.
+    expect(Object.keys(r.r).sort()).toEqual(["decided_at", "id", "status"]);
     expect(await mine(REP_A)).toEqual([]);
   });
 
-  it("a disputed count never reveals the office lines to the rep in the return composite", async () => {
-    const disputeIssue = await one(MANAGER, "select (app.office_propose_stock_issue($1, 'to_rep', $2, $3, $4)).id", [
-      id(),
+  it("a wrong count (a dispute) does not reveal the office's quantities either", async () => {
+    const clientId = id();
+    await one(MANAGER, "select app.office_propose_stock_issue($1, 'to_rep', $2, $3, $4)", [
+      clientId,
       WH,
       BAG_A,
-      JSON.stringify([{ sku_id: ACTIVE_SKU, qty: 77 }]),
+      JSON.stringify([{ sku_id: UNRELATED_SKU, qty: 1 }]),
     ]);
-    const disp = await one(REP_A, "select (app.rep_confirm_stock_issue($1, $2)).*", [
-      disputeIssue.id,
-      JSON.stringify([{ sku_id: ACTIVE_SKU, qty: 1 }]),
-    ]);
-    expect(disp.status).toBe("disputed");
-    expect(disp.lines).toEqual([]);
-    expect(JSON.stringify(disp)).not.toContain("77");
+    const row = await one("postgres", "select id from public.stock_issue where client_id = $1", [clientId]);
+    const r = await one(REP_A, "select app.rep_confirm_stock_issue($1, $2) as r", [row.id, "[]"]);
+    expect(r.r.status).toBe("disputed");
+    expect(Object.keys(r.r).sort()).toEqual(["decided_at", "id", "status"]);
+    expect(JSON.stringify(r.r)).not.toContain("qty");
   });
 });
