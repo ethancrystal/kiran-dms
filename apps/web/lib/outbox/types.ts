@@ -87,6 +87,8 @@ export interface OutboxStore {
   record(attempt: SyncAttempt): Promise<void>;
   /** One user's attempts, newest first, at most `SYNC_HISTORY_LIMIT`. */
   history(userId: string): Promise<SyncAttempt[]>;
+  /** How many items the phone holds, waiting or refused, for every user: what `clear` would remove unsent. */
+  count(): Promise<number>;
   /** Removes everything, for every user (sign-out and device revoke). */
   clear(): Promise<void>;
 }

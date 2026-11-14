@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { RepMonth } from "@/components/rep-month";
+import { RepSignOut } from "@/components/rep-sign-out";
 import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
 
 type Session = {
@@ -146,17 +147,9 @@ export default function RepHome() {
       )}
       {state.kind !== "loading" && (
         <p>
-          {/* REP-11 (P1-30): sign out on a phone that is handed on, or from a message this page shows. */}
-          <button
-            type="button"
-            className="inline link"
-            onClick={async () => {
-              await supabaseBrowser().auth.signOut();
-              window.location.assign("/app/login");
-            }}
-          >
-            Sign out
-          </button>
+          {/* REP-11 (P1-30): sign out on a phone that is handed on, or from a message this page shows.
+              P1-09: the same button as every rep page, so the phone's outbox is wiped here too. */}
+          <RepSignOut />
         </p>
       )}
     </main>

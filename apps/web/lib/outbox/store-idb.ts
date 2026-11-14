@@ -200,6 +200,12 @@ const history = async (userId: string): Promise<SyncAttempt[]> => {
   return attempts.sort((a, b) => b.seq - a.seq).map((entry) => entry.attempt);
 };
 
+/** Every stored item, whoever saved it. Nothing is opened: the count needs no key. */
+const count = async (): Promise<number> => {
+  const db = await database();
+  return settled(db.transaction(ITEMS).objectStore(ITEMS).count());
+};
+
 const clear = async (): Promise<void> => {
   const db = await database();
   const tx = db.transaction([ITEMS, KEYS, HISTORY], "readwrite");
@@ -214,5 +220,5 @@ const clear = async (): Promise<void> => {
 /** Opens the phone's queue. Throws, in plain words, when the browser will not store data. */
 export async function openIdbStore(): Promise<OutboxStore> {
   await database();
-  return { add, list, update: (id, patch) => applyPatch(id, patch, UPDATE_TRIES), remove, record, history, clear };
+  return { add, list, update: (id, patch) => applyPatch(id, patch, UPDATE_TRIES), remove, record, history, count, clear };
 }

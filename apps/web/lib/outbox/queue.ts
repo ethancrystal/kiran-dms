@@ -55,6 +55,10 @@ export class MemoryStore implements OutboxStore {
     return Promise.resolve(mine.reverse().map((attempt) => ({ ...attempt })));
   }
 
+  count(): Promise<number> {
+    return Promise.resolve(this.items.size);
+  }
+
   clear(): Promise<void> {
     this.items.clear();
     this.attempts = [];

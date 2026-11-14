@@ -2,30 +2,25 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RepSignOut } from "@/components/rep-sign-out";
-import { classifyFailure } from "@/lib/outbox/classify";
-import { messageOf, mySession, rpc, type Session } from "@/lib/rpc";
+import { type Asked, decideGate, type Gate, readGateMemory, writeGateMemory } from "@/lib/outbox/gate";
+import { rpc, type Session } from "@/lib/rpc";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-
-type Gate =
-  | { kind: "checking" }
-  | { kind: "ok" }
-  | { kind: "stop"; message: string; salon?: boolean }
-  | { kind: "error"; message: string };
 
 // Today (/app) registers the phone and explains its own state; the sign-in page needs no session.
 const UNGATED = new Set(["/app", "/app/login"]);
 // The outbox page reads only what this phone holds and has to open with no signal (P1-09). With
-// signal it is gated like every other page; it is let through only when the question could not be
-// asked at all (no signal, server busy), never when the database answered.
+// signal it is gated like every other page. It opens unchecked only when the request got no answer
+// at all (a busy server is an answer), a session is held on this phone, and the server's last answer
+// to this phone for that login was "allowed" (lib/outbox/gate.ts). What the browser says about being
+// online is not asked: the request is always made.
 const OPENS_WITHOUT_SIGNAL = new Set(["/app/outbox"]);
 
-/** app.my_session, or "unreachable" when the request never got an answer. A refusal still throws. */
-const sessionOrUnreachable = async (): Promise<Session | null | "unreachable"> => {
-  if (navigator.onLine === false) return "unreachable";
+/** Asks app.my_session, and app.salon_me when there is no staff profile. A failure is handed on, not thrown. */
+const ask = async (): Promise<Asked> => {
   const { data, error, status } = await supabaseBrowser().schema("app").rpc("my_session");
-  if (!error) return (data as Session | null) ?? null;
-  if (classifyFailure({ ...error, status }) === "transient") return "unreachable";
-  throw new Error(messageOf(error));
+  if (error) return { kind: "failed", error: { ...error, status } };
+  const session = (data as Session | null) ?? null;
+  return { kind: "answered", session, salon: session ? false : Boolean(await rpc<unknown>("salon_me")) };
 };
 
 // REP-04 (P1-30). Every rep page except Today and sign-in asks app.my_session first (the one call that
@@ -42,28 +37,14 @@ export default function RepPages({ children }: { children: React.ReactNode }) {
     let live = true;
     const check = async () => {
       try {
-        const s = OPENS_WITHOUT_SIGNAL.has(path) ? await sessionOrUnreachable() : await mySession();
-        let next: Gate = { kind: "ok" };
-        if (s === "unreachable") {
-          next = { kind: "ok" };
-        } else if (!s) {
-          const salon = await rpc<unknown>("salon_me");
-          next = salon
-            ? { kind: "stop", salon: true, message: "This is a salon's login, not a rep's. Your account is in the salon portal." }
-            : { kind: "stop", message: "Your account is not set up yet. Open Today to see your sign-in code for the owner." };
-        } else if (s.role !== "rep") {
-          next = { kind: "stop", message: "These pages are for reps. Owners and managers work in the office." };
-        } else if (s.status !== "active") {
-          next = { kind: "stop", message: "Your account is not active, so these pages show nothing. Contact your manager." };
-        } else if (s.device_status !== "approved") {
-          next = {
-            kind: "stop",
-            message:
-              s.device_status === "pending"
-                ? "This phone is waiting for your manager's approval. Until then these pages show nothing."
-                : "This phone is not approved. Open Today to register it, then ask your manager to approve it.",
-          };
-        }
+        const [asked, held] = await Promise.all([ask(), supabaseBrowser().auth.getSession()]);
+        const { gate: next, remember } = decideGate({
+          opensWithoutSignal: OPENS_WITHOUT_SIGNAL.has(path),
+          asked,
+          userId: held.data.session?.user.id ?? null,
+          memory: readGateMemory(window.localStorage),
+        });
+        if (remember) writeGateMemory(window.localStorage, remember);
         if (live) setGate(next);
       } catch (e) {
         if (live) setGate({ kind: "error", message: (e as Error).message });
