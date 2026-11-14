@@ -36,22 +36,65 @@ const APPEND_ONLY = `
     and exists (select 1 from (${triggersOf("c")}) g where ${ROW_BEFORE_UPDATE_DELETE})
   order by 1`;
 
+// A table that says so itself: its table comment calls it append-only or immutable (any case; the
+// migrations use both words, e.g. "Append-only" on visit, "Immutable" on invoice and delivery).
+const DECLARED = `obj_description(c.oid, 'pg_class') ~* 'append[- ]only|immutable'`;
+
 // Tables that are append-only by their own account (the guard is on them in any shape, or their
-// table comment says "Append-only") but whose guard is missing, disabled, partial, or conditional.
-// A table that lost its trigger altogether is still found through its comment.
+// table comment says append-only or immutable) but whose guard is missing, disabled, partial, or
+// conditional. Two arms: the trigger arm sees a guard that was damaged; the comment arm sees a table
+// that lost its trigger altogether (a trigger-only search cannot see an absence).
 const APPEND_ONLY_GAPS = `
   select n.nspname || '.' || c.relname t from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where c.relkind in ('r', 'p') and n.nspname in ${SCHEMAS}
-    and (obj_description(c.oid, 'pg_class') ~ 'Append-only'
+    and (${DECLARED}
          or exists (select 1 from (${triggersOf("c")}) g where (tgtype & 24) <> 0))
     and not exists (select 1 from (${triggersOf("c")}) g
                     where ${ROW_BEFORE_UPDATE_DELETE}
                       and tgenabled in ('O', 'A') and tgqual is null and tgattr = ''::int2vector)
   order by 1`;
 
+// Every table in our schemas whose comment says append-only or immutable, guarded or not.
+const DECLARED_TABLES = `
+  select n.nspname || '.' || c.relname t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where c.relkind in ('r', 'p') and n.nspname in ${SCHEMAS} and ${DECLARED}
+  order by 1`;
+
+// Functions in our schemas whose body talks about append-only or immutable: candidates for an
+// append-only guard. Seen from the catalog, so a new one cannot hide.
+const GUARD_FUNCTIONS = `
+  select n.nspname || '.' || p.proname t from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname in ${SCHEMAS} and p.prosrc ~* 'append[- ]only|immutable'
+  order by 1`;
+
+// Trigger functions that raise "immutable" for a narrower rule than append-only: they freeze identity
+// columns or a decided row and let the permitted updates through. A function of this kind is not an
+// append-only guard, so the tables it guards are not swept as append-only. This is a list of
+// functions (twelve, reviewed), not of tables; a new one fails the test below until it is reviewed.
+const IDENTITY_GUARDS = [
+  "control.approval_guard",
+  "control.device_guard",
+  "control.investor_guard",
+  "control.invitation_guard",
+  "control.master_row_guard",
+  "control.sales_order_guard",
+  "control.salon_contact_guard",
+  "control.salon_guard",
+  "control.salon_membership_guard",
+  "control.salon_signup_request_guard",
+  "control.stock_issue_guard",
+  "control.user_profile_guard",
+];
+
 /** Every append-only table, found by catalog in the five schemas. */
 async function appendOnlyTables(): Promise<string[]> {
   return (await run("postgres", APPEND_ONLY)).rows.map((r) => r.t);
+}
+
+/** The append-only tables plus every table that calls itself append-only or immutable. */
+async function sweptTables(): Promise<string[]> {
+  const declared = (await run("postgres", DECLARED_TABLES)).rows.map((r) => r.t);
+  return [...new Set([...(await appendOnlyTables()), ...declared])].sort();
 }
 
 // Run setup statements and a guard in one rolled-back transaction; return the guard's rows.
@@ -91,22 +134,39 @@ describe("append-only sweep (doc 06 10.2)", () => {
     expect(tables.length).toBeGreaterThanOrEqual(MIN_APPEND_ONLY_TABLES);
   });
 
-  it("control.forbid_mutation is the only function that raises the append-only error", async () => {
-    // A second append-only function would hide tables from appendOnlyTables(); it must be added there.
-    const { rows } = await run(
-      "postgres",
-      `select n.nspname || '.' || p.proname f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-       where n.nspname in ${SCHEMAS} and p.prosrc ~* 'append-only' order by 1`,
-    );
-    expect(rows.map((r) => r.f)).toEqual(["control.forbid_mutation"]);
+  it("control.forbid_mutation is the only function that raises an append-only or immutable error for a whole row", async () => {
+    // A second append-only guard function would hide tables from appendOnlyTables(); it must be added there.
+    const { rows } = await run("postgres", GUARD_FUNCTIONS);
+    const unreviewed = rows.map((r) => r.t).filter((f) => !IDENTITY_GUARDS.includes(f));
+    expect(unreviewed).toEqual(["control.forbid_mutation"]);
+    // Nothing in the reviewed list has gone away unnoticed either.
+    expect(IDENTITY_GUARDS.filter((f) => !rows.some((r) => r.t === f))).toEqual([]);
+  });
+
+  it("the function detector sees a new guard function that raises 'immutable' or 'append only'", async () => {
+    const make = (name: string, message: string) =>
+      `create function public.${name}() returns trigger language plpgsql as $f$ begin raise exception '${message}'; end $f$`;
+    expect(await planted(make("zz_planted_guard", "rows are immutable"), GUARD_FUNCTIONS)).toContain("public.zz_planted_guard");
+    expect(await planted(make("zz_planted_guard", "table is append only"), GUARD_FUNCTIONS)).toContain("public.zz_planted_guard");
+    expect(await planted(make("zz_planted_guard", "no way"), GUARD_FUNCTIONS)).not.toContain("public.zz_planted_guard");
   });
 
   it("every append-only table has an enabled, unconditional BEFORE UPDATE OR DELETE row trigger", async () => {
     expect((await run("postgres", APPEND_ONLY_GAPS)).rows).toEqual([]);
   });
 
-  it("no application role holds an UPDATE, DELETE or TRUNCATE privilege on any append-only table", async () => {
+  it("every table that calls itself append-only or immutable has the trigger, and the list is not vacuous", async () => {
+    const declared = (await run("postgres", DECLARED_TABLES)).rows.map((r) => r.t);
     const tables = await appendOnlyTables();
+    expect(declared.length).toBeGreaterThan(0);
+    expect(declared.filter((t) => !tables.includes(t))).toEqual([]);
+    // The two words used in the migrations are both seen.
+    expect(declared).toContain("public.visit");
+    expect(declared).toContain("public.invoice");
+  });
+
+  it("no application role holds an UPDATE, DELETE or TRUNCATE privilege on any append-only or immutable table", async () => {
+    const tables = await sweptTables();
     const held = await Promise.all(
       ROLES.map(async ([label, , role]) => {
         const { rows } = await run(
@@ -123,7 +183,7 @@ describe("append-only sweep (doc 06 10.2)", () => {
   });
 
   it.each(ROLES)("%s: UPDATE, DELETE and TRUNCATE on every append-only table are refused (42501)", async (_label, who) => {
-    const tables = await appendOnlyTables();
+    const tables = await sweptTables();
     const { rows: cols } = await run(
       "postgres",
       `select distinct on (a.attrelid) n.nspname || '.' || c.relname t, quote_ident(a.attname) c
@@ -216,5 +276,46 @@ describe("append-only sweep (doc 06 10.2)", () => {
 
     // An unrelated table with neither comment nor guard is not an append-only table.
     expect(await planted("create table public.zz_planted_plain (id int)", APPEND_ONLY_GAPS)).toEqual([]);
+  });
+
+  it("the comment arm: a table that calls itself append-only or immutable, in any wording, but has no guard", async () => {
+    const commented = (text: string) =>
+      `create table public.zz_planted_ao (id int primary key, v int); comment on table public.zz_planted_ao is '${text}'`;
+    const wordings = [
+      "Planted. Append-only.",
+      "Immutable (doc 04): corrections are credit notes.",
+      "planted. append-only history",
+      "APPEND ONLY",
+      "Fixed at issue. Immutable: what has been paid is derived.",
+    ];
+    const found = await wordings.reduce(
+      async (done, text) => [...(await done), [text, await planted(commented(text), APPEND_ONLY_GAPS)] as const],
+      Promise.resolve([] as Array<readonly [string, string[]]>),
+    );
+    expect(found).toEqual(wordings.map((text) => [text, ["public.zz_planted_ao"]]));
+    // A comment that is about something else is left alone.
+    expect(await planted(commented("Planted. A list of things."), APPEND_ONLY_GAPS)).toEqual([]);
+  });
+
+  it("the trigger arm alone: a damaged guard on a table with NO comment is still reported", async () => {
+    // No comment, so the comment arm cannot see these tables; only the trigger arm can.
+    const bare = "create table public.zz_planted_ao (id int primary key, v int)";
+    const trig = (spec: string) =>
+      `create trigger append_only ${spec} on public.zz_planted_ao for each row execute function control.forbid_mutation()`;
+    const flagged = ["public.zz_planted_ao"];
+    // Control: a correct guard on the same bare table is accepted, so the cases below fail for the damage alone.
+    expect(await planted(`${bare}; ${trig("before update or delete")}`, APPEND_ONLY_GAPS)).toEqual([]);
+
+    const broken: Array<[string, string]> = [
+      ["only BEFORE UPDATE", `${bare}; ${trig("before update")}`],
+      ["only BEFORE DELETE", `${bare}; ${trig("before delete")}`],
+      ["disabled", `${bare}; ${trig("before update or delete")}; alter table public.zz_planted_ao disable trigger append_only`],
+      ["AFTER trigger", `${bare}; ${trig("after update or delete")}`],
+    ];
+    const found = await broken.reduce(
+      async (done, [why, setup]) => [...(await done), [why, await planted(setup, APPEND_ONLY_GAPS)] as const],
+      Promise.resolve([] as Array<readonly [string, string[]]>),
+    );
+    expect(found).toEqual(broken.map(([why]) => [why, flagged]));
   });
 });
