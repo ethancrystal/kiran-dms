@@ -5,7 +5,9 @@ import type { OutboxItem, OutboxStore, SyncAttempt } from "./types";
 // the rep remembered from the last valid session, because a rep out of signal for hours must still
 // be able to save. Reading the queue or the history, Retry and Discard never use that remembered
 // id: they need the session this phone holds now, so nothing is shown after sign-out and nothing
-// is shown to, or changed by, another login.
+// is shown to, or changed by, another login. A session that ran out while the phone had no signal
+// is still held: the phone stores it and will renew it when the signal is back. Its owner, read
+// from the stored session itself and never from the remembered id, keeps seeing their own list.
 
 /** The session as the phone can read it now. */
 export type Live = {
@@ -13,6 +15,11 @@ export type Live = {
   userId: string | null;
   /** True when a session is stored but has run out and could not be renewed (no signal). */
   unconfirmed: boolean;
+  /**
+   * Whose session is still stored on the phone, read from that session, when it could not be
+   * renewed. Null or absent when the phone could not read it. Only looked at while `unconfirmed`.
+   */
+  storedUserId?: string | null;
 };
 
 export const NOT_SIGNED_IN = "Sign in again before saving. Nothing was saved.";
@@ -21,16 +28,40 @@ export const CANNOT_CONFIRM =
   "This phone cannot confirm who is signed in right now, so the list is not shown. Nothing was removed. It shows again when the signal is back.";
 export const NOT_YOURS = "That item is not in your list on this phone.";
 
-/** Whose queue a new action goes into: the signed-in rep, else the rep remembered on this phone. */
+/** The login of the session the phone holds now: confirmed, or stored and waiting for signal to be renewed. */
+export const holder = (live: Live): string | null => live.userId ?? (live.unconfirmed ? (live.storedUserId ?? null) : null);
+
+/**
+ * Whose session the phone stores, from what the sign-in library keeps (`raw`, its JSON). Anything
+ * that is not a session that can be renewed later is nobody.
+ */
+export const storedSessionUser = (raw: string | null): string | null => {
+  try {
+    const stored: unknown = JSON.parse(raw ?? "null");
+    if (typeof stored !== "object" || stored === null) return null;
+    const { refresh_token: refreshToken, user } = stored as Record<string, unknown>;
+    if (typeof refreshToken !== "string" || !refreshToken) return null;
+    const id = typeof user === "object" && user !== null ? (user as Record<string, unknown>).id : null;
+    return typeof id === "string" && id ? id : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Whose queue a new action goes into: the rep whose session the phone holds, else the rep
+ * remembered on this phone (when even the stored session could not be read).
+ */
 export const captureOwner = (live: Live, remembered: string | null): string => {
-  const id = live.userId ?? remembered;
+  const id = holder(live) ?? remembered;
   if (!id) throw new Error(NOT_SIGNED_IN);
   return id;
 };
 
 /** Who may read and change the queue: only the rep whose session the phone holds now. */
 const viewer = (live: Live): string => {
-  if (live.userId) return live.userId;
+  const id = holder(live);
+  if (id) return id;
   throw new Error(live.unconfirmed ? CANNOT_CONFIRM : SIGN_IN_TO_VIEW);
 };
 

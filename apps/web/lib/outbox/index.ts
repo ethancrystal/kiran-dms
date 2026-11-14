@@ -1,9 +1,9 @@
 "use client";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-import { captureOwner, discardOwn, historyOwn, type Live, listOwn, retryOwn } from "./access";
+import { captureOwner, discardOwn, historyOwn, holder, type Live, listOwn, retryOwn, storedSessionUser } from "./access";
 import { type DrainReport, drain } from "./drain";
 import { enqueue } from "./queue";
-import { type SignOutOutcome, signOutOfPhone } from "./sign-out";
+import { CANNOT_END, ownOutbox, type SignOutOutcome, signOutOfPhone } from "./sign-out";
 import { openIdbStore } from "./store-idb";
 import type { Dependency, OutboxFn, OutboxItem, SyncAttempt } from "./types";
 
@@ -78,24 +78,53 @@ const changed = (state: Partial<SyncState> = {}) => {
 
 const offline = (): boolean => typeof navigator !== "undefined" && navigator.onLine === false;
 
+/** The sign-in library's own store and the name it keeps the session under. Not in its public types. */
+type SessionStore = { storage?: { getItem(key: string): unknown }; storageKey?: string };
+
+/**
+ * Whose session the sign-in library still stores, read from that stored session without asking it
+ * to renew anything. Null when nothing is stored or it cannot be read: the caller then treats the
+ * phone as holding nobody, the closed side.
+ */
+const storedUser = async (): Promise<string | null> => {
+  try {
+    const { storage, storageKey } = supabaseBrowser().auth as unknown as SessionStore;
+    if (!storage || !storageKey) return null;
+    const raw = await storage.getItem(storageKey);
+    return storedSessionUser(typeof raw === "string" ? raw : null);
+  } catch {
+    return null;
+  }
+};
+
 /**
  * The session kept on the phone; no request is made while it is valid. A session that has run out
  * is renewed over the network, and with no signal that fails: the phone then still stores it but
- * cannot confirm it (`unconfirmed`). After sign-out there is neither an id nor an error.
+ * cannot confirm it (`unconfirmed`), and `storedUserId` says whose it is. After sign-out there is
+ * neither an id nor an error. `token` is the confirmed session's access token.
  */
-const liveSession = async (): Promise<Live> => {
+export const heldSession = async (): Promise<Live & { storedUserId: string | null; token: string | null }> => {
   const { data, error } = await supabaseBrowser().auth.getSession();
   const userId = data.session?.user.id ?? null;
   if (userId) window.localStorage.setItem(USER_KEY, userId);
-  return { userId, unconfirmed: !userId && Boolean(error) };
+  const unconfirmed = !userId && Boolean(error);
+  return {
+    userId,
+    unconfirmed,
+    storedUserId: unconfirmed ? await storedUser() : null,
+    token: data.session?.access_token ?? null,
+  };
 };
+
+const liveSession: () => Promise<Live> = heldSession;
 
 const sessionUserId = async (): Promise<string | null> => (await liveSession()).userId;
 
 /**
- * Whose queue a new item goes into. Out of signal for hours the session cannot be renewed, so the
- * id remembered from the last time it was valid is used. Only saving does this: reading, Retry and
- * Discard need the session itself (access.ts), and sending always needs the real session.
+ * Whose queue a new item goes into. Out of signal for hours the session cannot be renewed: the
+ * stored session's own login is used, and only when even that cannot be read, the id remembered
+ * from the last time it was valid. Only saving falls back to the remembered id: reading, Retry and
+ * Discard need the session the phone holds (access.ts), and sending always needs it confirmed.
  */
 const captureUserId = async (): Promise<string> => captureOwner(await liveSession(), window.localStorage.getItem(USER_KEY));
 
@@ -243,20 +272,24 @@ export function startSync(): () => void {
   };
 }
 
+/** The login whose session the phone holds: the one that is signing out. */
+const signingOut = async (): Promise<string | null> => holder(await liveSession());
+
 /**
- * Removes everything the outbox keeps on this phone, for every user. Called by sign-out only
- * (`signOutRep`), which asks the rep first when anything is unsent. The remembered rep is dropped
- * even when the store could not be cleared.
+ * Removes what the outbox keeps on this phone for the login that is signing out, and nothing of
+ * any other login's. Called by sign-out only (`signOutRep`), which asks the rep first when anything
+ * of theirs is unsent. The remembered rep is dropped by sign-out itself, once the session has ended.
  */
-export async function wipeLocalData(): Promise<void> {
-  try {
-    const store = await openIdbStore();
-    await store.clear();
-  } finally {
-    forgetRep();
-  }
+async function wipeOwnData(): Promise<void> {
+  await ownOutbox(openIdbStore, signingOut).wipe();
   changed({ held: "none", lastSyncAt: null, error: null });
 }
+
+/**
+ * Why the session cannot be ended now, or null. A session that ran out with no signal can be
+ * neither renewed nor ended: the sign-in library keeps it and returns the same error from sign-out.
+ */
+const cannotEnd = async (): Promise<string | null> => ((await liveSession()).unconfirmed ? CANNOT_END : null);
 
 /** Ends the session on this phone. Throws when a session is still held afterwards. */
 const endSession = async (): Promise<void> => {
@@ -269,15 +302,17 @@ const endSession = async (): Promise<void> => {
 };
 
 /**
- * Signs the rep out of this phone: wipes what the outbox keeps, then ends the session. With unsent
- * items (or when the phone cannot count them) the first call only returns "confirm"; call again
- * with `discardUnsent` true once the rep has agreed to lose them.
+ * Signs the rep out of this phone: wipes what the outbox keeps for that rep, then ends the session.
+ * With unsent items of their own (or when the phone cannot count them) the first call only returns
+ * "confirm"; call again with `discardUnsent` true once the rep has agreed to lose them. When the
+ * session cannot be ended now, nothing is removed and the outcome says why.
  */
 export function signOutRep(discardUnsent: boolean): Promise<SignOutOutcome> {
   return signOutOfPhone(
     {
-      unsent: async () => (await openIdbStore()).count(),
-      wipe: wipeLocalData,
+      unsent: ownOutbox(openIdbStore, signingOut).unsent,
+      blocked: cannotEnd,
+      wipe: wipeOwnData,
       endSession,
       forget: forgetRep,
     },

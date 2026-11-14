@@ -2,7 +2,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RepSignOut } from "@/components/rep-sign-out";
-import { type Asked, decideGate, type Gate, readGateMemory, writeGateMemory } from "@/lib/outbox/gate";
+import { heldSession } from "@/lib/outbox";
+import { type Asked, checkAccount, type Gate, readGateMemory, writeGateMemory } from "@/lib/outbox/gate";
 import { rpc, type Session } from "@/lib/rpc";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -10,14 +11,20 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 const UNGATED = new Set(["/app", "/app/login"]);
 // The outbox page reads only what this phone holds and has to open with no signal (P1-09). With
 // signal it is gated like every other page. It opens unchecked only when the request got no answer
-// at all (a busy server is an answer), a session is held on this phone, and the server's last answer
-// to this phone for that login was "allowed" (lib/outbox/gate.ts). What the browser says about being
-// online is not asked: the request is always made.
+// at all (a busy server is an answer), a session is held on this phone (also one that ran out while
+// there was no signal and is still stored), and the server's last answer to this phone for that login
+// was "allowed" (lib/outbox/gate.ts). What the browser says about being online is not asked: the
+// request is always made.
 const OPENS_WITHOUT_SIGNAL = new Set(["/app/outbox"]);
 
-/** Asks app.my_session, and app.salon_me when there is no staff profile. A failure is handed on, not thrown. */
-const ask = async (): Promise<Asked> => {
-  const { data, error, status } = await supabaseBrowser().schema("app").rpc("my_session");
+/**
+ * Asks app.my_session, and app.salon_me when there is no staff profile. A failure is handed on, not
+ * thrown. With `token` the question is sent as that session, whatever the client would send by
+ * itself, so the answer is about the login it is remembered for.
+ */
+const ask = async (token: string | null): Promise<Asked> => {
+  const call = supabaseBrowser().schema("app").rpc("my_session");
+  const { data, error, status } = await (token ? call.setHeader("Authorization", `Bearer ${token}`) : call);
   if (error) return { kind: "failed", error: { ...error, status } };
   const session = (data as Session | null) ?? null;
   return { kind: "answered", session, salon: session ? false : Boolean(await rpc<unknown>("salon_me")) };
@@ -37,11 +44,10 @@ export default function RepPages({ children }: { children: React.ReactNode }) {
     let live = true;
     const check = async () => {
       try {
-        const [asked, held] = await Promise.all([ask(), supabaseBrowser().auth.getSession()]);
-        const { gate: next, remember } = decideGate({
+        const { gate: next, remember } = await checkAccount({
+          held: heldSession,
+          ask,
           opensWithoutSignal: OPENS_WITHOUT_SIGNAL.has(path),
-          asked,
-          userId: held.data.session?.user.id ?? null,
           memory: readGateMemory(window.localStorage),
         });
         if (remember) writeGateMemory(window.localStorage, remember);

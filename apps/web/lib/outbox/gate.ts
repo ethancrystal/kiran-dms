@@ -6,8 +6,11 @@ import { classifyFailure, failureMessage } from "./classify";
 // The rule here is narrower than the queue's: the queue retries on a busy server (5xx, 408, 429),
 // but a busy server is an answer, and only a request that got no answer at all may open a page
 // unchecked. Even then it opens only when a session is held on this phone and the last answer this
-// phone had for that same login was "allowed". Convenience only: every read and write is decided
-// again by the database (app.self_ok, RLS).
+// phone had for that same login was "allowed". A session that ran out while there was no signal is
+// still held (the phone stores it and renews it later); whose it is comes from the stored session.
+// Only an answer to a question sent with a login's own token is remembered about that login, and a
+// token the server would not take (401) is no answer about the account at all.
+// Convenience only: every read and write is decided again by the database (app.self_ok, RLS).
 
 export type Gate =
   | { kind: "checking" }
@@ -85,13 +88,18 @@ export type GateInput = {
   /** True only for a page that reads nothing but this phone and has to open with no signal. */
   opensWithoutSignal: boolean;
   asked: Asked;
-  /** The user id of the session held on this phone, or null when there is none. */
+  /** The login the question was asked as: the confirmed session whose token was sent, or null. */
   userId: string | null;
+  /**
+   * The login of a session the phone still stores but could not renew (no signal), or null. It
+   * can open the page with no answer; nothing is ever remembered about it.
+   */
+  storedUserId?: string | null;
   memory: GateMemory | null;
 };
 
 /** The gate to show, and what to remember (`null` leaves what is remembered unchanged). */
-export function decideGate({ opensWithoutSignal, asked, userId, memory }: GateInput): {
+export function decideGate({ opensWithoutSignal, asked, userId, storedUserId = null, memory }: GateInput): {
   gate: Gate;
   remember: GateMemory | null;
 } {
@@ -103,11 +111,54 @@ export function decideGate({ opensWithoutSignal, asked, userId, memory }: GateIn
   const answer = answerOf(asked.error);
   if (answer === "refused") {
     const message = failureMessage(asked.error);
-    return { gate: { kind: "error", message }, remember: userId ? { userId, allowed: false, message } : null };
+    // The server would not take the token (it ran out on the way, or the phone's clock is off):
+    // that says nothing about the account, and the queue holds and recovers on the same answer.
+    const aboutTheToken = classifyFailure(asked.error) === "auth";
+    return { gate: { kind: "error", message }, remember: userId && !aboutTheToken ? { userId, allowed: false, message } : null };
   }
   if (answer === "busy") return { gate: { kind: "error", message: BUSY_FALLBACK }, remember: null };
   if (!opensWithoutSignal) return { gate: { kind: "error", message: NO_SIGNAL }, remember: null };
-  return { gate: withoutAnswer(userId, memory), remember: null };
+  return { gate: withoutAnswer(userId ?? storedUserId, memory), remember: null };
+}
+
+/** The session the phone holds, as the account check needs it. */
+export type Held = {
+  /** The confirmed session's login, or null. */
+  userId: string | null;
+  /** The login of a session still stored that could not be renewed, or null. */
+  storedUserId: string | null;
+  /** The confirmed session's access token: the question is sent with it, so the answer is about that login. */
+  token: string | null;
+};
+
+export type CheckDeps = {
+  /** Reads the session the phone holds. */
+  held(): Promise<Held>;
+  /** Asks app.my_session with this token, or with whatever the client sends when there is none. */
+  ask(token: string | null): Promise<Asked>;
+  opensWithoutSignal: boolean;
+  memory: GateMemory | null;
+};
+
+/**
+ * The whole check: read the session first, then ask with its token, so an answer is always about
+ * the login it is remembered for. When the session could not be confirmed and the server answered
+ * anyway (a weak signal: the renewal failed, the question got through), the session is read once
+ * more and, if it is confirmed now, the question is asked again with its token.
+ */
+export async function checkAccount({ held, ask, opensWithoutSignal, memory }: CheckDeps): Promise<{
+  gate: Gate;
+  remember: GateMemory | null;
+}> {
+  const first = await held();
+  const asked = await ask(first.token);
+  const noAnswer = asked.kind === "failed" && answerOf(asked.error) === "none";
+  if (first.userId || noAnswer) {
+    return decideGate({ opensWithoutSignal, asked, userId: first.userId, storedUserId: first.storedUserId, memory });
+  }
+  const second = await held();
+  if (!second.userId) return decideGate({ opensWithoutSignal, asked, userId: null, storedUserId: second.storedUserId, memory });
+  return decideGate({ opensWithoutSignal, asked: await ask(second.token), userId: second.userId, memory });
 }
 
 /** What the phone remembers, or null when nothing readable is stored. */
