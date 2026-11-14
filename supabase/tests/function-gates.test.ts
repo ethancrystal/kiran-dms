@@ -14,10 +14,13 @@
  *     boolean gate's result is used correctly. The behaviour is proved by device-guard, rls-matrix and the
  *     per-module negative tests (anonymous, wrong role, wrong device, AAL1). This file is the safety net
  *     that makes sure no callable function is left out of those.
- *   - Does NOT prove TOTP for a function whose only gate is app.self_ok: self_ok is the rep DEVICE gate and is
- *     true for every active owner or manager even at AAL1, so a new office-only function that relies on
- *     self_ok alone would pass this sweep. The last block of this file checks the one such function found
- *     (app.warehouse_availability) with a DEFECT CHECK.
+ *   - Treats app.self_ok and app.rep_device_ok as DEVICE-ONLY gates: both are true for every active owner or
+ *     manager even at AAL1 (rep_device_ok returns true for every non-rep), so they prove the rep's phone and
+ *     nothing about TOTP. A function that passes only on one of them must also carry a rep-only marker in its
+ *     body (REP_MARKERS: user_role() = 'rep', my_bag_id, my_territory_ids, rep_can_reach_salon), or a full gate;
+ *     otherwise it is reported (DEVICE_ONLY). The two that have neither today are named in
+ *     DEVICE_ONLY_EXCEPTIONS, one as a DEFECT with its own DEFECT CHECK at the end of this file, one accepted.
+ *   - Still does NOT prove that a marker is enforced on every path (it is read as text, like the gates).
  *
  * How a function that only calls ANOTHER gated function is treated: it does NOT count. Only the helpers in
  * GATES count, and each helper that wraps another gate (rep_can_reach_salon, can_see_salon_money,
@@ -37,6 +40,9 @@ const MIN_GATED = 100;
 const MIN_POLICY_USES = 10;
 const CODE_LENGTH = 8;
 
+/** `user_role() = 'rep'`, or `user_role() is distinct from 'rep'` (the refusing form): the body is for reps only. */
+const REP_ROLE = "app[.]user_role[(][)][[:space:]]*(=|is[[:space:]]+distinct[[:space:]]+from)[[:space:]]*'rep'";
+
 /** SQL regex source for a call of `schema.name(`: the name must end at the parenthesis. */
 const callOf = (fn: string) => `${fn.replace(".", "[.]")}[[:space:]]*[(]`;
 
@@ -44,6 +50,8 @@ type Gate = {
   fn: string;
   /** assert_*: raises when the caller fails. Otherwise a boolean: calling it with PERFORM checks nothing. */
   raises: boolean;
+  /** True for the two gates that prove the rep's phone only: true for every non-rep, so no TOTP test (see DEVICE_ONLY). */
+  deviceOnly?: boolean;
   /** Regexes (SQL, case-insensitive, on the body without comments) that must all still match. */
   needs: string[];
 };
@@ -70,10 +78,11 @@ const GATE_DEFS: Gate[] = [
   },
   { fn: "app.assert_office", raises: true, needs: [callOf("app.assert_actor_ready"), callOf("app.raise_denied")] },
   { fn: "app.assert_owner", raises: true, needs: [callOf("app.assert_actor_ready"), callOf("app.raise_denied")] },
-  { fn: "app.self_ok", raises: false, needs: [callOf("app.user_role"), callOf("app.rep_device_ok")] },
+  { fn: "app.self_ok", raises: false, deviceOnly: true, needs: [callOf("app.user_role"), callOf("app.rep_device_ok")] },
   {
     fn: "app.rep_device_ok",
     raises: false,
+    deviceOnly: true,
     needs: [
       callOf("app.rep_session_ok"),
       callOf("app.request_device_id"),
@@ -85,12 +94,41 @@ const GATE_DEFS: Gate[] = [
   { fn: "app.is_office", raises: false, needs: [callOf("app.user_role"), callOf("app.is_aal2")] },
   { fn: "app.is_owner", raises: false, needs: [callOf("app.user_role"), callOf("app.is_aal2")] },
   { fn: "app.has_vault_grant", raises: false, needs: [callOf("app.is_aal2"), "vault_grant"] },
-  { fn: "app.rep_can_reach_salon", raises: false, needs: [callOf("app.self_ok"), callOf("app.rep_holds_salon")] },
+  {
+    fn: "app.rep_can_reach_salon",
+    raises: false,
+    needs: [callOf("app.self_ok"), callOf("app.rep_holds_salon"), REP_ROLE],
+  },
   { fn: "app.can_see_salon_money", raises: false, needs: [callOf("app.is_office"), callOf("app.rep_can_reach_salon")] },
   { fn: "app.assert_salon_money", raises: true, needs: [callOf("app.can_see_salon_money"), callOf("app.raise_denied")] },
   { fn: "app.assert_salon_member", raises: true, needs: [callOf("app.my_salon_id"), callOf("app.raise_denied")] },
 ];
 const GATES: string[] = GATE_DEFS.map((g) => g.fn);
+
+// Rep-only markers: a body that carries one cannot be passed by an owner or manager, so a device-only gate beside
+// it is enough. Verified against the latest definitions: my_bag_id and my_territory_ids (20261105230000_audit_fixes)
+// return rows only when `app.user_role() = 'rep'`; rep_can_reach_salon (20261105100000) tests `user_role() = 'rep'`.
+// The call markers are checked like gates (GATE_GAPS: each still tests the rep role). `markerCalls` are function names.
+const REP_MARKER_CALLS = ["app.my_bag_id", "app.my_territory_ids", "app.rep_can_reach_salon"];
+const MARKER_DEFS: Array<{ fn: string; needs: string[] }> = [
+  { fn: "app.my_bag_id", needs: [REP_ROLE] },
+  { fn: "app.my_territory_ids", needs: [REP_ROLE] },
+];
+
+// Functions that pass only on a device-only gate and carry no rep-only marker, so an owner or manager at AAL1 passes
+// them. Each is named with its status; an entry that no longer matches (function gone, or now gated) fails.
+const DEVICE_ONLY_EXCEPTIONS: Array<{ fn: string; status: "DEFECT" | "ACCEPTED"; note: string }> = [
+  {
+    fn: "app.warehouse_availability()",
+    status: "DEFECT",
+    note: "Filter is `self_ok() and user_role() is not null`: an owner or manager without TOTP reads the warehouse quantities. Finding for MJ; see the DEFECT CHECK at the end of this file.",
+  },
+  {
+    fn: "app.may_read_product_images()",
+    status: "ACCEPTED",
+    note: '`self_ok() or salon member`: office at AAL1 may read product pictures on purpose, pinned by catalogue-prices.test.ts ("pictures: who may read the product-images bucket", MANAGER_AAL1 expected true).',
+  },
+];
 
 type AllowEntry = {
   /** schema.name(argument types), exactly as the catalog prints it, so a new overload is not covered. */
@@ -238,12 +276,20 @@ const CODE = (col: string) =>
 const BARE = (code: string) => `regexp_replace(${code}, '''([^'']|'''')*''', '', 'g')`;
 
 // A raising gate counts when it is called; a boolean gate counts when it is called and not by PERFORM.
-const GATED = (bare: string) =>
-  GATE_DEFS.map((g) =>
-    g.raises
-      ? `${bare} ~* ${lit(callOf(g.fn))}`
-      : `regexp_replace(${bare}, ${lit(`perform[[:space:]]+${callOf(g.fn)}`)}, '', 'gi') ~* ${lit(callOf(g.fn))}`,
-  ).join("\n        or ");
+const GATED = (bare: string, gates: Gate[]) =>
+  gates
+    .map((g) =>
+      g.raises
+        ? `${bare} ~* ${lit(callOf(g.fn))}`
+        : `regexp_replace(${bare}, ${lit(`perform[[:space:]]+${callOf(g.fn)}`)}, '', 'gi') ~* ${lit(callOf(g.fn))}`,
+    )
+    .join("\n        or ");
+
+const FULL_GATES = GATE_DEFS.filter((g) => !g.deviceOnly);
+const DEVICE_GATES = GATE_DEFS.filter((g) => g.deviceOnly);
+// A rep-only marker is a role test (read in `code`, where the literal 'rep' still is) or a call of a rep-only helper.
+const MARKED = (code: string, bare: string) =>
+  [`${code} ~* ${lit(REP_ROLE)}`, ...REP_MARKER_CALLS.map((fn) => `${bare} ~* ${lit(callOf(fn))}`)].join(" or ");
 
 const GATE_NAMES = `array[${GATES.map(lit).join(", ")}]::text[]`;
 
@@ -259,14 +305,21 @@ const INVENTORY = `
     where n.nspname in ${SCHEMAS}
       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
       and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'))),
-  g as (select f.*, ${BARE("f.code")} bare from f)
-  select sig, name, auth, anon, code, (${GATED("bare")}) gated, name = any (${GATE_NAMES}) is_gate from g`;
+  g as (select f.*, ${BARE("f.code")} bare from f),
+  h as (select g.*, (${GATED("bare", FULL_GATES)}) full_g, (${GATED("bare", DEVICE_GATES)}) dev_g, (${MARKED("code", "bare")}) marked from g)
+  select sig, name, auth, anon, code,
+         (full_g or (dev_g and marked)) gated,
+         (dev_g and not full_g and not marked) device_only,
+         name = any (${GATE_NAMES}) is_gate
+  from h`;
 
-// The functions the sweep reports before the allowlist: executable, not a gate itself, no gate called.
-const UNGATED = `select sig t from (${INVENTORY}) i where not gated and not is_gate order by 1`;
+// The functions the sweep reports before the allowlist: executable, not a gate itself, no gate called at all.
+const UNGATED = `select sig t from (${INVENTORY}) i where not gated and not device_only and not is_gate order by 1`;
+// Executable, not a gate itself, and passing only on a device-only gate with no rep-only marker.
+const DEVICE_ONLY = `select sig t from (${INVENTORY}) i where device_only and not is_gate order by 1`;
 
 // Gates whose definition is missing, duplicated, or lacks one of the parts that makes it a gate.
-const GATE_VALUES = GATE_DEFS.flatMap((g) => g.needs.map((n) => `(${lit(g.fn)}, ${lit(n)})`)).join(", ");
+const GATE_VALUES = [...GATE_DEFS, ...MARKER_DEFS].flatMap((g) => g.needs.map((n) => `(${lit(g.fn)}, ${lit(n)})`)).join(", ");
 const GATE_GAPS = `
   with need(fn, re) as (values ${GATE_VALUES}),
   def as (
@@ -277,7 +330,16 @@ const GATE_GAPS = `
   where def.fn is null or def.copies <> 1 or def.code !~* need.re
   order by 1`;
 
-type Row = { sig: string; name: string; auth: boolean; anon: boolean; code: string; gated: boolean; is_gate: boolean };
+type Row = {
+  sig: string;
+  name: string;
+  auth: boolean;
+  anon: boolean;
+  code: string;
+  gated: boolean;
+  device_only: boolean;
+  is_gate: boolean;
+};
 const inventory = async (): Promise<Row[]> => (await run("postgres", INVENTORY)).rows;
 const ungated = async () => (await run("postgres", UNGATED)).rows.map((r) => r.t as string);
 
@@ -286,7 +348,17 @@ const planted = async (setup: string, guard: string) => {
   const res = (await run("postgres", `${setup}; ${guard}`)) as unknown as Array<{ rows: Array<{ t: string }> }>;
   return res[res.length - 1].rows.map((r) => r.t);
 };
-const plantedUngated = async (setup: string) => (await planted(setup, UNGATED)).filter((t) => t.includes("zz_planted"));
+const onlyPlanted = (rows: string[]) => rows.filter((t) => t.includes("zz_planted"));
+const plantedUngated = async (setup: string) => onlyPlanted(await planted(setup, UNGATED));
+const plantedDeviceOnly = async (setup: string) => onlyPlanted(await planted(setup, DEVICE_ONLY));
+
+/** What is wrong with the exception list: a function that is gone, or one that no longer passes on a device-only gate alone. */
+async function exceptionProblems(list: Array<{ fn: string }>): Promise<string[]> {
+  const stillDeviceOnly = new Set((await run("postgres", DEVICE_ONLY)).rows.map((r) => r.t as string));
+  return list
+    .filter((e) => !stillDeviceOnly.has(e.fn))
+    .map((e) => `${e.fn}: stale, it no longer passes on a device-only gate alone`);
+}
 
 /**
  * What is wrong with an allowlist: an entry listed twice, one that matches no executable function, one for a
@@ -338,6 +410,18 @@ describe("every function a client can call passes a gate (doc 06 10.3)", () => {
   it("every function that authenticated or anon can execute calls a gate, or is on the allowlist with a reason", async () => {
     const allowed = new Set(ALLOWLIST.map((e) => e.fn));
     expect((await ungated()).filter((f) => !allowed.has(f))).toEqual([]);
+  });
+
+  it("every function that passes only on a device-only gate (self_ok, rep_device_ok) also carries a rep-only marker, or is a named exception", async () => {
+    // self_ok is true for an owner or manager at AAL1: a new office-reachable function gated by it alone has no TOTP test.
+    const named = new Set(DEVICE_ONLY_EXCEPTIONS.map((e) => e.fn));
+    const found = (await run("postgres", DEVICE_ONLY)).rows.map((r) => r.t as string);
+    expect(found.filter((f) => !named.has(f))).toEqual([]);
+  });
+
+  it("every device-only exception still exists and still passes on a device-only gate alone (a fixed one must leave the list)", async () => {
+    expect(await exceptionProblems(DEVICE_ONLY_EXCEPTIONS)).toEqual([]);
+    expect(DEVICE_ONLY_EXCEPTIONS.map((e) => e.status).sort()).toEqual(["ACCEPTED", "DEFECT"]);
   });
 
   it("every allowlist entry still exists, still calls no gate, and its reason still holds in the body", async () => {
@@ -406,6 +490,48 @@ describe("the guards report what they should (planted functions, rolled back)", 
       GATE_DEFS.map(async (g) => [g.fn, await plantedUngated(make("gated", callOfGate(g)))] as const),
     );
     expect(results).toEqual(GATE_DEFS.map((g) => [g.fn, []]));
+    // A full gate leaves nothing for the device-only check; a device-only gate alone is reported by that check instead.
+    const deviceOnly = await Promise.all(
+      GATE_DEFS.map(async (g) => [g.fn, await plantedDeviceOnly(make("gated", callOfGate(g)))] as const),
+    );
+    expect(deviceOnly).toEqual(GATE_DEFS.map((g) => [g.fn, g.deviceOnly ? flagged("gated") : []]));
+  });
+
+  it("a function gated only by app.self_ok is reported unless it carries a rep-only marker or a full gate", async () => {
+    const cases: Array<[string, string, boolean]> = [
+      ["selfonly", "if app.self_ok() then null; end if;", true],
+      ["deviceonly", "if app.rep_device_ok() then null; end if;", true],
+      // The marker must be real: in a comment, a string, or as the excluding form (<>) it does not make a body rep-only.
+      [
+        "commentmark",
+        `-- app.user_role() = 'rep'
+        if app.self_ok() then null; end if;`,
+        true,
+      ],
+      ["stringmark", "if app.self_ok() then raise notice 'user_role() = rep'; end if;", true],
+      ["notrep", "if app.self_ok() and app.user_role() <> 'rep' then null; end if;", true],
+      ["repmark", "if app.self_ok() and app.user_role() = 'rep' then null; end if;", false],
+      ["refusing", "if app.user_role() is distinct from 'rep' or not app.self_ok() then null; end if;", false],
+      ["bagmark", "if app.self_ok() and app.my_bag_id() is not null then null; end if;", false],
+      ["terrmark", "if app.self_ok() and app.my_territory_ids() is not null then null; end if;", false],
+      ["reachmark", "if app.self_ok() and app.rep_can_reach_salon(null) then null; end if;", false],
+      ["fullgate", "if app.self_ok() and app.is_office() then null; end if;", false],
+      ["raisegate", "perform app.self_ok(); perform app.assert_office();", false],
+    ];
+    const found = await Promise.all(
+      cases.map(async ([name, body]) => [name, await plantedDeviceOnly(make(name, body))] as const),
+    );
+    expect(found).toEqual(cases.map(([name, , reported]) => [name, reported ? flagged(name) : []]));
+    // A device gate whose call is thrown away by PERFORM is no gate at all: reported as ungated, not as device-only.
+    expect(await plantedUngated(make("dropped", "perform app.self_ok(); perform 1;"))).toEqual(flagged("dropped"));
+  });
+
+  it("the exception check reports a function that is gone or now properly gated", async () => {
+    expect(await exceptionProblems([{ fn: "app.warehouse_availability()" }])).toEqual([]);
+    expect(await exceptionProblems([{ fn: "app.my_day()" }])).toEqual([
+      "app.my_day(): stale, it no longer passes on a device-only gate alone",
+    ]);
+    expect(await exceptionProblems([{ fn: "app.no_such_function()" }])).toHaveLength(1);
   });
 
   it("reports a boolean gate that is called and thrown away, a look-alike name, and a gate named only in a comment or a string", async () => {
@@ -499,16 +625,23 @@ describe("self_ok alone does not enforce TOTP for the office", () => {
   const warehouseRowsAt = async (aal: "aal1" | "aal2") => {
     const [group, product, sku, store] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
     const code = `ZZGATE-${randomUUID().slice(0, CODE_LENGTH).toUpperCase()}`;
-    const res = (await run(
-      MANAGER,
-      `select app.office_upsert_product_group('${group}', '[Test] gate group', 21);
-       select app.office_upsert_product('${product}', '${group}', '[Test] gate brand', '[Test] gate product');
-       select app.office_upsert_sku('${sku}', '${product}', '${code}', '[Test] shade', 'ml', 100);
-       select app.office_create_location('${store}', 'warehouse', '[Test] gate store');
-       select set_config('request.jwt.claims', ${lit(claims(fx.manager.id, aal))}, true);
-       select count(*)::int n from app.warehouse_availability() where sku_id = '${sku}'`,
-    )) as unknown as Array<{ rows: Array<{ n: number }> }>;
-    return res[res.length - 1].rows[0].n;
+    // The refusal 42501 counts as no rows: the defect is "rows are visible at AAL1", so either fix (no rows, or a
+    // refusal) ends it and turns the DEFECT CHECK red. Any other error still surfaces.
+    try {
+      const res = (await run(
+        MANAGER,
+        `select app.office_upsert_product_group('${group}', '[Test] gate group', 21);
+         select app.office_upsert_product('${product}', '${group}', '[Test] gate brand', '[Test] gate product');
+         select app.office_upsert_sku('${sku}', '${product}', '${code}', '[Test] shade', 'ml', 100);
+         select app.office_create_location('${store}', 'warehouse', '[Test] gate store');
+         select set_config('request.jwt.claims', ${lit(claims(fx.manager.id, aal))}, true);
+         select count(*)::int n from app.warehouse_availability() where sku_id = '${sku}'`,
+      )) as unknown as Array<{ rows: Array<{ n: number }> }>;
+      return res[res.length - 1].rows[0].n;
+    } catch (e) {
+      if ((e as { code?: string }).code === DENIED) return 0;
+      throw e;
+    }
   };
 
   it("baseline: with TOTP the office sees the planted SKU in app.warehouse_availability()", async () => {
