@@ -4,7 +4,7 @@ import { ListState } from "@/components/confirm-action";
 import { rupees, toPaisa } from "@/lib/money";
 import { IMAGE_ACCEPT, signedImageUrls, uploadProductImage } from "@/lib/product-images";
 import { db, mySession, rows, rpc, type Session } from "@/lib/rpc";
-import { OnlineShop, type ShopRow } from "./online-shop";
+import { OnlineShop, ShopCategory, type ShopRow } from "./online-shop";
 
 type Sku = {
   id: string;
@@ -66,30 +66,43 @@ export default function Products() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [shop, setShop] = useState<ShopRow[]>([]);
+  const [shopError, setShopError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // The online shop details load on their own. If that read fails (for example the database does not
+  // have the shop functions yet), only the Online shop panels say so; products, prices and pictures
+  // on this page still work.
+  const loadShop = useCallback(async () => {
+    try {
+      setShop((await rpc<ShopRow[]>("office_storefront_sheet")) ?? []);
+      setShopError(null);
+    } catch (e) {
+      setShop([]);
+      setShopError((e as Error).message);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [s, p, g, pages] = await Promise.all([
+      const [s, p, g] = await Promise.all([
         mySession(),
         rpc<Product[]>("office_catalogue"),
         rows<Group>(db().from("product_group").select("id, name, default_cycle_days, active").order("name").limit(GROUP_LIMIT)),
-        rpc<ShopRow[]>("office_storefront_sheet"),
+        loadShop(),
       ]);
       setMe(s);
       setProducts(p ?? []);
       setGroups(g);
-      setShop(pages ?? []);
       setUrls(await signedImageUrls((p ?? []).map((x) => x.image_path)));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadShop]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -109,6 +122,7 @@ export default function Products() {
       {notice && <output className="ok">{notice}</output>}
       {!loading && !error && <ProductGroups groups={groups} isOwner={me?.role === "owner"} onDone={done} />}
       <AddProduct groups={groups.filter((g) => g.active)} onDone={done} />
+      {!loading && !error && <ShopCategories products={products} shop={shop} shopError={shopError} onDone={done} />}
       <ListState loading={loading} error={error} empty={products.length === 0} emptyText="No products yet." />
       {!loading &&
         products.map((p) => (
@@ -118,10 +132,51 @@ export default function Products() {
             groups={groups}
             imageUrl={p.image_path ? urls[p.image_path] : undefined}
             shop={shop.find((page) => page.product_id === p.product_id)}
+            shopError={shopError}
             onDone={done}
           />
         ))}
     </>
+  );
+}
+
+// The category pages of the public shop, one form per category that has a product (P1-33). A category
+// page is saved and published here, once, and not inside each product card.
+function ShopCategories({
+  products,
+  shop,
+  shopError,
+  onDone,
+}: {
+  products: Product[];
+  shop: ShopRow[];
+  shopError: string | null;
+  onDone: (m: string) => Promise<void>;
+}) {
+  const categories = [...new Map(products.map((p) => [p.product_group_id, p.group_name])).entries()];
+  if (categories.length === 0) return null;
+  return (
+    <section className="card" aria-label="Online shop categories">
+      <h2>Online shop categories</h2>
+      <p className="muted">
+        The public page of each category. A product page is public only while its category page is published.
+      </p>
+      {shopError ? (
+        <p className="error" role="alert">
+          The online shop details could not be loaded: {shopError}
+        </p>
+      ) : (
+        categories.map(([groupId, groupName]) => (
+          <ShopCategory
+            key={groupId}
+            groupId={groupId}
+            groupName={groupName}
+            row={shop.find((page) => page.product_group_id === groupId)}
+            onDone={onDone}
+          />
+        ))
+      )}
+    </section>
   );
 }
 
@@ -383,12 +438,14 @@ function ProductCard({
   groups,
   imageUrl,
   shop,
+  shopError,
   onDone,
 }: {
   product: Product;
   groups: Group[];
   imageUrl: string | undefined;
   shop: ShopRow | undefined;
+  shopError: string | null;
   onDone: (m: string) => Promise<void>;
 }) {
   return (
@@ -418,7 +475,7 @@ function ProductCard({
         ))}
       </ul>
       <AddSku product={product} onDone={onDone} />
-      <OnlineShop product={product} row={shop} onDone={onDone} />
+      <OnlineShop product={product} row={shop} loadError={shopError} onDone={onDone} />
     </section>
   );
 }
