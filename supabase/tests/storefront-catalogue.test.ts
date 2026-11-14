@@ -367,6 +367,37 @@ describe("office writes", () => {
     ).toContain("published address cannot change");
   });
 
+  it("a second page cannot repeat an address, a meta title or a meta description, and is told which in plain words", async () => {
+    // The second product's page (never published, so its address may still change) tries each of the first page's values.
+    const save = "select app.office_upsert_storefront_product($1, $2, $3, $4, $5, null, null, null)";
+    const repeats: Array<[string, string[]]> = [
+      ["another page already uses this address", [slug, title2, desc2]],
+      ["another page already uses this meta title", [slug2, title, desc2]],
+      ["another page already uses this meta description", [slug2, title2, desc]],
+    ];
+    await each(repeats, async ([message, fields]) => {
+      expect(await sqlstate(MANAGER, save, [id(), PRODUCT2, ...fields])).toBe(DUPLICATE);
+      expect(await errorOf(MANAGER, save, [id(), PRODUCT2, ...fields])).toBe(message);
+    });
+    // The refusal wrote nothing: the second page still has its own values, and no write was recorded for the attempt.
+    const key = id();
+    expect(await sqlstate(MANAGER, save, [key, PRODUCT2, slug, title2, desc2])).toBe(DUPLICATE);
+    const { rows } = await run(
+      "postgres",
+      `select s.slug, s.meta_title, (select count(*)::int from public.storefront_write w where w.client_id = $2) as written
+       from public.storefront_product s where s.product_id = $1`,
+      [PRODUCT2, key],
+    );
+    expect(rows).toEqual([{ slug: slug2, meta_title: title2, written: 0 }]);
+    // A category page is told the same way.
+    const otherGroup = id();
+    const category = `${asManager()}
+      select app.office_upsert_product_group('${otherGroup}', '[Test] Shop group two ${tag()}', 21);
+      select app.office_upsert_storefront_category('${id()}', '${otherGroup}', '${catSlug}', 'Dummy second group page', '${blurb(tag())}', null);`;
+    expect(await sqlstate("postgres", category)).toBe(DUPLICATE);
+    expect(await errorOf("postgres", category)).toBe("another page already uses this address");
+  });
+
   it("a published category address cannot change either", async () => {
     const sql = "select app.office_upsert_storefront_category($1, $2, $3, $4, $5, null)";
     const params = () => [id(), GROUP, `other-${tag()}`, catTitle, catDesc];
@@ -548,6 +579,8 @@ describe("office writes", () => {
   it("every application role is refused the helper functions", async () => {
     await each(["anon", REP_A, MANAGER, OWNER, "service_role"] as Who[], async (who) => {
       expect(await sqlstate(who, "select app.storefront_shade_available($1)", [SKU1])).toBe(DENIED);
+      expect(await sqlstate(who, "select app.storefront_duplicate('storefront_product_slug_key')")).toBe(DENIED);
+      expect(await sqlstate(who, "select app.storefront_hash(array['a'])")).toBe(DENIED);
       expect(await sqlstate(who, "select app.storefront_seen($1, 'sku', $2, repeat('0', 64))", [id(), SKU1])).toBe(DENIED);
       expect(await sqlstate(who, "select app.storefront_record($1, 'sku', $2, repeat('0', 64))", [id(), SKU1])).toBe(DENIED);
     });

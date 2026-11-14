@@ -183,6 +183,17 @@ language sql stable security definer set search_path = '' as $$
     where s.image_path = p_name and s.published)
 $$;
 
+-- Plain words for a repeated address, meta title or meta description, by the constraint that fired.
+create function app.storefront_duplicate(p_constraint text) returns text
+language sql immutable set search_path = '' as $$
+  select case
+    when p_constraint like '%_slug_key' then 'another page already uses this address'
+    when p_constraint like '%_meta_title_key' then 'another page already uses this meta title'
+    when p_constraint like '%_meta_description_key' then 'another page already uses this meta description'
+    else 'this page repeats a value that must be unique'
+  end
+$$;
+
 -- --------------------------------------------------------- office writes ----
 create function app.office_upsert_storefront_category(
   p_client_id uuid, p_product_group_id uuid, p_slug text, p_meta_title text, p_meta_description text, p_body text)
@@ -194,6 +205,7 @@ declare
   v_desc text := btrim(p_meta_description);
   v_body text := nullif(btrim(p_body), '');
   v_hash text;
+  v_con text;
   v public.storefront_category;
 begin
   perform app.assert_office();
@@ -226,13 +238,18 @@ begin
     return v;
   end if;
   perform app.set_purpose('storefront category');
-  insert into public.storefront_category as c
-    (product_group_id, slug, meta_title, meta_description, body, created_by)
-  values (p_product_group_id, v_slug, v_title, v_desc, v_body, auth.uid())
-  on conflict (product_group_id) do update
-    set slug = excluded.slug, meta_title = excluded.meta_title,
-        meta_description = excluded.meta_description, body = excluded.body
-  returning * into v;
+  begin
+    insert into public.storefront_category as c
+      (product_group_id, slug, meta_title, meta_description, body, created_by)
+    values (p_product_group_id, v_slug, v_title, v_desc, v_body, auth.uid())
+    on conflict (product_group_id) do update
+      set slug = excluded.slug, meta_title = excluded.meta_title,
+          meta_description = excluded.meta_description, body = excluded.body
+    returning * into v;
+  exception when unique_violation then
+    get stacked diagnostics v_con = constraint_name;
+    raise exception using errcode = '23505', message = app.storefront_duplicate(v_con);
+  end;
   perform app.storefront_record(p_client_id, 'category', p_product_group_id, v_hash);
   return v;
 end $$;
@@ -250,6 +267,7 @@ declare
   v_how text := nullif(btrim(p_how_to_use), '');
   v_img text := nullif(btrim(p_image_path), '');
   v_hash text;
+  v_con text;
   v public.storefront_product;
 begin
   perform app.assert_office();
@@ -294,13 +312,18 @@ begin
     raise exception using errcode = '55000', message = 'a published product keeps its picture';
   end if;
   perform app.set_purpose('storefront product');
-  insert into public.storefront_product as s
-    (product_id, slug, meta_title, meta_description, body, how_to_use, image_path, created_by)
-  values (p_product_id, v_slug, v_title, v_desc, v_body, v_how, v_img, auth.uid())
-  on conflict (product_id) do update
-    set slug = excluded.slug, meta_title = excluded.meta_title, meta_description = excluded.meta_description,
-        body = excluded.body, how_to_use = excluded.how_to_use, image_path = excluded.image_path
-  returning * into v;
+  begin
+    insert into public.storefront_product as s
+      (product_id, slug, meta_title, meta_description, body, how_to_use, image_path, created_by)
+    values (p_product_id, v_slug, v_title, v_desc, v_body, v_how, v_img, auth.uid())
+    on conflict (product_id) do update
+      set slug = excluded.slug, meta_title = excluded.meta_title, meta_description = excluded.meta_description,
+          body = excluded.body, how_to_use = excluded.how_to_use, image_path = excluded.image_path
+    returning * into v;
+  exception when unique_violation then
+    get stacked diagnostics v_con = constraint_name;
+    raise exception using errcode = '23505', message = app.storefront_duplicate(v_con);
+  end;
   perform app.storefront_record(p_client_id, 'product', p_product_id, v_hash);
   return v;
 end $$;
@@ -524,6 +547,7 @@ revoke all on function
   app.storefront_hash(text[]),
   app.storefront_shade_available(uuid),
   app.storefront_image_published(text),
+  app.storefront_duplicate(text),
   app.office_upsert_storefront_category(uuid, uuid, text, text, text, text),
   app.office_upsert_storefront_product(uuid, uuid, text, text, text, text, text, text),
   app.office_set_storefront_published(uuid, text, uuid, boolean),
