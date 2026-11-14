@@ -111,6 +111,13 @@ create trigger append_only before update or delete on public.storefront_write
   for each row execute function control.forbid_mutation();
 create trigger no_truncate before truncate on public.storefront_write
   for each statement execute function control.forbid_mutation();
+-- The page tables refuse row deletes (the guard above); a truncate must not get round that (H-07).
+create trigger no_truncate before truncate on public.storefront_category
+  for each statement execute function control.forbid_mutation();
+create trigger no_truncate before truncate on public.storefront_product
+  for each statement execute function control.forbid_mutation();
+create trigger no_truncate before truncate on public.storefront_sku
+  for each statement execute function control.forbid_mutation();
 
 create trigger audit after insert or update or delete on public.storefront_category
   for each row execute function control.audit_row();
@@ -164,6 +171,16 @@ language sql stable security definer set search_path = '' as $$
     select 1 from public.stock_location l
     where l.kind = 'warehouse' and l.active
       and app.on_hand(l.id, p_sku) - app.pending_out(l.id, p_sku) > 0)
+$$;
+
+-- True when this object name is the picture of a published product page. The storage delete
+-- policy uses it, so the office cannot remove a picture a public page still shows. It tells a
+-- caller nothing a visitor cannot already see: a published page names its picture.
+create function app.storefront_image_published(p_name text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.storefront_product s
+    where s.image_path = p_name and s.published)
 $$;
 
 -- --------------------------------------------------------- office writes ----
@@ -439,6 +456,10 @@ language sql stable security definer set search_path = '' as $$
          app.storefront_shade_available(k.id)
   from public.storefront_product sp
   join public.product p on p.id = sp.product_id and p.active
+  -- The same gate as the catalogue: an unpublished category page, or an inactive category,
+  -- takes its product pages down with it (the more restrictive reading; see the log entry).
+  join public.product_group g on g.id = p.product_group_id and g.active
+  join public.storefront_category c on c.product_group_id = g.id and c.published
   join public.storefront_sku ss on ss.published
   join public.sku k on k.id = ss.sku_id and k.product_id = p.id and k.active and k.list_price_paisa is not null
   where sp.published and sp.slug = btrim(p_slug)
@@ -466,15 +487,18 @@ begin
     if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'allowed_mime_types') then
       execute $q$update storage.buckets set allowed_mime_types = array['image/png', 'image/jpeg', 'image/webp'] where id = 'storefront-images'$q$;
     end if;
-    execute $q$create policy storefront_images_read on storage.objects for select to anon, authenticated
-      using (bucket_id = 'storefront-images')$q$;
+    -- A public bucket serves an object by its public URL with no policy. A SELECT policy for
+    -- anon would also let anyone list every object name, pictures of unpublished products
+    -- included, so only the office may read through the API.
+    execute format($q$create policy storefront_images_read on storage.objects for select to authenticated
+      using (bucket_id = 'storefront-images' and (select app.is_office()) and name ~ %L)$q$, v_name_shape);
     execute format($q$create policy storefront_images_insert on storage.objects for insert to authenticated
       with check (bucket_id = 'storefront-images' and (select app.is_office()) and name ~ %L)$q$, v_name_shape);
-    execute format($q$create policy storefront_images_update on storage.objects for update to authenticated
-      using (bucket_id = 'storefront-images' and (select app.is_office()) and name ~ %L)
-      with check (bucket_id = 'storefront-images' and (select app.is_office()) and name ~ %L)$q$, v_name_shape, v_name_shape);
+    -- No UPDATE policy: every upload is a new object name, so nothing public is overwritten.
+    -- DELETE: the office may remove a picture no published page shows.
     execute format($q$create policy storefront_images_delete on storage.objects for delete to authenticated
-      using (bucket_id = 'storefront-images' and (select app.is_office()) and name ~ %L)$q$, v_name_shape);
+      using (bucket_id = 'storefront-images' and (select app.is_office()) and name ~ %L
+             and not (select app.storefront_image_published(name)))$q$, v_name_shape);
   exception when insufficient_privilege then
     raise warning 'storefront-images bucket and policies not created (insufficient privilege on storage): %', sqlerrm;
   end;
@@ -499,6 +523,7 @@ revoke all on function
   app.storefront_record(uuid, text, uuid, text),
   app.storefront_hash(text[]),
   app.storefront_shade_available(uuid),
+  app.storefront_image_published(text),
   app.office_upsert_storefront_category(uuid, uuid, text, text, text, text),
   app.office_upsert_storefront_product(uuid, uuid, text, text, text, text, text, text),
   app.office_set_storefront_published(uuid, text, uuid, boolean),
@@ -513,6 +538,9 @@ grant execute on function
   app.office_set_storefront_published(uuid, text, uuid, boolean),
   app.office_storefront_sheet()
   to authenticated;
+
+-- The storage delete policy runs as the caller, so the caller needs EXECUTE on its helper.
+grant execute on function app.storefront_image_published(text) to authenticated;
 
 -- D-52: these two reads are the only functions anon may execute.
 grant usage on schema app to anon;
