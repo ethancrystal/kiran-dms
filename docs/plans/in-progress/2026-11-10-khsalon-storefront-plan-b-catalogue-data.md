@@ -83,3 +83,15 @@ Office panel: `apps/web/app/office/(shell)/products/online-shop.tsx`, rendered o
 Tests: `supabase/tests/storefront-catalogue.test.ts`, plus new rows in `rls-matrix.test.ts`, plus the anon-execute exception in `schema-hygiene.test.ts`.
 
 Not in this migration: Plan C seed, pages, tracking, Shopify, reminders. Two rows are both numbered D-51. This plan means the public-shop row dated 2026-11-10. They are not renumbered here.
+
+## Changes on 2026-11-14 (another agent finished the stale branch)
+
+These replace the matching sentences of the step level above. The reasons and the evidence are in the log entry `2026-11-11-grok-p1-33-catalogue` (its addendum) and in `2026-11-14-claude-p1-33-catalogue-assumption`.
+
+- A product page is public only while its category page is published and its category is active, the same gate the catalogue listing has. The step level above said a product address still resolves when the category is unpublished; it no longer does (assumption A-24, the more restrictive reading).
+- Bucket `storefront-images`: a picture is served by its public URL. No storage policy names anon, so a visitor cannot list the bucket. The office (owner or manager at AAL2) lists and uploads under the name shape. There is no update policy. The office deletes only a picture that no published product page shows (`app.storefront_image_published`).
+- The page tables refuse TRUNCATE as well as DELETE.
+- A repeated address, meta title or meta description is refused with plain words (`app.storefront_duplicate`).
+- Office panel: the category page form is shown once per category, in an "Online shop categories" section above the products, and no longer inside every product card. The shop details load on their own: if that read fails, only the Online shop panels say so, and the rest of the Products page works.
+- Tests: the catalogue test file also covers the audit rows and chain, the write log as every role, publish replay, the office sheet, and the storage block run against a stand-in storage schema. `apps/web/e2e-stack/office.spec.ts` has one journey for the panel, which runs only in CI (this host has no Docker).
+- Waiting on MJ: blocker B-62 (anon holds USAGE on schema `app`).
