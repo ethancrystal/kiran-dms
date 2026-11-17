@@ -55,6 +55,21 @@ const DECIMAL = /^\d{1,9}(\.\d{1,2})?$/;
 // A count as typed (units, days, minutes, metres, times): "10" and "0" match; "10.5", "-1" and "1,000" do not.
 // https://regex101.com/?regex=%5E%5Cd%7B1%2C9%7D%24&flavor=javascript
 const WHOLE = /^\d{1,9}$/;
+const REMINDER_NUMBERS: Array<[string, string]> = [
+  ["reminders.interval_minutes", "Interval minutes"],
+  ["reminders.hours_start", "First hour"],
+  ["reminders.hours_end", "Last hour (not included)"],
+  ["reminders.owner_after_hours", "Tell the owner after (hours)"],
+];
+const REMINDER_KINDS: Array<[string, string]> = [
+  ["reminders.on.discount", "Discount approvals"],
+  ["reminders.on.adjustment", "Stock adjustments"],
+  ["reminders.on.delivery", "Deliveries waiting for approval"],
+  ["reminders.on.stock", "Rejected goods still unsettled"],
+  ["reminders.on.salon", "Salon proposals"],
+];
+const reminderLabel = (key: string) =>
+  REMINDER_NUMBERS.find(([k]) => k === key)?.[1] ?? REMINDER_KINDS.find(([k]) => k === key)?.[1] ?? key;
 
 const isMoney = (key: string) => key.endsWith("_paisa") || key === "paisa";
 const isPercent = (key: string) => key.endsWith("_pct") || key === "pct";
@@ -108,8 +123,21 @@ export default function Settings() {
   const profile = row(PROFILE);
   const banks = row(BANKS);
   const numeric = config.filter(
-    (c) => !READ_ONLY.includes(c.key) && !(c.key in NOT_USED) && (typeof c.value === "number" || isNumberObject(c.value)),
+    (c) =>
+      !c.key.startsWith("reminders.") &&
+      !READ_ONLY.includes(c.key) &&
+      !(c.key in NOT_USED) &&
+      (typeof c.value === "number" || isNumberObject(c.value)),
   );
+  const reminderNumbers = REMINDER_NUMBERS.flatMap(([key]) => {
+    const found = row(key);
+    return found && typeof found.value === "number" ? [found] : [];
+  });
+  const reminderKinds = REMINDER_KINDS.flatMap(([key]) => {
+    const found = row(key);
+    return found && typeof found.value === "boolean" ? [found] : [];
+  });
+  const showReminders = reminderNumbers.length === REMINDER_NUMBERS.length && reminderKinds.length === REMINDER_KINDS.length;
   const unused = config.filter((c) => c.key in NOT_USED);
 
   return (
@@ -128,6 +156,14 @@ export default function Settings() {
           <p className="muted">Each change needs a reason and is kept in the audit log.</p>
           {profile && <ProfileForm key={profile.updated_at} row={profile} onDone={done} />}
           {banks && <BankForm key={banks.updated_at} row={banks} onDone={done} />}
+          {showReminders && (
+            <RemindersForm
+              key={reminderNumbers.map((c) => c.updated_at).join("|")}
+              numbers={reminderNumbers}
+              kinds={reminderKinds}
+              onDone={done}
+            />
+          )}
           <section aria-labelledby="limits-h">
             <h2 id="limits-h">Limits and thresholds</h2>
             {numeric.map((c) => (
@@ -299,6 +335,90 @@ function BankForm({ row, onDone }: { row: ConfigRow; onDone: Done }) {
       <FormError error={error} />
       <button type="submit" disabled={busy}>
         {busy ? "Saving…" : "Save bank accounts"}
+      </button>
+    </form>
+  );
+}
+
+function RemindersForm({ numbers, kinds, onDone }: { numbers: ConfigRow[]; kinds: ConfigRow[]; onDone: Done }) {
+  const [form, setForm] = useState<Record<string, string>>(() =>
+    Object.fromEntries(numbers.map((c) => [c.key, String(c.value)])),
+  );
+  const [flags, setFlags] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(kinds.map((c) => [c.key, c.value === true])),
+  );
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <form
+      className="card"
+      aria-labelledby="reminders-h"
+      data-testid="reminders-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const parsed = numbers.map(
+          (c) => [c.key, WHOLE.test(form[c.key]?.trim() ?? "") ? Number(form[c.key].trim()) : null] as const,
+        );
+        if (parsed.some(([, value]) => value === null)) return setError("Enter whole numbers for the reminder times.");
+        if (reason.trim().length < REASON_MIN) return setError("A reason needs at least 3 characters.");
+        const writes: Array<[string, number | boolean]> = [
+          ...parsed.map(([key, value]) => [key, value as number] as [string, number]),
+          ...kinds.map((c) => [c.key, flags[c.key] === true] as [string, boolean]),
+        ];
+        void (async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            for (const [key, value] of writes) {
+              await rpc("owner_set_config", { p_key: key, p_value: value, p_reason: reason.trim(), p_rep_visible: null });
+            }
+            await onDone("Reminders: saved.");
+          } catch (err) {
+            setError((err as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        })();
+      }}
+    >
+      <h2 id="reminders-h">Reminders</h2>
+      <p className="muted">
+        Reminders go out only when the first hour is before the last hour, on the Asia/Karachi clock. Nothing is e-mailed until a
+        mail service is named.
+      </p>
+      {numbers.map((c) => (
+        <div key={c.key}>
+          <label htmlFor={`reminder-${c.key}`}>{reminderLabel(c.key)}</label>
+          <input
+            id={`reminder-${c.key}`}
+            inputMode="numeric"
+            value={form[c.key] ?? ""}
+            onChange={(e) => setForm((current) => ({ ...current, [c.key]: e.target.value }))}
+            required
+          />
+        </div>
+      ))}
+      <fieldset>
+        <legend>What to remind about</legend>
+        {kinds.map((c) => (
+          <div key={c.key}>
+            <label htmlFor={`reminder-${c.key}`}>
+              <input
+                id={`reminder-${c.key}`}
+                type="checkbox"
+                checked={flags[c.key] === true}
+                onChange={(e) => setFlags((current) => ({ ...current, [c.key]: e.target.checked }))}
+              />{" "}
+              {reminderLabel(c.key)}
+            </label>
+          </div>
+        ))}
+      </fieldset>
+      <Reason id="reminders-reason" value={reason} onChange={setReason} />
+      <FormError error={error} />
+      <button type="submit" disabled={busy}>
+        {busy ? "Saving…" : "Save reminders"}
       </button>
     </form>
   );

@@ -999,6 +999,12 @@ const MATRIX: Row[] = [
       select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])) as Row["select"],
     }),
   ),
+  // P1-38. Append-only. No policy and no grant: the office reads it through app.office_reminder_log.
+  {
+    table: "control.approval_reminder_log",
+    writeCol: "result",
+    select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
+  },
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",

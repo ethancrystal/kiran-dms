@@ -296,6 +296,7 @@ describe("catalogue: the structure every attack runs into (H-06, H-08, H-13, H-1
     "public.invoice",
     "control.phone_reveal",
     "control.audit_event",
+    "control.approval_reminder_log",
   ];
   it("every append-only table has an enabled BEFORE UPDATE OR DELETE trigger", async () => {
     const missing: string[] = [];

@@ -260,11 +260,11 @@ describe("internal functions are not callable by app roles", () => {
       "office_commission", "office_commission_reps", "office_count_handover", "office_create_investor", "office_create_location", "office_create_order",
       "office_decide_profit", "office_decide_salon", "office_decide_signup", "office_deliver", "office_delivery_signature", "office_dismiss_card", "office_end_territory",
       "office_force_close_rep_day", "office_handovers", "office_inactive_rep_cash", "office_investor_investments", "office_investor_month", "office_investor_statement", "office_investors",
-      "office_invitations", "office_invite", "office_invoice_preview", "office_invoices", "office_open_cards", "office_order_signature", "office_order_timeline",
+      "office_invitations", "office_invite", "office_invoice_preview", "office_invoices", "office_open_cards", "office_order_signature", "office_order_steps", "office_order_timeline",
       "office_orders", "office_override_stage", "office_overview_counts", "office_overview_rows", "office_pending_approvals", "office_pending_deliveries",
       "office_pending_salons", "office_pending_signups", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receipts",
       "office_receivables_ageing", "office_record_cash", "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_refused_approvals",
-      "office_reject_delivery", "office_release_credit_hold", "office_rep_cash_position", "office_rep_detail", "office_rep_month", "office_resolve_pending",
+      "office_reject_delivery", "office_release_credit_hold", "office_reminder_log", "office_rep_cash_position", "office_rep_detail", "office_rep_month", "office_resolve_pending",
       "office_reverse_commission_payment", "office_reverse_investor_entry", "office_reverse_payment", "office_revoke_invitation", "office_salon_payments",
       "office_salon_prices", "office_salon_timeline", "office_save_invoice_draft", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase",
       "office_set_member_status", "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price",
@@ -275,7 +275,7 @@ describe("internal functions are not callable by app roles", () => {
       "rep_check_in", "rep_check_out", "rep_confirm_stock_issue", "rep_create_card", "rep_device_ok", "rep_edit_card", "rep_park_salon", "rep_record_payment",
       "rep_reorder_route", "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_apply", "salon_balance",
       "salon_cancel_request", "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_invoice_document", "salon_login_status",
-      "salon_me", "salon_my_account", "salon_my_invoices", "salon_my_orders", "salon_my_requests", "salon_notes", "salon_stages", "salon_submit_request", "salon_visits",
+      "salon_me", "salon_my_account", "salon_my_invoices", "salon_my_orders", "salon_my_requests", "salon_notes", "salon_order_steps", "salon_stages", "salon_submit_request", "salon_visits",
       "self_ok", "stock_on_hand", "update_salon", "user_role", "warehouse_availability",
       // office_invoice_preview, office_save_invoice_draft, office_delivery_signature, office_signature_image (logs each
       // opening), office_attach_signature and office_order_signature (the office's acknowledgement for a delivery it
@@ -337,11 +337,18 @@ describe("internal functions are not callable by app roles", () => {
       // office_rep_detail, office_invoices, office_receipts (owner or manager at AAL2; allow-listed fields, masked
       // phone, no GPS, fingerprint, cost or vault data): read-only, migration 20261105190000 (slice 10, P1-28); MJ standing approval L-0144.
       // rep_deliver: removed by migration 20261105130100 (D-32 PR B: a rep's delivery is a submission the office approves).
+      // office_order_steps, salon_order_steps and office_reminder_log (P1-38, D-60, migration 20261111020000):
+      // the office reads at AAL2; a salon member reads only its own order and gets no actor name. Helpers
+      // order_step_registry, order_steps_projected, reminder_config_int, reminder_enabled, reminder_body and
+      // assert_service_role have no grant.
     ]);
     const sr = await run("postgres", `
-      select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname in ('app', 'control', 'vault_api') and has_function_privilege('service_role', p.oid, 'execute')`);
-    expect(sr.rows[0].n).toBe(0);
+      select n.nspname || '.' || p.proname f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname in ('app', 'control', 'vault_api') and has_function_privilege('service_role', p.oid, 'execute')
+      order by 1`);
+    // The reminder job is the only service-role execute (H-18). Both functions still refuse a JWT that is not
+    // service_role. The reminder log itself has no grant.
+    expect(sr.rows.map((r) => r.f)).toEqual(["app.approval_reminders_due", "app.record_approval_reminders"]);
   });
 });
 
