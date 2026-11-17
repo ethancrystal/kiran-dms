@@ -18,8 +18,9 @@
  *     manager even at AAL1 (rep_device_ok returns true for every non-rep), so they prove the rep's phone and
  *     nothing about TOTP. A function that passes only on one of them must also carry a rep-only marker in its
  *     body (REP_MARKERS: user_role() = 'rep', my_bag_id, my_territory_ids, rep_can_reach_salon), or a full gate;
- *     otherwise it is reported (DEVICE_ONLY). The two that have neither today are named in
- *     DEVICE_ONLY_EXCEPTIONS, one as a DEFECT with its own DEFECT CHECK at the end of this file, one accepted.
+ *     otherwise it is reported (DEVICE_ONLY). The one that has neither today is named in
+ *     DEVICE_ONLY_EXCEPTIONS and accepted. app.warehouse_availability used to be the defect;
+ *     20261117120000 gates the office path with assert_office, and the check at the end of this file is live.
  *   - Still does NOT prove that a marker is enforced on every path (it is read as text, like the gates).
  *
  * How a function that only calls ANOTHER gated function is treated: it does NOT count. Only the helpers in
@@ -118,11 +119,6 @@ const MARKER_DEFS: Array<{ fn: string; needs: string[] }> = [
 // Functions that pass only on a device-only gate and carry no rep-only marker, so an owner or manager at AAL1 passes
 // them. Each is named with its status; an entry that no longer matches (function gone, or now gated) fails.
 const DEVICE_ONLY_EXCEPTIONS: Array<{ fn: string; status: "DEFECT" | "ACCEPTED"; note: string }> = [
-  {
-    fn: "app.warehouse_availability()",
-    status: "DEFECT",
-    note: "Filter is `self_ok() and user_role() is not null`: an owner or manager without TOTP reads the warehouse quantities. Finding for MJ; see the DEFECT CHECK at the end of this file.",
-  },
   {
     fn: "app.may_read_product_images()",
     status: "ACCEPTED",
@@ -421,7 +417,7 @@ describe("every function a client can call passes a gate (doc 06 10.3)", () => {
 
   it("every device-only exception still exists and still passes on a device-only gate alone (a fixed one must leave the list)", async () => {
     expect(await exceptionProblems(DEVICE_ONLY_EXCEPTIONS)).toEqual([]);
-    expect(DEVICE_ONLY_EXCEPTIONS.map((e) => e.status).sort()).toEqual(["ACCEPTED", "DEFECT"]);
+    expect(DEVICE_ONLY_EXCEPTIONS.map((e) => e.status).sort()).toEqual(["ACCEPTED"]);
   });
 
   it("every allowlist entry still exists, still calls no gate, and its reason still holds in the body", async () => {
@@ -527,7 +523,10 @@ describe("the guards report what they should (planted functions, rolled back)", 
   });
 
   it("the exception check reports a function that is gone or now properly gated", async () => {
-    expect(await exceptionProblems([{ fn: "app.warehouse_availability()" }])).toEqual([]);
+    expect(await exceptionProblems([{ fn: "app.may_read_product_images()" }])).toEqual([]);
+    expect(await exceptionProblems([{ fn: "app.warehouse_availability()" }])).toEqual([
+      "app.warehouse_availability(): stale, it no longer passes on a device-only gate alone",
+    ]);
     expect(await exceptionProblems([{ fn: "app.my_day()" }])).toEqual([
       "app.my_day(): stale, it no longer passes on a device-only gate alone",
     ]);
@@ -617,16 +616,14 @@ describe("the guards report what they should (planted functions, rolled back)", 
 // self_ok must therefore also require the rep role (my_day does: self_ok and user_role() = 'rep'); the sweep above
 // cannot see that difference, so each such function found by reading the list is checked here.
 //   - app.may_read_product_images: office at AAL1 may read it on purpose, pinned in catalogue-prices.test.ts. Accepted.
-//   - app.warehouse_availability: its only filter is `self_ok() and user_role() is not null`, so the office reads the
-//     warehouse's available quantity per SKU without TOTP. Not pinned by any test: a finding for MJ.
+//   - app.warehouse_availability: the office branch calls assert_office (AAL2). An AAL1 office session is refused.
 describe("self_ok alone does not enforce TOTP for the office", () => {
   // One rolled-back transaction: the manager (AAL2) makes a catalogue row and a warehouse, then the session claims are
   // switched to the same manager at the given AAL and the function is read. The AAL2 run proves the plant works.
   const warehouseRowsAt = async (aal: "aal1" | "aal2") => {
     const [group, product, sku, store] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
     const code = `ZZGATE-${randomUUID().slice(0, CODE_LENGTH).toUpperCase()}`;
-    // The refusal 42501 counts as no rows: the defect is "rows are visible at AAL1", so either fix (no rows, or a
-    // refusal) ends it and turns the DEFECT CHECK red. Any other error still surfaces.
+    // The refusal 42501 counts as no rows. Any other error still surfaces.
     try {
       const res = (await run(
         MANAGER,
@@ -648,7 +645,29 @@ describe("self_ok alone does not enforce TOTP for the office", () => {
     expect(await warehouseRowsAt("aal2")).toBe(1);
   });
 
-  it.fails("DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()", async () => {
+  it("DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()", async () => {
     expect(await warehouseRowsAt("aal1")).toBe(0);
+  });
+
+  // The rep branch returns no rows when self_ok is false. It does not raise. Plant as the office, then read as the rep.
+  const repRows = async (device: string) => {
+    const [group, product, sku, store] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+    const code = `ZZGATE-${randomUUID().slice(0, CODE_LENGTH).toUpperCase()}`;
+    const res = (await run(
+      MANAGER,
+      `select app.office_upsert_product_group('${group}', '[Test] gate group', 21);
+       select app.office_upsert_product('${product}', '${group}', '[Test] gate brand', '[Test] gate product');
+       select app.office_upsert_sku('${sku}', '${product}', '${code}', '[Test] shade', 'ml', 100);
+       select app.office_create_location('${store}', 'warehouse', '[Test] gate store');
+       select set_config('request.jwt.claims', ${lit(claims(fx.repA.id, "aal1"))}, true),
+              set_config('request.headers', ${lit(JSON.stringify({ "x-kiran-device": device }))}, true);
+       select count(*)::int n from app.warehouse_availability() where sku_id = '${sku}'`,
+    )) as unknown as Array<{ rows: Array<{ n: number }> }>;
+    return res[res.length - 1].rows[0].n;
+  };
+
+  it("a rep on the approved device sees app.warehouse_availability(); an unapproved device sees no rows", async () => {
+    expect(await repRows(fx.repA.device)).toBe(1);
+    expect(await repRows("dev-not-approved-0000")).toBe(0);
   });
 });

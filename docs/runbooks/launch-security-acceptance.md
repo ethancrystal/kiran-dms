@@ -39,12 +39,12 @@ To run the index on its own: `pnpm exec vitest run --config supabase/tests/vites
 |---|---|---|---|
 | 06.10.1 | RLS matrix tests pass for every table × role, including a rep in territory A failing to read territory B. | met | none |
 | 06.10.2 | No application role can UPDATE/DELETE on any append-only table (tested). | met | none |
-| 06.10.3 | Owner/manager cannot log in without TOTP; rep cannot operate from an unapproved device (tested). | defect | office reads app.warehouse_availability() without TOTP |
+| 06.10.3 | Owner/manager cannot log in without TOTP; rep cannot operate from an unapproved device (tested). | met | none |
 | 06.10.4 | Vault columns are unreadable via the REST API with any user token (tested); vault reads appear in the access log and the digest. | partial | access log and digest wait for P1-05 |
 | 06.10.5 | Audit hash chain verifies; mirror receives rows nightly. | partial | the mirror has no task id yet |
 | 06.10.6 | A full offboarding completes from one screen in under 10 minutes (rehearsed). | blocked | waits for P1-08 |
 | 06.10.7 | Backup restore drill performed once before go-live, documented. | blocked | the drill runbook is PR C of P1-12 |
-| 06.10.8 | Dependency and secret scans clean; service-role key absent from all client bundles (checked in CI). | partial | the secret scan is Task 2 of P1-12 PR A |
+| 06.10.8 | Dependency and secret scans clean; service-role key absent from all client bundles (checked in CI). | partial | gitleaks fixture findings, awaiting MJ |
 | 07.5.1 | With a rep token, every `vault_api` function returns `permission denied`; no vault table appears in the REST schema; `select * from vault.supplier` via the API is impossible. | met | none, but see the note on this row |
 | 07.5.2 | With a manager token **without** grant, the same holds; with grant **and** AAL2, calls succeed and produce access-log rows. | partial | calls and access-log rows wait for P1-05 |
 | 07.5.3 | A database dump opened without the key shows ciphertext in every `*_enc` column. | blocked | waits for P1-05 |
@@ -52,7 +52,7 @@ To run the index on its own: `pnpm exec vitest run --config supabase/tests/vites
 | 07.5.5 | The bank-statement importer masks sensitive counterparties for non-grantees. | blocked | waits for P1-05 |
 | 07.5.6 | Revoking the manager's grant takes effect on the next request. | partial | the effect on vault calls waits for P1-05 |
 
-Counts: 3 met (06.10.1, 06.10.2, 07.5.1), 5 partial (06.10.4, 06.10.5, 06.10.8, 07.5.2, 07.5.6), 5 blocked (06.10.6, 06.10.7, 07.5.3, 07.5.4, 07.5.5), 1 with an open defect (06.10.3). No criterion is met in full except the three counted as met.
+Counts: 4 met (06.10.1, 06.10.2, 06.10.3, 07.5.1), 5 partial (06.10.4, 06.10.5, 06.10.8, 07.5.2, 07.5.6), 5 blocked (06.10.6, 06.10.7, 07.5.3, 07.5.4, 07.5.5), 0 with an open defect. No criterion is met in full except the four counted as met.
 
 ## Evidence by criterion
 
@@ -104,11 +104,12 @@ Notes:
 - test: `supabase/tests/function-gates.test.ts::every function that passes only on a device-only gate (self_ok, rep_device_ok) also carries a rep-only marker, or is a named exception`
 - test: `supabase/tests/function-gates.test.ts::every device-only exception still exists and still passes on a device-only gate alone (a fixed one must leave the list)`
 - test: `supabase/tests/function-gates.test.ts::anon can execute no function in our schemas`
-- defect: `supabase/tests/function-gates.test.ts::DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()`
+- test: `supabase/tests/function-gates.test.ts::DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()`
+- test: `supabase/tests/function-gates.test.ts::a rep on the approved device sees app.warehouse_availability(); an unapproved device sees no rows`
 
 Notes:
 
-- Open defect: `app.warehouse_availability()` is gated only by the device-style check, so an owner or manager session without TOTP (AAL1) can read the warehouse's available quantity per SKU. The defect check is an `it.fails` test, so the suite stays green while the defect is open. When the function is fixed, that test starts passing, the index test fails, and this row must be cleaned up. The criterion is not met until then.
+- `app.warehouse_availability()` (migration 20261117120000) lets a rep through `app.self_ok()` and everyone else through `app.assert_office()`, which requires an MFA-verified (AAL2) session. An owner or manager at AAL1 is refused. The check that used to be `it.fails` is now a live test. The title still says DEFECT CHECK so the old citation stays findable.
 - The database enforces TOTP as the AAL2 requirement on each function that needs it, and these tests exercise that. Enrolling TOTP and refusing a sign-in without it is a setting of the sign-in service, which no test here exercises.
 
 ### 06.10.4 Vault unreadable through the API; reads logged
@@ -158,12 +159,15 @@ Notes:
 - test: `supabase/tests/service-role-scan.test.ts::bundle: library comments pass; key values fail`
 - test: `supabase/tests/dependency-audit.test.ts::runs the CLI over the real sample with no exceptions and exits zero (moderate only)`
 - test: `supabase/tests/dependency-audit.test.ts::high advisory with no exception makes ok false and names the advisory id`
-- blocked: `P1-12 Task 2 (secret scan)`
+- ci: `secret-scan::gitleaks detect`
+- blocked: `gitleaks fixture findings, awaiting MJ`
 
 Notes:
 
 - The ci entry names the job key `typecheck` (its display name is "typecheck + service-role scan") and requires that the job runs `scripts/service-role-scan.mjs`. The index test proves the job is defined and runs the scan. It cannot prove the job passed on a given commit; that is the pull request check.
-- The dependency advisory gate (`dependency-audit`, Task 1 of P1-12) pipes `pnpm audit --json --prod` into `scripts/dependency-audit.mjs`, which fails on a high or critical advisory that has no unexpired, reasoned exception in `docs/security/audit-exceptions.json`. The secret scan of the whole tree (Task 2) is still missing and stays blocked.
+- The dependency advisory gate (`dependency-audit`, Task 1 of P1-12) pipes `pnpm audit --json --prod` into `scripts/dependency-audit.mjs`, which fails on a high or critical advisory that has no unexpired, reasoned exception in `docs/security/audit-exceptions.json`.
+- Job `secret-scan` installs gitleaks 8.30.1, fails the build when a throwaway token in the runner temp directory is missed, then runs `gitleaks detect` on this repository with `.gitleaks.toml`. The allowlist is the public local-stack values already written in the workflow, matched by value.
+- The first local run of gitleaks 8.30.1 was not clean. It reported 72 hits, all rule generic-api-key, all an eight-letter uppercase token in old commits of fixture lines (`SMS_API_KEY`, `DOC_COUNTER_KEY`, and `api_key` in the attack tests, the archived log, and an old ACTIVITY row). Nothing was allowlisted. The job will fail until MJ rules on those fixtures.
 
 ### 07.5.1 Rep token cannot reach the vault
 

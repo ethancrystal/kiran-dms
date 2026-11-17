@@ -91,7 +91,7 @@ export const ACCEPTANCE: Entry[] = [
   },
   {
     // 3. Owner/manager cannot log in without TOTP; rep cannot operate from an unapproved device (tested).
-    // Open defect: app.warehouse_availability() answers the office at AAL1 (see the DEFECT CHECK).
+    // app.warehouse_availability() now calls assert_office() for anyone who is not a rep (20261117120000).
     criterion: "06.10.3",
     evidence: [
       ...tests("device-guard.test.ts", [
@@ -112,11 +112,9 @@ export const ACCEPTANCE: Entry[] = [
         "every function that passes only on a device-only gate (self_ok, rep_device_ok) also carries a rep-only marker, or is a named exception",
         "every device-only exception still exists and still passes on a device-only gate alone (a fixed one must leave the list)",
         "anon can execute no function in our schemas",
+        "DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()",
+        "a rep on the approved device sees app.warehouse_availability(); an unapproved device sees no rows",
       ]),
-      {
-        kind: "defect",
-        ref: "supabase/tests/function-gates.test.ts::DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()",
-      },
     ],
   },
   {
@@ -160,11 +158,11 @@ export const ACCEPTANCE: Entry[] = [
   },
   {
     // 8. Dependency and secret scans clean; service-role key absent from all client bundles (checked in CI).
-    // The service-role scan and the dependency advisory gate exist; the secret scan is Task 2 of P1-12 PR A.
     criterion: "06.10.8",
     evidence: [
       { kind: "ci", ref: "typecheck::scripts/service-role-scan.mjs" },
       { kind: "ci", ref: "dependency-audit::scripts/dependency-audit.mjs" },
+      { kind: "ci", ref: "secret-scan::gitleaks detect" },
       ...tests("service-role-scan.test.ts", [
         "refuses a key name anywhere in apps or packages, including the lines the old grep skipped",
         "fails closed when a root is missing or nothing is scanned",
@@ -174,7 +172,9 @@ export const ACCEPTANCE: Entry[] = [
         "runs the CLI over the real sample with no exceptions and exits zero (moderate only)",
         "high advisory with no exception makes ok false and names the advisory id",
       ]),
-      blocked("P1-12 Task 2 (secret scan)"),
+      // The job is wired. The first local run was not clean: historical fixture lines
+      // match generic-api-key. MJ rules before any allowlist (plan Task 1 step 5).
+      blocked("gitleaks fixture findings, awaiting MJ"),
     ],
   },
   {
