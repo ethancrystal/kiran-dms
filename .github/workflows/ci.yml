@@ -96,6 +96,21 @@ jobs:
       # formatting until they are cleaned up; every other file must pass.
       - run: pnpm lint
 
+  dependency-audit:
+    name: dependency advisories (doc 06 10.8, H-18)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # A high or critical advisory fails unless an unexpired, reasoned exception exists
+      # (docs/security/audit-exceptions.json). Moderate and low advisories never fail.
+      - run: pnpm audit --json --prod | node scripts/dependency-audit.mjs
+
   e2e:
     name: rep PWA browser tests (Playwright)
     runs-on: ubuntu-latest

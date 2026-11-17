@@ -160,16 +160,21 @@ export const ACCEPTANCE: Entry[] = [
   },
   {
     // 8. Dependency and secret scans clean; service-role key absent from all client bundles (checked in CI).
-    // Only the service-role scan exists today; the dependency audit and the secret scan are PR A of P1-12.
+    // The service-role scan and the dependency advisory gate exist; the secret scan is Task 2 of P1-12 PR A.
     criterion: "06.10.8",
     evidence: [
       { kind: "ci", ref: "typecheck::scripts/service-role-scan.mjs" },
+      { kind: "ci", ref: "dependency-audit::scripts/dependency-audit.mjs" },
       ...tests("service-role-scan.test.ts", [
         "refuses a key name anywhere in apps or packages, including the lines the old grep skipped",
         "fails closed when a root is missing or nothing is scanned",
         "bundle: library comments pass; key values fail",
       ]),
-      blocked("P1-12 PR A"),
+      ...tests("dependency-audit.test.ts", [
+        "runs the CLI over the real sample with no exceptions and exits zero (moderate only)",
+        "high advisory with no exception makes ok false and names the advisory id",
+      ]),
+      blocked("P1-12 Task 2 (secret scan)"),
     ],
   },
   {

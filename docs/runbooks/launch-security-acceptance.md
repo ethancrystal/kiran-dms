@@ -44,7 +44,7 @@ To run the index on its own: `pnpm exec vitest run --config supabase/tests/vites
 | 06.10.5 | Audit hash chain verifies; mirror receives rows nightly. | partial | the mirror has no task id yet |
 | 06.10.6 | A full offboarding completes from one screen in under 10 minutes (rehearsed). | blocked | waits for P1-08 |
 | 06.10.7 | Backup restore drill performed once before go-live, documented. | blocked | the drill runbook is PR C of P1-12 |
-| 06.10.8 | Dependency and secret scans clean; service-role key absent from all client bundles (checked in CI). | partial | dependency audit and secret scan are PR A of P1-12 |
+| 06.10.8 | Dependency and secret scans clean; service-role key absent from all client bundles (checked in CI). | partial | the secret scan is Task 2 of P1-12 PR A |
 | 07.5.1 | With a rep token, every `vault_api` function returns `permission denied`; no vault table appears in the REST schema; `select * from vault.supplier` via the API is impossible. | met | none, but see the note on this row |
 | 07.5.2 | With a manager token **without** grant, the same holds; with grant **and** AAL2, calls succeed and produce access-log rows. | partial | calls and access-log rows wait for P1-05 |
 | 07.5.3 | A database dump opened without the key shows ciphertext in every `*_enc` column. | blocked | waits for P1-05 |
@@ -152,15 +152,18 @@ Notes:
 ### 06.10.8 Scans clean; service-role key absent from client bundles
 
 - ci: `typecheck::scripts/service-role-scan.mjs`
+- ci: `dependency-audit::scripts/dependency-audit.mjs`
 - test: `supabase/tests/service-role-scan.test.ts::refuses a key name anywhere in apps or packages, including the lines the old grep skipped`
 - test: `supabase/tests/service-role-scan.test.ts::fails closed when a root is missing or nothing is scanned`
 - test: `supabase/tests/service-role-scan.test.ts::bundle: library comments pass; key values fail`
-- blocked: `P1-12 PR A`
+- test: `supabase/tests/dependency-audit.test.ts::runs the CLI over the real sample with no exceptions and exits zero (moderate only)`
+- test: `supabase/tests/dependency-audit.test.ts::high advisory with no exception makes ok false and names the advisory id`
+- blocked: `P1-12 Task 2 (secret scan)`
 
 Notes:
 
 - The ci entry names the job key `typecheck` (its display name is "typecheck + service-role scan") and requires that the job runs `scripts/service-role-scan.mjs`. The index test proves the job is defined and runs the scan. It cannot prove the job passed on a given commit; that is the pull request check.
-- The dependency audit and the secret scan do not exist yet. They are PR A of P1-12, and are blocked until then.
+- The dependency advisory gate (`dependency-audit`, Task 1 of P1-12) pipes `pnpm audit --json --prod` into `scripts/dependency-audit.mjs`, which fails on a high or critical advisory that has no unexpired, reasoned exception in `docs/security/audit-exceptions.json`. The secret scan of the whole tree (Task 2) is still missing and stays blocked.
 
 ### 07.5.1 Rep token cannot reach the vault
 

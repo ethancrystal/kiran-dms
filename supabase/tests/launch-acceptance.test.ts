@@ -39,7 +39,7 @@ const EXPECTED_BLOCKED = [
   "06.10.5 | audit mirror (no task id yet, MJ assigns)",
   "06.10.6 | P1-08",
   "06.10.7 | P1-12 PR C",
-  "06.10.8 | P1-12 PR A",
+  "06.10.8 | P1-12 Task 2 (secret scan)",
   "07.5.2 | P1-05",
   "07.5.3 | P1-05",
   "07.5.4 | P1-05",

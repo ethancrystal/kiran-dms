@@ -1,0 +1,23 @@
+# Dependabot (doc 06 section 10.8, P1-12 Task 1): weekly update pull requests for the
+# JavaScript and GitHub Actions ecosystems, with minor and patch updates grouped so the
+# advisories they fix arrive in one reviewable pull request.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-patch:
+        update-types:
+          - minor
+          - patch
