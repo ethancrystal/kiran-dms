@@ -999,22 +999,12 @@ const MATRIX: Row[] = [
       select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])) as Row["select"],
     }),
   ),
-  // Public shop pages (P1-33, D-52). No role may read or write the tables. Office writes and
-  // visitor reads go through app functions. Privileges are revoked, so every persona is denied.
-  ...(
-    [
-      ["public.storefront_category", "slug"],
-      ["public.storefront_product", "slug"],
-      ["public.storefront_sku", "published"],
-      ["public.storefront_write", "kind"],
-    ] as const
-  ).map(
-    ([table, writeCol]): Row => ({
-      table,
-      writeCol,
-      select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])) as Row["select"],
-    }),
-  ),
+  // P1-38. Append-only. No policy and no grant: the office reads it through app.office_reminder_log.
+  {
+    table: "control.approval_reminder_log",
+    writeCol: "result",
+    select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
+  },
   {
     table: "control.audit_chain_head",
     writeCol: "last_hash",

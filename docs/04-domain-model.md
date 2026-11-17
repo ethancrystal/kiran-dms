@@ -3,7 +3,7 @@
 The data model has three zones with different trust levels:
 
 - **`public` zone** — everything reps can touch under RLS: salons, visits, orders, payments, stock, routes.
-- **`control` zone** — approvals, audit log, anomaly flags, digests. Written by triggers and server functions only; no application role writes directly.
+- **`control` zone** — approvals, audit log, anomaly flags, digests, and the approval reminder log (`control.approval_reminder_log`, P1-38). Written by triggers and server functions only; no application role writes directly.
 - **`vault` zone** (schema `supplier_vault`, see doc 12 D-13) — supplier, purchase orders, costs. No REST/API exposure; readable only through role-checked functions for users holding a vault grant (doc 07).
 
 Below, entities are grouped by zone. "Append-only" means no `UPDATE`/`DELETE` is granted to any application role; corrections are new rows that reference the row they reverse.
@@ -136,6 +136,7 @@ erDiagram
 | **approval_request** | id, kind (`discount`/`credit_override`/`adjustment`/`write_off`/`credit_note`/`return_accept`/`payment_reversal`/`device_approve`/`unblock`/`cancel_order`), subject_type, subject_id, maker_id, checker_role_required, checker_id, status, reason, decided_at | DB constraint: `checker_id <> maker_id` |
 | **audit_event** | id, occurred_at, actor_id, actor_role, action, table_name, row_id, before (jsonb), after (jsonb), ip, device_id, purpose, prev_hash, hash | Trigger-populated. `hash = sha256(prev_hash ‖ row)` — a tamper-evident chain. Mirrored nightly to owner-controlled write-only storage |
 | **phone_reveal** | id, salon_id, contact_id, actor_id, created_at | **Append-only** (migration 0009). One row each time a rep reveals a salon phone (`app.reveal_phone`); the owner reads it |
+| **approval_reminder_log** | id, item_kind (`discount`/`adjustment`/`delivery`/`stock`/`salon`), item_id, recipient_id, round_no, sent_at, result (`claimed`/`sent`/`not_configured`) | **Append-only** (migration 20261111020000, P1-38, D-60). One row per item, recipient and round. No policy and no grant: the office reads it through `app.office_reminder_log`. Nothing is e-mailed until a mail service is named (B-61) |
 | **anomaly_flag** | id, kind, severity, subject_type, subject_id, details (jsonb), detected_at, status (`open`/`reviewed`/`case`), reviewed_by | From nightly jobs (doc 13 §7) |
 | **case** | id, opened_by, kind, subject refs, narrative, status, resolution | Investigations |
 | **digest** | id, for_user_id, date, content (jsonb), sent_at, read_at | Owner's daily exception digest |
@@ -191,7 +192,7 @@ The functions reused rather than duplicated are `app.build_order`, `app.office_c
 
 ## Invariants the database must enforce
 
-1. **Append-only tables**: `visit`, `salon_note`, `discovery_run`, `stage_event`, `credit_event`, `payment`, `payment_allocation`, `cash_ledger_entry`, `stock_movement`, `stock_count`, `demand_signal`, `audit_event`, `invoice`, `receipt`, `sales_order_line`, `delivery`, `delivery_line`, `phone_reveal`, `order_intake_card`, `order_intake_card_close`, `order_intake_card_version`, `order_intake_card_line`, `investment`, `investor_profit_decision`, `investor_payout`, and the `route` row (its stops are the only part that changes). Grant `INSERT` + `SELECT` only; corrections are reversing rows. The tables marked append-only in the section above join this list when they are built.
+1. **Append-only tables**: `visit`, `salon_note`, `discovery_run`, `stage_event`, `credit_event`, `payment`, `payment_allocation`, `cash_ledger_entry`, `stock_movement`, `stock_count`, `demand_signal`, `audit_event`, `invoice`, `receipt`, `sales_order_line`, `delivery`, `delivery_line`, `phone_reveal`, `order_intake_card`, `order_intake_card_close`, `order_intake_card_version`, `order_intake_card_line`, `investment`, `investor_profit_decision`, `investor_payout`, `approval_reminder_log`, and the `route` row (its stops are the only part that changes). Grant `INSERT` + `SELECT` only; corrections are reversing rows. The tables marked append-only in the section above join this list when they are built.
 2. **Balances are derived**: a salon's receivable = Σ invoices − Σ allocations − Σ credit notes; a rep's cash = Σ cash_ledger entries for that holder; stock at a location = Σ movements. A nightly job recomputes and compares with any cached figures.
 3. **Custody chain closure**: every cash `in` to a rep has a `payment`; every rep `out` has a `handover`; every office `out` has a `bank_deposit`; every `bank_deposit` must match a `bank_statement_line` within 3 working days or it is an open exception.
 4. **Credit gate**: an installment order moves to `confirmed` only if the salon is not blocked (`salon_credit.blocked`, or its stage is `blocked`), its plan is within `plan_eligibility`, and `exposure + total ≤ credit_limit_paisa`, or the office releases the hold (a `credit_event` of kind `order_override`, within the manager cap). A cash order is never credit-checked, even for a blocked salon (doc 09 §2; MJ, ACTIVITY L-0163).
