@@ -27,3 +27,9 @@ test-results/
 # Claude Code local state: personal settings and worktree checkouts (never commit)
 .claude/settings.local.json
 .claude/worktrees/
+# Stray agent artifacts (kanban attachments and old archives); never part of the repo
+docs.zip
+docs_extracted/
+supabase/migrations.zip
+# Leftover git worktree checkouts from earlier agents (their .git lives under .git/worktrees)
+.worktrees/
