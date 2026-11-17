@@ -382,7 +382,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-35 | Public shop, plan D: storefront pages, SEO metadata, the client-salon link into the portal, the "Become a client salon" enquiry | D-51, D-52, D-57, D-58; A-23 | NOT STARTED | — |
 | P1-36 | Public shop, plan E: first-party tracking with a registry of meanings, office insights and export | D-56 | NOT STARTED | — |
 | P1-37 | Public shop, plan F: Shopify link (catalogue out, checkout, paid order into the review queue as a Regular User order, the queue's two kinds, marking a Regular User order delivered at dispatch, reconciliation) | D-53, D-54, D-59, D-61 | NOT STARTED (waits on B-56, B-57) | — |
-| P1-38 | Plan G: order timeline with one tracked event per step for both order kinds, automation of steps with no human judgment, e-mail reminders to manager and owner until a waiting item is done | D-59, D-60; MSG-03; ORD-04 | NOT STARTED (sending waits on B-61) | — |
+| P1-38 | Plan G: order timeline with one tracked event per step for both order kinds, automation of steps with no human judgment, e-mail reminders to manager and owner until a waiting item is done | D-59, D-60; MSG-03; ORD-04 | IN PROGRESS (steps and reminder job built; real sending waits on B-61) | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
 

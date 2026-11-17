@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
+import { SalonSteps } from "@/components/order-steps";
 import { LinePicker, newPick, type PickLine, picksPayload } from "@/components/request-lines";
 import { SalonInvoices } from "@/components/salon-invoices";
 import { rupees } from "@/lib/money";
@@ -579,8 +580,9 @@ function EditRequest({
   );
 }
 
-/** The salon's official orders, whoever made them. */
+/** The salon's official orders, whoever made them. Steps load for the one order the salon opens. */
 function Orders({ orders }: { orders: Order[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <section className="card" aria-labelledby="orders-h">
       <h2 id="orders-h">My orders</h2>
@@ -594,29 +596,50 @@ function Orders({ orders }: { orders: Order[] }) {
               <th>Products</th>
               <th>Status</th>
               <th>Total</th>
+              <th>Steps</th>
             </tr>
           </thead>
           <tbody>
             {orders.map((o) => (
-              <tr key={o.order_id} data-testid="salon-order">
-                <td data-label="Date">{when(o.created_at)}</td>
-                <td data-label="Order">
-                  {o.order_id.slice(0, SHORT_ID)}
-                  {o.from_request && <span className="muted"> · from your request</span>}
-                </td>
-                <td data-label="Products">{o.lines.map((l) => `${l.qty} × ${l.code}`).join(", ")}</td>
-                <td data-label="Status">
-                  <span className="badge">{o.status === "draft" ? "on hold" : label(o.status)}</span>
-                  {o.status === "draft" && (
-                    <span className="muted" data-testid="order-waiting">
-                      {" "}
-                      {SALON_WAITING_TEXT[o.waiting_on ?? ""] ?? SALON_WAITING_TEXT.office_check}
-                    </span>
-                  )}
-                  {o.status === "cancelled" && <span className="muted"> Cancelled by the office. Ask the office why.</span>}
-                </td>
-                <td data-label="Total">{rupees(Number(o.total_paisa))}</td>
-              </tr>
+              <Fragment key={o.order_id}>
+                <tr data-testid="salon-order">
+                  <td data-label="Date">{when(o.created_at)}</td>
+                  <td data-label="Order">
+                    {o.order_id.slice(0, SHORT_ID)}
+                    {o.from_request && <span className="muted"> · from your request</span>}
+                  </td>
+                  <td data-label="Products">{o.lines.map((l) => `${l.qty} × ${l.code}`).join(", ")}</td>
+                  <td data-label="Status">
+                    <span className="badge">{o.status === "draft" ? "on hold" : label(o.status)}</span>
+                    {o.status === "draft" && (
+                      <span className="muted" data-testid="order-waiting">
+                        {" "}
+                        {SALON_WAITING_TEXT[o.waiting_on ?? ""] ?? SALON_WAITING_TEXT.office_check}
+                      </span>
+                    )}
+                    {o.status === "cancelled" && <span className="muted"> Cancelled by the office. Ask the office why.</span>}
+                  </td>
+                  <td data-label="Total">{rupees(Number(o.total_paisa))}</td>
+                  <td data-label="Steps">
+                    <button
+                      type="button"
+                      className="inline"
+                      data-testid={`salon-steps-${o.order_id}`}
+                      aria-expanded={openId === o.order_id}
+                      onClick={() => setOpenId((current) => (current === o.order_id ? null : o.order_id))}
+                    >
+                      {openId === o.order_id ? "Hide steps" : "Steps"}
+                    </button>
+                  </td>
+                </tr>
+                {openId === o.order_id && (
+                  <tr>
+                    <td colSpan={6}>
+                      <SalonSteps orderId={o.order_id} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>

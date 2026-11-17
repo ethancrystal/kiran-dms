@@ -3,6 +3,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { Acknowledgement, type AckResult } from "@/components/acknowledgement";
 import { ConfirmAction, ListState } from "@/components/confirm-action";
+import { OrderSteps } from "@/components/order-steps";
 import { Timeline } from "@/components/timeline";
 import { rupees } from "@/lib/money";
 import { db, rows, rpc } from "@/lib/rpc";
@@ -278,6 +279,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         {!DELIVERABLE.includes(order.status) && !CANCELLABLE.includes(order.status) && (
           <p className="muted">No action: the order is {label(order.status)}.</p>
         )}
+      </section>
+
+      <section aria-labelledby="steps-h">
+        <h2 id="steps-h">Steps</h2>
+        <OrderSteps orderId={order.id} reloadKey={reload} />
       </section>
 
       <section aria-labelledby="timeline-h">
