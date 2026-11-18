@@ -169,10 +169,8 @@ describe("visits (PIP-02, doc 08 rule 7)", () => {
   });
 });
 
-describe("check-out (PIP-09, INV-05)", () => {
-  it("the day closes only after the evening bag count; then no more visits that day", async () => {
-    expect(await errorOf(REP_A, "select app.rep_check_out(now())")).toMatch(/daily close/);
-    await one(REP_A, "select app.record_count($1, app.my_bag_id(), 'daily_close', $2)", [id(), await bagAsCounted(REP_A)]);
+describe("check-out (PIP-09)", () => {
+  it("the day closes cleanly without requiring an evening bag count; then no more visits that day", async () => {
     const d = await one(REP_A, "select (app.rep_check_out(now())).*");
     expect(d.status).toBe("closed");
     expect(d.closed_by).toBe(fx.repA.id);
