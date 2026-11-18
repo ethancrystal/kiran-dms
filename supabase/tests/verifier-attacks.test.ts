@@ -268,7 +268,9 @@ describe("internal functions are not callable by app roles", () => {
       "office_reverse_commission_payment", "office_reverse_investor_entry", "office_reverse_payment", "office_revoke_invitation", "office_salon_payments",
       "office_salon_prices", "office_salon_timeline", "office_save_invoice_draft", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase",
       "office_set_member_status", "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price",
-      "office_signature_image", "office_update_investor", "office_upsert_area", "office_upsert_product", "office_upsert_product_group", "office_upsert_sku",
+      "office_set_storefront_published",
+      "office_signature_image", "office_storefront_sheet", "office_update_investor", "office_upsert_area", "office_upsert_product", "office_upsert_product_group", "office_upsert_sku",
+      "office_upsert_storefront_category", "office_upsert_storefront_product",
       "office_upsert_territory", "office_withdraw_handover", "order_remaining", "owner_adjust_stock", "owner_create_user", "owner_set_bag_limit", "owner_set_config",
       "owner_set_credit", "owner_set_role", "owner_set_sku_price", "owner_set_status", "owner_set_vault_grant", "owner_settle_handover", "receipt_document",
       "recheck_order", "record_count", "record_demand", "redeem_invitation", "register_device", "rep_add_stop", "rep_attach_signature", "rep_cancel_card",
@@ -276,7 +278,14 @@ describe("internal functions are not callable by app roles", () => {
       "rep_reorder_route", "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_apply", "salon_balance",
       "salon_cancel_request", "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_invoice_document", "salon_login_status",
       "salon_me", "salon_my_account", "salon_my_invoices", "salon_my_orders", "salon_my_requests", "salon_notes", "salon_order_steps", "salon_stages", "salon_submit_request", "salon_visits",
-      "self_ok", "stock_on_hand", "update_salon", "user_role", "warehouse_availability",
+      "self_ok", "stock_on_hand", "storefront_catalogue", "storefront_image_published", "storefront_product", "update_salon", "user_role",
+      "warehouse_availability",
+      // office_upsert_storefront_category, office_upsert_storefront_product, office_set_storefront_published and
+      // office_storefront_sheet (owner or manager at AAL2, app.assert_office); storefront_catalogue and
+      // storefront_product (the two public catalogue reads, D-52: fixed public columns, also the only functions
+      // anon may execute); storefront_image_published (a yes or no the storage delete policy asks, about a picture a
+      // public page already names): migration 20261111010000 (P1-33). Their helpers storefront_seen,
+      // storefront_record, storefront_hash, storefront_duplicate and storefront_shade_available stay revoked.
       // office_invoice_preview, office_save_invoice_draft, office_delivery_signature, office_signature_image (logs each
       // opening), office_attach_signature and office_order_signature (the office's acknowledgement for a delivery it
       // makes itself; owner or manager at AAL2); rep_attach_signature, my_signature_status,

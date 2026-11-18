@@ -103,7 +103,7 @@ Notes:
 - test: `supabase/tests/function-gates.test.ts::every function that authenticated or anon can execute calls a gate, or is on the allowlist with a reason`
 - test: `supabase/tests/function-gates.test.ts::every function that passes only on a device-only gate (self_ok, rep_device_ok) also carries a rep-only marker, or is a named exception`
 - test: `supabase/tests/function-gates.test.ts::every device-only exception still exists and still passes on a device-only gate alone (a fixed one must leave the list)`
-- test: `supabase/tests/function-gates.test.ts::anon can execute no function in our schemas`
+- test: `supabase/tests/function-gates.test.ts::anon can execute only the two public catalogue reads (D-52)`
 - defect: `supabase/tests/function-gates.test.ts::DEFECT CHECK: an office session without TOTP (AAL1) must not read app.warehouse_availability()`
 
 Notes:

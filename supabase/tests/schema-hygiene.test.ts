@@ -152,11 +152,12 @@ describe("schema hygiene", () => {
     expect(await planted(`${gql}; create function graphql_public.zz_planted_f() returns int language sql as 'select 1'`, SCHEMA_GAPS)).toEqual([]);
   });
 
-  it("anon can execute no function in our schemas", async () => {
+  it("anon can execute only the two public catalogue reads (D-52)", async () => {
     const { rows } = await run("postgres", `
       select n.nspname || '.' || p.proname f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname in ${SCHEMAS} and ${notExtension} and has_function_privilege('anon', p.oid, 'execute')`);
-    expect(rows).toEqual([]);
+      where n.nspname in ${SCHEMAS} and ${notExtension} and has_function_privilege('anon', p.oid, 'execute')
+      order by 1`);
+    expect(rows.map((r) => r.f)).toEqual(["app.storefront_catalogue", "app.storefront_product"]);
   });
 
   it("every SECURITY DEFINER function pins search_path (H-08)", async () => {

@@ -264,6 +264,31 @@ const ALLOWLIST: AllowEntry[] = [
       "rt[.]rep_id[[:space:]]*=[[:space:]]*auth[.]uid[(][)]",
     ],
   },
+  // ---- P1-33 (D-52): the public shop's two visitor reads, and the storage policy's helper
+  {
+    fn: "app.storefront_catalogue()",
+    reason:
+      "D-52: the public catalogue read, deliberately callable by anon (a visitor with no login) as well as authenticated. " +
+      "Returns fixed public columns only, and the body filters unpublished categories and products, inactive groups and products, " +
+      "and SKUs with no default price. No cost, no salon price, no stock quantity, no supplier data. A public shop cannot require a login.",
+    proof: ["where c[.]published", "storefront_category"],
+  },
+  {
+    fn: "app.storefront_product(text)",
+    reason:
+      "D-52: one public product page, callable by anon and authenticated. Returns fixed public columns; the body refuses a slug whose " +
+      "category page is unpublished or whose category is inactive, and 'available' is only a boolean (no quantity leaves the database). " +
+      "No cost, no salon price, no supplier data.",
+    proof: ["sp[.]published and sp[.]slug = btrim[(]p_slug[)]", "storefront_category"],
+  },
+  {
+    fn: "app.storefront_image_published(text)",
+    reason:
+      "A yes-or-no the storefront-images storage delete policy asks about a picture a public page already names. Callable by " +
+      "authenticated only. Returns one boolean; it reads no price, no quantity and no supplier data, and names no row a visitor could " +
+      "not already see. Needed because the storage policy runs as the caller.",
+    proof: ["s[.]image_path = p_name and s[.]published"],
+  },
 ];
 
 // ---------------------------------------------------------------- the guard, as SQL --------------------
@@ -428,10 +453,17 @@ describe("every function a client can call passes a gate (doc 06 10.3)", () => {
     expect(await allowlistProblems(ALLOWLIST)).toEqual([]);
   });
 
-  it("anon can execute no function in our schemas", async () => {
-    // A login is needed for everything, even the invitation preview. A function granted to anon on purpose
-    // needs this assertion changed in review, with the reason written down.
-    expect((await inventory()).filter((r) => r.anon).map((r) => r.sig)).toEqual([]);
+  it("anon can execute only the two public catalogue reads (D-52)", async () => {
+    // A login is not required for the public shop: D-52 grants exactly these two reads to anon on purpose
+    // (supabase/migrations/20261111010000_storefront_catalogue.sql:571, and the two names are allowlisted above
+    // with their reasons). A third anon grant is a finding. schema-hygiene.test.ts pins the same set from the
+    // other side, so the two cannot drift apart.
+    expect(
+      (await inventory())
+        .filter((r) => r.anon)
+        .map((r) => r.sig)
+        .sort(),
+    ).toEqual(["app.storefront_catalogue()", "app.storefront_product(text)"]);
   });
 
   it("the retired app.create_order refuses every persona (it is allowlisted because it refuses everyone)", async () => {
