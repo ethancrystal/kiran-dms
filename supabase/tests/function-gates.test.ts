@@ -458,10 +458,12 @@ describe("every function a client can call passes a gate (doc 06 10.3)", () => {
     // (supabase/migrations/20261111010000_storefront_catalogue.sql:571, and the two names are allowlisted above
     // with their reasons). A third anon grant is a finding. schema-hygiene.test.ts pins the same set from the
     // other side, so the two cannot drift apart.
-    expect((await inventory()).filter((r) => r.anon).map((r) => r.sig).sort()).toEqual([
-      "app.storefront_catalogue()",
-      "app.storefront_product(text)",
-    ]);
+    expect(
+      (await inventory())
+        .filter((r) => r.anon)
+        .map((r) => r.sig)
+        .sort(),
+    ).toEqual(["app.storefront_catalogue()", "app.storefront_product(text)"]);
   });
 
   it("the retired app.create_order refuses every persona (it is allowlisted because it refuses everyone)", async () => {
