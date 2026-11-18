@@ -8,6 +8,10 @@
 - `pnpm -r --if-present test`: exit 0, 4 test files passed, 59 passed, 5 expected fail.
 - Database RPC schema inspect: verified 67 public tables and 283 app RPC routes on `https://nwxidylbfeciungrqdkm.supabase.co`.
 - Salon self-registration (`/salon/signup`, D-51) verified present from `20261109200000_salon_self_signup.sql` and `apps/web/app/salon/signup/page.tsx`.
+- **Migration 20261117120000** (`warehouse_availability` AAL2) applied to `nwxidylbfeciungrqdkm` via Supabase MCP (exit []). Verified: `assert_office()` present in function body.
+- **Migration 20261118120000** (`rep_check_in` default arg, `rep_check_out` guard removed) applied to `nwxidylbfeciungrqdkm` via Supabase MCP (exit []). Verified: `rep_check_out` body has no `v_bag` variable and no `daily_close` guard.
+- Commit SHA: `e6abe36` on branch `feat/rep-day-no-bag-count`.
+- **Frontend audit completed**: Next.js salon portal (`/salon`, `/salon/signup`, `/salon/login`, `/salon/invoices/[id]`) is fully implemented with product catalogue, basket, request submission/edit/cancel, orders, balance, and payments. kh-salon `storefront.tsx` is an anonymous public shop component (not part of the salon portal spec) and is **not required** in the Next.js implementation.
 
 Security checklist (tick honestly):
 [x] RLS enabled+forced; policies + role matrix tests added/updated (n/a)
