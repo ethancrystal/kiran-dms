@@ -83,19 +83,13 @@ export async function buildManifest(client) {
       tables[t] = Number(rows[0].n);
     }
 
-    const { rows: ledger } = await client.query(
-      `select to_regclass('${LEDGER}') is not null as has`,
-    );
+    const { rows: ledger } = await client.query(`select to_regclass('${LEDGER}') is not null as has`);
     const migrations = ledger[0].has
-      ? (await client.query(`select version from ${LEDGER} order by version`)).rows.map((r) =>
-          String(r.version),
-        )
+      ? (await client.query(`select version from ${LEDGER} order by version`)).rows.map((r) => String(r.version))
       : [];
 
     const { rows: users } = await client.query("select count(*)::int n from auth.users");
-    const { rows: head } = await client.query(
-      "select seq, hash from control.audit_event order by seq desc limit 1",
-    );
+    const { rows: head } = await client.query("select seq, hash from control.audit_event order by seq desc limit 1");
 
     await client.query("commit");
     return {
@@ -133,20 +127,20 @@ export function compareManifests(source, restored) {
 
   for (const t of Object.keys(source.tables)) {
     if (!(t in restored.tables)) {
-      problems.push(`${quotable(t)}: the table is gone after the restore`);
+      problems.push(`${t}: the table is gone after the restore`);
     } else if (source.tables[t] !== restored.tables[t]) {
-      problems.push(`${quotable(t)}: ${source.tables[t]} rows before, ${restored.tables[t]} after`);
+      problems.push(`${t}: ${source.tables[t]} rows before, ${restored.tables[t]} after`);
     }
   }
   for (const t of Object.keys(restored.tables)) {
-    if (!(t in source.tables)) problems.push(`${quotable(t)}: the table is new after the restore`);
+    if (!(t in source.tables)) problems.push(`${t}: the table is new after the restore`);
   }
 
   for (const t of Object.keys(source.rlsForced)) {
     if (!(t in restored.rlsForced)) {
-      problems.push(`${quotable(t)}: the RLS flag is gone after the restore`);
+      problems.push(`${t}: the RLS flag is gone after the restore`);
     } else if (source.rlsForced[t] && !restored.rlsForced[t]) {
-      problems.push(`${quotable(t)}: RLS is no longer forced after the restore`);
+      problems.push(`${t}: RLS is no longer forced after the restore`);
     }
   }
 

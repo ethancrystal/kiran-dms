@@ -31,9 +31,7 @@ test("a differing createdAt alone is ignored (a dump and a restore are taken at 
 test("a table whose row count differs names the table and both counts", () => {
   const restored = base();
   restored.tables["public.salon"] = 11;
-  assert.deepEqual(compareManifests(base(), restored), [
-    "public.salon: 12 rows before, 11 after",
-  ]);
+  assert.deepEqual(compareManifests(base(), restored), ["public.salon: 12 rows before, 11 after"]);
 });
 
 test("a table that vanished, or appeared, is named", () => {
@@ -43,31 +41,23 @@ test("a table that vanished, or appeared, is named", () => {
 
   const extra = base();
   extra.tables["public.salon_note"] = 1;
-  assert.deepEqual(compareManifests(base(), extra), [
-    "public.salon_note: the table is new after the restore",
-  ]);
+  assert.deepEqual(compareManifests(base(), extra), ["public.salon_note: the table is new after the restore"]);
 });
 
 test("a migration missing after the restore is named, and so is a new one", () => {
   const restored = base();
   restored.migrations = ["20261024223304"];
-  assert.deepEqual(compareManifests(base(), restored), [
-    "migration 20261028050000 is missing after the restore",
-  ]);
+  assert.deepEqual(compareManifests(base(), restored), ["migration 20261028050000 is missing after the restore"]);
 
   const added = base();
   added.migrations = [...base().migrations, "20261101010000"];
-  assert.deepEqual(compareManifests(base(), added), [
-    "migration 20261101010000 is new after the restore",
-  ]);
+  assert.deepEqual(compareManifests(base(), added), ["migration 20261101010000 is new after the restore"]);
 });
 
 test("a table whose RLS stopped being forced is named", () => {
   const restored = base();
   restored.rlsForced["public.salon"] = false;
-  assert.deepEqual(compareManifests(base(), restored), [
-    "public.salon: RLS is no longer forced after the restore",
-  ]);
+  assert.deepEqual(compareManifests(base(), restored), ["public.salon: RLS is no longer forced after the restore"]);
 });
 
 test("a different auth user count is named (people must be able to sign in after a restore)", () => {
@@ -79,15 +69,11 @@ test("a different auth user count is named (people must be able to sign in after
 test("a different audit head is named, and an empty chain reads as none", () => {
   const restored = base();
   restored.auditHead = { seq: 39, hash: "b".repeat(64) };
-  assert.deepEqual(compareManifests(base(), restored), [
-    `audit head: 40/${"a".repeat(64)} before, 39/${"b".repeat(64)} after`,
-  ]);
+  assert.deepEqual(compareManifests(base(), restored), [`audit head: 40/${"a".repeat(64)} before, 39/${"b".repeat(64)} after`]);
 
   const emptied = base();
   emptied.auditHead = null;
-  assert.deepEqual(compareManifests(base(), emptied), [
-    `audit head: 40/${"a".repeat(64)} before, none after`,
-  ]);
+  assert.deepEqual(compareManifests(base(), emptied), [`audit head: 40/${"a".repeat(64)} before, none after`]);
 });
 
 test("the guard itself is not vacuous: a planted difference is reported, and a function exists", () => {
