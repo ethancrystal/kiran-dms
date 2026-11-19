@@ -294,3 +294,19 @@
 | C:/Users/moizjmj/K-p1-33-catalogue | claude/p1-33-catalogue | 6d5a48e4d55f | present |
 | C:/Users/moizjmj/K-p1-38-timeline | claude/p1-38-timeline | 690e7e2a553a | present |
 | C:/Users/moizjmj/K-sync-history | claude/sync-history | b06dceae6667 | present |
+
+## Current refresh 2026-11-20 03:48 PKT
+
+- `git fetch origin --prune` completed. `origin/main` is `2d0f6a4c7629480aa09bfcbd70f29ef2accef865`.
+- The current repository has 140 local branches and 102 remote-tracking branches. The live GitHub branch API also returns 102 branches; the names match the fetched tracking refs.
+- There are 16 registered worktrees now. Before this report update, all 16 were clean; the five `.claude` worktree paths in the initial inventory are no longer registered. No worktree was pruned or removed during this refresh. After the report update, only the integration worktree has audit documentation changes; the other 15 remain clean.
+- Before these audit documentation edits, the integration worktree was clean at `07ad467f0875368d586f6f860c050d0f51e74655`, 13 commits ahead and zero behind `origin/main`; its full diff was 52 files, 3159 insertions and 281 deletions.
+- The five open pull requests are 111, 113, 114, 115 and 117. No closed-unmerged pull request was returned. Pull request 112 is merged into `claude/p1-12-acceptance-guards`, not into `main`. Pull requests 114 and 115 are still open although their source commits are present in the integration branch.
+- Pull request 111 is a destructive deletion diff across the app and workflows, with no replacement additions in its file summary. It remains unported. Pull request 117 is the active P1-12 branch and deletes the required `.claude/settings.json`; do not adopt that head until the file is restored and exact-head checks pass.
+- The P1-08 plan branch is clean, 28 commits behind `origin/main`, and has two unique commits not in integration. Its 462-line plan identifies itself as a draft for MJ review and predates current decisions. Preserve the branch and plan; do not transfer the draft unchanged.
+- The local `feat/rep-day-no-bag-count` branch has 14 unique patches versus `origin/main`; the integration tree contains the no-bag-count feature, but 13 patches remain outside integration. The Grok `clean` branch has eight unique patches versus `origin/main`, seven outside integration. Those branches include P1-12 work overlapping pull request 117 and environment or documentation changes. Preserve both; do not cherry-pick them as a batch.
+- The sign-out worktree branch has four unique patches versus `origin/main`, but all ten checked sign-out and outbox implementation files match the integration tree. The unincorporated differences are log commits, not missing application changes.
+- The three Gemini swarm worktrees share the same commit and the same one-commit README candidate. Branches for PRs 104, 107, 109 and 110 have zero unique patches versus `origin/main`.
+- Separate clones outside `git worktree list` were not modified; only their branch and status metadata was checked. `K-main`, `kiran`, and `kiran-dms` have uncommitted work; `kiran` is a different repository and `kiran-dms` is the PR 111 branch. `kiran-dms-clean` is a clean separate clone. Other K-named folders checked are not Git roots.
+- Other unique historical branches, including the migration-application script, approval model backups, old verification work, and plan drafts, remain preserved for individual review. No branch or worktree was deleted, no PR was changed, and no hosted or production operation was performed.
+- `pnpm agent:preflight` passed in the integration worktree. No code tests, database suite, build, lint, or CI run was performed because this refresh changes no implementation code. Those checks remain required before any integration PR.
