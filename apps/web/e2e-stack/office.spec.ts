@@ -2409,27 +2409,6 @@ const GAP_PHONE_PREFIX = "0300";
 const GAP_PHONE_DIGITS = 7;
 const GAP_DAYS_AGO = 20;
 
-/** One committed call as the service role (the reminder job's role), on the local database only. */
-async function serviceSql(sql: string, params: unknown[] = []) {
-  const dbUrl = process.env.KIRAN_STACK_DB_URL ?? "";
-  expect(["127.0.0.1", "localhost"]).toContain(new URL(dbUrl).hostname);
-  const c = new pg.Client({ connectionString: dbUrl });
-  await c.connect();
-  try {
-    await c.query("begin");
-    await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ role: "service_role" })]);
-    await c.query("set local role service_role");
-    const r = await c.query(sql, params);
-    await c.query("commit");
-    return r.rows as Array<Record<string, unknown>>;
-  } catch (e) {
-    await c.query("rollback").catch(() => {});
-    throw e;
-  } finally {
-    await c.end();
-  }
-}
-
 test("a manager sees a phone shared by two salons, keys in a salon's last purchase before the system, and reads the reminder history; a rep is refused (CTL-18, A-09, P1-38)", async ({
   page,
 }) => {
@@ -2450,11 +2429,12 @@ test("a manager sees a phone shared by two salons, keys in a salon's last purcha
       [s.id, s.name, area, phone],
     );
   }
-  // One reminder round for the first salon, recorded the way the reminder job records it.
-  await serviceSql("select app.record_approval_reminders($1, $2::jsonb, 'not_configured')", [
-    manager.id,
-    JSON.stringify([{ kind: "salon", item_id: first.id, round_no: 0 }]),
-  ]);
+  // One reminder round for the first salon, seeded as postgres the way other stack seeds are (the
+  // reminder job's own role is kept out of apps/, H-18 scan). The row is what the job would record.
+  await stackQuery(
+    "insert into control.approval_reminder_log (item_kind, item_id, recipient_id, round_no, result) values ('salon', $1, $2, 0, 'not_configured')",
+    [first.id, manager.id],
+  );
 
   await officeSignIn(page, manager);
 
