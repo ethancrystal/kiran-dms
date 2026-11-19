@@ -1,7 +1,7 @@
 # 2026-11-20 mainline integration report
 
-**Integration branch:** `integration/single-repo-consolidation`  
-**Base:** `origin/main` at `2d0f6a4c7629480aa09bfcbd70f29ef2accef865`  
+**Integration branch:** `integration/single-repo-consolidation`
+**Base:** `origin/main` at `2d0f6a4c7629480aa09bfcbd70f29ef2accef865`
 **Canonical repository:** `ethancrystal/kiran-dms`
 
 ## Integrated feature sources
