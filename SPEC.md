@@ -51,12 +51,12 @@ Phase 1 started before Gate 0 by MJ's decision (D-20).
 Each journey is accepted only when every line under it is shown by a test or, where marked, by the pilot. The IDs point to the requirement; the requirement is the authority.
 
 **J1 — A salaried rep's day** ([doc 02](docs/02-growth-pipeline.md), [doc 08 §3](docs/08-field-sales-and-rep-controls.md))
-1. Morning check-in confirms the bag count; no visit, order card or payment is possible without it (PIP-09, CTL-05).
+1. Morning check-in opens the rep day with no manual bag count entry. Visits, order requests and payments require an open rep day (PIP-09). Bag custody is maintained through verified warehouse issues and approved deliveries (CTL-05).
 2. The route lists the day's stops with a reason each: re-order due, collection due, at risk, prospect, delivery (PIP-03, PIP-06 thin, D-19).
 3. At a salon the rep logs the visit, saves an order card or records a collection, or taps "asked for, could not sell" in **≤ 60 s each, with no signal** (PIP-02, ORD-14, DEM-01, NFR-01).
 4. Everything captured offline syncs **within 60 s of reconnecting**; a replay never doubles an effect; a server rejection is shown to the rep (NFR-01, H-08).
 5. The salon receives a numbered system receipt on its phone for every payment (CTL-01, D-09).
-6. Evening: bag close and a two-party cash handover with the manager (the rep acknowledges the counted figure in their own app); variance is **Rs 0 and 0 units**, or a case is opened the same day (INV-05, PAY-05, CTL-03, doc 11 exit criterion 2).
+6. Evening: a two-party cash handover with the manager (the rep acknowledges the counted cash in their own app); variance is **Rs 0**, or a case is opened the same day (PAY-05, CTL-03, doc 11 exit criterion 2). The rep may close the day without a manual bag-count entry; separate stock issue and spot-check controls remain available (INV-05, CTL-05).
 7. The rep only ever sees reachable salons, read-only, phones masked, ≤ 50 per page, no export (SAL-09, SAL-14, SEC-06, H-14). Reps deliver and collect as approved: a delivery is a submission until the office approves it (D-32).
 8. The rep sees its own commission earned, paid and owed, and its payment history, read-only (FLD-03, FLD-06).
 9. The rep's home shows its own month without any sum done by hand: orders it brought (placed for it, by status: delivered, waiting, on hold, cancelled), commission earned and paid in the month and still owed, with a month picker; a rep never sees another rep's figures (P1-26, A-20).

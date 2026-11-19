@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import pg from "pg";
 
-const REF = "nwxidylbfeciungrqdkm";
+const REF = "iurvazdyxzlspegygldo";
 const LAST_APPLIED = "office_orders_cards";
 // Every migration from the first after office_orders_cards on, in file-name order.
 const FIRST_PENDING = "20261105100000";
