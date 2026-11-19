@@ -64,6 +64,8 @@ Two deviations from the spec's wording that need no decision, listed so a review
 
 ## Global Constraints
 
+*Correction note (documentation audit 2026-11-19, findings DA-003 and DA-004; the historical text below is kept):* the migrations merged as `supabase/migrations/20261105130000_delivery_approval_enums.sql` and `supabase/migrations/20261105130100_delivery_approval.sql`, not the `20261105090000` and `20261105090100` names below; `docs/AGENT-COMPLIANCE-PROTOCOL.md` does not exist, and the protocol it names is `docs/ACTIVITY.md` §2 and Appendix C. Claims (C-039) were removed on 2026-11-04 (ACTIVITY §3).
+
 - Read `AGENTS.md`, `CLAUDE.md`, `docs/AGENT-COMPLIANCE-PROTOCOL.md`, `docs/ACTIVITY.md` first; run `pnpm agent:preflight`; claim C-039 covers this work (renew it); log PROGRESS with real evidence; HANDOFF at the end. Builders never mark VERIFIED.
 - Migrations, forward-only: `supabase/migrations/20261105090000_delivery_approval_enums.sql` (migration 0026, only the `add value` statements) and `supabase/migrations/20261105090100_delivery_approval.sql` (migration 0027, everything else; it grows task by task).
 - Every new table: `enable` and `force row level security` in the same migration, `control.audit_row` audit trigger, `control.forbid_mutation` append-only and no-truncate triggers, no write grant to any role, a row in `supabase/tests/rls-matrix.test.ts`.

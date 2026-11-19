@@ -4,6 +4,8 @@ Priorities use MoSCoW: **M** must have (MVP), **S** should have (Phase 2), **C**
 
 **Approved, not built:** rows citing D-33 to D-41 state rules MJ approved on 2026-11-05 (doc 16, doc 12). A row's phase says when it is due, never that it exists; task status is only on the ACTIVITY board.
 
+**Standard records (documentation audit, 2026-11-19):** this file stays the index of requirement IDs and the source of every statement. Each requirement's actor, preconditions, behaviour, rules, permissions, failure behaviour, acceptance criteria (`AC-<ID>-<n>`), tests and implementation evidence are in the module documents under `docs/contexts/` and in `docs/requirements/` (index: [requirements/README.md](requirements/README.md)). Build notes inside the rows below (for example "built in slice 4, not verified") are not the status of record; the derived status is in the [traceability matrix](audit/2026-11-19/03-requirement-traceability-matrix.md) and task status on the ACTIVITY board.
+
 ## Functional requirements
 
 ### SAL — Salons (customer master / CRM)
