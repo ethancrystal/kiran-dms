@@ -28,13 +28,19 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 
 **Decision:** the rep map uses OpenStreetMap first, reached only through an adapter (H-21). There is no B-id for the provider itself.
 
-## B-39 — who may approve write-offs (AWAITING MJ CONFIRMATION)
+## B-39 — who may approve write-offs (a DECIDED)
 
 **Asked:** owner approves above a threshold, manager below it? MJ was offered that split and answered about who approves "all of it".
 
 **MJ:** "owner and manager approves all of it"
 
-**Status:** AWAITING MJ CONFIRMATION. MJ's words are recorded as he wrote them. They were said about write-off approvals in general, and they conflict with the written M4 control: doc 06 section 2 (receivable write-off: **Owner only**), doc 13 line 61 (M4, "Write-offs are owner-only") and doc 13 section 9 line 138 (stock write-off: manager requests, owner approves, always). Doc 13 exists because a manager who can write off a debt can also hide one. No control, document or code is changed by this answer. MJ is to confirm whether he means to relax M4 (and for which write-offs: receivable, stock, or both) before anything is built or documented differently.
+That first answer was about write-off approvals in general and conflicted with the M4 control (doc 06 section 2; doc 13 line 61 and section 9 line 138), so it was put back to MJ for confirmation.
+
+**MJ (confirmation, 08:04 PKT):** "Keep salon debt write-offs owner only; owner and manager approve all other write-offs"
+
+**Decision on (a):** a receivable (salon debt) write-off stays owner only. The M4 control in doc 06 section 2 and doc 13 is unchanged. Every other write-off (for example a stock write-off) may be approved by the owner or a manager, at any amount, with no threshold split.
+
+**Not yet reflected in the documents or code:** doc 13 section 9 (line 138: stock write-off, manager requests, owner approves, always) and doc 06 section 2 (stock adjustment or write-off: manager approves below a threshold, owner above) still describe the stricter rule, and so does the built behaviour. Changing them loosens a maker-checker control, so it is done with the code, not in this record, and keeps the not-the-maker rule (a manager never approves their own request) unless MJ says otherwise. Follow-up 6 below.
 
 **Still open on B-39:** (b) who may use an approval, and whether the checker may run the gated action; (c) use-time rule and whether `adjustment` moves onto `authorize_action`; (d) whether one owner may suspend or demote another; (e) `credit_override`; (f) a second call for the same kind and consumer with different facts; (g) expiry and a checker offboarded before use.
 
@@ -123,7 +129,7 @@ Docs are changed in this record only where MJ's decision is clear (B-41). The re
 3. **B-31(c):** the P1-09 plan (`docs/plans/in-progress/2026-11-08-p1-09-offline-rep-app.md`, decision 5) still proposes 48 hours; change it to 1 hour with plan task 1.
 4. **B-45:** doc 04 (order states) and doc 09 gain the office's close-the-remainder action with a reason when the function is built; when a delivered order becomes `closed` is still open.
 5. **B-46:** ORD-05 in doc 03 and the P1-31 notes gain the server-side PDF with logo when built; batch and expiry move with P1-05.
-6. **B-39(a):** no document changes until MJ confirms; if he relaxes M4, doc 06 section 2, doc 13 (M4, section 9) and H-15 all change together.
+6. **B-39(a):** M4 (receivable write-off, owner only) is unchanged. When stock write-off approval is built to MJ's rule, update doc 13 section 9 (stock write-off row), doc 06 section 2 (stock adjustment or write-off row) and the matching code together, keeping the not-the-maker rule.
 7. **Note N-1 (refunds):** doc 09 and doc 13 section 9 gain the refund rule when a refund feature is designed; B-48 must be answered first.
 
 ## Not answered in this exchange
