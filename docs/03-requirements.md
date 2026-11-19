@@ -223,7 +223,7 @@ Invoice composer and customer acknowledgement (P1-31, D-49; MJ, 2026-11-05). ORD
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans (commission rates: owner or manager, D-31) | M/S | 1–2 |
+| ADM-01 | Configure: installment templates, credit rules, product groups and default cycles, visit outcome codes, territories, commission plans (commission rates: owner or manager, D-31; product groups and default cycles: owner or manager, D-62) | M/S | 1–2 |
 | ADM-02 | Company profile for documents (name, logo, address, phone) | M | 1 |
 | ADM-03 | Numbering sequences for invoices and receipts (gapless, per financial year starting 1 July) | M | 1 |
 
