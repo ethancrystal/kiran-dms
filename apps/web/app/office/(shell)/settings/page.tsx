@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
+import { ReminderLog } from "@/components/reminder-log";
 import { rupees, rupeesInput, toPaisa } from "@/lib/money";
 import { when } from "@/lib/overview";
 import { db, mySession, type Role, rows, rpc } from "@/lib/rpc";
@@ -201,6 +202,8 @@ export default function Settings() {
           </section>
         </>
       )}
+      {/* P1-38: the reminder history is an office read (owner or manager), not a setting. */}
+      {!loading && !error && role !== null && <ReminderLog />}
     </>
   );
 }
