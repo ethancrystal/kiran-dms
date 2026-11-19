@@ -349,9 +349,10 @@ describe("the rep order path is closed (D-30)", () => {
     expect(await failureOf(who, sql)).toEqual({ code: DENIED, message: REP_PATH_CLOSED });
   });
 
-  it("anon is refused 42501 before the function body runs (no USAGE on schema app, so not the D-30 message)", async () => {
-    // anon holds neither USAGE on schema app nor EXECUTE on the function; Postgres stops at the schema.
-    expect(await failureOf("anon", repPath())).toEqual({ code: DENIED, message: "permission denied for schema app" });
+  it("anon is refused 42501 before the function body runs (no EXECUTE, so not the D-30 message)", async () => {
+    // D-52 grants anon USAGE on schema app so the two catalogue reads resolve. EXECUTE on
+    // create_order stays revoked, so Postgres stops before the function body and the D-30 text.
+    expect(await failureOf("anon", repPath())).toEqual({ code: DENIED, message: "permission denied for function create_order" });
   });
 
   // The call is caught inside a block (a savepoint) that swallows only the D-30 refusal and re-raises

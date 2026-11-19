@@ -2288,3 +2288,117 @@ test("the rep's Waiting to send page shows what waits, what was refused and why,
   await phone.unroute("**/rest/v1/rpc/my_session");
   await ctx.close();
 });
+
+// P1-33 (D-52, D-58): the Online shop panel against the real stack. The manager gives a category and a
+// product their public pages; the database refuses a short meta title, a product with no picture and a
+// product with no published priced shade, and the panel shows each refusal; once published, a visitor
+// with no login reads the page and the default price through the one fixed function, and nothing from
+// the price table; unpublishing the category takes the page down. Last in the file on purpose: the
+// tests run in order, so a failure here stops no other journey.
+const SHOP_LIST_RS = 1200;
+
+test("a manager publishes a product to the online shop; a visitor reads the default price and loses the page when the category is unpublished (P1-33)", async ({
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  const tag = Date.now().toString(36);
+  const productName = `[Dummy] Shop colour ${tag.toUpperCase()}`;
+  const code = `SHOP-${tag.toUpperCase()}`;
+  const address = `e2e-shade-${tag}`;
+  const group = seed.productGroup.name;
+  // The visitor: the public key and no session, so the database sees the anon role.
+  const visitor = (path: string, body?: Record<string, unknown>) =>
+    fetch(`${url}/rest/v1/${path}`, {
+      method: body ? "POST" : "GET",
+      headers: { apikey: key, "content-type": "application/json", "content-profile": "app", "accept-profile": "public" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  const visitorPage = async () =>
+    (await (await visitor("rpc/storefront_product", { p_slug: address })).json()) as Array<Record<string, unknown>>;
+
+  await officeSignIn(page, manager);
+  await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Products", exact: true }).click();
+  const add = page.getByRole("form", { name: "Add a product" });
+  await add.getByLabel("Product group").selectOption({ label: group });
+  await add.getByLabel("Brand label").fill("[Dummy] Kiran");
+  await add.getByLabel("Product name").fill(productName);
+  await add.getByRole("button", { name: "Add product" }).click();
+  await expect(page.getByText(`Product ${productName} added.`)).toBeVisible();
+  const card = page.getByRole("region", { name: `Product ${productName}` });
+  const addSku = card.getByRole("form", { name: `Add a SKU to ${productName}` });
+  await addSku.getByLabel("SKU code").fill(code);
+  await addSku.getByLabel("Variant").fill("[Dummy] Shade 9");
+  await addSku.getByRole("button", { name: "Add SKU" }).click();
+  await expect(page.getByText(`SKU ${code} added to ${productName}.`)).toBeVisible();
+  await card.getByLabel(`List price (Rs) for ${code}`).fill(String(SHOP_LIST_RS));
+  await card.getByLabel(`Why this price for ${code}`).fill("[Test] e2e shop price");
+  await card.getByRole("button", { name: `Set price of ${code}` }).click();
+  await expect(page.getByText(`${code} now lists at ${rupees(SHOP_LIST_RS * PAISA_PER_RUPEE)}.`)).toBeVisible();
+
+  // The category page, once for the category.
+  const categories = page.getByRole("region", { name: "Online shop categories", exact: true });
+  const category = categories.getByRole("form", { name: `Category page of ${group}` });
+  await category.getByLabel("Category address").fill(`e2e-group-${tag}`);
+  await category.getByLabel("Category meta title").fill(`Dummy group page ${tag}`);
+  await category
+    .getByLabel("Category meta description")
+    .fill(`[Dummy] The public page of a category, written by the stack test ${tag}.`);
+  await category.getByRole("button", { name: "Save category page" }).click();
+  await expect(page.getByText(`Category page of ${group} saved.`)).toBeVisible();
+
+  // The product page. The database refuses a short meta title, and the panel shows its words.
+  const shop = card.getByRole("region", { name: "Online shop", exact: true });
+  await shop.getByLabel("Page address").fill(address);
+  await shop.getByLabel("Meta title").fill("Short");
+  await shop.getByLabel("Meta description").fill(`[Dummy] The public page of one product, written by the stack test ${tag}.`);
+  await shop.getByRole("button", { name: "Save online shop page" }).click();
+  await expect(shop.getByRole("alert")).toContainText("a meta title is 10 to 60 characters");
+  await shop.getByLabel("Meta title").fill(`Dummy shade page ${tag}`);
+  await shop.getByRole("button", { name: "Save online shop page" }).click();
+  await expect(page.getByText("Online shop page saved.")).toBeVisible();
+  // Nothing is public yet.
+  expect(await visitorPage()).toEqual([]);
+
+  // Publish is refused without a picture, then without a published priced shade.
+  await shop.getByRole("button", { name: "Publish product page" }).click();
+  await expect(shop.getByRole("alert")).toContainText("needs a picture");
+  await shop
+    .getByLabel("Shop picture")
+    .setInputFiles({ name: "shade.png", mimeType: "image/png", buffer: Buffer.from(ONE_PIXEL_PNG, "base64") });
+  await expect(page.getByText("Picture saved.")).toBeVisible();
+  await shop.getByRole("button", { name: "Publish product page" }).click();
+  await expect(shop.getByRole("alert")).toContainText("needs a published shade with a default price");
+  await shop.getByRole("button", { name: `Publish ${code}` }).click();
+  await expect(page.getByText(`${code} is published.`)).toBeVisible();
+  await shop.getByRole("button", { name: "Publish product page" }).click();
+  await expect(page.getByText("Product page is published.")).toBeVisible();
+  // Still not public: its category page is not published.
+  expect(await visitorPage()).toEqual([]);
+  await category.getByRole("button", { name: "Publish category page" }).click();
+  await expect(page.getByText(`Category page of ${group} is published.`)).toBeVisible();
+
+  // It survives a reload: the buttons now offer the opposite.
+  await page.reload();
+  await expect(shop.getByRole("button", { name: "Unpublish product page" })).toBeVisible();
+  await expect(shop.getByRole("button", { name: `Unpublish ${code}` })).toBeVisible();
+  await expect(category.getByRole("button", { name: "Unpublish category page" })).toBeVisible();
+
+  // The visitor reads one shade at the default price, and the picture by its public address.
+  const rows = await visitorPage();
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ slug: address, code, default_price_paisa: SHOP_LIST_RS * PAISA_PER_RUPEE, available: false });
+  const picture = await fetch(`${url}/storage/v1/object/public/storefront-images/${String(rows[0].image_path)}`);
+  expect(picture.status).toBe(HTTP_OK);
+  const listed = (await (await visitor("rpc/storefront_catalogue", {})).json()) as Array<Record<string, unknown>>;
+  expect(listed.filter((r) => r.product_slug === address)).toHaveLength(1);
+  // The visitor gets nothing from the price table itself, and cannot call an office function.
+  expect((await visitor("sku?select=id,list_price_paisa&limit=1")).ok).toBe(false);
+  expect((await visitor("rpc/office_storefront_sheet", {})).ok).toBe(false);
+
+  // Unpublishing the category page takes the product page down.
+  await category.getByRole("button", { name: "Unpublish category page" }).click();
+  await expect(page.getByText(`Category page of ${group} is not published.`)).toBeVisible();
+  expect(await visitorPage()).toEqual([]);
+});

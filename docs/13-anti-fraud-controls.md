@@ -142,15 +142,15 @@ Plus weekly: the random balance-confirmation list (call 3–5 salons per rep you
 | Restructure installment schedule | Manager | Manager (not the selling rep's requester) | > Rs 50,000 outstanding |
 | Device approval | Rep (implicit) | Manager/Owner | — |
 | Dated price list change | Owner | — (MFA re-auth) | always owner |
-| SKU or per-salon price change (D-37, D-39; approved, not built) | Owner or Manager, with a reason | — (flagged in the digest; OQ-33) | — |
-| Convert or reject a rep or salon order request (D-34; approved, not built) | Rep or salon submits | Manager or Owner | — |
+| SKU or per-salon price change (D-37, D-39; built in P1-19, pull request 57, not verified) | Owner or Manager, with a reason | — (flagged in the digest; OQ-33) | — |
+| Convert or reject a rep or salon order request (D-34; built in P1-23, pull request 63, not verified) | Rep or salon submits | Manager or Owner | — |
 | Bank account change | Owner | — (MFA re-auth + notification) | always owner |
 | User create/role/offboard (owner, manager and agent accounts; offboarding) | Owner | — | always owner |
-| Invite, suspend or revoke a rep or salon (D-39; approved, not built) | Owner or Manager | — (flagged in the digest) | — |
-| Commission payment or reversal; commission rate change (D-38; approved, not built) | Owner or Manager | — as designed (flagged in the digest; OQ-34) | — |
+| Invite, suspend or revoke a rep or salon (D-39; built in P1-18, pull request 56, not verified) | Owner or Manager | — (flagged in the digest) | — |
+| Commission payment or reversal; commission rate change (D-38; built in P1-22, pull request 61, not verified) | Owner or Manager | — as designed (flagged in the digest; OQ-34) | — |
 
 Note (P1-30, 2026-11-05): payment reversal is built as D-48 decides it: the owner or a manager reverses directly with a reason, and a manager never reverses a payment they recorded. The Rs 10,000 threshold in the row above (`approval.payment_reversal.owner_above_paisa`) is not enforced, and the Settings page lists it under "Not used yet". Whether it applies to managers is B-48.
-| Investor payout or reversal (D-40; approved, not built) | Owner or Manager | — as designed (flagged in the digest; OQ-34) | — |
+| Investor payout or reversal (D-40; built in P1-20, pull request 58, not verified) | Owner or Manager | — as designed (flagged in the digest; OQ-34) | — |
 | Vault grant | Owner | — | always owner |
 | Purchase order | Vault grantee | Owner | > Rs 200,000 |
 | Petty expense from office cash | Manager | Owner | > Rs 5,000 |

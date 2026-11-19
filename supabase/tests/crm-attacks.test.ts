@@ -250,10 +250,11 @@ describe("catalogue: the structure every attack runs into (H-06, H-08, H-13, H-1
     expect(rows).toEqual([]);
   });
 
-  it("anon can execute no function of app, control or vault_api", async () => {
+  it("anon can execute only the two public catalogue reads in app, control or vault_api (D-52)", async () => {
     const rows = await q(`select p.oid::regprocedure::text f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname in ('app', 'control', 'vault_api') and has_function_privilege('anon', p.oid, 'execute')`);
-    expect(rows).toEqual([]);
+      where n.nspname in ('app', 'control', 'vault_api') and has_function_privilege('anon', p.oid, 'execute')
+      order by 1`);
+    expect(rows.map((r) => r.f)).toEqual(["app.storefront_catalogue()", "app.storefront_product(text)"]);
   });
 
   it("every SECURITY DEFINER function of app, control, vault_api pins an empty search_path (H-08)", async () => {
@@ -296,6 +297,7 @@ describe("catalogue: the structure every attack runs into (H-06, H-08, H-13, H-1
     "public.invoice",
     "control.phone_reveal",
     "control.audit_event",
+    "control.approval_reminder_log",
   ];
   it("every append-only table has an enabled BEFORE UPDATE OR DELETE trigger", async () => {
     const missing: string[] = [];
