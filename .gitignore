@@ -27,3 +27,14 @@ test-results/
 # Claude Code local state: personal settings and worktree checkouts (never commit)
 .claude/settings.local.json
 .claude/worktrees/
+# Stray agent artifacts (kanban attachments and old archives); never part of the repo
+docs.zip
+docs_extracted/
+# Duplicate migration archives and extracted copies
+supabase/migrations.zip
+supabase/migrations (2).zip
+# Leftover git worktree checkouts from earlier agents (their .git lives under .git/worktrees)
+.worktrees/
+
+# Accidental nested clone of a different repository (ethancrystal/kiran), never part of kiran-dms
+kiran/
