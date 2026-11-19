@@ -2402,3 +2402,81 @@ test("a manager publishes a product to the online shop; a visitor reads the defa
   await expect(page.getByText(`Category page of ${group} is not published.`)).toBeVisible();
   expect(await visitorPage()).toEqual([]);
 });
+
+// Gap audit 2026-11-19: three office screens over functions that had no page. The phone is
+// synthetic (H-03); the salons and the territory carry the test tag.
+const GAP_PHONE_PREFIX = "0300";
+const GAP_PHONE_DIGITS = 7;
+const GAP_DAYS_AGO = 20;
+
+test("a manager sees a phone shared by two salons, keys in a salon's last purchase before the system, and reads the reminder history; a rep is refused (CTL-18, A-09, P1-38)", async ({
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const tag = String(Date.now());
+  const phone = `${GAP_PHONE_PREFIX}${tag.slice(-GAP_PHONE_DIGITS)}`;
+  const masked = `${phone.slice(0, 4)}${"*".repeat(phone.length - 6)}${phone.slice(-2)}`;
+  const territory = randomUUID();
+  const area = randomUUID();
+  const first = { id: randomUUID(), name: `[Test] Shared phone A ${tag}` };
+  const second = { id: randomUUID(), name: `[Test] Shared phone B ${tag}` };
+  await r11Sql(owner, "select app.office_upsert_territory($1, $2)", [territory, `[Test] Gap territory ${tag}`]);
+  await r11Sql(owner, "select app.office_upsert_area($1, $2, $3)", [area, territory, `[Test] Gap area ${tag}`]);
+  for (const s of [first, second]) {
+    await r11Sql(
+      owner,
+      "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual', p_contact_name => '[Test] Contact', p_contact_phone => $4)",
+      [s.id, s.name, area, phone],
+    );
+  }
+  // One reminder round for the first salon, seeded as postgres the way other stack seeds are (the
+  // reminder job's own role is kept out of apps/, H-18 scan). The row is what the job would record.
+  await stackQuery(
+    "insert into control.approval_reminder_log (item_kind, item_id, recipient_id, round_no, result) values ('salon', $1, $2, 0, 'not_configured')",
+    [first.id, manager.id],
+  );
+
+  await officeSignIn(page, manager);
+
+  // Salons: the shared phone is listed once, masked, with both salons linked.
+  await page.goto("/office/salons");
+  const shared = page.getByTestId("shared-phone").filter({ hasText: first.name });
+  await expect(shared).toHaveCount(1);
+  await expect(shared).toContainText(masked);
+  await expect(shared.getByRole("link", { name: first.name })).toBeVisible();
+  await expect(shared.getByRole("link", { name: second.name })).toBeVisible();
+  await expect(page.getByTestId("shared-phones")).not.toContainText(phone);
+
+  // Salon page: the opening last purchase for the seeded product group.
+  await shared.getByRole("link", { name: first.name }).click();
+  await page.waitForURL(new RegExp(`/office/salons/${first.id}$`));
+  const opening = page.getByRole("form", { name: "Set the last purchase date" });
+  await opening.getByLabel("Product group for the last purchase").selectOption({ label: seed.productGroup.name });
+  const rows = await r11Sql(null, `select (${R11_TODAY} - ${GAP_DAYS_AGO})::text as day`);
+  const day = String(rows[0].day);
+  await opening.getByLabel("Date of the last purchase").fill(day);
+  await opening.getByRole("button", { name: "Save last purchase date" }).click();
+  await expect(page.getByText(`Last purchase of ${seed.productGroup.name} set to ${day}.`)).toBeVisible();
+  await expect(page.getByTestId("opening-purchase-row").filter({ hasText: seed.productGroup.name })).toContainText(day);
+  const saved = await r11Sql(
+    null,
+    "select c.last_order_on::text as day, c.basis::text as basis from public.cycle_estimate c join public.product_group g on g.id = c.product_group_id where c.salon_id = $1 and g.name = $2",
+    [first.id, seed.productGroup.name],
+  );
+  expect(saved).toEqual([{ day, basis: "opening" }]);
+
+  // Settings: the manager changes nothing there but reads the reminder history.
+  await page.goto("/office/settings");
+  await expect(page.getByText("Only the owner changes settings.")).toBeVisible();
+  const round = page.getByTestId("reminder-round").filter({ hasText: manager.name }).filter({ hasText: "Salon proposal" });
+  await expect(round.first()).toContainText("Not sent");
+  await expect(round.first().getByRole("link", { name: "Salon proposal" })).toHaveAttribute("href", "/office/salons/approvals");
+
+  // The three functions stay office only: a rep at AAL2 is refused by the database.
+  expect(await sqlstateAs(rep, "aal2", "select * from app.duplicate_phones()")).toBe("42501");
+  expect(await sqlstateAs(rep, "aal2", "select * from app.office_reminder_log()")).toBe("42501");
+  const group = await r11Sql(null, "select id from public.product_group where name = $1", [seed.productGroup.name]);
+  expect(
+    await sqlstateAs(rep, "aal2", `select app.office_set_last_purchase($1, $2, ${R11_TODAY})`, [second.id, group[0].id]),
+  ).toBe("42501");
+});
