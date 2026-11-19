@@ -46,6 +46,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
   - AC-SAL-01-4: An anonymous call is refused before the function body
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `b33-decisions.test.ts`, `reverify-slices-1-3.test.ts`, `salons.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS); `app.create_salon`; `apps/web/components/office-add-salon.tsx`; `/app/salons/new`
+- **Open blocker B-30:** Must a salon created from the map have a pin?. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-34:** Re-verifier findings on slices 1 and 3: territory and offboarding races, address whitespace. On main: FIXED, awaiting re-verification; in PR 115 (not merged): no change
+- **Open or related decisions:** B-30, B-34
 
 #### SAL-02
 
@@ -82,6 +85,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
   - AC-SAL-03-3: UPDATE or DELETE on `stage_event` fails for every application role
 - **Tests:** citing this ID: `salons.test.ts`, `verify-slices-1-3.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS)
+- **Open blocker B-28:** Reps park salons although doc 06 section 2 says reps cannot change a stage. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-28
 
 #### SAL-04
 
@@ -100,6 +105,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
   - AC-SAL-04-3: A manager call to `app.owner_set_credit` is refused
 - **Tests:** citing this ID: `crm-attacks.test.ts`, `orders.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `deliveries.test.ts`, `invoice-document.test.ts`, `orders.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS); P1-06 (IN PROGRESS); `components/salon-credit.tsx`
+- **Open blocker B-05:** Installment schedule shape and starting credit limits (OQ-06, OQ-07). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-05
 
 #### SAL-05
 
@@ -183,6 +190,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
 - **Tests:** citing this ID: none; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P0-02 (IN PROGRESS); P1-02 (IN PROGRESS); `packages/import`
 - **Known gap:** The import into the database is not built (P1-02 part d); only the dry run exists
+- **Open blocker B-02:** Contents of the Excel import (OQ-01). On main: PENDING; in PR 115 (not merged): interim: dummy data
 - **Open or related decisions:** B-02
 
 #### SAL-11
@@ -276,6 +284,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
 - **Tests:** citing this ID: `routes.test.ts`; through its board task: `rep-blind-stock-issues.test.ts`, `routes.test.ts`
 - **Implementation evidence:** board: P1-16 (DONE); P1-29 (IN PROGRESS); `app.due_list`
 - **Known gap:** The opening-baseline function has no UI on main (PR 114 adds it)
+- **Open blocker B-41:** Manager edits product groups and default cycles. On main: PENDING; in PR 115 (not merged): DECIDED (D-62, manager may)
+- **Open blocker B-54:** Shop prices and reorder cycle days. On main: PENDING; in PR 115 (not merged): interim: dummy data
+- **Open or related decisions:** B-41, B-54
 
 #### PIP-06
 
@@ -311,6 +322,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
 - **Tests:** citing this ID: none; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS); `/app/salons/new`
 - **Known gap:** Offline capture is not wired: no page calls the outbox `submit()` (P1-09)
+- **Open blocker B-30:** Must a salon created from the map have a pin?. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-30
 
 #### PIP-08
 
@@ -356,6 +369,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: P1-03 (NOT STARTED)
 - **Known gap:** Not built (P1-03); pin capture exists only as form fields
+- **Open blocker B-30:** Must a salon created from the map have a pin?. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-30
 
 #### MAP-03
 
@@ -491,6 +506,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
 - **Tests:** citing this ID: `salons.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS)
 - **Known gap:** Not built (P1-02 part c); SMS provider pending (B-08); see DA-017
+- **Open blocker B-08:** WhatsApp number and SMS sender (OQ-11). On main: PENDING; in PR 115 (not merged): no change
 - **Open or related decisions:** B-08
 
 #### CTL-18
@@ -510,11 +526,12 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon`, `salon_conta
 - **Tests:** citing this ID: `salons.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS); `app.office_set_primary_contact`; `app.duplicate_phones`
 - **Known gap:** OTP and old-number notice not built; duplicate-phone list has no UI on main (PR 114 adds it)
+- **Open blocker B-08:** WhatsApp number and SMS sender (OQ-11). On main: PENDING; in PR 115 (not merged): no change
 - **Open or related decisions:** B-08
 
 ## 6. Business rules
 
-Rules cited by this module's requirements: D-02, D-19, D-35, D-36, D-39, D-41, D-51, H-06, H-10, H-14, H-21, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
+Rules cited by this module's requirements: D-02, D-19, D-35, D-36, D-39, D-41, D-51, D-62, H-06, H-10, H-14, H-21, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
 
 ## 7. User journeys
 

@@ -7,7 +7,7 @@ Derived reference (see [README.md](README.md)). Per-requirement failure behaviou
 | The same request is sent twice (retry, replay, double tap) | One effect; the second call returns the first result | H-08, NFR-01 | Built for the listed functions (idempotency key); offline replay not wired |
 | A client sends a backdated time | Server time is stored; client time kept only as evidence | H-09 | Built |
 | An id in a URL or payload is changed to another salon's or rep's | No wider access; refused or empty | SEC-14, master prompt | Built and tested for the portal |
-| Anonymous call to an `app` function | Refused before the function body, except the two storefront reads | B-62 | Built; schema move decided (PR 115) |
+| Anonymous call to an `app` function | Refused before the function body, except the two storefront reads | B-62 | Built; schema move decided (PR 115, not merged; docs not amended) |
 | Wrong role calls a function | Refused (42501) | H-15, H-16 | Built |
 | Office call without MFA (AAL1) | Refused | D-14 | Built |
 | Rep on an unapproved or revoked device | Refused | SEC-03 | Built |

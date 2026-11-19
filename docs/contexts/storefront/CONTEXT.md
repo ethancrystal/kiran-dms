@@ -15,7 +15,7 @@ The public shop at khsalon.com: published categories, products and SKUs with a d
 | Board task | Scope | Status |
 |---|---|---|
 | P1-32 | Plan A, decisions (docs) | docs merged in PR 105 |
-| P1-33 | Plan B, catalogue data, office panel, two anonymous reads | merged in PR 109 at `d4b47ca`; not verified; B-62 decided (move the reads out of `app`, PR 115) |
-| P1-34 to P1-37 | Seed, pages, tracking, Shopify | NOT STARTED (B-54 to B-60) |
+| P1-33 | Plan B, catalogue data, office panel, two anonymous reads | merged in PR 109 at `d4b47ca`; not verified; B-62 decided (move the reads out of `app`, PR 115, not merged; docs not amended) |
+| P1-34 to P1-37 | Seed, pages, tracking, Shopify | NOT STARTED (B-54 to B-59 pending; B-60 RESOLVED by D-61) |
 
 Plans: [overview](../../plans/will-be-implemented/2026-11-10-khsalon-storefront-overview.md), [plan B](../../plans/in-progress/2026-11-10-khsalon-storefront-plan-b-catalogue-data.md). MJ, 2026-11-19: shop data is dummy for now.

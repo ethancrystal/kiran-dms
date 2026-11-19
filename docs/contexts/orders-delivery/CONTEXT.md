@@ -64,6 +64,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
   - AC-ORD-02-3: An override without a reason is refused
 - **Tests:** citing this ID: `crm-attacks.test.ts`, `orders.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `crm-attacks.test.ts`, `deliveries.test.ts`, `e2e-stack/office.spec.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `invoice-document.test.ts`, `office-approvals.test.ts`, `office-orders.test.ts`, `orders.test.ts`
 - **Implementation evidence:** board: P1-06 (IN PROGRESS); P1-25 (IN PROGRESS); P1-30 (IN PROGRESS); `supabase/tests/orders.test.ts`
+- **Open blocker B-05:** Installment schedule shape and starting credit limits (OQ-06, OQ-07). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-05
 
 #### ORD-03
 
@@ -81,6 +83,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
   - AC-ORD-03-2: Cancelling without a reason is refused
 - **Tests:** citing this ID: `crm-attacks.test.ts`, `deliveries.test.ts`, `orders.test.ts`; through its board task: `crm-attacks.test.ts`, `deliveries.test.ts`, `e2e-stack/office.spec.ts`, `invoice-document.test.ts`, `office-approvals.test.ts`, `office-orders.test.ts`, `orders.test.ts`
 - **Implementation evidence:** board: P1-06 (IN PROGRESS); P1-25 (IN PROGRESS); `supabase/tests/office-orders.test.ts`
+- **Open blocker B-45:** No end for a part-delivered order. On main: PENDING; in PR 115 (not merged): decided in part (office closes the remainder with a reason; when an order becomes closed still open)
+- **Open or related decisions:** B-45
 
 #### ORD-04
 
@@ -99,6 +103,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
   - AC-ORD-04-3: An invoice insert without a signed acknowledgement is refused
 - **Tests:** citing this ID: `crm-attacks.test.ts`, `deliveries.test.ts`, `order-steps-reminders.test.ts`; through its board task: `crm-attacks.test.ts`, `deliveries.test.ts`, `delivery-approval.test.ts`, `e2e-stack/office.spec.ts`, `invoice-composer-signature.test.ts`, `invoice-document.test.ts`, `office-approvals.test.ts`, `office-orders.test.ts`, `order-steps-reminders.test.ts`, `orders.test.ts`
 - **Implementation evidence:** board: P1-06 (IN PROGRESS); P1-21 (IN PROGRESS); P1-25 (IN PROGRESS); P1-31 (IN PROGRESS); P1-38 (IN PROGRESS; merged in PR 110 at 7016fd9; no reminder runner); `/office/deliveries`; `supabase/tests/delivery-approval.test.ts`, `invoice-composer-signature.test.ts`
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open or related decisions:** B-31
 
 #### ORD-05
 
@@ -108,7 +114,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
 - **Actor:** Owner or manager; salon member (own)
 - **Preconditions:** Invoice or receipt issued
 - **Expected behaviour:** A document with Kiran branding, salon, lines, totals, schedule and numbers; never supplier or cost
-- **Business rules:** B-46 decided (PDF and logo now, batch later; PR 115)
+- **Business rules:** B-46 decided in part (PDF and logo now, batch later; PR 115, not merged; docs not amended)
 - **Permissions:** Office; salon member own
 - **Failure and exceptions:** —
 - **Acceptance criteria:**
@@ -117,7 +123,11 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
 - **Tests:** citing this ID: `invoice-document.test.ts`, `payments.test.ts`, `rep-detail-documents.test.ts`; through its board task: `crm-attacks.test.ts`, `deliveries.test.ts`, `e2e-stack/rep-detail-documents.spec.ts`, `invoice-composer-signature.test.ts`, `invoice-document.test.ts`, `orders.test.ts`, `rep-detail-documents.test.ts`
 - **Implementation evidence:** board: P1-06 (IN PROGRESS); P1-28 (IN PROGRESS); P1-31 (IN PROGRESS); `/office/invoices`, `/salon/invoices/[id]`; `supabase/tests/invoice-document.test.ts`
 - **Known gap:** No PDF renderer, no logo, no salon receipt view
-- **Open or related decisions:** B-46
+- **Open blocker B-06:** Company bank accounts (OQ-08). On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open blocker B-46:** Invoice: batch and expiry, logo, unsigned delivery. On main: Default, MJ may overrule; in PR 115 (not merged): decided in part (PDF and logo now, batch later; (e) still open)
+- **Open blocker B-52:** Merge order: invoice documents counting reversed payments. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-06, B-31, B-46, B-52
 
 #### ORD-06
 
@@ -222,6 +232,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
   - AC-ORD-11-2: An order converted from a request links to that request
 - **Tests:** citing this ID: `requests-portal.test.ts`; through its board task: `e2e/salon-login.spec.ts`, `office-order-access.test.ts`, `office-orders.test.ts`, `order-cards.test.ts`, `requests-portal.test.ts`
 - **Implementation evidence:** board: P1-23 (IN PROGRESS); `supabase/tests/orders.test.ts`
+- **Open blocker B-56:** How a shop order enters the order engine. On main: PENDING; in PR 115 (not merged): still PENDING (dummy data meanwhile)
+- **Open blocker B-57:** Does the Shopify store exist; payment and delivery. On main: PENDING; in PR 115 (not merged): still PENDING (dummy data meanwhile)
+- **Open or related decisions:** B-56, B-57
 
 #### ORD-12
 
@@ -274,7 +287,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
   - AC-CTL-07-2: The owner's own discount is recorded on the order and its audit row
 - **Tests:** citing this ID: `crm-attacks.test.ts`, `orders.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `crm-attacks.test.ts`, `deliveries.test.ts`, `e2e-stack/office.spec.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `invoice-document.test.ts`, `office-approvals.test.ts`, `office-orders.test.ts`, `orders.test.ts`
 - **Implementation evidence:** board: P1-06 (IN PROGRESS); P1-25 (IN PROGRESS); P1-30 (IN PROGRESS); `supabase/tests/office-approvals.test.ts`
-- **Open or related decisions:** OQ-33
+- **Open blocker B-50:** Manager adjustment requests within the threshold; reason on owner discounts (D-45). On main: PENDING; in PR 115 (not merged): still PENDING
+- **Open or related decisions:** B-50, OQ-33
 
 #### AGT-01
 
@@ -292,7 +306,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: P1-15 (NOT STARTED)
 - **Known gap:** Not built (P1-15); `app_role` has no agent value
-- **Open or related decisions:** OQ-20
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open or related decisions:** B-31, OQ-20
 
 #### AGT-02
 
@@ -345,6 +360,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: P1-15 (NOT STARTED)
 - **Known gap:** Not built (P1-15)
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open or related decisions:** B-31
 
 #### AGT-05
 
@@ -384,7 +401,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `sales_order`, `sales
 
 ## 6. Business rules
 
-Rules cited by this module's requirements: D-08, D-23, D-30, D-32, D-34, D-36, D-37, D-39, D-41, D-49, H-01, H-05, H-12, H-15, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
+Rules cited by this module's requirements: D-08, D-23, D-30, D-32, D-34, D-36, D-37, D-39, D-41, D-45, D-49, H-01, H-05, H-12, H-15, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
 
 ## 7. User journeys
 
@@ -418,7 +435,7 @@ Only the office creates official orders, enforced in the database (`app.create_o
 
 ## 12. Dependencies
 
-SMS for an OTP acknowledgement (B-08); PDF renderer and logo (B-46 decided in PR 115); Shopify for Regular User orders (B-56, B-57, B-60); per-salon price policy (OQ-33).
+SMS for an OTP acknowledgement (B-08); PDF renderer and logo (B-46 decided in part in PR 115, not merged; docs not amended); Shopify for Regular User orders (B-56, B-57; B-60 is RESOLVED by D-61); per-salon price policy (OQ-33).
 
 ## 13. Implementation status and evidence
 

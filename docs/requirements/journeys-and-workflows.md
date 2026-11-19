@@ -95,7 +95,7 @@ Derived reference (see [README.md](README.md)). The journeys themselves are writ
 | Owner daily digest | Not built; channel open | CTL-15, MSG-03 | DA-016 | yes |
 | One-screen offboarding | Status change exists; snapshot and reassignment screen not built | SEC-08 | — | no (build) |
 | Backup and restore drill | Not built | SEC-10, NFR-10 | DA-049 | no (build); off-site account is human-only |
-| Offline capture in the rep app | Outbox built, no page uses it | NFR-01, PIP-07, DEM-01 | — | B-31(c) decided in PR 115 |
+| Offline capture in the rep app | Outbox built, no page uses it | NFR-01, PIP-07, DEM-01 | — | B-31(c) decided in PR 115, not merged; docs not amended |
 | Agent cash-and-carry purchase (J3) | Agent role not built | AGT-01 to AGT-06 | — | OQ-17, OQ-20 open |
-| Storefront order to the office queue | Not built; Shopify questions open | D-53, D-59, D-61 | DA-042 | yes (B-56, B-57, B-60) |
+| Storefront order to the office queue | Not built; Shopify questions open | D-53, D-59, D-61 | DA-042 | yes (B-56, B-57; B-60 is RESOLVED by D-61) |
 | Contact deletion on request | Conflicts with no-hard-delete and audit images | NFR-08 | DA-036 | yes |

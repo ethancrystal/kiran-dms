@@ -44,6 +44,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: `crm-attacks.test.ts`; through its board task: `device-guard.test.ts`, `e2e/rep-login.spec.ts`, `foundation.test.ts`, `reverify-attacks.test.ts`, `reverify10-attacks.test.ts`, `reverify11-attacks.test.ts`, `reverify2-attacks.test.ts`, `reverify3-attacks.test.ts`, `reverify4-attacks.test.ts`, `reverify5-attacks.test.ts`, `reverify6-attacks.test.ts`, `reverify7-attacks.test.ts`, `reverify9-attacks.test.ts`, `verifier-attacks.test.ts`
 - **Implementation evidence:** board: P1-01 (VERIFIED); `supabase/tests/rls-matrix.test.ts`, `foundation.test.ts`; P1-01 VERIFIED in L-0116 covers the three-role split only
 - **Known gap:** The D-31 and D-39 exceptions were built later (P1-18, P1-19, P1-22) and are not verified
+- **Open blocker B-03:** Owner account and a second owner (OQ-03). On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-29:** Rulebook wording (H-14, H-06, H-07) behind the built code. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-03, B-29
 
 #### SEC-02
 
@@ -60,10 +63,13 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
   - AC-SEC-02-1: An office function called at AAL1 is refused
 - **Tests:** citing this ID: `handovers.test.ts`, `receivables-ageing.test.ts`; through its board task: `device-guard.test.ts`, `e2e/rep-login.spec.ts`, `foundation.test.ts`, `reverify-attacks.test.ts`, `reverify10-attacks.test.ts`, `reverify11-attacks.test.ts`, `reverify2-attacks.test.ts`, `reverify3-attacks.test.ts`, `reverify4-attacks.test.ts`, `reverify5-attacks.test.ts`, `reverify6-attacks.test.ts`, `reverify7-attacks.test.ts`, `reverify9-attacks.test.ts`, `verifier-attacks.test.ts`
 - **Implementation evidence:** board: P0-05 (IN PROGRESS); P1-01 (VERIFIED); `/office/mfa`; `supabase/tests/foundation.test.ts`
+- **Open blocker B-47:** Confirm-email setting for invitations; office login recovery. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-53:** Key rotation after the Railway deploy; Authentication settings. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-47, B-53
 
 #### SEC-03
 
-**Priority:** M · **Phase:** 1 · **Status:** VERIFIED
+**Priority:** M · **Phase:** 1 · **Status:** IMPLEMENTED — NOT VERIFIED
 
 - **Statement (doc 03, verbatim):** Rep login: email one-time code (MJ decision, ACTIVITY L-0101; was phone OTP), after joining by invitation (SEC-16); device binding — first device auto-registered, new device requires Mg approval
 - **Actor:** Rep
@@ -76,6 +82,12 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
   - AC-SEC-03-1: A rep call from an unapproved device is refused
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `crm-attacks.test.ts`, `foundation.test.ts`, `handovers.test.ts`, `invitations.test.ts`, `verifier-attacks.test.ts`, `verify-slices-1-3.test.ts`; through its board task: `device-guard.test.ts`, `e2e/rep-login.spec.ts`, `foundation.test.ts`, `reverify-attacks.test.ts`, `reverify10-attacks.test.ts`, `reverify11-attacks.test.ts`, `reverify2-attacks.test.ts`, `reverify3-attacks.test.ts`, `reverify4-attacks.test.ts`, `reverify5-attacks.test.ts`, `reverify6-attacks.test.ts`, `reverify7-attacks.test.ts`, `reverify9-attacks.test.ts`, `verifier-attacks.test.ts`
 - **Implementation evidence:** board: P1-01 (VERIFIED); `/app/login`; `supabase/tests/device-guard.test.ts`; `apps/web/e2e/rep-login.spec.ts`
+- **Known gap:** Only the e-mail code and device binding are verified (P1-01, L-0116). The invitation step this requirement names (SEC-16, built in P1-18) is merged but not verified, so the requirement as a whole is not verified.
+- **Open blocker B-07:** Company phones or personal devices (OQ-10). On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-16:** (b) cap on pending devices per user. On main: PART RESOLVED, (b) PENDING; in PR 115 (not merged): no change
+- **Open blocker B-19:** Rep sees own revoked or pending device rows. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-20:** Client device observations O1 to O3. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-07, B-16, B-19, B-20
 
 #### SEC-04
 
@@ -93,6 +105,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `foundation.test.ts`; through its board task: `device-guard.test.ts`, `e2e/rep-login.spec.ts`, `foundation.test.ts`, `reverify-attacks.test.ts`, `reverify10-attacks.test.ts`, `reverify11-attacks.test.ts`, `reverify2-attacks.test.ts`, `reverify3-attacks.test.ts`, `reverify4-attacks.test.ts`, `reverify5-attacks.test.ts`, `reverify6-attacks.test.ts`, `reverify7-attacks.test.ts`, `reverify9-attacks.test.ts`, `verifier-attacks.test.ts`
 - **Implementation evidence:** board: P0-05 (IN PROGRESS); P1-01 (VERIFIED); `supabase/tests/device-guard.test.ts`
 - **Known gap:** Session lengths are auth configuration; not evidenced by a test
+- **Open blocker B-07:** Company phones or personal devices (OQ-10). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-07
 
 #### SEC-05
 
@@ -163,6 +177,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: `b33-decisions.test.ts`, `reverify-slices-1-3.test.ts`; through its board task: none
 - **Implementation evidence:** board: P1-08 (NOT STARTED); `app.owner_set_status`; `supabase/tests/b33-decisions.test.ts`
 - **Known gap:** One-screen offboarding not built (P1-08)
+- **Open blocker B-34:** Re-verifier findings on slices 1 and 3: territory and offboarding races, address whitespace. On main: FIXED, awaiting re-verification; in PR 115 (not merged): no change
+- **Open or related decisions:** B-34
 
 #### SEC-09
 
@@ -205,6 +221,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
   - AC-SEC-11-1: An approval by its maker is refused by a database constraint
 - **Tests:** citing this ID: `audit-fixes.test.ts`, `crm-attacks.test.ts`, `foundation.test.ts`, `orders.test.ts`; through its board task: `device-guard.test.ts`, `e2e-stack/office.spec.ts`, `e2e/rep-login.spec.ts`, `foundation.test.ts`, `office-approvals.test.ts`, `office-orders.test.ts`, `reverify-attacks.test.ts`, `reverify10-attacks.test.ts`, `reverify11-attacks.test.ts`, `reverify2-attacks.test.ts`, `reverify3-attacks.test.ts`, `reverify4-attacks.test.ts`, `reverify5-attacks.test.ts`, `reverify6-attacks.test.ts`, `reverify7-attacks.test.ts`, `reverify9-attacks.test.ts`, `verifier-attacks.test.ts`
 - **Implementation evidence:** board: P1-01 (VERIFIED); P1-25 (IN PROGRESS); `supabase/tests/foundation.test.ts`, `office-approvals.test.ts`
+- **Open blocker B-17:** TRUNCATE guards; decisions on requests of a suspended maker. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-39:** Approval lifecycle (a) to (g): write-off authority, who uses an approval, use-time rule, owner vs owner, credit override, repeat calls, expiry. On main: PENDING; in PR 115 (not merged): decided in part ((a) receivable write-offs owner only, other write-offs owner or manager)
+- **Open or related decisions:** B-17, B-39
 
 #### SEC-12
 
@@ -223,6 +242,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: `foundation.test.ts`; through its board task: `device-guard.test.ts`, `e2e/rep-login.spec.ts`, `foundation.test.ts`, `reverify-attacks.test.ts`, `reverify10-attacks.test.ts`, `reverify11-attacks.test.ts`, `reverify2-attacks.test.ts`, `reverify3-attacks.test.ts`, `reverify4-attacks.test.ts`, `reverify5-attacks.test.ts`, `reverify6-attacks.test.ts`, `reverify7-attacks.test.ts`, `reverify9-attacks.test.ts`, `verifier-attacks.test.ts`
 - **Implementation evidence:** board: P1-01 (VERIFIED); `supabase/tests/foundation.test.ts`
 - **Known gap:** Nightly mirror not built (DA-026)
+- **Open blocker B-17:** TRUNCATE guards; decisions on requests of a suspended maker. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-17
 
 #### SEC-13
 
@@ -273,6 +294,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
   - AC-SEC-15-1: No salon function returns a field outside its allow-list
 - **Tests:** citing this ID: none; through its board task: `e2e/salon-login.spec.ts`, `office-order-access.test.ts`, `office-orders.test.ts`, `order-cards.test.ts`, `requests-portal.test.ts`
 - **Implementation evidence:** board: P1-23 (IN PROGRESS); `supabase/tests/requests-portal.test.ts`
+- **Open blocker B-62:** Anon USAGE on schema app for the two storefront reads. On main: PENDING; in PR 115 (not merged): DECIDED (move the reads to their own schema)
+- **Open or related decisions:** B-62
 
 #### SEC-16
 
@@ -291,6 +314,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
   - AC-SEC-16-3: The token is stored only as a hash
 - **Tests:** citing this ID: none; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/salon-signup.spec.ts`, `e2e/time.spec.ts`, `invitations.test.ts`, `reverify-slices-1-3.test.ts`, `salon-approval.test.ts`, `salon-self-signup.test.ts`, `verify-slices-1-3.test.ts`
 - **Implementation evidence:** board: P1-18 (IN PROGRESS); P1-30 (IN PROGRESS); `/invite/[token]`; `supabase/tests/invitations.test.ts`
+- **Open blocker B-47:** Confirm-email setting for invitations; office login recovery. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-47
 
 #### SEC-17
 
@@ -307,6 +332,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
   - AC-SEC-17-1: A manager call to create or promote an owner or manager is refused
 - **Tests:** citing this ID: none; through its board task: `e2e/salon-signup.spec.ts`, `invitations.test.ts`, `reverify-slices-1-3.test.ts`, `salon-approval.test.ts`, `salon-self-signup.test.ts`, `verify-slices-1-3.test.ts`
 - **Implementation evidence:** board: P1-18 (IN PROGRESS); `supabase/tests/invitations.test.ts`
+- **Open blocker B-03:** Owner account and a second owner (OQ-03). On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-39:** Approval lifecycle (a) to (g): write-off authority, who uses an approval, use-time rule, owner vs owner, credit override, repeat calls, expiry. On main: PENDING; in PR 115 (not merged): decided in part ((a) receivable write-offs owner only, other write-offs owner or manager)
+- **Open or related decisions:** B-03, B-39
 
 #### CTL-06
 
@@ -316,7 +344,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Actor:** Manager (request); owner or manager (approve, see DA-013)
 - **Preconditions:** Reason and photo
 - **Expected behaviour:** Adjustments and write-offs need a reason and photo; above a threshold owner approval; all in the digest
-- **Business rules:** MJ 2026-11-19: salon debt write-offs owner only; owner and manager approve other write-offs (PR 115)
+- **Business rules:** MJ 2026-11-19: salon debt write-offs owner only; owner and manager approve other write-offs (B-39 a; PR 115, not merged; docs not amended); the threshold amount is open (DA-013)
 - **Permissions:** See DA-013
 - **Failure and exceptions:** Missing reason or photo refused
 - **Acceptance criteria:**
@@ -325,6 +353,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: P1-08 (NOT STARTED); `app.owner_adjust_stock`, `app.office_post_adjustment`
 - **Known gap:** Write-off approvals and digest not built (P1-08)
+- **Open blocker B-39:** Approval lifecycle (a) to (g): write-off authority, who uses an approval, use-time rule, owner vs owner, credit override, repeat calls, expiry. On main: PENDING; in PR 115 (not merged): decided in part ((a) receivable write-offs owner only, other write-offs owner or manager)
+- **Open blocker B-50:** Manager adjustment requests within the threshold; reason on owner discounts (D-45). On main: PENDING; in PR 115 (not merged): still PENDING
+- **Open or related decisions:** B-39, B-50
 
 #### CTL-11
 
@@ -368,7 +399,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: P1-08 (NOT STARTED)
 - **Known gap:** Not built (P1-08)
-- **Open or related decisions:** OQ-22
+- **Open blocker B-08:** WhatsApp number and SMS sender (OQ-11). On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-11:** Owner runs the digest and handover routine (OQ-14). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-08, B-11, OQ-22
 
 #### CTL-16
 
@@ -386,10 +419,12 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `user_profile`, `devi
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: P1-08 (NOT STARTED)
 - **Known gap:** Not built (P1-08)
+- **Open blocker B-06:** Company bank accounts (OQ-08). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-06
 
 ## 6. Business rules
 
-Rules cited by this module's requirements: D-14, D-22, D-30, D-31, D-38, D-39, D-40, D-41, D-51, H-05, H-12, H-14, H-17, H-18, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
+Rules cited by this module's requirements: D-14, D-22, D-30, D-31, D-38, D-39, D-40, D-41, D-45, D-51, H-05, H-06, H-07, H-12, H-14, H-17, H-18, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
 
 ## 7. User journeys
 
@@ -430,7 +465,7 @@ Mail service for reminders (B-61); messaging (B-08) for the digest channel; owne
 |---|---|---|---|---|
 | SEC-01 | 1 | IMPLEMENTED — NOT VERIFIED | P1-01 | 1 |
 | SEC-02 | 1 | IMPLEMENTED — NOT VERIFIED | P0-05, P1-01 | 2 |
-| SEC-03 | 1 | VERIFIED | P1-01 | 7 |
+| SEC-03 | 1 | IMPLEMENTED — NOT VERIFIED | P1-01 | 7 |
 | SEC-04 | 1 | PARTIALLY IMPLEMENTED | P0-05, P1-01 | 2 |
 | SEC-05 | 1 | PARTIALLY IMPLEMENTED | P1-01 | 1 |
 | SEC-06 | 1 | NOT STARTED | P1-08 | 0 |

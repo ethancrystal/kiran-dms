@@ -73,6 +73,8 @@ CONTEXT-MAP.md leaves reporting (RPT), messaging (MSG) and administration (ADM) 
 - **Record:** not standardised yet. The full record (actor, preconditions, behaviour, rules, permissions, failure behaviour, acceptance criteria) is written when its phase is planned (H-22). Until then the statement above is the requirement.
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: none
+- **Open blocker B-08:** WhatsApp number and SMS sender (OQ-11). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-08
 
 #### MSG-02
 
@@ -99,6 +101,8 @@ CONTEXT-MAP.md leaves reporting (RPT), messaging (MSG) and administration (ADM) 
 - **Tests:** citing this ID: `order-steps-reminders.test.ts`; through its board task: `order-steps-reminders.test.ts`
 - **Implementation evidence:** board: P1-10 (NOT STARTED); P1-38 (IN PROGRESS; merged in PR 110 at 7016fd9; no reminder runner)
 - **Known gap:** Not built (P1-10)
+- **Open blocker B-61:** Reminder e-mail service, sender and cadence. On main: PENDING; in PR 115 (not merged): interim placeholders; nothing sent
+- **Open or related decisions:** B-61
 
 #### MSG-04
 
@@ -124,6 +128,9 @@ CONTEXT-MAP.md leaves reporting (RPT), messaging (MSG) and administration (ADM) 
   - AC-ADM-01-1: A manager call to `app.owner_set_config` is refused
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `foundation.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`
 - **Implementation evidence:** board: P0-08 (VERIFIED); P1-11 (NOT STARTED); P1-30 (IN PROGRESS); `/office/settings`
+- **Open blocker B-14:** How reps get plan lists and taxonomies. On main: PENDING (moot under D-30); in PR 115 (not merged): no change
+- **Open blocker B-41:** Manager edits product groups and default cycles. On main: PENDING; in PR 115 (not merged): DECIDED (D-62, manager may)
+- **Open or related decisions:** B-14, B-41
 
 #### ADM-02
 
@@ -141,6 +148,8 @@ CONTEXT-MAP.md leaves reporting (RPT), messaging (MSG) and administration (ADM) 
 - **Tests:** citing this ID: none; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`
 - **Implementation evidence:** board: P1-11 (NOT STARTED); P1-30 (IN PROGRESS)
 - **Known gap:** Not built (P1-11)
+- **Open blocker B-06:** Company bank accounts (OQ-08). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-06
 
 #### ADM-03
 

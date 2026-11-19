@@ -23,6 +23,8 @@ Doc 03 gives NFRs no priority or phase column; which of them are Gate 1 acceptan
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `e2e/outbox-classify.spec.ts`, `e2e/outbox-drain.spec.ts`, `e2e/outbox-history.spec.ts`, `e2e/outbox-queue.spec.ts`, `e2e/rep-login.spec.ts`; through its board task: `e2e/outbox-classify.spec.ts`, `e2e/outbox-crypto.spec.ts`, `e2e/outbox-drain.spec.ts`, `e2e/outbox-history.spec.ts`, `e2e/outbox-queue.spec.ts`
 - **Implementation evidence:** board: P1-09 (IN PROGRESS; outbox core merged (PR 103) and history page (PR 107); no page calls submit()); `apps/web/lib/outbox/`; `/app/outbox`; `apps/web/e2e/outbox-*.spec.ts`
 - **Known gap:** No page calls `submit()`; no service worker or read cache (P1-09)
+- **Open blocker B-20:** Client device observations O1 to O3. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-20
 
 #### NFR-02
 
@@ -97,6 +99,8 @@ Doc 03 gives NFRs no priority or phase column; which of them are Gate 1 acceptan
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: none; `supabase/tests/append-only-sweep.test.ts`
 - **Known gap:** No nightly integrity job
+- **Open blocker B-29:** Rulebook wording (H-14, H-06, H-07) behind the built code. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-29
 
 #### NFR-06
 
@@ -135,6 +139,11 @@ Doc 03 gives NFRs no priority or phase column; which of them are Gate 1 acceptan
 - **Tests:** citing this ID: none; through its board task: `append-only-sweep.test.ts`, `function-gates.test.ts`, `launch-acceptance.test.ts`, `schema-hygiene.test.ts`
 - **Implementation evidence:** board: P1-12 (NOT STARTED; board says NOT STARTED; plan PR B merged in PR 108 at 7774620 (DA-023)); `supabase/tests/rls-matrix.test.ts`, `schema-hygiene.test.ts`; `scripts/service-role-scan.mjs`; P1-12 part B (PR 108)
 - **Known gap:** ASVS review, dependency and secret scans not built (P1-12 parts A and D)
+- **Open blocker B-25:** Which project the Vercel integration used; key rotation. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-38:** Service-role scan counts source and bundle files with one counter. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-53:** Key rotation after the Railway deploy; Authentication settings. On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-62:** Anon USAGE on schema app for the two storefront reads. On main: PENDING; in PR 115 (not merged): DECIDED (move the reads to their own schema)
+- **Open or related decisions:** B-25, B-38, B-53, B-62
 
 #### NFR-08
 
@@ -154,6 +163,8 @@ Doc 03 gives NFRs no priority or phase column; which of them are Gate 1 acceptan
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: none
 - **Known gap:** No encryption design (DA-035); deletion conflicts with H-07 (DA-036)
+- **Open blocker B-58:** Tracking notice wording and retention. On main: PENDING; in PR 115 (not merged): still PENDING (dummy data meanwhile)
+- **Open or related decisions:** B-58
 
 #### NFR-09
 

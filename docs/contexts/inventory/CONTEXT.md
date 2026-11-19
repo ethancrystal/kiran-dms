@@ -41,7 +41,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `product_group`, `pro
   - AC-INV-01-1: No `public` table has a cost column
 - **Tests:** citing this ID: `inventory.test.ts`; through its board task: `inventory.test.ts`, `issue-sku-names.test.ts`
 - **Implementation evidence:** board: P1-04 (DONE); P1-34 (NOT STARTED); `/office/products`; `supabase/tests/inventory.test.ts`
-- **Open or related decisions:** B-10
+- **Open blocker B-10:** Real product catalogue (OQ-16). On main: PENDING (part answered); in PR 115 (not merged): interim: dummy data
+- **Open blocker B-55:** Shade numbers and pack wording. On main: PENDING; in PR 115 (not merged): interim: dummy data
+- **Open or related decisions:** B-10, B-55
 
 #### INV-02
 
@@ -125,6 +127,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `product_group`, `pro
   - AC-INV-06-1: A SKU below its reorder point appears in `app.low_stock`
 - **Tests:** citing this ID: `crm-attacks.test.ts`, `inventory.test.ts`; through its board task: `inventory.test.ts`, `issue-sku-names.test.ts`, `rep-blind-stock-issues.test.ts`, `routes.test.ts`
 - **Implementation evidence:** board: P1-04 (DONE); P1-29 (IN PROGRESS); `/office/stock/levels`
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open or related decisions:** B-31
 
 #### INV-07
 
@@ -143,6 +147,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `product_group`, `pro
 - **Record:** not standardised yet. The full record (actor, preconditions, behaviour, rules, permissions, failure behaviour, acceptance criteria) is written when its phase is planned (H-22). Until then the statement above is the requirement.
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: none
+- **Open blocker B-46:** Invoice: batch and expiry, logo, unsigned delivery. On main: Default, MJ may overrule; in PR 115 (not merged): decided in part (PDF and logo now, batch later; (e) still open)
+- **Open or related decisions:** B-46
 
 #### INV-09
 
@@ -204,6 +210,10 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `product_group`, `pro
   - AC-INV-13-2: An unredeemed login reads no picture
 - **Tests:** citing this ID: none; through its board task: `catalogue-prices.test.ts`, `reverify-slices-1-3.test.ts`, `storefront-catalogue.test.ts`, `verify-slices-1-3.test.ts`
 - **Implementation evidence:** board: P1-19 (IN PROGRESS); P1-33 (IN PROGRESS; merged in PR 109 at d4b47ca (board stale, DA-023)); `supabase/tests/catalogue-prices.test.ts`
+- **Open blocker B-10:** Real product catalogue (OQ-16). On main: PENDING (part answered); in PR 115 (not merged): interim: dummy data
+- **Open blocker B-54:** Shop prices and reorder cycle days. On main: PENDING; in PR 115 (not merged): interim: dummy data
+- **Open blocker B-55:** Shade numbers and pack wording. On main: PENDING; in PR 115 (not merged): interim: dummy data
+- **Open or related decisions:** B-10, B-54, B-55
 
 #### CTL-05
 

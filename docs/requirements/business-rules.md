@@ -39,9 +39,16 @@ Derived reference (see [README.md](README.md)). This is a register, not a second
 
 | Topic | State | Where |
 |---|---|---|
-| Write-offs | MJ 2026-11-19: salon debt owner only; owner and manager approve other write-offs. Documents not yet amended | DA-013, PR 115 |
-| Offline check window | MJ 2026-11-19: one hour. Not built | DA-029, PR 115 |
-| Product groups | MJ 2026-11-19: managers may edit product groups (B-41, D-62 proposed in PR 115) | PR 115 |
+| Write-offs | MJ 2026-11-19: salon debt owner only; owner and manager approve other write-offs (who approves, decided in part). The threshold amount is open. Documents not yet amended | DA-013, B-39 a, PR 115, not merged; docs not amended |
+| Offline check window | MJ 2026-11-19: one hour. Not built | DA-029, B-31 c, PR 115, not merged; docs not amended |
+| Product groups | MJ 2026-11-19: managers may edit product groups (B-41, D-62 proposed) | PR 115, not merged; docs not amended |
+| Payment reversal limit | Doc 13 §9: manager up to Rs 10,000, owner above; D-48: owner or manager, never own, no amount; built with no amount limit | DA-052, B-48 (PENDING on `main` and in PR 115) |
+| Handover settlement | D-46 as built: the outcome is a label; withdrawal by the owner or a manager who did not count | B-49 (PENDING) |
+| Manager adjustment requests; owner discount reason | D-45 against doc 13 threshold as built | B-50 (PENDING) |
+| Intraday cash cap visibility | D-47 as built: refused above the cap, listed at or over it | B-51 (PENDING) |
+| End of a part-delivered order | As built the order stays part delivered; MJ decided in part that the office closes the remainder with a reason | B-45 (PENDING on `main`; decided in part in PR 115, not merged; docs not amended) |
+| Rep parking a salon | Doc 02 allows it; doc 06 §2 says reps cannot change a stage | B-28 (PENDING) |
+| Pin required for a map-created salon | Doc 04 said yes; not enforced; default not required | B-30 (PENDING) |
 | Refunds | MJ's policy stated; no requirement yet | DA-027 |
 | Per-salon price below list | Open | OQ-33, DA-041 |
 | Commission payout authority | Open | OQ-34, DA-019 |

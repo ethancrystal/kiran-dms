@@ -13,7 +13,7 @@ Every rupee after an invoice: credit profile and events, installment plans, paym
 - **Exposure:** Unpaid installments of a salon; derived, never stored as an editable balance (H-10).
 - **Handover:** The daily two-party count of a rep's cash: the manager counts, the rep acknowledges (CTL-03).
 - **Receipt:** The system's numbered receipt; the only valid receipt (D-09).
-- **Write-off (receivable):** Erasing a salon's debt; owner only (MJ 2026-11-19, PR 115).
+- **Write-off (receivable):** Erasing a salon's debt; owner only (MJ 2026-11-19, B-39 a; PR 115, not merged; docs not amended). The threshold for other write-offs is open (DA-013).
 
 ## 3. Actors and permissions
 
@@ -42,6 +42,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
   - AC-PAY-01-1: Approving a delivery on INST4 creates four installments summing to the invoice total
 - **Tests:** citing this ID: `payments.test.ts`; through its board task: `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); `supabase/tests/payments.test.ts`
+- **Open blocker B-05:** Installment schedule shape and starting credit limits (OQ-06, OQ-07). On main: PENDING; in PR 115 (not merged): no change
 - **Open or related decisions:** B-05
 
 #### PAY-02
@@ -77,6 +78,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Tests:** citing this ID: `payments.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); P1-30 (IN PROGRESS); `/app/receipts/[id]`; `supabase/tests/payments.test.ts`
 - **Known gap:** Sending is not built (B-08; see DA-015)
+- **Open blocker B-08:** WhatsApp number and SMS sender (OQ-11). On main: PENDING; in PR 115 (not merged): no change
 - **Open or related decisions:** B-08
 
 #### PAY-04
@@ -94,6 +96,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
   - AC-PAY-04-1: The balance equals the sum of the rep's `cash_ledger_entry` rows
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `payments.test.ts`; through its board task: `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); `supabase/tests/handovers.test.ts`
+- **Open blocker B-48:** Payment reversal: doc 13 section 9 Rs 10,000 manager limit against D-48 (no amount); reversal of short-handed cash and office cash below zero. On main: PENDING; in PR 115 (not merged): still PENDING (refund rule N-1 recorded separately)
+- **Open blocker B-51:** Cash cap: refused collections not shown to the manager (D-47). On main: PENDING; in PR 115 (not merged): still PENDING
+- **Open or related decisions:** B-48, B-51
 
 #### PAY-05
 
@@ -111,6 +116,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
   - AC-PAY-05-2: UPDATE on a handover row fails
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `handovers.test.ts`, `rls-matrix.test.ts`, `verifier-attacks.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); P1-30 (IN PROGRESS); `supabase/tests/handovers.test.ts`
+- **Open blocker B-49:** Handover settlement: label or ledger amount; who withdraws a count. On main: PENDING; in PR 115 (not merged): still PENDING
+- **Open or related decisions:** B-49
 
 #### PAY-06
 
@@ -120,6 +127,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Record:** not standardised yet. The full record (actor, preconditions, behaviour, rules, permissions, failure behaviour, acceptance criteria) is written when its phase is planned (H-22). Until then the statement above is the requirement.
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: none
+- **Open blocker B-06:** Company bank accounts (OQ-08). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-06
 
 #### PAY-07
 
@@ -154,6 +163,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Record:** not standardised yet. The full record (actor, preconditions, behaviour, rules, permissions, failure behaviour, acceptance criteria) is written when its phase is planned (H-22). Until then the statement above is the requirement.
 - **Tests:** citing this ID: none; through its board task: none
 - **Implementation evidence:** board: none
+- **Open blocker B-05:** Installment schedule shape and starting credit limits (OQ-06, OQ-07). On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-05
 
 #### PAY-10
 
@@ -171,6 +182,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
   - AC-PAY-10-2: A reversal adds a row and needs a reason
 - **Tests:** citing this ID: `handovers.test.ts`, `payments.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); P1-30 (IN PROGRESS); `supabase/tests/append-only-sweep.test.ts`
+- **Open blocker B-48:** Payment reversal: doc 13 section 9 Rs 10,000 manager limit against D-48 (no amount); reversal of short-handed cash and office cash below zero. On main: PENDING; in PR 115 (not merged): still PENDING (refund rule N-1 recorded separately)
+- **Open blocker B-52:** Merge order: invoice documents counting reversed payments. On main: PENDING; in PR 115 (not merged): no change
+- **Open or related decisions:** B-48, B-52
 
 #### PAY-11
 
@@ -205,6 +219,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Tests:** citing this ID: `payments.test.ts`, `rep-detail-documents.test.ts`; through its board task: `e2e-stack/rep-detail-documents.spec.ts`, `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`, `rep-detail-documents.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); P1-28 (IN PROGRESS)
 - **Known gap:** Phone delivery not built (B-08; DA-015)
+- **Open blocker B-08:** WhatsApp number and SMS sender (OQ-11). On main: PENDING; in PR 115 (not merged): no change
 - **Open or related decisions:** B-08
 
 #### CTL-02
@@ -223,6 +238,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Tests:** citing this ID: `payments.test.ts`; through its board task: `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); `supabase/migrations/20261103154528_payments.sql` (`distance_from_pin_m`, flags); `supabase/tests/payments.test.ts` (CTL-02 flags)
 - **Known gap:** Manager review screen for flagged payments not evidenced
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open or related decisions:** B-31
 
 #### CTL-03
 
@@ -240,6 +257,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
   - AC-CTL-03-2: A disagreement is settled only by the owner (`app.owner_settle_handover`)
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `handovers.test.ts`, `rls-matrix.test.ts`, `verifier-attacks.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); P1-30 (IN PROGRESS); `supabase/tests/handovers.test.ts`
+- **Open blocker B-11:** Owner runs the digest and handover routine (OQ-14). On main: PENDING; in PR 115 (not merged): no change
+- **Open blocker B-49:** Handover settlement: label or ledger amount; who withdraws a count. On main: PENDING; in PR 115 (not merged): still PENDING
+- **Open or related decisions:** B-11, B-49
 
 #### CTL-04
 
@@ -258,6 +278,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Tests:** citing this ID: none; through its board task: `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS)
 - **Known gap:** Deposits not built (P1-07)
+- **Open blocker B-48:** Payment reversal: doc 13 section 9 Rs 10,000 manager limit against D-48 (no amount); reversal of short-handed cash and office cash below zero. On main: PENDING; in PR 115 (not merged): still PENDING (refund rule N-1 recorded separately)
+- **Open or related decisions:** B-48
 
 #### CTL-08
 
@@ -275,6 +297,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
   - AC-CTL-08-2: A manager's override beyond the monthly cap is refused
 - **Tests:** citing this ID: `audit-fixes.test.ts`, `orders.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `crm-attacks.test.ts`, `deliveries.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `invoice-document.test.ts`, `orders.test.ts`
 - **Implementation evidence:** board: P1-06 (IN PROGRESS); P1-30 (IN PROGRESS); `components/salon-credit.tsx`; `supabase/tests/audit-fixes.test.ts` (CTL-08 cap)
+- **Open blocker B-39:** Approval lifecycle (a) to (g): write-off authority, who uses an approval, use-time rule, owner vs owner, credit override, repeat calls, expiry. On main: PENDING; in PR 115 (not merged): decided in part ((a) receivable write-offs owner only, other write-offs owner or manager)
+- **Open or related decisions:** B-39
 
 #### CTL-10
 
@@ -318,6 +342,8 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 - **Tests:** citing this ID: `audit-fixes.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `handovers.test.ts`, `office-cash.test.ts`, `payments.test.ts`, `receivables-ageing.test.ts`
 - **Implementation evidence:** board: P1-07 (IN PROGRESS); P1-30 (IN PROGRESS); `supabase/tests/audit-fixes.test.ts`
 - **Known gap:** Manager notification not built (MSG-03)
+- **Open blocker B-51:** Cash cap: refused collections not shown to the manager (D-47). On main: PENDING; in PR 115 (not merged): still PENDING
+- **Open or related decisions:** B-51
 
 #### FLD-03
 
@@ -356,7 +382,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `salon_credit`, `cred
 
 ## 6. Business rules
 
-Rules cited by this module's requirements: D-09, D-30, D-31, D-38, H-06, H-10, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
+Rules cited by this module's requirements: D-09, D-30, D-31, D-38, D-47, D-48, H-06, H-10, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
 
 ## 7. User journeys
 

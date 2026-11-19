@@ -18,11 +18,12 @@ Authority order (ACTIVITY §1): 1 MJ's current instruction and doc 16; 2 fixed d
 | C-08 | Contact deletion on request | Allowed, ledger anonymised (NFR-08) | No hard deletes; full-row audit images (H-07, H-17) | Hard rules (ACTIVITY §5) are non-negotiable | No | DA-036 |
 | C-09 | Priority against phase | M means MVP (doc 03 key) | PIP-12, PIP-13, INV-12 M in Phase 2; AGT-04 S in Phase 1 | Doc 03 itself | No | DA-011 |
 | C-10 | Per-salon price below list | Office-set price copied onto the line (ORD-01, D-37) | Any price below list needs approval (CTL-07) | Open | No (OQ-33 open) | DA-041 |
-| C-11 | Delivery acknowledgement | Signed acknowledgement on every delivery (D-49) | Regular User order delivered at dispatch, no signature (D-61) | Both level 2 | No (B-60 open) | DA-042 |
+| C-11 | Delivery acknowledgement | Signed acknowledgement on every delivery (D-49) | Regular User order delivered at dispatch, no signature (D-61) | Level 2: D-61 is the later decision and names the exception; Client Salon orders keep D-49 | Yes, D-61 (B-60 RESOLVED on `main`; corrected after review) | DA-042 |
 | C-12 | Phase gate order | No Phase N+1 task before Gate N (ACTIVITY §8) | Phase 1 started before Gate 0 (D-20) | Level 2 (D-20) | Yes, D-20 | DA-047 |
 | C-13 | Returns in Phase 1 | Return movements exist (INV-03, doc 06 §2 "Returns acceptance") | Return workflow is Phase 2 (ORD-06, P2-04) | Both level 3 | No | DA-028 |
 | C-14 | Supplier data only in the vault | H-01 | H-17 audit trigger copies full rows into `control.audit_event` | Hard rules both; design gap | No | DA-033 |
 | C-15 | Offline check-in window | "B-31 (c) is still MJ's" (PIP-09 note) | 1 hour (MJ, 2026-11-19, PR 115) | Level 1 once PR 115 merges | Yes, pending merge | DA-029 |
+| C-16 | Payment reversal limit | Manager checks a reversal up to Rs 10,000, owner above (doc 13 §9, key `approval.payment_reversal.owner_above_paisa`) | Owner or manager reverses with a reason, never the manager's own payment; no amount (D-48; built so, key shown as not used) | Not settled: D-48 (level 2) is silent on the amount, doc 13 §9 (level 3) states one, and the build follows D-48; this audit picks neither | No (B-48 PENDING on `main` and in PR 115) | DA-052 |
 
 ## Duplicates and overlaps
 

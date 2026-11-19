@@ -11,7 +11,7 @@ This repo is **multi-context**. The contexts are business contexts, not code pac
 - **`docs/adr/`**: system-wide decisions. Context-specific decisions live in `docs/contexts/<name>/adr/`.
 - The planning set `docs/00` to `docs/16` stays the source of truth for requirements and fixed decisions (doc 12). If a `CONTEXT.md` disagrees with a planning doc, the planning doc wins; flag the gap.
 
-If any of the context or ADR files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill creates them lazily when terms or decisions actually get resolved.
+The module documents `docs/contexts/<name>/CONTEXT.md` exist for every context in CONTEXT-MAP.md (created at MJ's request on 2026-11-19, finding DA-046); keep them current rather than creating new ones lazily. If an ADR file or a context not in the map doesn't exist, **proceed silently**: don't flag its absence; the `/domain-modeling` skill creates it when a term or decision is actually resolved.
 
 ## File structure
 

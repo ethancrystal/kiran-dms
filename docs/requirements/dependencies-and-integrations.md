@@ -32,5 +32,5 @@ Derived reference (see [README.md](README.md)). Every third-party service is rea
 | Installment shapes and credit limits | PAY-01, SAL-04 | B-05 |
 | Company bank accounts | invoices, CTL-16 | B-06 |
 | Pilot territory and rep | P1-13 | B-09 |
-| Real product catalogue | INV-01, P1-34 | B-10 (dummy data meanwhile: MJ, 2026-11-19, PR 115) |
+| Real product catalogue | INV-01, P1-34 | B-10 (dummy data meanwhile: MJ, 2026-11-19, PR 115, not merged; docs not amended) |
 | Investor arrangements | CAP beyond the basic ledger | OQ-23 to OQ-30 |

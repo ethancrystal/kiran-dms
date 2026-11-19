@@ -42,6 +42,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `territory`, `area`, 
   - AC-PIP-01-2: A rep's reachable salons change when its territories change (SAL-14)
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `b33-decisions.test.ts`, `reverify-slices-1-3.test.ts`, `salons.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P0-03 (NOT STARTED); P1-02 (IN PROGRESS); `/office/territories`; `supabase/tests/b33-decisions.test.ts`
+- **Open blocker B-09:** Pilot territory and rep (OQ-13). On main: PENDING; in PR 115 (not merged): interim: dummy data
+- **Open blocker B-34:** Re-verifier findings on slices 1 and 3: territory and offboarding races, address whitespace. On main: FIXED, awaiting re-verification; in PR 115 (not merged): no change
+- **Open or related decisions:** B-09, B-34
 
 #### PIP-02
 
@@ -60,6 +63,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `territory`, `area`, 
   - AC-PIP-02-3: A replay with the same client id writes one visit (H-08)
 - **Tests:** citing this ID: `verify-slices-1-3.test.ts`, `visits.test.ts`; through its board task: `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS); `supabase/tests/visits.test.ts`
+- **Open blocker B-14:** How reps get plan lists and taxonomies. On main: PENDING (moot under D-30); in PR 115 (not merged): no change
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open or related decisions:** B-14, B-31
 
 #### PIP-03
 
@@ -95,7 +101,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `territory`, `area`, 
 - **Actor:** Rep; office (force-close)
 - **Preconditions:** Rep on approved device
 - **Expected behaviour:** No order request or payment without check-in; an earlier open day blocks check-in until the office force-closes it with a reason; an unreconciled handover blocks the next day with manager override
-- **Business rules:** B-31(c) offline window: 1 hour (MJ 2026-11-19, PR 115, not merged)
+- **Business rules:** B-31(c) offline window: 1 hour (MJ 2026-11-19, PR 115, not merged; docs not amended)
 - **Permissions:** Rep checks in and out; office force-closes
 - **Failure and exceptions:** Payment or request without an open day is refused
 - **Acceptance criteria:**
@@ -105,7 +111,9 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `territory`, `area`, 
 - **Tests:** citing this ID: `e2e-stack/office.spec.ts`, `e2e/outbox-classify.spec.ts`, `e2e/outbox-drain.spec.ts`, `e2e/outbox-history.spec.ts`, `verify-slices-1-3.test.ts`, `visits.test.ts`; through its board task: `audit-fixes.test.ts`, `b33-decisions.test.ts`, `create-salon-blanks.test.ts`, `crm-attacks.test.ts`, `e2e-stack/p130-screens.spec.ts`, `e2e/list-cap-note.spec.ts`, `e2e/time.spec.ts`, `salons.test.ts`, `visits.test.ts`
 - **Implementation evidence:** board: P1-02 (IN PROGRESS); P1-30 (IN PROGRESS); `components/open-rep-days.tsx`
 - **Known gap:** The unreconciled-handover block and the 1-hour offline window are not built
-- **Open or related decisions:** B-31
+- **Open blocker B-31:** Audit questions (a) to (g): pin moves, phone reveals, midnight, invoices per delivery, delivery mode, low stock, agents. On main: PENDING; in PR 115 (not merged): decided in part ((c) 1-hour offline window; pin answer)
+- **Open blocker B-35:** Close-day submit callback defect, slice 2. On main: FIXED, awaiting re-verification; in PR 115 (not merged): no change
+- **Open or related decisions:** B-31, B-35
 
 #### PIP-10
 
@@ -191,7 +199,7 @@ Tables owned (from the migrations on `main` at `d4b47ca`): `territory`, `area`, 
 
 ## 6. Business rules
 
-Rules cited by this module's requirements: D-31, D-38, H-08, H-09, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
+Rules cited by this module's requirements: D-30, D-31, D-38, H-08, H-09, H-22. Their text and single source are in [business-rules.md](../../requirements/business-rules.md); thresholds are doc 13 §9, permissions are doc 06 §2.
 
 ## 7. User journeys
 
@@ -212,7 +220,7 @@ Device binding (SEC-03); server time authoritative (H-09); visits append-only; r
 ## 10. Failure scenarios
 
 - Rep loses connectivity: visits must queue offline (NFR-01); not wired yet (P1-09).
-- Day left open past midnight: office force-close with a reason; the 1-hour offline window is decided (PR 115) but not built.
+- Day left open past midnight: office force-close with a reason; the 1-hour offline window is decided (PR 115, not merged; docs not amended) but not built.
 - Phone lost: office revokes the device (SEC-04).
 
 ## 11. Acceptance criteria
