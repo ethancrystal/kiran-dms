@@ -111,6 +111,49 @@ jobs:
       # (docs/security/audit-exceptions.json). Moderate and low advisories never fail.
       - run: pnpm audit --json --prod | node scripts/dependency-audit.mjs
 
+  secret-scan:
+    name: secret scan (doc 06 10.8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Pinned release v8.30.1 (tag commit 83d9cd6). The canary uses a token
+      # generated at run time in RUNNER_TEMP. No token is written into this repo.
+      - name: Install gitleaks 8.30.1
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tar.gz" https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" version
+      - name: Canary proves the scanner fails on a generated token
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/gitleaks"
+          dir="$RUNNER_TEMP/gitleaks-canary"
+          rm -rf "$dir"
+          mkdir -p "$dir"
+          git -C "$dir" init -q
+          git -C "$dir" config user.email ci@example.com
+          git -C "$dir" config user.name ci
+          token="ghp_$(openssl rand -hex 18)"
+          printf 'GITHUB_TOKEN=%s\n' "$token" > "$dir/leak.txt"
+          unset token
+          git -C "$dir" add leak.txt
+          git -C "$dir" commit -q -m canary
+          set +e
+          "$bin" detect --source "$dir" --redact --no-banner
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "canary was clean; the scanner is broken"
+            exit 1
+          fi
+          echo "canary failed closed"
+      - name: gitleaks detect
+        run: |
+          bin="$RUNNER_TEMP/gitleaks"
+          "$bin" detect --config .gitleaks.toml --redact --no-banner
+
   e2e:
     name: rep PWA browser tests (Playwright)
     runs-on: ubuntu-latest

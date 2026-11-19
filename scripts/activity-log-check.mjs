@@ -69,8 +69,8 @@ const SECRET_PATTERNS = [
   /\bsb_secret_[A-Za-z0-9_-]{10,}/,
   /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
-  // A connection string with a password (any user, incl. empty; any +driver), except the local CLI stack and <pw>/… placeholders.
-  /\bpostgres(?:ql)?(?:\+\w+)?:\/\/[^:\s/@]*:(?!postgres@127\.0\.0\.1|postgres@localhost|<|…)[^@\s]+@/i,
+  // A connection string with a password (any user, incl. empty; any +driver), except the local CLI stack and <pw>/…/*** placeholders (escaped or plain).
+  /\bpostgres(?:ql)?(?:\+\w+)?:\/\/[^:\s/@]*:(?!postgres@127\.0\.0\.1|postgres@localhost|<|…|(?:\\?\*){3})[^@\s]+@/i,
   // A password as a URI query parameter, or in a libpq keyword string (L-0075 D5), unless it is a
   // placeholder or a ${…}/$VAR reference.
   /[?&;]\s*(?:password|passwd|pwd|pass)=(?!<|\{|\$|\*{3}|…)[^&\s"'`;]{6,}/i,

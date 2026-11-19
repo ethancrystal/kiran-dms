@@ -157,25 +157,28 @@ export function RepDay() {
       )}
 
       {!day && !stuck && (
-        <CountForm
-          title="Check in"
-          help="Count what is in your bag before you start. Enter what you see, not what you expect."
-          bag={bag}
-          button="Check in"
-          onSubmit={async (counted) => {
-            const gps = await position();
-            await run(
-              () =>
-                rpc("rep_check_in", {
-                  p_counted: counted,
-                  p_lat: gps?.lat ?? null,
-                  p_lng: gps?.lng ?? null,
-                  p_at_client: new Date().toISOString(),
-                }),
-              "Checked in. Have a good day.",
-            );
-          }}
-        />
+        <div className="card">
+          <h2>Start your day</h2>
+          <p className="muted">Check in to open your shift, view your route, and record salon visits.</p>
+          <button
+            type="button"
+            onClick={async () => {
+              const gps = await position();
+              await run(
+                () =>
+                  rpc("rep_check_in", {
+                    p_counted: [],
+                    p_lat: gps?.lat ?? null,
+                    p_lng: gps?.lng ?? null,
+                    p_at_client: new Date().toISOString(),
+                  }),
+                "Checked in. Have a good day.",
+              );
+            }}
+          >
+            Check in
+          </button>
+        </div>
       )}
 
       {day && day.status !== "open" && (
@@ -287,122 +290,58 @@ export function RepDay() {
             )}
           </section>
 
-          <CloseDay bag={bag} onDone={(m) => run(async () => {}, m)} />
+          <CloseDay onDone={(m) => run(async () => {}, m)} />
         </>
       )}
     </>
   );
 }
 
-function CountForm({
-  title,
-  help,
-  bag,
-  button,
-  onSubmit,
-}: {
-  title: string;
-  help: string;
-  bag: BagLine[];
-  button: string;
-  onSubmit: (counted: Array<{ sku_id: string; qty: number }>) => Promise<void>;
-}) {
-  const [counts, setCounts] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const lines = bag.filter((b) => b.on_hand !== 0);
-  return (
-    <form
-      className="card"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        try {
-          await onSubmit(
-            Object.entries(counts)
-              .filter(([, v]) => v.trim() !== "")
-              .map(([sku_id, v]) => ({ sku_id, qty: Number.parseInt(v, 10) })),
-          );
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <h2>{title}</h2>
-      <p className="muted">{help}</p>
-      {lines.length === 0 ? (
-        <p className="muted">Your bag is empty.</p>
-      ) : (
-        lines.map((b) => (
-          <div key={b.sku_id}>
-            <label htmlFor={`c-${b.sku_id}`}>
-              {b.code} {b.variant ?? ""}
-            </label>
-            <input
-              id={`c-${b.sku_id}`}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={counts[b.sku_id] ?? ""}
-              onChange={(e) => setCounts((c) => ({ ...c, [b.sku_id]: e.target.value.replace(/\D/g, "") }))}
-              required
-            />
-          </div>
-        ))
-      )}
-      <button type="submit" disabled={busy}>
-        {busy ? "Saving…" : button}
-      </button>
-    </form>
-  );
-}
-
-function CloseDay({ bag, onDone }: { bag: BagLine[]; onDone: (message: string) => Promise<void> }) {
+function CloseDay({ onDone }: { onDone: (message: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // One client id per closing, so a retry after a refused check-out replays the same count
-  // instead of recording a second daily close; once saved, the count is not sent again.
-  const [closeId] = useState(() => crypto.randomUUID());
-  const [counted, setCounted] = useState(false);
+  const [busy, setBusy] = useState(false);
+
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)}>
         Finish the day
       </button>
     );
+
   return (
-    <>
+    <div className="card">
+      <h2>Finish the day</h2>
+      <p className="muted">Close today&apos;s shift when your field visits are complete.</p>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
-      {counted && <p className="muted">Your evening count is saved; only the check-out is left.</p>}
-      <CountForm
-        title="Evening bag count"
-        help="Count your bag again before you check out (INV-05). The office compares it with your sales."
-        bag={bag}
-        button="Save count and check out"
-        onSubmit={async (lines) => {
-          setError(null);
-          try {
-            const bagId = await rpc<string | null>("my_bag_id");
-            if (bagId && !counted) {
-              await rpc("record_count", {
-                p_client_id: closeId,
-                p_location_id: bagId,
-                p_kind: "daily_close",
-                p_counted: lines,
-                p_counted_at_client: new Date().toISOString(),
-              });
-              setCounted(true);
+      <div className="row">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setError(null);
+            setBusy(true);
+            try {
+              await rpc("rep_check_out", { p_at_client: new Date().toISOString() });
+              setOpen(false);
+              await onDone("Day closed. Thank you.");
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setBusy(false);
             }
-            await rpc("rep_check_out", { p_at_client: new Date().toISOString() });
-            setOpen(false);
-            await onDone("Day closed. Thank you.");
-          } catch (e) {
-            setError((e as Error).message);
-          }
-        }}
-      />
-    </>
+          }}
+        >
+          {busy ? "Closing day…" : "Confirm check out"}
+        </button>
+        <button type="button" className="inline link" disabled={busy} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
