@@ -28,13 +28,13 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 
 **Decision:** the rep map uses OpenStreetMap first, reached only through an adapter (H-21). There is no B-id for the provider itself.
 
-## B-39 — who may approve write-offs
+## B-39 — who may approve write-offs (AWAITING MJ CONFIRMATION)
 
 **Asked:** owner approves above a threshold, manager below it? MJ was offered that split and answered about who approves "all of it".
 
 **MJ:** "owner and manager approves all of it"
 
-**Decision:** owner and manager may both approve write-offs of any amount. There is no threshold split.
+**Status:** AWAITING MJ CONFIRMATION. MJ's words are recorded as he wrote them. They were said about write-off approvals in general, and they conflict with the written M4 control: doc 06 section 2 (receivable write-off: **Owner only**), doc 13 line 61 (M4, "Write-offs are owner-only") and doc 13 section 9 line 138 (stock write-off: manager requests, owner approves, always). Doc 13 exists because a manager who can write off a debt can also hide one. No control, document or code is changed by this answer. MJ is to confirm whether he means to relax M4 (and for which write-offs: receivable, stock, or both) before anything is built or documented differently.
 
 **Still open on B-39:** (b) who may use an approval, and whether the checker may run the gated action; (c) use-time rule and whether `adjustment` moves onto `authorize_action`; (d) whether one owner may suspend or demote another; (e) `credit_override`; (f) a second call for the same kind and consumer with different facts; (g) expiry and a checker offboarded before use.
 
@@ -44,7 +44,7 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 
 **MJ:** "yes"
 
-**Decision:** a manager may add and change product groups (and default cycles, as the blocker asked). Assumption A-19 (controls shown to the owner only) is rejected by this answer.
+**Decision:** a manager may add and change product groups (and default cycles, as the blocker asked). Assumption A-19 (controls shown to the owner only) is rejected by this answer. Recorded as D-62 in doc 12; doc 06 section 2 and doc 03 ADM-01 are updated in this change (H-25). The database already allows it (`app.office_upsert_product_group`, any office role at AAL2); the Products page still shows the group controls to the owner only until a code change follows (follow-up 1 below).
 
 ## B-45 — closing the rest of a part-delivered order
 
@@ -66,15 +66,17 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 
 **Still open on B-46:** (d) is already as built (company profile keys). (e) whether the business wants a documented exception for a salon that cannot sign (for example a closed shop) was not answered here.
 
-## B-48 to B-51 — money controls (amounts)
+## B-48 to B-51 — money controls (amounts): still PENDING
 
 **Asked:** the threshold for reversing a payment, the allowed settlement gap, and the cash limit (B-48 to B-51). MJ was asked to name the amounts.
 
 **MJ:** "no refund if necessary salon will request refund and once approved by owner then will be refunded"
 
-**Decision for B-48:** there is no reversal or refund amount threshold. A refund happens only when the salon requests it and the owner approves it. A manager does not approve refunds under this rule.
+**Status:** B-48 stays PENDING. Its question is the doc 13 section 9 limit (a manager checks a payment reversal up to Rs 10,000 and the owner above) and what happens to a short handover that is reversed. MJ's answer does not name an amount and is about refunds, which are a different thing from reversing a wrongly recorded payment, so it is recorded as note N-1 below and does not settle B-48. B-49, B-50 and B-51 were not answered and stay PENDING.
 
-**Not independently answered:** B-49 (handover settlement: label versus a ledger variance, and who may withdraw a count), B-50 (whether every manager adjustment request needs the owner, and a reason on the owner's discounted orders), and B-51 (what the manager sees about reps refused by the cash cap). MJ did not name a numeric settlement gap or cash cap. Those three rows stay open, with this refund rule on record.
+### Note N-1 — refunds (MJ, 2026-11-19)
+
+A refund to a salon happens only when the salon requests one and the owner approves it. Source: MJ's words quoted above. No refund function exists today; this note is the rule a future refund feature must follow. It does not change payment reversal (D-48) or any built control.
 
 ## B-31 (rest) — pin, map, and deliveries
 
@@ -82,9 +84,9 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 
 **MJ:** "the only reason of this feature is to keep eye on the sales rep thats it, we will not use it for deliveries"
 
-**Decision:** the pin and map feature exists only to monitor the sales rep's field activity. It is not used for deliveries. `delivery_mode`, reveal-for-delivery, and related behaviour must not be designed around deliveries. Together with B-31(c) above, this is what MJ settled of B-31 in this exchange.
+**Reading:** this covers the purpose of the pin and map feature only: it exists to monitor the sales rep's field activity and is not used for deliveries. It does not answer (d) one invoice per delivery or (e) what `delivery_mode` should change; those are about invoicing and stock, not the map.
 
-**Still open on B-31:** (a) may a rep move a salon's pin; (b) a daily cap on `reveal_phone`; (f) whether `low_stock` counts the warehouse only; (g) how an independent agent is represented.
+**Still open on B-31:** (a) may a rep move a salon's pin; (b) a daily cap on `reveal_phone`; (d) one invoice per delivery or one per order; (e) `delivery_mode`; (f) whether `low_stock` counts the warehouse only; (g) how an independent agent is represented. Settled in this exchange: (c), above.
 
 ## B-02, B-09, B-10, B-54 to B-61 — dummy data until MJ supplies originals
 
@@ -102,7 +104,7 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 
 - B-60 was already resolved on 2026-11-10 (Regular User orders marked delivered at dispatch, no signature; Client Salon orders keep D-49). That resolution is unchanged.
 - B-61 still needs MJ to name the e-mail service and sender before any reminder is sent. Dummy or default wording may be used in the meantime; nothing is sent until the service is named.
-- B-56, B-57, B-58 and B-59 may proceed against the documented defaults and dummy or placeholder copy until MJ gives originals. Creating a live Shopify store, pointing khsalon.com, and setting secrets remain MJ's own actions (section 10).
+- B-56, B-57, B-58 and B-59 stay PENDING on their existing defaults in `docs/ACTIVITY.md` section 14. MJ's "dummy for now I will give original later" allows dummy or placeholder data meanwhile; it is not a decision on any of those four questions. Creating a live Shopify store, pointing khsalon.com, and setting secrets remain MJ's own actions (section 10).
 
 ## Item 15 — pending migrations on kiran
 
@@ -111,6 +113,18 @@ These answers unblock design and dummy-data work. They do not authorise a merge,
 **MJ:** "yes"
 
 **Decision:** MJ approved applying the pending migrations to the kiran staging database (project "Kiran Company", ref `iurvazdyxzlspegygldo`) after a manual backup. Execution belongs to Code Deployer, not Developer. This entry records the approval only. No migration is applied in this change.
+
+## Documents still to update (H-25 follow-ups)
+
+Docs are changed in this record only where MJ's decision is clear (B-41). The rest are follow-ups, each for the task that builds it:
+
+1. **B-41, code:** open the product group controls on `/office/products` to the manager (A-19 rejected); the database needs no change.
+2. **B-62:** doc 06 section 4 (public shop catalogue row) still says `anon` holds USAGE on schema `app`. Update it with the migration that moves the two reads to their own schema; the hosted exposed-schemas setting is MJ's.
+3. **B-31(c):** the P1-09 plan (`docs/plans/in-progress/2026-11-08-p1-09-offline-rep-app.md`, decision 5) still proposes 48 hours; change it to 1 hour with plan task 1.
+4. **B-45:** doc 04 (order states) and doc 09 gain the office's close-the-remainder action with a reason when the function is built; when a delivered order becomes `closed` is still open.
+5. **B-46:** ORD-05 in doc 03 and the P1-31 notes gain the server-side PDF with logo when built; batch and expiry move with P1-05.
+6. **B-39(a):** no document changes until MJ confirms; if he relaxes M4, doc 06 section 2, doc 13 (M4, section 9) and H-15 all change together.
+7. **Note N-1 (refunds):** doc 09 and doc 13 section 9 gain the refund rule when a refund feature is designed; B-48 must be answered first.
 
 ## Not answered in this exchange
 
