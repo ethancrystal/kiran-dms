@@ -21,7 +21,7 @@ Success means, end to end on the real local stack and in CI:
 | 2 | Delivery submission and approval, pending stock custody | PR B | A |
 | 3 | Commission rates and the commission area | PR C | B |
 
-State on 2026-11-04: PR A built, awaiting an independent check and MJ's push decision ([plan](../plans/2026-11-03-office-orders-and-cards.md)); PR B and PR C not started.
+State on 2026-11-04: PR A built, awaiting an independent check and MJ's push decision ([plan](../../plans/implemented/2026-11-03-office-orders-and-cards.md)); PR B and PR C not started.
 
 Out of scope here: the salon portal (separate design, reuses piece 1's order engine), the B-41 defect fixes (verifier branch), returns, credit notes, write-off clawback, payouts, the cash cap (CTL-17), bank deposits.
 

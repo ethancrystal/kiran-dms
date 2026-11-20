@@ -83,6 +83,7 @@ const IDENTITY_GUARDS = [
   "control.salon_membership_guard",
   "control.salon_signup_request_guard",
   "control.stock_issue_guard",
+  "control.storefront_row_guard",
   "control.user_profile_guard",
 ];
 

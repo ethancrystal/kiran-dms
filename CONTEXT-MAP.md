@@ -1,10 +1,10 @@
 # Context map
 
-Kiran DMS has seven business contexts and a shared kernel, and an eighth, storefront, that is planned and not built (D-51). Contexts are business boundaries, not code packages: each spans migrations, functions and screens.
+Kiran DMS has seven business contexts and a shared kernel, and an eighth, storefront, that is planned (D-51 of 2026-11-10) and whose first part, the public catalogue data, merged in pull request 109 at `d4b47ca` (P1-33, not verified). Contexts are business boundaries, not code packages: each spans migrations, functions and screens.
 
-This map is reference material for the engineering skills (see `docs/agents/domain.md`). It never overrides the planning set (`docs/00` to `docs/13`) or `docs/ACTIVITY.md`. Where it disagrees with them, they win and the gap is flagged.
+This map is reference material for the engineering skills (see `docs/agents/domain.md`). It never overrides the planning set (`docs/00` to `docs/16`) or `docs/ACTIVITY.md`. Where it disagrees with them, they win and the gap is flagged.
 
-Each context gets its own `docs/contexts/<name>/CONTEXT.md` only when a term is actually resolved (via `/domain-modeling`). Until then this map is the only domain file.
+Each context has its own `docs/contexts/<name>/CONTEXT.md`, the module document: glossary, boundaries, actors, owned tables, the standard requirement records, journeys, security, failures, dependencies and status with evidence. MJ asked for them on 2026-11-19 (documentation audit, finding DA-046); before that they were to be created lazily. They are derived reference and never override the planning set. Index: [docs/requirements/README.md](docs/requirements/README.md).
 
 ## Contexts
 
@@ -17,11 +17,11 @@ Each context gets its own `docs/contexts/<name>/CONTEXT.md` only when a term is 
 | [inventory](docs/contexts/inventory/CONTEXT.md) | catalogue and product groups, stock movements, stock issue to reps, rep bag, daily close, cycle count, quarantine, lost demand | doc 10; doc 03 INV, DEM |
 | [supplier-vault](docs/contexts/supplier-vault/CONTEXT.md) | vocabulary only: what a supplier record, goods receipt and cost are, and who may see them. Never supplier data (H-01, H-02) | doc 07 |
 | [control-governance](docs/contexts/control-governance/CONTEXT.md) | the owner's surface: approvals inbox, anomaly flags, owner digest, cases, balance confirmations, honeytokens, users, devices, vault grants, offboarding, commission plans | doc 13; doc 06; doc 03 CTL-11, CTL-14, CTL-15, SEC |
-| [storefront](docs/contexts/storefront/CONTEXT.md) | planned, not built (D-51 to D-61): the public shop at khsalon.com. Visitor, visit, published category, product and SKU, default price, storefront event and its registered meaning, the Shopify copy of the catalogue, the direct buyer's paid order on its way into the office review queue. It reads the catalogue from inventory and hands orders to orders-delivery; it owns no stock, no price and no order | docs/plans/will-be-implemented/2026-11-10-khsalon-storefront-overview.md; doc 12 D-51 to D-61 |
+| [storefront](docs/contexts/storefront/CONTEXT.md) | planned (D-51 to D-61); the public catalogue data (the `storefront_*` tables, the office write functions, the two visitor reads, the Online shop panel) merged in pull request 109 at `d4b47ca` (P1-33, not verified); the pages, tracking, Shopify copy and paid orders are not built: the public shop at khsalon.com. Visitor, visit, published category, product and SKU, default price, storefront event and its registered meaning, the Shopify copy of the catalogue, the direct buyer's paid order on its way into the office review queue. It reads the catalogue from inventory and hands orders to orders-delivery; it owns no stock, no price and no order | docs/plans/will-be-implemented/2026-11-10-khsalon-storefront-overview.md; doc 12 D-51 to D-61 |
 
 Most CTL- and SEC-numbered requirements are controls that live inside the operational context they guard (for example a cash cap lives in money-credit, a stock-close variance in inventory). control-governance holds only what the owner reads and decides.
 
-Not yet placed: reporting (RPT), messaging (MSG), admin configuration (ADM), non-functional requirements (NFR). Place them when a decision needs them.
+Not yet placed: reporting (RPT), messaging (MSG), admin configuration (ADM), non-functional requirements (NFR). Place them when a decision needs them. Until then their standard records are in `docs/requirements/cross-cutting-requirements.md` (with the investor ledger, CAP, which this map does not place either; finding DA-043) and `docs/requirements/non-functional-requirements.md`.
 
 ## Shared kernel
 
