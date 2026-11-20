@@ -478,11 +478,11 @@ describe("slices 2 and 3: the rep's day, visits, notes, park and override (PIP-0
     expect((await as(rep2, "select count(*)::int n from app.my_route($1::date)", [TODAY])).rows[0].n).toBe(0);
   });
 
-  it("check-out needs the evening close of the rep's own bag; after it, no visit, no second check-in", async () => {
-    expect(await stateOf(rep1, "select app.rep_check_out()")).toBe("42501");
+  it("check-out closes the open day without an evening count (MJ's no-bag ruling, 20261118120000); after it, no visit, no second check-in", async () => {
     expect(await stateOf(rep1, "select app.record_count($1, $2, 'daily_close', '[]')", [id(), bag2])).toBe("42501");
     expect(await stateOf(rep1, "select app.record_count($1, $2, 'spot_check', '[]')", [id(), bag1])).toBe("42501");
     expect((await as(rep1, "select app.my_bag_id() b")).rows[0].b).toBe(bag1);
+    // The rep may still record the own bag's daily close, but it is no longer a condition of check-out.
     await asC(rep1, "select app.record_count($1, app.my_bag_id(), 'daily_close', '[]')", [id()]);
     const out = (await asC(rep1, "select (app.rep_check_out($1)).*", [PAST])).rows[0];
     expect(out.status).toBe("closed");
