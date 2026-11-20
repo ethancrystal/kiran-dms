@@ -216,7 +216,7 @@ jobs:
       - name: Seed synthetic people
         run: node scripts/e2e-stack-seed.mjs apps/web/e2e-stack/.seed.json
       - run: pnpm -C apps/web exec playwright install --with-deps chromium
-      - run: pnpm -C apps/web exec playwright test -c playwright.stack.config.ts
+      - run: pnpm -C apps/web exec playwright test -c playwright.stack.config.ts --reporter=github,line
         env:
           CI: "true"
       - uses: actions/upload-artifact@v4
