@@ -103,11 +103,9 @@ export default function RepHome() {
           <p>
             <a href="/app/order-notes">Order Notes</a>
           </p>
-          <p>
-            <a href="/app/handovers">
-              Cash handover
-            </a>
-          </p>
+          {/* MJ 2026-11-20: the rep area is check-in/out, route, notes and Order Notes. The bag,
+              delivery and cash-handover pages still work and are kept for the office flows and tests,
+              but their links are hidden from the rep dashboard. Reach them by their URL if needed. */}
           <p>
             <a href="/app/cards">
               My cards
@@ -117,14 +115,6 @@ export default function RepHome() {
             <a href="/app/orders">
               Orders
             </a>
-          </p>
-          <p>
-            <a href="/app/deliveries">
-              My deliveries
-            </a>
-          </p>
-          <p>
-            <a href="/app/stock">My bag and incoming stock</a>
           </p>
           <p>
             <a href="/app/route">My route</a>
