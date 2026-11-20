@@ -23,4 +23,4 @@ jobs:
       - name: Test preflight failure cases
         run: node --test scripts/agent-preflight.test.mjs
       - name: Test the backup manifest comparison
-        run: pnpm backup:test
+        run: node --test scripts/backup/manifest.test.mjs

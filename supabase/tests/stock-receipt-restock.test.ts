@@ -8,17 +8,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import {
-  fx,
-  MANAGER,
-  MANAGER_AAL1,
-  OWNER,
-  OWNER_AAL1,
-  REP_A,
-  run,
-  sqlstate,
-  type Who,
-} from "./helpers/db";
+import { fx, MANAGER, MANAGER_AAL1, OWNER, OWNER_AAL1, REP_A, run, sqlstate, type Who } from "./helpers/db";
 
 const C = { commit: true };
 const id = () => randomUUID();
@@ -54,7 +44,11 @@ beforeAll(async () => {
   await one(OWNER, "select app.office_create_location($1, 'rep_bag', '[Test] Restock bag', $2, 2000000)", [BAG, fx.repA.id]);
   await one(MANAGER, "select app.office_upsert_territory($1, $2)", [TERRITORY, `[Test] restock territory ${code()}`]);
   await one(MANAGER, "select app.office_upsert_area($1, $2, $3)", [AREA, TERRITORY, `[Test] restock area ${code()}`]);
-  await one(OWNER, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [SALON, `[Test] Restock salon ${code()}`, AREA]);
+  await one(OWNER, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [
+    SALON,
+    `[Test] Restock salon ${code()}`,
+    AREA,
+  ]);
   await run(
     "postgres",
     `insert into public.rep_day (id, rep_id, day)
@@ -64,7 +58,12 @@ beforeAll(async () => {
     C,
   );
   const repDay = (
-    await run("postgres", "select id from public.rep_day where rep_id = $1 and day = (now() at time zone 'Asia/Karachi')::date", [fx.repA.id], C)
+    await run(
+      "postgres",
+      "select id from public.rep_day where rep_id = $1 and day = (now() at time zone 'Asia/Karachi')::date",
+      [fx.repA.id],
+      C,
+    )
   ).rows[0];
   repDayId = repDay.id;
   await one(OWNER, "select app.office_set_reorder_point($1, $2)", [S1, 10]);
@@ -74,20 +73,24 @@ beforeAll(async () => {
 
 describe("office stock receipt (INV-03)", () => {
   it("the office receives stock into a warehouse and on-hand rises; the audit chain still verifies", async () => {
-    const r = (await one(OWNER, "select app.office_receive_stock($1, $2, $3, $4) r", [
-      id(),
-      WH,
-      JSON.stringify([{ sku_id: S1, qty: 50 }]),
-      "[Test] goods received from a supplier delivery",
-    ])).r;
+    const r = (
+      await one(OWNER, "select app.office_receive_stock($1, $2, $3, $4) r", [
+        id(),
+        WH,
+        JSON.stringify([{ sku_id: S1, qty: 50 }]),
+        "[Test] goods received from a supplier delivery",
+      ])
+    ).r;
     expect(r).toEqual({ replay: false, lines: 1, units: 50 });
     expect(await onHand(WH, S1)).toBe(50);
-    const r2 = (await one(MANAGER, "select app.office_receive_stock($1, $2, $3, $4) r", [
-      id(),
-      WH,
-      JSON.stringify([{ sku_id: S1, qty: 10 }]),
-      "[Test] a later carton of the same delivery",
-    ])).r;
+    const r2 = (
+      await one(MANAGER, "select app.office_receive_stock($1, $2, $3, $4) r", [
+        id(),
+        WH,
+        JSON.stringify([{ sku_id: S1, qty: 10 }]),
+        "[Test] a later carton of the same delivery",
+      ])
+    ).r;
     expect(r2).toEqual({ replay: false, lines: 1, units: 10 });
     expect(await onHand(WH, S1)).toBe(60);
     expect((await run("postgres", "select ok from control.verify_audit_chain()")).rows[0].ok).toBe(true);
@@ -98,12 +101,14 @@ describe("office stock receipt (INV-03)", () => {
     const lines = JSON.stringify([{ sku_id: S2, qty: 25 }]);
     await one(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [batch, WH, lines, "[Test] first receipt of the batch"]);
     expect(await onHand(WH, S2)).toBe(25);
-    const replay = (await one(OWNER, "select app.office_receive_stock($1, $2, $3, $4) r", [
-      batch,
-      WH,
-      lines,
-      "[Test] first receipt of the batch",
-    ])).r;
+    const replay = (
+      await one(OWNER, "select app.office_receive_stock($1, $2, $3, $4) r", [
+        batch,
+        WH,
+        lines,
+        "[Test] first receipt of the batch",
+      ])
+    ).r;
     expect(replay).toEqual({ replay: true, client_id: batch });
     expect(await onHand(WH, S2)).toBe(25);
     expect((await run("postgres", "select ok from control.verify_audit_chain()")).rows[0].ok).toBe(true);
@@ -111,10 +116,18 @@ describe("office stock receipt (INV-03)", () => {
 
   it("reps, anonymous and AAL1 office sessions are refused", async () => {
     const lines = JSON.stringify([{ sku_id: S1, qty: 1 }]);
-    expect(await sqlstate(REP_A, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] rep tries goods-in"])).toBe("42501");
-    expect(await sqlstate("anon", "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] anonymous goods-in"])).toBe("42501");
-    expect(await sqlstate(OWNER_AAL1, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] aal1 goods-in"])).toBe("42501");
-    expect(await sqlstate(MANAGER_AAL1, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] aal1 goods-in"])).toBe("42501");
+    expect(
+      await sqlstate(REP_A, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] rep tries goods-in"]),
+    ).toBe("42501");
+    expect(
+      await sqlstate("anon", "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] anonymous goods-in"]),
+    ).toBe("42501");
+    expect(
+      await sqlstate(OWNER_AAL1, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] aal1 goods-in"]),
+    ).toBe("42501");
+    expect(
+      await sqlstate(MANAGER_AAL1, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, lines, "[Test] aal1 goods-in"]),
+    ).toBe("42501");
   });
 
   it("stock is refused anywhere but an active warehouse, and bad input is refused", async () => {
@@ -126,16 +139,45 @@ describe("office stock receipt (INV-03)", () => {
         "[Test] straight into a rep bag",
       ]),
     ).toBe("42501");
-    expect(await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, JSON.stringify([{ sku_id: S1, qty: 0 }]), "[Test] zero qty"])).toBe(
-      "22023",
-    );
-    expect(await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, JSON.stringify([{ sku_id: id(), qty: 5 }]), "[Test] unknown sku"])).toBe(
-      "22023",
-    );
-    expect(await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, JSON.stringify([]), "[Test] empty lines"])).toBe("22023");
-    expect(await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, JSON.stringify([{ sku_id: S1, qty: 5 }]), "no"])).toBe("42501");
     expect(
-      await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [id(), WH, JSON.stringify([{ sku_id: S1, qty: 5 }]), "x".repeat(301)]),
+      await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [
+        id(),
+        WH,
+        JSON.stringify([{ sku_id: S1, qty: 0 }]),
+        "[Test] zero qty",
+      ]),
+    ).toBe("22023");
+    expect(
+      await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [
+        id(),
+        WH,
+        JSON.stringify([{ sku_id: id(), qty: 5 }]),
+        "[Test] unknown sku",
+      ]),
+    ).toBe("22023");
+    expect(
+      await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [
+        id(),
+        WH,
+        JSON.stringify([]),
+        "[Test] empty lines",
+      ]),
+    ).toBe("22023");
+    expect(
+      await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [
+        id(),
+        WH,
+        JSON.stringify([{ sku_id: S1, qty: 5 }]),
+        "no",
+      ]),
+    ).toBe("42501");
+    expect(
+      await sqlstate(OWNER, "select app.office_receive_stock($1, $2, $3, $4)", [
+        id(),
+        WH,
+        JSON.stringify([{ sku_id: S1, qty: 5 }]),
+        "x".repeat(301),
+      ]),
     ).toBe("42501");
   });
 });
