@@ -51,10 +51,11 @@ describe("§7.5 approvals: self-approval and tampering", () => {
     expect(await errorOf(REP_A, "select app.decide_approval($1, true, 'rep self')", [r.id])).toMatch(/owner or manager only/);
   });
 
-  it("a manager cannot decide an owner-level request; requesting with checker 'rep' is lifted to manager", async () => {
+  it("a write-off may be decided by a manager or the owner; requesting with checker 'rep' is lifted to manager", async () => {
     const w = await request(OWNER, "write_off", "manager");
-    expect(w.checker_role_required).toBe("owner");
-    expect(await errorOf(MANAGER, "select app.decide_approval($1, true, 'mgr try')", [w.id])).toMatch(/owner's decision/);
+    expect(w.checker_role_required).toBe("manager");
+    const decided = await run(MANAGER, "select (app.decide_approval($1, true, 'mgr approves')).status as status", [w.id], { commit: true });
+    expect(decided.rows[0].status).toBe("approved");
     const x = await request(REP_A, "discount", "rep");
     expect(x.checker_role_required).toBe("manager");
   });

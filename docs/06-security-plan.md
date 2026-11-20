@@ -44,10 +44,10 @@ Three roles at launch. **Manager = Owner for operations; Owner alone holds gover
 | Bank deposit recording | — | Yes | Yes |
 | Bank statement import & matching | — | Yes | Yes |
 | Stock issue to rep / receive from rep | — | Yes | Yes |
-| Stock adjustment / write-off | — | Request; approve below threshold if not maker | Approve above threshold |
+| Stock adjustment / write-off | — | Request; approve below threshold if not maker. A write-off may be decided at any amount by a manager or the owner (MJ, 2026-11-20) | Approve above threshold |
 | Returns acceptance | Request | Accept at warehouse | Accept |
 | Credit note (return/price correction) | — | Below threshold, not own | Any |
-| **Receivable write-off** | — | — | **Owner only** |
+| **Receivable write-off** | — | Decide, never the maker (MJ, 2026-11-20) | Decide, never the maker |
 | **Dated price lists** (ORD-07, Phase 2) | — | View | **Owner only** |
 | Products, pictures, descriptions, SKU prices, per-salon prices | Read | Manage; a price needs a reason and is kept in `sku_price_change` or `salon_sku_price` for the owner's digest (D-37, D-39; built in slice 2, migration 20261105110000, not verified; the digest itself is P1-08, not built) | Manage |
 | Product groups and default cycles (ADM-01 in part) | — | Manage at AAL2 (D-62, B-41; `app.office_upsert_product_group`; the Products page still shows the controls to the owner only until it follows) | Manage |
@@ -85,7 +85,7 @@ The permission matrix above remains the approved business requirement. **Payment
 |---|---|
 | Rep submits, recorded and audited, no approval | visits, notes, salon sign-up, order cards, payments at the salon, delivery submissions, bag counts, handover answers |
 | Office approval before the official state changes | delivery finalisation (invoice, stock sale, order status, commission input), card conversion into an order, discount below list (except the owner's own discount on an office order the owner creates, recorded on the order, L-0390), stock adjustment and write-off requests (P1-08) |
-| Owner-only governance | users, price lists, bank details, write-offs above threshold, configuration, vault grants (D-08); commission rates are owner or manager (L-0385) |
+| Owner-only governance | users, price lists, bank details, configuration, vault grants, audit log (D-08); write-offs were owner-only until MJ's 2026-11-20 decision, which permits a manager or the owner at any amount with maker != checker and AAL2; commission rates are owner or manager (L-0385) |
 | System-generated, immutable | invoices, receipt numbers, installments, audit events, stage events, cash ledger rows |
 
 Permissions are enforced in three places that must agree: RLS policies (data), `SECURITY DEFINER` functions (actions), and UI (convenience only — never the control).
