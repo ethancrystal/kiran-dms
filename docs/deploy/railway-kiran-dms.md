@@ -43,3 +43,31 @@ frozen historical record; this file is the current source of truth.
 
 No production action (deploy, migration, variable write, redeploy) was taken while
 consolidating these notes (H-19).
+
+## Supabase instances and MCP endpoints (operator dump, recorded 2026-11-21)
+
+The operator's env dump (2026-11-20/21) names these hosted Supabase projects.
+Project refs and URLs are public identifiers; every key seen in the dump was an
+anon/publishable key — no service-role key appeared — and no key value is copied
+into this repository (H-18, H-20). Keys live in Railway Variables only.
+
+| Project ref | Named as in the dump |
+|---|---|
+| `gurhodiindpufrdzxcdm` | Unified app; earlier read-only probe found no business tables in its public schema |
+| `rcwoiwtcjyikqvtdjulq` | Field App URL in one block, Office Supabase URL in another (conflicting) |
+| `ffccrpejbkmmjgtekaql` | Office Console URL in one block, Field Supabase URL in another (conflicting) |
+| `nwxidylbfeciungrqdkm` | Unified/portal in the `.env` block; 67 public tables and 283 app RPCs verified 2026-11-18 |
+| `qcdbzsnwjrunfhjqizvr` | Field App URL entry (MCP project-4) |
+| `mbtrgtacikkqfyffbgbb` | MCP project-1 target |
+| `sszrjunyjrivhpguanjn` | Public app surface entry |
+
+The dump also carries Supabase MCP endpoint URLs of the form
+`https://mcp.supabase.com/mcp?project_ref=<ref>` for `gurhodiindpufrdzxcdm`,
+`rcwoiwtcjyikqvtdjulq` (listed as `mbtrgtacikkqfyffbgbb` too), `nwxidylbfeciungrqdkm`,
+`ffccrpejbkmmjgtekaql` and `qcdbzsnwjrunfhjqizvr`. The dump's own blocks assign the
+same project to two different surfaces in places, so before any deploy points at one
+of these, MJ confirms which project backs which surface (B-53 steps b-d also remain
+MJ's dashboard actions). Note `scripts/apply-kiran-fresh.sh` refuses every ref above:
+it is guarded to a different project (`jlanskjgpuyycarwjafn`), so applying the full
+migration set to any instance listed here is a deliberate, separately approved act (H-19),
+not a side effect of that script.
