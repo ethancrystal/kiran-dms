@@ -1,9 +1,9 @@
 ﻿# Single-repository consolidation audit
 
-**Audit date:** 2026-11-19  
-**Canonical repository:** `ethancrystal/kiran-dms`  
-**Canonical local checkout:** `C:\Users\moizjmj\K`  
-**Integration worktree:** `C:\Users\moizjmj\K\.worktrees\single-repo-consolidation`  
+**Audit date:** 2026-11-19<br>
+**Canonical repository:** `ethancrystal/kiran-dms`<br>
+**Canonical local checkout:** `C:\Users\moizjmj\K`<br>
+**Integration worktree:** `C:\Users\moizjmj\K\.worktrees\single-repo-consolidation`<br>
 **Audit base:** `origin/main` at `2d0f6a4c7629480aa09bfcbd70f29ef2accef865`
 
 ## 1. Repository decision
