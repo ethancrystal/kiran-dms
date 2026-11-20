@@ -408,10 +408,9 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByText("Pin: 24.8607, 67.0011.")).toBeVisible();
 
   // CTL-03, the rep's side: the handover page reads app.my_cash_position and app.my_handovers. The
-  // seeded rep has collected nothing, so the database's zero and an empty list are shown.
-  await page.goto("/app");
-  await page.getByRole("link", { name: /Cash handover/ }).click();
-  await page.waitForURL(/\/app\/handovers$/);
+  // seeded rep has collected nothing, so the database's zero and an empty list are shown. Its link
+  // is hidden from the rep dashboard (MJ 2026-11-20); the page still works and is reached by URL.
+  await page.goto("/app/handovers");
   await expect(page.getByTestId("my-cash")).toHaveText("Rs 0");
   await expect(page.getByText("No handovers yet.")).toBeVisible();
 
@@ -1641,8 +1640,8 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
 
   // Rep One confirms with its own count (blind: the page does not show the office's quantity).
   const { ctx: repCtx, phone } = await repPhoneOpen(browser);
-  await phone.goto("/app");
-  await phone.getByRole("link", { name: "My bag and incoming stock" }).click();
+  // The bag link is hidden from the rep dashboard (MJ 2026-11-20); the page still works, reached by URL.
+  await phone.goto("/app/stock");
   const count = phone.getByLabel(`Counted of incoming ${code}`);
   await count.fill(String(J8_ISSUE));
   await phone.getByTestId("incoming-issue").filter({ has: count }).getByRole("button", { name: "Confirm my count" }).click();

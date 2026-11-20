@@ -53,6 +53,8 @@ export default function Investors() {
             <dd data-testid="total-decided">{rupees(totals.profit_decided_paisa)}</dd>
             <dt>Profit paid</dt>
             <dd data-testid="total-paid">{rupees(totals.profit_paid_paisa)}</dd>
+            <dt>Profit accrued</dt>
+            <dd data-testid="total-accrued">{rupees(totals.profit_accrued_paisa)}</dd>
             <dt>Profit owed</dt>
             <dd data-testid="total-owed">{rupees(totals.profit_owed_paisa)}</dd>
           </dl>
@@ -73,6 +75,7 @@ export default function Investors() {
               <th>Principal outstanding</th>
               <th>Profit decided</th>
               <th>Profit paid</th>
+              <th>Profit accrued</th>
               <th>Profit owed</th>
             </tr>
           </thead>
@@ -90,6 +93,7 @@ export default function Investors() {
                 <td data-label="Principal outstanding">{rupees(r.principal_outstanding_paisa)}</td>
                 <td data-label="Profit decided">{rupees(r.profit_decided_paisa)}</td>
                 <td data-label="Profit paid">{rupees(r.profit_paid_paisa)}</td>
+                <td data-label="Profit accrued">{rupees(r.profit_accrued_paisa)}</td>
                 <td data-label="Profit owed">{rupees(r.profit_owed_paisa)}</td>
               </tr>
             ))}

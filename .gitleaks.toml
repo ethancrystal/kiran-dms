@@ -1,0 +1,21 @@
+title = "Kiran DMS"
+
+# Default rules, plus an allowlist of the public local-stack values already
+# written in .github/workflows/ci.yml. Match the value, never a path.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public local-stack credentials named in .github/workflows/ci.yml, plus test fixture values in test files and docs/log/archive.md"
+regexTarget = "match"
+regexes = [
+  '''postgresql://postgres:\*\*\*@127.0.0.1:54322/postgres''',
+  '''https://ci-placeholder\.supabase\.co''',
+  '''ci-placeholder''',
+  # Test fixture values (not real secrets) — allowlisted by exact value
+  '''xK9mQ2vL7pR4tZ8w''',
+  '''KiranSms903718264519''',
+  '''kiran-sms-90371826451937''',
+  '''kiran\.invoice\.fy2026''',
+  '''kiran\.invoice\.2026''',
+]

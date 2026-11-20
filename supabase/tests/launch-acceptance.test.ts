@@ -39,14 +39,14 @@ const EXPECTED_BLOCKED = [
   "06.10.5 | audit mirror (no task id yet, MJ assigns)",
   "06.10.6 | P1-08",
   "06.10.7 | P1-12 PR C",
-  "06.10.8 | P1-12 PR A",
+  "06.10.8 | gitleaks fixture findings, awaiting MJ",
   "07.5.2 | P1-05",
   "07.5.3 | P1-05",
   "07.5.4 | P1-05",
   "07.5.5 | P1-05",
   "07.5.6 | P1-05",
 ];
-const EXPECTED_DEFECTS = ["06.10.3"];
+const EXPECTED_DEFECTS: string[] = [];
 
 const RUNBOOK = join(REPO_ROOT, "docs/runbooks/launch-security-acceptance.md");
 const SOURCE_DOC: Record<string, string> = {

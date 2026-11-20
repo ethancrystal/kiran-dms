@@ -1,9 +1,11 @@
 /**
  * Salon approval and direct rep assignment (migration 20261105100000, slice 1, P1-18; D-35, D-36,
  * spec rulings R3 and R4). Office-created salons are approved; a pending or rejected salon cannot get
- * an order or a card. A direct assignment limits the salon to that rep; otherwise territory coverage
- * applies. These tests insert their pending salons as postgres; since slice 7 a rep's app.create_salon
- * makes one too (rep-readonly-timelines.test.ts).
+ * an order. Since MJ's 2026-11-20 decision (migration 20261120070000) a rep MAY leave an order NOTE at
+ * a pending salon, because a prospect is a potential client; a rejected salon still takes no note.
+ * A direct assignment limits the salon to that rep; otherwise territory coverage applies. These tests
+ * insert their pending salons as postgres; since slice 7 a rep's app.create_salon makes one too
+ * (rep-readonly-timelines.test.ts).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -334,7 +336,7 @@ describe("the pending queue", () => {
   });
 });
 
-describe("a salon that is not approved gets no order and no card", () => {
+describe("a salon that is not approved gets no order, and an order note only when pending", () => {
   it.each(["pending", "rejected"])("a %s salon: office_create_order refuses with 55000 and writes nothing", async (status) => {
     const id = await pendingSalon(AREA_A, status);
     const o = orderSql(id);
@@ -353,17 +355,22 @@ describe("a salon that is not approved gets no order and no card", () => {
     expect((await run(MANAGER, later.sql, later.params)).rows.length).toBe(1);
   });
 
-  it("a rep's card for a pending salon is refused with 55000", async () => {
-    const id = await pendingSalon();
+  it("a rep MAY leave an order note at a pending (potential) salon, but not at a rejected one", async () => {
+    const pending = await pendingSalon();
+    const rejected = await pendingSalon(AREA_A, "rejected");
     // The open day lives only inside this rolled-back transaction: a committed rep_day would leave rep A
     // checked in for every later test file (visits.test.ts expects no open day).
     const asRepA = `reset role;
       select set_config('request.jwt.claims', '${JSON.stringify({ sub: fx.repA.id, role: "authenticated", aal: "aal1" })}', true),
              set_config('request.headers', '${JSON.stringify({ "x-kiran-device": fx.repA.device })}', true);
       set local role authenticated;`;
-    const script = `insert into public.rep_day (rep_id, day) values ('${fx.repA.id}', ${TODAY}) on conflict (rep_id, day) do nothing;
-      ${asRepA} select app.rep_create_card(gen_random_uuid(), '${id}', '[Test] 2 bottles');`;
-    expect(await sqlstate("postgres", script)).toBe(WRONG_STATE);
+    const script = (
+      salon: string,
+    ) => `insert into public.rep_day (rep_id, day) values ('${fx.repA.id}', ${TODAY}) on conflict (rep_id, day) do nothing;
+      ${asRepA} select app.rep_create_card(gen_random_uuid(), '${salon}', '[Test] 2 bottles');`;
+    expect(await sqlstate("postgres", script(pending))).toBeNull();
+    expect(await sqlstate("postgres", script(rejected))).toBe(WRONG_STATE);
+    expect(await errorOf("postgres", script(rejected))).toContain("rejected");
   });
 });
 

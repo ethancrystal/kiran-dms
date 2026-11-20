@@ -272,9 +272,10 @@ describe("a rep's new salon is a pending proposal (R3, R4)", () => {
     expect(await sqlstate(REP_B, sql, [id, AREA_B])).toBe("23505");
   });
 
-  it("a pending proposal gets no card and no order; it is on the office's queue with the proposer's name", async () => {
+  it("a pending proposal takes an order note but no order; it is on the office's queue with the proposer's name", async () => {
     const id = await propose();
-    expect(await repCardCode(id)).toBe(WRONG_STATE);
+    // MJ 2026-11-20: a prospect is a potential client, so a rep may leave an order note now.
+    expect(await repCardCode(id)).toBeNull();
     expect(await sqlstate(MANAGER, `select app.office_create_order($1, $2, 'CASH', ${LINES()})`, [uuid(), id])).toBe(WRONG_STATE);
     const q = (await run(MANAGER, "select salon_id, proposed_by_name from app.office_pending_salons()")).rows;
     expect(q.find((r) => r.salon_id === id)).toEqual({ salon_id: id, proposed_by_name: REP_A_NAME });

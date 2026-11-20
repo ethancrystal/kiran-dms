@@ -43,7 +43,7 @@ export function normalizePhone(raw: string): Result<string> {
   const v = raw.trim();
   if (/^\d(\.\d+)?e\+?\d+$/i.test(v)) return { ok: false, error: "phone is stored as a number in Excel and has lost digits; format the column as text" };
   if (/[a-z]/i.test(v.replace(/\b(ext|x)\b.*$/i, ""))) return { ok: false, error: "phone contains letters" };
-  let d = v.replace(/[\s().\-\/]/g, "");
+  let d = v.replace(/[\s().\-/]/g, "");
   if (d.startsWith("+")) d = d.slice(1);
   else if (d.startsWith("0092")) d = d.slice(2);
   if (!/^\d+$/.test(d)) return { ok: false, error: "phone has characters other than digits, spaces, dashes or brackets" };
@@ -62,7 +62,7 @@ export function normalizePhone(raw: string): Result<string> {
 
 // Several numbers in one cell ("0399-0000001 / 0399-0000002") are common.
 export function splitPhones(raw: string): string[] {
-  return raw.split(/\s*(?:[,;|\/]|\bor\b|\n)\s*/i).map((s) => s.trim()).filter(Boolean);
+  return raw.split(/\s*(?:[,;|/]|\bor\b|\n)\s*/i).map((s) => s.trim()).filter(Boolean);
 }
 
 // Lists and reports show phones masked (doc 04: 03xx-xxx-1234).

@@ -35,6 +35,8 @@ supabase/migrations.zip
 supabase/migrations (2).zip
 # Leftover git worktree checkouts from earlier agents (their .git lives under .git/worktrees)
 .worktrees/
+worktrees/
+
 
 # Accidental nested clone of a different repository (ethancrystal/kiran), never part of kiran-dms
 kiran/
