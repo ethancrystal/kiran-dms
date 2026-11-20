@@ -484,7 +484,7 @@ end $$;
 revoke execute on function app.investor_accrued_return(bigint, numeric, public.investor_return_period, date, date)
   from public, anon, authenticated, service_role;
 
-revoke all on function app.office_investors(), app.office_investor_investments(uuid),
+revoke all on function app.investment_figures(uuid), app.office_investors(), app.office_investor_investments(uuid),
   app.office_add_investment(uuid, uuid, bigint, date, text, numeric, text)
   from public, anon, authenticated, service_role;
 grant execute on function app.office_investors(), app.office_investor_investments(uuid),

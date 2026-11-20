@@ -101,6 +101,9 @@ export default function RepHome() {
             Start your day
           </a>
           <p>
+            <a href="/app/order-notes">Order Notes</a>
+          </p>
+          <p>
             <a href="/app/handovers">
               Cash handover
             </a>
