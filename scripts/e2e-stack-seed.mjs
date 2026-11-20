@@ -50,6 +50,10 @@ const BAG_QTY = 6;
 const warehouse = { id: randomUUID(), name: `[Test] Warehouse ${tag}` };
 // Slice 2 (P1-19): an approved salon the manager gives its own price; and the product group's name.
 const catalogueSalon = { id: randomUUID(), name: `[Test] Catalogue salon ${tag}` };
+// The Crimson Salon pilot salon (MJ's mission, 2026-11-21): created approved below and
+// written to the seed file so pilot journeys can address it by id. [Test] prefix keeps it
+// synthetic under H-03.
+const pilotSalon = { id: randomUUID(), name: `[Test] Crimson Salon ${tag}`, area: "" };
 const productGroup = { name: `[Dummy] Hair colour ${tag}` };
 
 const c = new pg.Client({ connectionString: url });
@@ -181,6 +185,16 @@ try {
     area.id,
   ]);
 
+  // The Crimson Salon pilot (MJ's mission, 2026-11-21): one clearly identified approved salon
+  // for controlled end-to-end pilot testing alongside the journey salons. Synthetic [Test]
+  // data only (H-03); the name keeps "Crimson Salon" recognisable in the pilot runbook.
+  pilotSalon.area = `${territory.name} · ${area.name}`;
+  await as(people.owner.id, "aal2", null, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [
+    pilotSalon.id,
+    pilotSalon.name,
+    area.id,
+  ]);
+
   // Rep Two's phone asks for approval, as the rep app does on first open.
   const device = `web-${randomUUID()}`;
   await as(people.rep2.id, "aal1", device, "select app.register_device($1, 'android', '[Test] phone')", [device]);
@@ -190,6 +204,6 @@ try {
 
 writeFileSync(
   out,
-  JSON.stringify({ password, people, sku, pendingSalon, catalogueSalon, productGroup, warehouse, bagQty: BAG_QTY }, null, 2),
+  JSON.stringify({ password, people, sku, pendingSalon, catalogueSalon, pilotSalon, productGroup, warehouse, bagQty: BAG_QTY }, null, 2),
 );
 console.log(`seeded ${Object.keys(people).length} synthetic people into the local stack -> ${out}`);
