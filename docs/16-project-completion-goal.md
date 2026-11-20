@@ -11,7 +11,7 @@ goal is to complete this system where I can have some basic features where I don
 ## Master task: business requirements
 
 ### Manager and Owner
-The Office workspace provides: Rep and Salon account invitations and management; product catalogue management; product images and descriptions; product pricing; official order creation and approval; a central order-request review workflow; payments and outstanding balances; Rep commission management; investor-related financial decisions without automated investor profit calculations.
+The Office workspace provides: Rep and Salon account invitations and management; product catalogue management; product images and descriptions; product pricing; official order creation and approval; a central order-request review workflow; payments and outstanding balances; Rep commission management; investor-related financial decisions, including a promised recurring percentage return that the system calculates from the invested amount and the percentage (amended 2026-11-20, decision 2026-11-20-mj-rep-scope-stock-investors; this supersedes the earlier no-automated-calculation rule).
 
 The Manager performs the specified account, product and pricing operations. Permissions go no further: for example, a Manager cannot promote a user to Owner.
 
@@ -28,7 +28,7 @@ One coherent Office review experience for Rep and Salon submissions. A Rep submi
 The Manager-controlled delivery approval workflow (D-32). A Rep submission must not finalize stock movements, invoicing or order completion before the required Office approval.
 
 ### Commission and investor finances
-Commission visibility, management and payment history as above, superseding the earned-only part of D-31. Investor finances stay separate from Rep commissions, with no automated investor profit-calculation or distribution engine.
+Commission visibility, management and payment history as above, superseding the earned-only part of D-31. Investor finances stay separate from Rep commissions. Each investment may carry a promised recurring percentage return (monthly by default, or yearly) that the system calculates from the invested amount and the percentage; the office records payouts against it. There is no batch profit-sharing or distribution engine (amended 2026-11-20, decision 2026-11-20-mj-rep-scope-stock-investors; this supersedes the no-calculation rule of D-40 and D-43).
 
 ### Safeguards
 Forward-only migrations; reuse of canonical entities; no duplicate tables, RPCs, dashboards, order engines, product catalogues, payment ledgers or CRM systems; permissions enforced in RLS and server-side RPCs, not only by hiding UI; historical records and audit trails preserved; idempotency and maker-checker preserved; integer paisa for money; supplier, cost and margin data never exposed to unauthorized users; no hard deletes of business records; offline Rep functionality preserved; branch and pull-request workflow; no direct push to `main` and no production data changes without authorization.
