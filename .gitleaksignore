@@ -1,0 +1,16 @@
+# False positives, pinned to the exact finding. One line per finding:
+# {commit}:{file}:{rule}:{start line}
+#
+# scripts/lib/dummy-catalogue.mjs at 154d64b held the seed module's own field name
+# `key` with dummy product slugs ("musk-blonder-600", "lunex-shampoo-300",
+# "lunex-conditioner-300"). gitleaks' generic-api-key rule read the `key: "..."`
+# shape as an assignment and flagged the value. The values are product codes in a
+# [Dummy] seed script, not credentials.
+#
+# The field was renamed to `slug` in 6847324, so the current tree no longer trips
+# the rule; only the historical commit still carries the shape. Nothing here
+# disables a rule or excludes a path: every other commit, file and line is still
+# scanned, and the ci.yml canary still proves the scanner fails on a real token.
+154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:66
+154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:82
+154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:90

@@ -221,18 +221,29 @@ test("salon self-signup, office review decisions and role isolation", async ({ b
   await expect(approved.getByRole("heading", { name: approveName })).toBeVisible();
 
   // A salon a rep proposed is decided on the same screen with corrected selectors: a card, not a row.
+  // The seeded proposal is office.spec.ts's fixture and that spec approves it earlier in the run
+  // (workers: 1, file-name order), so this journey proposes its own salon and leaves the seed alone.
+  const [proposalHome] = await stackQuery<{ area_id: string }>("select area_id from public.salon where id = $1", [
+    seed.pendingSalon.id,
+  ]);
+  const proposedSalon = { id: randomUUID(), name: `[Test] Proposed salon ${randomUUID().slice(0, 8)}` };
+  await stackQuery(
+    `insert into public.salon (id, name, type, area_id, source, created_by, approval_status)
+     values ($1, $2, 'ladies_parlor', $3, 'map_pin', $4, 'pending')`,
+    [proposedSalon.id, proposedSalon.name, proposalHome.area_id, rep.id],
+  );
   await office.goto("/office/salons/approvals");
-  const pendingCard = office.getByRole("region", { name: seed.pendingSalon.name });
+  const pendingCard = office.getByRole("region", { name: proposedSalon.name });
   await pendingCard.getByLabel(/Rep \(optional\)/i).selectOption({ label: rep.name });
   await pendingCard.getByLabel(/Commission rate/i).fill("10");
   await pendingCard.getByRole("button", { name: "Approve" }).click();
   const approvedSalon = await stackQuery<{ approval_status: string }>("select approval_status from public.salon where id = $1", [
-    seed.pendingSalon.id,
+    proposedSalon.id,
   ]);
   expect(approvedSalon[0].approval_status).toBe("approved");
   const pendingAssignment = await stackQuery<{ rep_id: string | null }>(
     "select rep_id from public.salon_rep_assignment where salon_id = $1 order by seq desc limit 1",
-    [seed.pendingSalon.id],
+    [proposedSalon.id],
   );
   expect(pendingAssignment[0].rep_id).toBe(rep.id);
 
