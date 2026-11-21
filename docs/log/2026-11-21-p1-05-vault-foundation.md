@@ -22,6 +22,8 @@ Extension availability, verified on this host: the embedded Postgres the db suit
 
 **Next / needs:** MJ answers B-63 (the three options are in the BLOCKER entry and the draft PR body); the next wave implements the chosen option on this branch, and only then continues the vault slices. The sheet half of C0 and the board row P1-43 live on feat/office-sheet-import (pull request 135).
 
+Receipt 2026-11-21 23:45 PKT: draft pull request 137 opened from this branch (https://github.com/ethancrystal/kiran-dms/pull/137) carrying the snapshot a6ecdc7, the main merge 77b4b32, the two log entries of this slice and the options brief in its body; the B-63 row was added to docs/ACTIVITY.md section 14 in the same commit as this receipt. The pull-request body was drafted from a scratch file .pr-body.md, left untracked in the worktree root on purpose (a host rule refused its deletion); it is not part of the branch.
+
 Security checklist (tick honestly):
 [x] RLS enabled+forced; policies and role x table tests added/updated (H-13) - n/a this wave, no database object touched by me; the snapshot's tables carry RLS enabled and forced
 [x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) - n/a this wave; the snapshot's access log carries the append-only triggers
