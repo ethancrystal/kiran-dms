@@ -31,3 +31,5 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or temporarily disabled (H-16) - the change strengthens the replay guard, no control touched
 [x] Docs match code; deviations logged (H-25) - the page's own wording and comments updated with the behaviour; the Excel deferral stays recorded in code as it was
 [x] Tests actually run; real results recorded (H-23, H-24) - the counts and exit codes above; the not-run list is explicit
+
+Receipt 2026-11-21 23:30 PKT: pull request 135 opened from this branch (https://github.com/ethancrystal/kiran-dms/pull/135) carrying the snapshot commit ac384b0, the fix commit 50360d7 and this entry; the PR body records the ruling 5 reading (CSV-only), the evidence above and the not-run list. The board row P1-43 was added to docs/ACTIVITY.md section 12 after P1-14 in the same commit as this receipt. The pull-request body was drafted from a scratch file .pr-body.md, left untracked in the worktree root on purpose (a host rule refused its deletion); it is not part of the branch.

@@ -385,6 +385,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-38 | Plan G: order timeline with one tracked event per step for both order kinds, automation of steps with no human judgment, e-mail reminders to manager and owner until a waiting item is done | D-59, D-60; MSG-03; ORD-04 | IN PROGRESS (merged in pull request 110 at 7016fd9: order steps on office/salon screens and reminder-log module; awaiting independent verification; no scheduler or route runs the reminder job and real sending waits on B-61; 2026-11-11-claude-p1-38-timeline) | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
+| P1-43 | Adopt the vault and sheet worktrees: snapshot preserved, batch id made content-derived, vault encryption options to MJ | worktrees vault, sheet; doc 07; B-63 new | IN PROGRESS (pull request 135) | — |
 
 ### Phase 2 — The Growth Engine
 
