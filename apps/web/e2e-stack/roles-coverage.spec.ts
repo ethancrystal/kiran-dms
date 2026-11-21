@@ -247,11 +247,15 @@ test("salon self-signup, office review decisions and role isolation", async ({ b
   );
   expect(pendingAssignment[0].rep_id).toBe(rep.id);
 
-  // Role isolation: a salon session cannot open /app or /office.
+  // Role isolation: a salon session cannot open /app or /office. The app refuses in its own words
+  // and points at the salon portal (AUTH-06 and AUTH-07, doc 06): the rep home says "This is a
+  // salon's login, not a rep's" and the office MFA page, which is where the proxy sends an AAL1
+  // session, says "This is a salon's login. The office is for the owner and managers". No rep or
+  // office content is offered; the database decides everything behind this.
   await approved.goto("/app");
-  await expect(approved.getByText(/not authorised|no access|sign in/i)).toBeVisible();
+  await expect(approved.getByText(/This is a salon's login/)).toBeVisible();
   await approved.goto("/office");
-  await expect(approved.getByText(/not authorised|no access|sign in/i)).toBeVisible();
+  await expect(approved.getByText(/This is a salon's login/)).toBeVisible();
 });
 
 // Journey 2 — discounts need a second office user at the right tier; the maker
