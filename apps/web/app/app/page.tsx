@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { RepMonth } from "@/components/rep-month";
+import { RepSignOut } from "@/components/rep-sign-out";
 import { deviceId, ensureDeviceRegistered, supabaseBrowser } from "@/lib/supabase/browser";
 
 type Session = {
@@ -101,10 +102,11 @@ export default function RepHome() {
             Start your day
           </a>
           <p>
-            <a href="/app/handovers">
-              Cash handover
-            </a>
+            <a href="/app/order-notes">Order Notes</a>
           </p>
+          {/* MJ 2026-11-20: the rep area is check-in/out, route, notes and Order Notes. The bag,
+              delivery and cash-handover pages still work and are kept for the office flows and tests,
+              but their links are hidden from the rep dashboard. Reach them by their URL if needed. */}
           <p>
             <a href="/app/cards">
               My cards
@@ -114,14 +116,6 @@ export default function RepHome() {
             <a href="/app/orders">
               Orders
             </a>
-          </p>
-          <p>
-            <a href="/app/deliveries">
-              My deliveries
-            </a>
-          </p>
-          <p>
-            <a href="/app/stock">My bag and incoming stock</a>
           </p>
           <p>
             <a href="/app/route">My route</a>
@@ -146,17 +140,9 @@ export default function RepHome() {
       )}
       {state.kind !== "loading" && (
         <p>
-          {/* REP-11 (P1-30): sign out on a phone that is handed on, or from a message this page shows. */}
-          <button
-            type="button"
-            className="inline link"
-            onClick={async () => {
-              await supabaseBrowser().auth.signOut();
-              window.location.assign("/app/login");
-            }}
-          >
-            Sign out
-          </button>
+          {/* REP-11 (P1-30): sign out on a phone that is handed on, or from a message this page shows.
+              P1-09: the same button as every rep page, so the phone's outbox is wiped here too. */}
+          <RepSignOut />
         </p>
       )}
     </main>

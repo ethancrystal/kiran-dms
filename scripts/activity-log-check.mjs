@@ -69,8 +69,8 @@ const SECRET_PATTERNS = [
   /\bsb_secret_[A-Za-z0-9_-]{10,}/,
   /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
-  // A connection string with a password (any user, incl. empty; any +driver), except the local CLI stack and <pw>/… placeholders.
-  /\bpostgres(?:ql)?(?:\+\w+)?:\/\/[^:\s/@]*:(?!postgres@127\.0\.0\.1|postgres@localhost|<|…)[^@\s]+@/i,
+  // A connection string with a password (any user, incl. empty; any +driver), except the local CLI stack and <pw>/…/*** placeholders (escaped or plain).
+  /\bpostgres(?:ql)?(?:\+\w+)?:\/\/[^:\s/@]*:(?!postgres@127\.0\.0\.1|postgres@localhost|<|…|(?:\\?\*){3})[^@\s]+@/i,
   // A password as a URI query parameter, or in a libpq keyword string (L-0075 D5), unless it is a
   // placeholder or a ${…}/$VAR reference.
   /[?&;]\s*(?:password|passwd|pwd|pass)=(?!<|\{|\$|\*{3}|…)[^&\s"'`;]{6,}/i,
@@ -104,7 +104,7 @@ const isReference = (v, quoted) => {
   if (/^\$\{?[A-Z_][A-Z0-9_]*\}?$/.test(v)) return true;
   if (/^(env\(|process\.env|import\.meta|secrets\.)/.test(v)) return true;
   if (/^[A-Za-z_$][\w$]*(\??\.[\w$]+)+$/.test(v)) return true;
-  return /[(\[]|\?\./.test(v);
+  return /[([]|\?\./.test(v);
 };
 // In source code a bare value is an identifier or expression, never a literal secret; only
 // quoted literals count there. Config/env/YAML/TOML files keep bare values.
@@ -128,7 +128,7 @@ const looksSecret = (name, v) => {
 // as long as at least one segment is a real word of 2+ letters (L-0071 F: "receipt-a5-v2",
 // "salons-page-3", "kiran-outbox-2026-01").
 function isNameLike(v) {
-  const segs = v.split(/[._\/:-]/);
+  const segs = v.split(/[._/:-]/);
   if (segs.length >= 2
     && segs.some((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg))
     && segs.every((seg) => /^[a-z]{2,16}\d{0,4}$/.test(seg) || /^\d{1,4}$/.test(seg) || /^[a-z]\d{1,3}$/.test(seg))) return true;
@@ -313,7 +313,7 @@ function checkActivity(text) {
     if (/<!--|-->/.test(p) || /<!--|-->/.test(x.line)) fail(`HTML comments are not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
     if (/<\/?[A-Za-z!?][^>]*>/.test(p.replace(AUTOLINK_RE, ""))) fail(`Raw HTML is not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
     if (/&#?[A-Za-z0-9]+;/.test(p)) fail(`HTML entities are not allowed in ${ACTIVITY_PATH} (line ${i + 1}).`);
-    if (/<[A-Za-z\/!?]|&#?[A-Za-z0-9]+;/.test(x.line.replace(AUTOLINK_RE, ""))) {
+    if (/<[A-Za-z/!?]|&#?[A-Za-z0-9]+;/.test(x.line.replace(AUTOLINK_RE, ""))) {
       fail(`Raw HTML or an entity is not allowed in ${ACTIVITY_PATH}, even in code spans (line ${i + 1}; write placeholders as {name}).`);
     }
     if (/^ {0,3}(=+|-+)\s*$/.test(x.line) && i > 0 && !sc[i - 1].code && sc[i - 1].line.trim() !== "" && !/^ {0,3}(=+|-+)\s*$/.test(sc[i - 1].line)) {

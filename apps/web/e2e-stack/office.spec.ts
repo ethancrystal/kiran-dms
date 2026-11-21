@@ -61,7 +61,19 @@ async function officeSignIn(page: Page, p: P) {
     .waitFor({ timeout: 10_000 })
     .then(() => true)
     .catch(() => false);
-  if (enrol) secrets.set(p.email, (await key.first().innerText()).trim());
+  if (enrol) {
+    secrets.set(p.email, (await key.first().innerText()).trim());
+  } else if (!secrets.has(p.email)) {
+    // Another spec file enrolled this account earlier in the run; this file's module state is
+    // separate, so read the verified factor's secret from the local stack to compute codes.
+    const [factor] = await stackQuery<{ secret: string }>(
+      `select f.secret from auth.mfa_factors f join auth.users u on u.id = f.user_id
+        where u.email = $1 and f.factor_type = 'totp' and f.status = 'verified'
+        order by f.created_at desc limit 1`,
+      [p.email],
+    );
+    if (factor?.secret) secrets.set(p.email, factor.secret);
+  }
   await page.getByLabel("6-digit code").fill(await freshCode(p.email));
   await page.getByRole("button", { name: "Verify" }).click();
   await page.waitForURL(/\/office$/);
@@ -283,8 +295,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("link", { name: /Start your day/ }).click();
   await page.waitForURL(/\/app\/day$/);
   await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
-  // The rep's bag holds seed.bagQty of the seeded SKU (slice 4), so the morning count has one line.
-  await page.getByLabel(seed.sku.code).fill(String(seed.bagQty));
+  // MJ's no-bag ruling (2026-11-18) removed the morning count from check-in: the page renders one
+  // "Check in" button, no count input, and rep_check_in is called with p_counted: [].
   await page.getByRole("button", { name: "Check in" }).click();
   await expect(page.getByText("Checked in. Have a good day.")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Today's route/ })).toBeVisible();
@@ -408,15 +420,14 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByText("Pin: 24.8607, 67.0011.")).toBeVisible();
 
   // CTL-03, the rep's side: the handover page reads app.my_cash_position and app.my_handovers. The
-  // seeded rep has collected nothing, so the database's zero and an empty list are shown.
-  await page.goto("/app");
-  await page.getByRole("link", { name: /Cash handover/ }).click();
-  await page.waitForURL(/\/app\/handovers$/);
+  // seeded rep has collected nothing, so the database's zero and an empty list are shown. Its link
+  // is hidden from the rep dashboard (MJ 2026-11-20); the page still works and is reached by URL.
+  await page.goto("/app/handovers");
   await expect(page.getByTestId("my-cash")).toHaveText("Rs 0");
   await expect(page.getByText("No handovers yet.")).toBeVisible();
 
-  // The day stays open: the delivery tests below need it. The evening count and check-out (J1 step
-  // 15, B-35) are the last test of this file.
+  // The day stays open: the delivery tests below need it. The check-out (J1 step 15) is the last
+  // test of this file.
   repPhone = await page.context().storageState();
 });
 
@@ -1270,7 +1281,7 @@ test("a manager records an investor, an investment, a profit decision and a payo
   await officeSignIn(page, manager);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Investors", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Investors", exact: true, level: 1 })).toBeVisible();
-  await expect(page.getByTestId("ledger-note")).toContainText("Nothing is calculated");
+  await expect(page.getByTestId("ledger-note")).toContainText("Nothing here is posted to cash");
 
   const name = `[Dummy] Investor ${Date.now()}`;
   const add = page.getByRole("form", { name: "Add an investor" });
@@ -1283,6 +1294,8 @@ test("a manager records an investor, an investment, a profit decision and a payo
 
   const invest = page.getByRole("form", { name: "Add an investment" });
   await invest.getByLabel("Amount (Rs)").fill("100000");
+  // MJ 2026-11-20 (recurring return): the form requires the promised percentage (period defaults to monthly).
+  await invest.getByLabel("Return percentage per month").fill("10");
   await invest.getByRole("button", { name: "Record investment" }).click();
   await expect(page.getByText(`Investment of ${rupees(INVESTED_PAISA)} recorded.`)).toBeVisible();
   const decide = page.getByRole("form", { name: "Decide profit" });
@@ -1448,17 +1461,14 @@ test("delivery-approval boundary: a rep's submission writes no invoice or sale; 
   await ctx.close();
 });
 
-// J1 step 15 and B-35, moved here from the rep journey (slice 4) so the rep's day stays open for the
-// delivery tests above. The bag holds what it holds now: the seeded quantity less the approved delivery.
-test("the rep sends the evening count and checks out (J1 step 15, B-35)", async ({ browser }) => {
+// J1 step 15, moved here from the rep journey (slice 4) so the rep's day stays open for the
+// delivery tests above. MJ's no-bag ruling (2026-11-18) also removed the evening count from
+// check-out: the page closes the day with a single "Confirm check out" button, no count form.
+test("the rep checks out (J1 step 15)", async ({ browser }) => {
   const { ctx, phone: page } = await repPhoneOpen(browser);
   await page.goto("/app/day");
   await page.getByRole("button", { name: "Finish the day" }).click();
-  await page.getByLabel(seed.sku.code).fill(String(await repBagOnHand()));
-  // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
-  const closeCount = page.waitForRequest((r) => r.url().includes("/rpc/record_count") && r.method() === "POST");
-  await page.getByRole("button", { name: "Save count and check out" }).click();
-  expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
+  await page.getByRole("button", { name: "Confirm check out" }).click();
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
   await ctx.close();
@@ -1641,8 +1651,8 @@ test("end to end: invite, catalogue, opening stock, a stock issue the rep confir
 
   // Rep One confirms with its own count (blind: the page does not show the office's quantity).
   const { ctx: repCtx, phone } = await repPhoneOpen(browser);
-  await phone.goto("/app");
-  await phone.getByRole("link", { name: "My bag and incoming stock" }).click();
+  // The bag link is hidden from the rep dashboard (MJ 2026-11-20); the page still works, reached by URL.
+  await phone.goto("/app/stock");
   const count = phone.getByLabel(`Counted of incoming ${code}`);
   await count.fill(String(J8_ISSUE));
   await phone.getByTestId("incoming-issue").filter({ has: count }).getByRole("button", { name: "Confirm my count" }).click();
@@ -2401,4 +2411,82 @@ test("a manager publishes a product to the online shop; a visitor reads the defa
   await category.getByRole("button", { name: "Unpublish category page" }).click();
   await expect(page.getByText(`Category page of ${group} is not published.`)).toBeVisible();
   expect(await visitorPage()).toEqual([]);
+});
+
+// Gap audit 2026-11-19: three office screens over functions that had no page. The phone is
+// synthetic (H-03); the salons and the territory carry the test tag.
+const GAP_PHONE_PREFIX = "0300";
+const GAP_PHONE_DIGITS = 7;
+const GAP_DAYS_AGO = 20;
+
+test("a manager sees a phone shared by two salons, keys in a salon's last purchase before the system, and reads the reminder history; a rep is refused (CTL-18, A-09, P1-38)", async ({
+  page,
+}) => {
+  test.setTimeout(JOURNEY_TIMEOUT_MS);
+  const tag = String(Date.now());
+  const phone = `${GAP_PHONE_PREFIX}${tag.slice(-GAP_PHONE_DIGITS)}`;
+  const masked = `${phone.slice(0, 4)}${"*".repeat(phone.length - 6)}${phone.slice(-2)}`;
+  const territory = randomUUID();
+  const area = randomUUID();
+  const first = { id: randomUUID(), name: `[Test] Shared phone A ${tag}` };
+  const second = { id: randomUUID(), name: `[Test] Shared phone B ${tag}` };
+  await r11Sql(owner, "select app.office_upsert_territory($1, $2)", [territory, `[Test] Gap territory ${tag}`]);
+  await r11Sql(owner, "select app.office_upsert_area($1, $2, $3)", [area, territory, `[Test] Gap area ${tag}`]);
+  for (const s of [first, second]) {
+    await r11Sql(
+      owner,
+      "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual', p_contact_name => '[Test] Contact', p_contact_phone => $4)",
+      [s.id, s.name, area, phone],
+    );
+  }
+  // One reminder round for the first salon, seeded as postgres the way other stack seeds are (the
+  // reminder job's own role is kept out of apps/, H-18 scan). The row is what the job would record.
+  await stackQuery(
+    "insert into control.approval_reminder_log (item_kind, item_id, recipient_id, round_no, result) values ('salon', $1, $2, 0, 'not_configured')",
+    [first.id, manager.id],
+  );
+
+  await officeSignIn(page, manager);
+
+  // Salons: the shared phone is listed once, masked, with both salons linked.
+  await page.goto("/office/salons");
+  const shared = page.getByTestId("shared-phone").filter({ hasText: first.name });
+  await expect(shared).toHaveCount(1);
+  await expect(shared).toContainText(masked);
+  await expect(shared.getByRole("link", { name: first.name })).toBeVisible();
+  await expect(shared.getByRole("link", { name: second.name })).toBeVisible();
+  await expect(page.getByTestId("shared-phones")).not.toContainText(phone);
+
+  // Salon page: the opening last purchase for the seeded product group.
+  await shared.getByRole("link", { name: first.name }).click();
+  await page.waitForURL(new RegExp(`/office/salons/${first.id}$`));
+  const opening = page.getByRole("form", { name: "Set the last purchase date" });
+  await opening.getByLabel("Product group for the last purchase").selectOption({ label: seed.productGroup.name });
+  const rows = await r11Sql(null, `select (${R11_TODAY} - ${GAP_DAYS_AGO})::text as day`);
+  const day = String(rows[0].day);
+  await opening.getByLabel("Date of the last purchase").fill(day);
+  await opening.getByRole("button", { name: "Save last purchase date" }).click();
+  await expect(page.getByText(`Last purchase of ${seed.productGroup.name} set to ${day}.`)).toBeVisible();
+  await expect(page.getByTestId("opening-purchase-row").filter({ hasText: seed.productGroup.name })).toContainText(day);
+  const saved = await r11Sql(
+    null,
+    "select c.last_order_on::text as day, c.basis::text as basis from public.cycle_estimate c join public.product_group g on g.id = c.product_group_id where c.salon_id = $1 and g.name = $2",
+    [first.id, seed.productGroup.name],
+  );
+  expect(saved).toEqual([{ day, basis: "opening" }]);
+
+  // Settings: the manager changes nothing there but reads the reminder history.
+  await page.goto("/office/settings");
+  await expect(page.getByText("Only the owner changes settings.")).toBeVisible();
+  const round = page.getByTestId("reminder-round").filter({ hasText: manager.name }).filter({ hasText: "Salon proposal" });
+  await expect(round.first()).toContainText("Not sent");
+  await expect(round.first().getByRole("link", { name: "Salon proposal" })).toHaveAttribute("href", "/office/salons/approvals");
+
+  // The three functions stay office only: a rep at AAL2 is refused by the database.
+  expect(await sqlstateAs(rep, "aal2", "select * from app.duplicate_phones()")).toBe("42501");
+  expect(await sqlstateAs(rep, "aal2", "select * from app.office_reminder_log()")).toBe("42501");
+  const group = await r11Sql(null, "select id from public.product_group where name = $1", [seed.productGroup.name]);
+  expect(
+    await sqlstateAs(rep, "aal2", `select app.office_set_last_purchase($1, $2, ${R11_TODAY})`, [second.id, group[0].id]),
+  ).toBe("42501");
 });

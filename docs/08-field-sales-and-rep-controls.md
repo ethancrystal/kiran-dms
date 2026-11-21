@@ -28,7 +28,7 @@ Pay structure (proposal, to be set by the owner): modest fixed salary + commissi
 ## 3. The rep's week
 
 - **Mon–Sat:** one route per day from the territory's route days; the app builds a draft route from due reorders, collections, at-risk salons, deliveries, and a prospect quota (e.g., 4 new prospects/day). The rep can add pins from the map or nearby discovery and re-order the route.
-- **Daily check-in** (bag count confirmed) → route → **daily handover + stock close** with the manager. No exceptions: an open handover blocks the next day.
+- **Daily check-in** (GPS and open rep day) → route → **daily handover** with the manager. No exceptions: an open handover blocks the next day. Bag custody is checked through stock issues and approved deliveries, not a mandatory manual bag count at shift boundaries.
 - **Weekly:** scorecard review with the manager (visits, productive visits, new prospects, conversions, reorder rate, collection rate, variances). Random **spot check** of bag stock at least once a week, recorded in-app (CTL-05). Random **balance confirmation calls** by owner/manager to 3–5 of the rep's salons (CTL-11).
 - **Monthly:** commission statement generated from banked collections (superseded by D-31: delivered and invoiced value; rates set by owner or manager); owner approves payout, recorded as a commission payment (D-38; approved, not built); territory and credit-limit reviews.
 

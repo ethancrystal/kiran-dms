@@ -232,12 +232,17 @@ describe("maker ≠ checker (SEC-11, H-12)", () => {
       [m.id])).toBe("23514");
   });
 
-  it("write-offs always need the owner; a manager cannot decide them", async () => {
+  it("write-offs may be decided by a manager or the owner, never the maker (MJ, 2026-11-20)", async () => {
     const w = await request(MANAGER, "write_off", "manager");
-    expect(w.checker_role_required).toBe("owner");
+    expect(w.checker_role_required).toBe("manager");
+    expect(await errorOf(MANAGER, "select app.decide_approval($1, true, 'self')", [w.id])).toMatch(/maker cannot approve/);
     expect(await errorOf(MANAGER_AAL1, "select app.decide_approval($1, true, 'x y z')", [w.id])).toMatch(/AAL2/);
-    const r = await run(OWNER, "select (app.decide_approval($1, true, 'approved by owner')).*", [w.id], { commit: true });
-    expect(r.rows[0]).toMatchObject({ status: "approved", checker_id: fx.owner.id });
+    const owner = await run(OWNER, "select (app.decide_approval($1, true, 'approved by owner')).*", [w.id], { commit: true });
+    expect(owner.rows[0]).toMatchObject({ status: "approved", checker_id: fx.owner.id });
+    const byOwner = await request(OWNER, "write_off", "manager");
+    expect(byOwner.checker_role_required).toBe("manager");
+    const manager = await run(MANAGER, "select (app.decide_approval($1, true, 'approved by manager')).*", [byOwner.id], { commit: true });
+    expect(manager.rows[0]).toMatchObject({ status: "approved", checker_id: fx.manager.id });
   });
 
   it("a decided request cannot be decided again or edited", async () => {

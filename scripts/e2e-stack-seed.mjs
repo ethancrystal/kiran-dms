@@ -47,9 +47,16 @@ const sku = { id: randomUUID(), code: `DUMMY-${tag.toUpperCase()}`, list_price_p
 const pendingSalon = { id: randomUUID(), name: `[Test] Proposed salon ${tag}`, area: "" };
 // Slice 4 (D-32): units of the SKU loaded into Rep One's bag, and the warehouse they came from.
 const BAG_QTY = 6;
+// INV-12 (MJ ruling 3, 2026-11-20): units kept on the warehouse shelf so the salon catalogue reads
+// "In stock" for the portal journeys, which add this SKU to a basket.
+const PORTAL_STOCK = 12;
 const warehouse = { id: randomUUID(), name: `[Test] Warehouse ${tag}` };
 // Slice 2 (P1-19): an approved salon the manager gives its own price; and the product group's name.
 const catalogueSalon = { id: randomUUID(), name: `[Test] Catalogue salon ${tag}` };
+// The Crimson Salon pilot salon (MJ's mission, 2026-11-21): created approved below and
+// written to the seed file so pilot journeys can address it by id. [Test] prefix keeps it
+// synthetic under H-03.
+const pilotSalon = { id: randomUUID(), name: `[Test] Crimson Salon ${tag}`, area: "" };
 const productGroup = { name: `[Dummy] Hair colour ${tag}` };
 
 const c = new pg.Client({ connectionString: url });
@@ -159,6 +166,14 @@ try {
      values (gen_random_uuid(), $1, $2, $3, $4, 'issue_to_rep', $5)`,
     [sku.id, BAG_QTY, warehouse.id, bagId, people.owner.id],
   );
+  // INV-12: the issue above leaves the warehouse at zero, and the salon page now shows availability and
+  // refuses to add an unavailable product to a basket. A second goods-in keeps PORTAL_STOCK units there
+  // for the portal journeys (no price, order or bag figure changes).
+  await c.query(
+    `insert into public.stock_movement (client_id, sku_id, qty, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, 'receipt', $4)`,
+    [sku.id, PORTAL_STOCK, warehouse.id, people.owner.id],
+  );
 
   // Slice 1 (D-35, D-39): a territory and area for a salon the manager creates while inviting it,
   // and a salon a rep proposed, waiting on Salon approvals. Since slice 7 a rep's app.create_salon makes one
@@ -181,6 +196,16 @@ try {
     area.id,
   ]);
 
+  // The Crimson Salon pilot (MJ's mission, 2026-11-21): one clearly identified approved salon
+  // for controlled end-to-end pilot testing alongside the journey salons. Synthetic [Test]
+  // data only (H-03); the name keeps "Crimson Salon" recognisable in the pilot runbook.
+  pilotSalon.area = `${territory.name} · ${area.name}`;
+  await as(people.owner.id, "aal2", null, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [
+    pilotSalon.id,
+    pilotSalon.name,
+    area.id,
+  ]);
+
   // Rep Two's phone asks for approval, as the rep app does on first open.
   const device = `web-${randomUUID()}`;
   await as(people.rep2.id, "aal1", device, "select app.register_device($1, 'android', '[Test] phone')", [device]);
@@ -190,6 +215,10 @@ try {
 
 writeFileSync(
   out,
-  JSON.stringify({ password, people, sku, pendingSalon, catalogueSalon, productGroup, warehouse, bagQty: BAG_QTY }, null, 2),
+  JSON.stringify(
+    { password, people, sku, pendingSalon, catalogueSalon, pilotSalon, productGroup, warehouse, bagQty: BAG_QTY },
+    null,
+    2,
+  ),
 );
 console.log(`seeded ${Object.keys(people).length} synthetic people into the local stack -> ${out}`);

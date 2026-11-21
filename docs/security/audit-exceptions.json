@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "Exceptions to the dependency advisory gate (scripts/dependency-audit.mjs). One per high/critical advisory. Every entry needs a reason a reviewer can check and an expiry date; the gate fails on an expired or empty-reason exception. The reasons are recorded so a future reviewer can re-open the advisory; the surrogate never resets the advisory itself.",
+  "exceptions": []
+}

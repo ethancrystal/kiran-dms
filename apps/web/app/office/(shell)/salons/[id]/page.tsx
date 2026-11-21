@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { ConfirmAction } from "@/components/confirm-action";
 import { InvoiceList, ReceiptList } from "@/components/document-lists";
 import { MoneySection } from "@/components/money-section";
+import { OpeningPurchase } from "@/components/opening-purchase";
 import { SalonContact } from "@/components/salon-contact";
 import { SalonCredit } from "@/components/salon-credit";
 import { SalonPayments } from "@/components/salon-payments";
@@ -141,6 +142,8 @@ export default function OfficeSalon({ params }: { params: Promise<{ id: string }
       <SalonCredit salonId={id} stageBlocked={salon.stage === "blocked"} />
 
       <SalonPrices salonId={id} approved={salon.approval_status === "approved"} onDone={done} />
+
+      <OpeningPurchase salonId={id} onDone={done} />
 
       <EditForm key={JSON.stringify(salon)} salon={salon} areas={areas} onDone={() => done("Salon updated.")} />
 

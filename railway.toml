@@ -1,0 +1,17 @@
+# Railway — Kiran DMS (apps/web, Next.js 16)
+#
+# [build]
+#   pnpm install (frozen lockfile) — builds the whole pnpmworkspace.
+#
+# [deploy]
+#   pnpm --filter @kiran/web start  — Railway injects PORT; Next.js honours it.
+#   See docs/06-security-plan.md deploy section and docs/11-roadmap.md for the
+#   deployment policy.
+
+[build]
+  working_dir = "/app"
+  command = "pnpm install --frozen-lockfile"
+
+[deploy]
+  working_dir = "/app"
+  command = "pnpm --filter @kiran/web start"

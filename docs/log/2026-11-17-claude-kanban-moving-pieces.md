@@ -1,0 +1,17 @@
+# 2026-11-17 05:45 PKT · Claude · longcat-2.5 · branch claude/p1-12-acceptance-guards · TASK
+**Task:** kanban task t_65e54f9c (docs/k-dms-moving-pieces.md; no requirement ids, a map of the app and the docs)
+**What / why:** The kanban body asked for every moving piece and every area of the app to be written down, and then for the attached zip plans to be completed. The zip holds the same docs tree that is already in the repo, 169 files with 5 in-progress plans, 61 blockers and Gate 1 not passed, so the whole set cannot be one task. This entry secures the map half: one note saying what the app is, where every part lives, what runs what, how the areas connect, and where each area stands, with docs/ACTIVITY.md section 12 and docs/log as the only place a claim of done may be made. The development half is the separate entry 2026-11-17-claude-p1-12-dependency-audit on this branch.
+**Evidence:** Read AGENTS.md, docs/ACTIVITY.md in full (sections 0 to 16 and Appendices A to C), the 5 newest entries in docs/log for this area (2026-11-09-claude-p1-12-plan, 2026-11-11-claude-sync-history, 2026-11-10-mj-railway-deploy, 2026-11-10-mj-owner-account-read, 2026-11-10-mj-log-reading-rule), docs/SPEC.md, CONTEXT-MAP.md, docs/16-project-completion-goal.md and docs/plans/in-progress/2026-11-09-p1-12-security-acceptance-and-restore-drill.md. Compared the attachment against the working tree: unzip -l of the kanban attachment lists the same docs tree (00-README through 16, ACTIVITY.md, agents, audit-2026-10-31, diagrams, gate-0-checklist.md, log, plans, runbooks, specs, superpowers, test-report), and diff -rq docs_extracted docs reports only that the extracted copy nests the same tree one level deeper under docs_extracted/docs, so nothing new arrives with the zip. Ran pnpm agent:preflight: PREFLIGHT OK, 9 untracked changes reported and preserved. Wrote docs/k-dms-moving-pieces.md, 15,106 bytes: what the app is (rep PWA, salon portal, office app), the repo layout table, the backend schemas and the hard-rule controls, the eight acceptance criteria of doc 06 section 10, the data model by domain, the frontend areas, the tests and verification, the status board copied from ACTIVITY.md section 12, the connection map, and the next step. Not run: no test, build or migration, because documentation only. Not verified: the map is a reading of the docs, not a claim that any area is done; the board row P1-12 is unchanged by this entry.
+**Next / needs:** MJ asked in chat on 2026-11-17 to commit this map and push the branch. Read the map and correct anything stale. The development half of the kanban task is 2026-11-17-claude-p1-12-dependency-audit.
+
+Security checklist (tick honestly):
+[x] RLS enabled+forced; policies + role×table tests added/updated (H-13) (n/a: documentation only)
+[x] Append-only respected; UPDATE/DELETE denied for all app roles (H-06, H-07) (n/a)
+[x] Mutations via SECURITY DEFINER fn, pinned search_path, idempotent (H-08) (n/a)
+[x] Audit trigger present; hash chain verifies (H-17) (n/a)
+[x] No vault/supplier/cost data outside vault; leakage tests pass (H-01, H-05) (n/a)
+[x] No secrets / real personal data / real supplier data in the diff (H-02, H-03, H-20)
+[x] Governance powers still owner-only + AAL2 (H-15) (unchanged)
+[x] No control weakened, skipped or "temporarily" disabled (H-16)
+[x] Docs match code; deviations logged (H-25) (a map only; no code or doc contradicts it)
+[x] Tests actually run; real results recorded (H-23, H-24) (only the checks named above were run)

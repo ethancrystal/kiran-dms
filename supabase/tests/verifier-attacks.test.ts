@@ -51,10 +51,11 @@ describe("§7.5 approvals: self-approval and tampering", () => {
     expect(await errorOf(REP_A, "select app.decide_approval($1, true, 'rep self')", [r.id])).toMatch(/owner or manager only/);
   });
 
-  it("a manager cannot decide an owner-level request; requesting with checker 'rep' is lifted to manager", async () => {
+  it("a write-off may be decided by a manager or the owner; requesting with checker 'rep' is lifted to manager", async () => {
     const w = await request(OWNER, "write_off", "manager");
-    expect(w.checker_role_required).toBe("owner");
-    expect(await errorOf(MANAGER, "select app.decide_approval($1, true, 'mgr try')", [w.id])).toMatch(/owner's decision/);
+    expect(w.checker_role_required).toBe("manager");
+    const decided = await run(MANAGER, "select (app.decide_approval($1, true, 'mgr approves')).status as status", [w.id], { commit: true });
+    expect(decided.rows[0].status).toBe("approved");
     const x = await request(REP_A, "discount", "rep");
     expect(x.checker_role_required).toBe("manager");
   });
@@ -263,9 +264,9 @@ describe("internal functions are not callable by app roles", () => {
       "office_invitations", "office_invite", "office_invoice_preview", "office_invoices", "office_open_cards", "office_order_signature", "office_order_steps", "office_order_timeline",
       "office_orders", "office_override_stage", "office_overview_counts", "office_overview_rows", "office_pending_approvals", "office_pending_deliveries",
       "office_pending_salons", "office_pending_signups", "office_pending_stock", "office_post_adjustment", "office_propose_stock_issue", "office_raise_limit", "office_receipts",
-      "office_receivables_ageing", "office_record_cash", "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_refused_approvals",
+      "office_receivables_ageing", "office_receive_stock", "office_record_cash", "office_record_commission_payment", "office_record_payment", "office_record_payout", "office_refused_approvals",
       "office_reject_delivery", "office_release_credit_hold", "office_reminder_log", "office_rep_cash_position", "office_rep_detail", "office_rep_month", "office_resolve_pending",
-      "office_reverse_commission_payment", "office_reverse_investor_entry", "office_reverse_payment", "office_revoke_invitation", "office_salon_payments",
+      "office_restock_suggestions", "office_reverse_commission_payment", "office_reverse_investor_entry", "office_reverse_payment", "office_revoke_invitation", "office_salon_payments",
       "office_salon_prices", "office_salon_timeline", "office_save_invoice_draft", "office_set_blocked", "office_set_commission_rate", "office_set_last_purchase",
       "office_set_member_status", "office_set_primary_contact", "office_set_reorder_point", "office_set_route", "office_set_salon_price", "office_set_sku_price",
       "office_set_storefront_published",

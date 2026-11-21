@@ -14,6 +14,11 @@ const KEYS = "keys";
 const HISTORY = "history";
 const BY_ID = "id";
 const BY_USER = "userId";
+// Beside each user's key the key store holds a random mark, under this prefix and the user's id,
+// made with the key and removed with it. A write checks the mark in its own transaction: if the
+// key was wiped (and perhaps made again) since the content was sealed, the write is not made with
+// the old key, which nothing could open later. A key stored before the mark existed has none.
+const KEY_MARK = "mark:";
 // Another tab changed the same item between this tab's read and its write; read again and reapply.
 const UPDATE_TRIES = 5;
 
@@ -39,8 +44,10 @@ const committed = (tx: IDBTransaction): Promise<void> =>
     tx.addEventListener("abort", () => reject(tx.error ?? new Error(STORAGE_FAILED)));
   });
 
+/** A user's sealing key as the key store held it when it was read, with its mark. */
+type HeldKey = { key: CryptoKey; mark: string | undefined };
+
 const connection: { opening: Promise<IDBDatabase> | null } = { opening: null };
-const keyCache = new Map<string, CryptoKey>();
 
 const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -86,46 +93,67 @@ const database = async (): Promise<IDBDatabase> => {
   }
 };
 
-/** The rep's own sealing key, made on first use. Two tabs asking at once end up with the same key. */
-const keyFor = async (db: IDBDatabase, userId: string): Promise<CryptoKey> => {
-  const cached = keyCache.get(userId);
-  if (cached) return cached;
-  const stored: CryptoKey | undefined = await settled(db.transaction(KEYS).objectStore(KEYS).get(userId));
-  const fresh = stored ?? (await newKey());
+/**
+ * The rep's own sealing key, made on first use. Two tabs asking at once end up with the same key.
+ * It is read from the phone every time and never kept in this tab's memory: another tab's sign-out
+ * may have removed it, and sealing with a key the phone no longer stores makes content nobody can open.
+ */
+const keyFor = async (db: IDBDatabase, userId: string): Promise<HeldKey> => {
+  const read = db.transaction(KEYS).objectStore(KEYS);
+  const stored: CryptoKey | undefined = await settled(read.get(userId));
+  const storedMark: string | undefined = await settled(read.get(KEY_MARK + userId));
+  if (stored) return { key: stored, mark: storedMark };
+  const fresh: HeldKey = { key: await newKey(), mark: crypto.randomUUID() };
   const tx = db.transaction(KEYS, "readwrite");
   const done = committed(tx);
   const keys = tx.objectStore(KEYS);
   const winner: CryptoKey | undefined = await settled(keys.get(userId));
-  if (!winner) keys.put(fresh, userId);
+  const winnerMark: string | undefined = await settled(keys.get(KEY_MARK + userId));
+  if (!winner) {
+    keys.put(fresh.key, userId);
+    keys.put(fresh.mark, KEY_MARK + userId);
+  }
   await done;
-  const key = winner ?? fresh;
-  keyCache.set(userId, key);
-  return key;
+  return winner ? { key: winner, mark: winnerMark } : fresh;
 };
 
-const seal = async (db: IDBDatabase, item: Omit<OutboxItem, "seq">): Promise<Omit<StoredItem, "seq">> => {
+/** Inside a write's own transaction: is `held` still this user's key, with no wipe since it was read? */
+const stillHeld = async (keys: IDBObjectStore, userId: string, held: HeldKey): Promise<boolean> => {
+  const present = await settled(keys.getKey(userId));
+  const mark: string | undefined = await settled(keys.get(KEY_MARK + userId));
+  return present !== undefined && mark === held.mark;
+};
+
+const seal = async (key: CryptoKey, item: Omit<OutboxItem, "seq">): Promise<Omit<StoredItem, "seq">> => {
   const { args, error, label, ...plain } = item;
   const content: Sealed = { args, error, label };
-  return { ...plain, sealed: await sealJson(await keyFor(db, item.userId), content) };
+  return { ...plain, sealed: await sealJson(key, content) };
 };
 
-const unseal = async (db: IDBDatabase, record: StoredItem): Promise<OutboxItem> => {
+const unseal = async (key: CryptoKey, record: StoredItem): Promise<OutboxItem> => {
   const { sealed, ...plain } = record;
-  const content = await openJson<Sealed>(await keyFor(db, record.userId), sealed);
+  const content = await openJson<Sealed>(key, sealed);
   return { ...plain, ...content };
 };
 
-const add = async (item: Omit<OutboxItem, "seq">): Promise<OutboxItem> => {
+const addItem = async (item: Omit<OutboxItem, "seq">, triesLeft: number): Promise<OutboxItem> => {
+  if (triesLeft === 0) throw new Error(UPDATE_LOST);
   const db = await database();
-  const record = await seal(db, item);
-  const tx = db.transaction(ITEMS, "readwrite");
+  const held = await keyFor(db, item.userId);
+  const record = await seal(held.key, item);
+  const tx = db.transaction([ITEMS, KEYS], "readwrite");
   const done = committed(tx);
   const items = tx.objectStore(ITEMS);
   // One readwrite transaction: of two tabs adding the same id, the second finds the first's item.
   const existing: StoredItem | undefined = await settled(items.index(BY_ID).get(item.id));
   if (existing) {
     await done;
-    return unseal(db, existing);
+    return unseal((await keyFor(db, existing.userId)).key, existing);
+  }
+  if (!(await stillHeld(tx.objectStore(KEYS), item.userId, held))) {
+    // The key was wiped since the item was sealed: seal it again with the key the phone holds now.
+    await done;
+    return addItem(item, triesLeft - 1);
   }
   const seq = await settled(items.add(record));
   await done;
@@ -135,7 +163,9 @@ const add = async (item: Omit<OutboxItem, "seq">): Promise<OutboxItem> => {
 const list = async (userId: string): Promise<OutboxItem[]> => {
   const db = await database();
   const records: StoredItem[] = await settled(db.transaction(ITEMS).objectStore(ITEMS).index(BY_USER).getAll(userId));
-  const items = await Promise.all(records.map((record) => unseal(db, record)));
+  if (records.length === 0) return [];
+  const { key } = await keyFor(db, userId);
+  const items = await Promise.all(records.map((record) => unseal(key, record)));
   return items.sort((a, b) => a.seq - b.seq);
 };
 
@@ -144,14 +174,19 @@ const applyPatch = async (id: string, patch: OutboxPatch, triesLeft: number): Pr
   const db = await database();
   const before: StoredItem | undefined = await settled(db.transaction(ITEMS).objectStore(ITEMS).index(BY_ID).get(id));
   if (!before) return;
-  const { seq, ...current } = await unseal(db, before);
-  const record = { ...(await seal(db, { ...current, ...patch })), seq };
-  const tx = db.transaction(ITEMS, "readwrite");
+  const held = await keyFor(db, before.userId);
+  const { seq, ...current } = await unseal(held.key, before);
+  const record = { ...(await seal(held.key, { ...current, ...patch })), seq };
+  const tx = db.transaction([ITEMS, KEYS], "readwrite");
   const done = committed(tx);
   const items = tx.objectStore(ITEMS);
   const now: StoredItem | undefined = await settled(items.get(seq));
-  // Gone means the item was sent or discarded meanwhile: a late update must not bring it back.
-  const unchanged = now !== undefined && now.sealed === before.sealed && now.state === before.state;
+  // Gone means the item was sent, discarded or wiped meanwhile: a late update must not bring it back.
+  const unchanged =
+    now !== undefined &&
+    now.sealed === before.sealed &&
+    now.state === before.state &&
+    (await stillHeld(tx.objectStore(KEYS), before.userId, held));
   if (unchanged) items.put(record);
   await done;
   if (now !== undefined && !unchanged) await applyPatch(id, patch, triesLeft - 1);
@@ -168,13 +203,21 @@ const remove = async (id: string): Promise<void> => {
 };
 
 /** Saves one attempt, then drops the user's oldest beyond the limit, in the same transaction. */
-const record = async (attempt: SyncAttempt): Promise<void> => {
+const recordAttempt = async (attempt: SyncAttempt, triesLeft: number): Promise<void> => {
+  if (triesLeft === 0) throw new Error(UPDATE_LOST);
   const db = await database();
   const { label, message, ...plain } = attempt;
   const content: SealedAttempt = { label, message };
-  const stored: StoredAttempt = { ...plain, sealed: await sealJson(await keyFor(db, attempt.userId), content) };
-  const tx = db.transaction(HISTORY, "readwrite");
+  const held = await keyFor(db, attempt.userId);
+  const stored: StoredAttempt = { ...plain, sealed: await sealJson(held.key, content) };
+  const tx = db.transaction([HISTORY, KEYS], "readwrite");
   const done = committed(tx);
+  if (!(await stillHeld(tx.objectStore(KEYS), attempt.userId, held))) {
+    // The key was wiped since the attempt was sealed (a sign-out in another tab while this send ran).
+    await done;
+    await recordAttempt(attempt, triesLeft - 1);
+    return;
+  }
   const history = tx.objectStore(HISTORY);
   history.add(stored);
   const keys: IDBValidKey[] = await settled(history.index(BY_USER).getAllKeys(attempt.userId));
@@ -188,16 +231,27 @@ const record = async (attempt: SyncAttempt): Promise<void> => {
 const history = async (userId: string): Promise<SyncAttempt[]> => {
   const db = await database();
   const records: StoredAttempt[] = await settled(db.transaction(HISTORY).objectStore(HISTORY).index(BY_USER).getAll(userId));
+  if (records.length === 0) return [];
+  const { key } = await keyFor(db, userId);
   const attempts = await Promise.all(
     records.map(async ({ seq, sealed, ...plain }) => ({
       seq: seq ?? 0,
-      attempt: {
-        ...plain,
-        ...(await openJson<SealedAttempt>(await keyFor(db, userId), sealed)),
-      } as SyncAttempt,
+      attempt: { ...plain, ...(await openJson<SealedAttempt>(key, sealed)) } as SyncAttempt,
     })),
   );
   return attempts.sort((a, b) => b.seq - a.seq).map((entry) => entry.attempt);
+};
+
+/** Every stored item, whoever saved it. Nothing is opened: the count needs no key. */
+const count = async (): Promise<number> => {
+  const db = await database();
+  return settled(db.transaction(ITEMS).objectStore(ITEMS).count());
+};
+
+/** One user's stored items. Nothing is opened: the count needs no key. */
+const countOf = async (userId: string): Promise<number> => {
+  const db = await database();
+  return settled(db.transaction(ITEMS).objectStore(ITEMS).index(BY_USER).count(userId));
 };
 
 const clear = async (): Promise<void> => {
@@ -207,12 +261,43 @@ const clear = async (): Promise<void> => {
   tx.objectStore(ITEMS).clear();
   tx.objectStore(HISTORY).clear();
   tx.objectStore(KEYS).clear();
-  keyCache.clear();
+  await done;
+};
+
+/** One user's items, attempts, key and mark, in one transaction. Other users' rows are not touched. */
+const clearOf = async (userId: string): Promise<void> => {
+  const db = await database();
+  const tx = db.transaction([ITEMS, KEYS, HISTORY], "readwrite");
+  const done = committed(tx);
+  const items = tx.objectStore(ITEMS);
+  const attempts = tx.objectStore(HISTORY);
+  const keys = tx.objectStore(KEYS);
+  const itemKeys: IDBValidKey[] = await settled(items.index(BY_USER).getAllKeys(userId));
+  itemKeys.forEach((key) => {
+    items.delete(key);
+  });
+  const attemptKeys: IDBValidKey[] = await settled(attempts.index(BY_USER).getAllKeys(userId));
+  attemptKeys.forEach((key) => {
+    attempts.delete(key);
+  });
+  keys.delete(userId);
+  keys.delete(KEY_MARK + userId);
   await done;
 };
 
 /** Opens the phone's queue. Throws, in plain words, when the browser will not store data. */
 export async function openIdbStore(): Promise<OutboxStore> {
   await database();
-  return { add, list, update: (id, patch) => applyPatch(id, patch, UPDATE_TRIES), remove, record, history, clear };
+  return {
+    add: (item) => addItem(item, UPDATE_TRIES),
+    list,
+    update: (id, patch) => applyPatch(id, patch, UPDATE_TRIES),
+    remove,
+    record: (attempt) => recordAttempt(attempt, UPDATE_TRIES),
+    history,
+    count,
+    countOf,
+    clear,
+    clearOf,
+  };
 }

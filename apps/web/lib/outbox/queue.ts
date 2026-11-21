@@ -55,9 +55,27 @@ export class MemoryStore implements OutboxStore {
     return Promise.resolve(mine.reverse().map((attempt) => ({ ...attempt })));
   }
 
+  count(): Promise<number> {
+    return Promise.resolve(this.items.size);
+  }
+
+  countOf(userId: string): Promise<number> {
+    return Promise.resolve([...this.items.values()].filter((item) => item.userId === userId).length);
+  }
+
   clear(): Promise<void> {
     this.items.clear();
     this.attempts = [];
+    return Promise.resolve();
+  }
+
+  clearOf(userId: string): Promise<void> {
+    [...this.items.values()]
+      .filter((item) => item.userId === userId)
+      .forEach((item) => {
+        this.items.delete(item.id);
+      });
+    this.attempts = this.attempts.filter((attempt) => attempt.userId !== userId);
     return Promise.resolve();
   }
 }

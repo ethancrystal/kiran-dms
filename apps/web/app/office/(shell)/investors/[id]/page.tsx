@@ -9,6 +9,7 @@ import {
   karachiToday,
   LEDGER_NOTE,
   REVERSAL_REASON_MIN_LENGTH,
+  type ReturnPeriod,
   type StatementRow,
 } from "@/lib/investors";
 import { rupees, toPaisa } from "@/lib/money";
@@ -25,6 +26,7 @@ const ENTRY_TEXT: Record<string, string> = {
   principal: "Principal returned",
 };
 const entryText = (e: StatementRow) => ENTRY_TEXT[e.payout_kind ?? e.entry_kind] ?? e.entry_kind;
+const periodWord = (p: ReturnPeriod) => (p === "yearly" ? "year" : "month");
 
 // One investor (P1-20; CAP-01 to CAP-03, D-40): details, the investments with their derived figures,
 // recording money, and the statement with reversals. Every write is an app.office_* function (owner or
@@ -121,6 +123,8 @@ export default function InvestorPage({ params }: { params: Promise<{ id: string 
             <dd data-testid="investor-decided">{rupees(figures.profit_decided_paisa)}</dd>
             <dt>Profit paid</dt>
             <dd data-testid="investor-paid">{rupees(figures.profit_paid_paisa)}</dd>
+            <dt>Profit accrued</dt>
+            <dd data-testid="investor-accrued">{rupees(figures.profit_accrued_paisa)}</dd>
             <dt>Profit owed</dt>
             <dd data-testid="investor-owed">{rupees(figures.profit_owed_paisa)}</dd>
           </dl>
@@ -142,7 +146,9 @@ export default function InvestorPage({ params }: { params: Promise<{ id: string 
                 <th>Principal outstanding</th>
                 <th>Profit decided</th>
                 <th>Profit paid</th>
+                <th>Profit accrued</th>
                 <th>Profit owed</th>
+                <th>Promised return</th>
               </tr>
             </thead>
             <tbody>
@@ -157,7 +163,15 @@ export default function InvestorPage({ params }: { params: Promise<{ id: string 
                   <td data-label="Principal outstanding">{rupees(m.principal_outstanding_paisa)}</td>
                   <td data-label="Profit decided">{rupees(m.profit_decided_paisa)}</td>
                   <td data-label="Profit paid">{rupees(m.profit_paid_paisa)}</td>
+                  <td data-label="Profit accrued">{rupees(m.profit_accrued_paisa)}</td>
                   <td data-label="Profit owed">{rupees(m.profit_owed_paisa)}</td>
+                  <td data-label="Promised return">
+                    {m.return_pct !== null && m.return_period !== null && (
+                      <>
+                        {m.return_pct}% per {periodWord(m.return_period)}
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -273,23 +287,59 @@ function InvestmentPicker({
 
 function AddInvestment({ investorId, onDone }: { investorId: string; onDone: Done }) {
   const f = useMoneyForm();
+  const [pct, setPct] = useState("");
+  const [period, setPeriod] = useState<"none" | "monthly" | "yearly">("monthly");
+  const perWord = period === "yearly" ? "year" : "month";
   return (
     <form
       className="card"
       aria-label="Add an investment"
       onSubmit={f.submit(async (paisa) => {
+        const hasReturn = period !== "none";
+        const pctNum = Number(pct);
+        if (hasReturn && (!pct.trim() || Number.isNaN(pctNum) || pctNum <= 0 || pctNum > 1000)) {
+          throw new Error("Enter a return percentage above 0 and at most 1000, or choose no promised return.");
+        }
         await rpc("office_add_investment", {
           p_client_id: f.clientId,
           p_investor_id: investorId,
           p_amount_paisa: paisa,
           p_invested_on: f.on,
           p_note: f.note.trim() || null,
+          p_return_pct: hasReturn ? pctNum : null,
+          p_return_period: hasReturn ? period : null,
         });
+        setPct("");
         return `Investment of ${rupees(paisa)} recorded.`;
       }, onDone)}
     >
       <h2>Add an investment</h2>
       <AmountDateNote prefix="add" f={f} />
+      <label htmlFor="add-period">Promised return</label>
+      <select id="add-period" value={period} onChange={(e) => setPeriod(e.target.value as "none" | "monthly" | "yearly")}>
+        <option value="none">No promised return</option>
+        <option value="monthly">A percentage each month</option>
+        <option value="yearly">A percentage each year</option>
+      </select>
+      {period !== "none" && (
+        <>
+          <label htmlFor="add-pct">Return percentage per {perWord}</label>
+          <input
+            id="add-pct"
+            inputMode="decimal"
+            autoComplete="off"
+            value={pct}
+            onChange={(e) => setPct(e.target.value)}
+            maxLength={7}
+            placeholder="e.g. 10"
+            required
+          />
+          <p className="muted">
+            The system adds this percentage of the amount each whole {perWord} from the investment date, and shows what is owed
+            below.
+          </p>
+        </>
+      )}
       <button type="submit" disabled={f.busy}>
         {f.busy ? "Saving…" : "Record investment"}
       </button>

@@ -87,6 +87,12 @@ export interface OutboxStore {
   record(attempt: SyncAttempt): Promise<void>;
   /** One user's attempts, newest first, at most `SYNC_HISTORY_LIMIT`. */
   history(userId: string): Promise<SyncAttempt[]>;
-  /** Removes everything, for every user (sign-out and device revoke). */
+  /** How many items the phone holds, waiting or refused, for every user: what `clear` would remove unsent. */
+  count(): Promise<number>;
+  /** How many items the phone holds for one user, waiting or refused: what `clearOf` would remove unsent. */
+  countOf(userId: string): Promise<number>;
+  /** Removes everything, for every user. Sign-out does not use this: it removes only its own login's part. */
   clear(): Promise<void>;
+  /** Removes one user's items, attempts and sealing key, and nothing of anyone else's (sign-out). */
+  clearOf(userId: string): Promise<void>;
 }

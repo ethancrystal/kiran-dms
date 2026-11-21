@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
+import { DuplicatePhones } from "@/components/duplicate-phones";
 import { OfficeAddSalon } from "@/components/office-add-salon";
 import { db, rows } from "@/lib/rpc";
 import { label } from "@/lib/salons";
@@ -175,6 +176,7 @@ export default function OfficeSalons() {
           </button>
         )}
       </div>
+      <DuplicatePhones />
     </>
   );
 }

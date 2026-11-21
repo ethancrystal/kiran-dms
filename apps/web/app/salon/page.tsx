@@ -27,6 +27,8 @@ type Item = {
   size_value: number | null;
   price_paisa: number;
   own_price: boolean;
+  /** INV-12 (MJ ruling 3): availability only; the database never sends the salon a unit count. */
+  in_stock: boolean;
 };
 type RequestLine = {
   line_no: number;
@@ -301,6 +303,10 @@ function Shop({
   const add = (i: Item) => {
     const qty = adding[i.sku_id] ?? "1";
     setError(null);
+    if (!i.in_stock) {
+      setError(`${i.code} is not available right now.`);
+      return;
+    }
     if (!Number.isInteger(Number(qty)) || Number(qty) < 1 || Number(qty) > QTY_MAX) {
       setError(`Enter a whole quantity from 1 to ${QTY_MAX}.`);
       return;
@@ -331,6 +337,9 @@ function Shop({
               <br />
               <span data-testid={`price-${i.code}`}>{rupees(Number(i.price_paisa))}</span>
               {i.own_price && <span className="badge">Your price</span>}
+              <span className={i.in_stock ? "badge" : "badge muted"} data-testid={`stock-${i.code}`}>
+                {i.in_stock ? "In stock" : "Not available"}
+              </span>
               {i.description && <p className="muted">{i.description}</p>}
               {canOrder && basket.length < MAX_LINES && (
                 <div className="inline-form">
@@ -343,9 +352,10 @@ function Shop({
                     max={QTY_MAX}
                     step={1}
                     value={adding[i.sku_id] ?? "1"}
+                    disabled={!i.in_stock}
                     onChange={(e) => setAdding((all) => ({ ...all, [i.sku_id]: e.target.value }))}
                   />
-                  <button type="button" className="inline" onClick={() => add(i)}>
+                  <button type="button" className="inline" disabled={!i.in_stock} onClick={() => add(i)}>
                     Add {i.code} to the basket
                   </button>
                 </div>

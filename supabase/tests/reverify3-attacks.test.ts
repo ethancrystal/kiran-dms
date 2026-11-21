@@ -83,7 +83,7 @@ describe("§7 sweep, written independently by re-verifier-3", () => {
     expect(r.rows[0]).toEqual({ p: 1, p_other: 0, d_other: 0, a_other: 0, cfg: 0, salon_rows: 0 });
   });
 
-  it("§7.5 approvals: nobody approves their own request; a rep cannot decide; a manager cannot decide a write-off", async () => {
+  it("§7.5 approvals: nobody approves their own request; a rep cannot decide; a manager may decide a write-off (MJ, 2026-11-20)", async () => {
     const own = (who: string, cid: string) => `
       ${asUser(who, "aal2", null)}
       select (app.request_approval('${cid}', 'adjustment', 'order', null, '{}', 'rv3 self')).id;
@@ -101,7 +101,7 @@ describe("§7 sweep, written independently by re-verifier-3", () => {
       ${asUser(fx.owner.id, "aal2", null)}
       select (app.request_approval('${wo}', 'write_off', 'invoice', null, '{}', 'rv3 write-off', 'manager')).id;
       ${asUser(fx.manager.id, "aal2", null)}
-      select app.decide_approval((select id from control.approval_request where client_id = '${wo}'), true, 'rv3 manager decides');`)).toMatch(/needs the owner/);
+      select app.decide_approval((select id from control.approval_request where client_id = '${wo}'), true, 'rv3 manager decides');`)).toBeNull();
   });
 
   it("§7.6 replay: register_device and request_approval replayed give one row each", async () => {
