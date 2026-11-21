@@ -1031,6 +1031,19 @@ const MATRIX: Row[] = [
     writeCol: "last_no",
     select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
   },
+  // P1-05 first slice. The vault schema is revoked from every application role and neither table has
+  // a policy, so every persona is denied at the schema; the only way in is a vault_api function that
+  // checks the grant and AAL2 (doc 07 section 2, H-05).
+  {
+    table: "supplier_vault.supplier",
+    writeCol: "name",
+    select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
+  },
+  {
+    table: "supplier_vault.vault_access_log",
+    writeCol: "purpose",
+    select: Object.fromEntries(Object.keys(P).map((k) => [k, "denied"])),
+  },
 ];
 
 // The rows of a table that match a predicate, as a sorted list of whole-row text: row identity,

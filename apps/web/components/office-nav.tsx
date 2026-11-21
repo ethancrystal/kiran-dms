@@ -7,9 +7,9 @@ import { currentHref, navFor, type OfficeRole } from "@/lib/office-nav";
 // The grouped office sidebar. Native details and summary give the keyboard behaviour (Tab reaches each
 // heading, Enter or Space folds it). Every group starts open and the choice lasts only while the shell
 // stays mounted, so a link is always there for a fresh page. Moving to a page opens its group.
-export function OfficeNav({ role }: { role: OfficeRole }) {
+export function OfficeNav({ role, vaultGrant = false }: { role: OfficeRole; vaultGrant?: boolean }) {
   const pathname = usePathname();
-  const groups = navFor(role);
+  const groups = navFor(role, vaultGrant);
   const current = currentHref(pathname, groups);
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
   const currentGroup = groups.find((g) => g.items.some((i) => i.href === current))?.title;

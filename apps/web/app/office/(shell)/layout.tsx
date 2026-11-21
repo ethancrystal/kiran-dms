@@ -20,7 +20,7 @@ export default async function OfficeShell({ children }: { children: React.ReactN
 
   const { data: profile, error: profileError } = await sb
     .from("user_profile")
-    .select("full_name, role, status")
+    .select("full_name, role, status, vault_grant")
     .eq("id", user.id)
     .maybeSingle();
   // A failed read is not "no profile": say so, and show no office page.
@@ -66,7 +66,7 @@ export default async function OfficeShell({ children }: { children: React.ReactN
         <SignOut />
       </header>
       <div className="office-body">
-        <OfficeNav role={profile.role as OfficeRole} />
+        <OfficeNav role={profile.role as OfficeRole} vaultGrant={profile.vault_grant === true} />
         <main>{children}</main>
       </div>
     </div>
