@@ -61,7 +61,19 @@ async function officeSignIn(page: Page, p: P) {
     .waitFor({ timeout: 10_000 })
     .then(() => true)
     .catch(() => false);
-  if (enrol) secrets.set(p.email, (await key.first().innerText()).trim());
+  if (enrol) {
+    secrets.set(p.email, (await key.first().innerText()).trim());
+  } else if (!secrets.has(p.email)) {
+    // Another spec file enrolled this account earlier in the run; this file's module state is
+    // separate, so read the verified factor's secret from the local stack to compute codes.
+    const [factor] = await stackQuery<{ secret: string }>(
+      `select f.secret from auth.mfa_factors f join auth.users u on u.id = f.user_id
+        where u.email = $1 and f.factor_type = 'totp' and f.status = 'verified'
+        order by f.created_at desc limit 1`,
+      [p.email],
+    );
+    if (factor?.secret) secrets.set(p.email, factor.secret);
+  }
   await page.getByLabel("6-digit code").fill(await freshCode(p.email));
   await page.getByRole("button", { name: "Verify" }).click();
   await page.waitForURL(/\/office$/);
@@ -283,8 +295,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("link", { name: /Start your day/ }).click();
   await page.waitForURL(/\/app\/day$/);
   await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
-  // The rep's bag holds seed.bagQty of the seeded SKU (slice 4), so the morning count has one line.
-  await page.getByLabel(seed.sku.code).fill(String(seed.bagQty));
+  // MJ's no-bag ruling (2026-11-18) removed the morning count from check-in: the page renders one
+  // "Check in" button, no count input, and rep_check_in is called with p_counted: [].
   await page.getByRole("button", { name: "Check in" }).click();
   await expect(page.getByText("Checked in. Have a good day.")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Today's route/ })).toBeVisible();
@@ -414,8 +426,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByTestId("my-cash")).toHaveText("Rs 0");
   await expect(page.getByText("No handovers yet.")).toBeVisible();
 
-  // The day stays open: the delivery tests below need it. The evening count and check-out (J1 step
-  // 15, B-35) are the last test of this file.
+  // The day stays open: the delivery tests below need it. The check-out (J1 step 15) is the last
+  // test of this file.
   repPhone = await page.context().storageState();
 });
 
@@ -1269,7 +1281,7 @@ test("a manager records an investor, an investment, a profit decision and a payo
   await officeSignIn(page, manager);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Investors", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Investors", exact: true, level: 1 })).toBeVisible();
-  await expect(page.getByTestId("ledger-note")).toContainText("Nothing is calculated");
+  await expect(page.getByTestId("ledger-note")).toContainText("Nothing here is posted to cash");
 
   const name = `[Dummy] Investor ${Date.now()}`;
   const add = page.getByRole("form", { name: "Add an investor" });
@@ -1282,6 +1294,8 @@ test("a manager records an investor, an investment, a profit decision and a payo
 
   const invest = page.getByRole("form", { name: "Add an investment" });
   await invest.getByLabel("Amount (Rs)").fill("100000");
+  // MJ 2026-11-20 (recurring return): the form requires the promised percentage (period defaults to monthly).
+  await invest.getByLabel("Return percentage per month").fill("10");
   await invest.getByRole("button", { name: "Record investment" }).click();
   await expect(page.getByText(`Investment of ${rupees(INVESTED_PAISA)} recorded.`)).toBeVisible();
   const decide = page.getByRole("form", { name: "Decide profit" });
@@ -1447,17 +1461,14 @@ test("delivery-approval boundary: a rep's submission writes no invoice or sale; 
   await ctx.close();
 });
 
-// J1 step 15 and B-35, moved here from the rep journey (slice 4) so the rep's day stays open for the
-// delivery tests above. The bag holds what it holds now: the seeded quantity less the approved delivery.
-test("the rep sends the evening count and checks out (J1 step 15, B-35)", async ({ browser }) => {
+// J1 step 15, moved here from the rep journey (slice 4) so the rep's day stays open for the
+// delivery tests above. MJ's no-bag ruling (2026-11-18) also removed the evening count from
+// check-out: the page closes the day with a single "Confirm check out" button, no count form.
+test("the rep checks out (J1 step 15)", async ({ browser }) => {
   const { ctx, phone: page } = await repPhoneOpen(browser);
   await page.goto("/app/day");
   await page.getByRole("button", { name: "Finish the day" }).click();
-  await page.getByLabel(seed.sku.code).fill(String(await repBagOnHand()));
-  // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
-  const closeCount = page.waitForRequest((r) => r.url().includes("/rpc/record_count") && r.method() === "POST");
-  await page.getByRole("button", { name: "Save count and check out" }).click();
-  expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
+  await page.getByRole("button", { name: "Confirm check out" }).click();
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
   await ctx.close();
