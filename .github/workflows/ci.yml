@@ -13,10 +13,10 @@ jobs:
     name: activity-log-check (ACTIVITY.md Appendix C)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Check ACTIVITY.md discipline
@@ -33,14 +33,14 @@ jobs:
       # Local CLI stack only: fixed, public development credentials, not a secret.
       KIRAN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
       # Real Postgres + GoTrue (the auth schema, auth.uid(), auth.jwt()). `supabase start`
@@ -59,9 +59,9 @@ jobs:
     name: typecheck + service-role scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -85,9 +85,9 @@ jobs:
     name: lint + format (Biome)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -100,9 +100,9 @@ jobs:
     name: dependency advisories (doc 06 10.8, H-18)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -115,7 +115,7 @@ jobs:
     name: secret scan (doc 06 10.8)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       # Pinned release v8.30.1 (tag commit 83d9cd6). The canary uses a token
@@ -158,9 +158,9 @@ jobs:
     name: rep PWA browser tests (Playwright)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -171,7 +171,7 @@ jobs:
       - run: pnpm -C apps/web test:e2e
         env:
           CI: "true"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
@@ -186,14 +186,14 @@ jobs:
       KIRAN_STACK_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       KIRAN_STACK_MAILPIT_URL: http://127.0.0.1:54324
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
       # Auth, PostgREST (through the API gateway) and the mail catcher stay up: the pages call the
@@ -219,7 +219,7 @@ jobs:
       - run: pnpm -C apps/web exec playwright test -c playwright.stack.config.ts --reporter=github,line
         env:
           CI: "true"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report-stack

@@ -14,3 +14,12 @@
 154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:66
 154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:82
 154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:90
+#
+# Same false positive, one commit later: the 2026-11-21 continuation of the
+# consolidation log entry quotes the old "key: musk-blonder-600" shape as
+# evidence while describing the canary test, and gitleaks' generic-api-key
+# rule reads the quoted example itself. Pinned to that one finding at
+# 77b34f8, docs/log/2026-11-21-autoclaw-consolidation.md line 72. The merged
+# log file is append-only and may not be reworded, so the fingerprint is the
+# fix. One exact finding again; the canary still proves the scanner works.
+77b34f86a9b028a275bf81b24a2345970f11679d:docs/log/2026-11-21-autoclaw-consolidation.md:generic-api-key:72
