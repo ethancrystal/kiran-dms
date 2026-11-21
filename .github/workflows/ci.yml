@@ -40,7 +40,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
       # Real Postgres + GoTrue (the auth schema, auth.uid(), auth.jwt()). `supabase start`
@@ -193,7 +193,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
       # Auth, PostgREST (through the API gateway) and the mail catcher stay up: the pages call the
