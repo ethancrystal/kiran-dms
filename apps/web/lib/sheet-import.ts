@@ -425,3 +425,28 @@ export const TEMPLATE_FILE_NAME = "kiran-sheet-template.csv";
 export function brandLabelFor(groupName: string): string {
   return groupName.slice(0, BRAND_MAX);
 }
+
+// ---------------------------------------------------------------------------------- the batch id ----
+
+/**
+ * The first 32 hex characters of a sha-256 digest, formatted as a UUID (version nibble 8 and variant
+ * bits 10, the uuid v8 shape), so the value is a valid uuid for the *_client_id columns (H-08).
+ */
+export function batchUuidFromHex(hex: string): string {
+  const h = hex.toLowerCase();
+  if (!/^[0-9a-f]{32,}$/.test(h)) throw new Error("32 hex characters are required for a batch id");
+  const variant = ((Number.parseInt(h[16], 16) & 0x3) | 0x8).toString(16);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+/**
+ * sha-256 of the file bytes (WebCrypto) as the batch id: the same bytes are the same batch and a
+ * changed file opens a new one (H-08). The replay guard then survives a re-selection of the same
+ * file, which a per-selection random id defeated: only a UI notice stood between the office and a
+ * second receipt.
+ */
+export async function batchIdOf(bytes: ArrayBuffer | Uint8Array): Promise<string> {
+  const source: ArrayBuffer = bytes instanceof Uint8Array ? new Uint8Array(bytes).buffer : bytes;
+  const digest = await crypto.subtle.digest("SHA-256", source);
+  return batchUuidFromHex(Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""));
+}

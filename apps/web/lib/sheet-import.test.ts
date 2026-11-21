@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  batchIdOf,
+  batchUuidFromHex,
   type CatalogueGroup,
   type CatalogueProduct,
   CSV_TEMPLATE,
@@ -217,5 +219,25 @@ describe("resolveSheet", () => {
     const parsed = parseSheet(sheet("[Dummy] Hair colour,[Dummy] Colour,[Dummy] Shade 5,100,ml,DUMMY-HC-9,,"));
     const [resolved] = resolveSheet(parsed.rows, groups, catalogue, batch);
     expect(resolved.errors.join(" ")).toMatch(/already SKU DUMMY-HC-5/);
+  });
+});
+
+describe("batchIdOf", () => {
+  it("gives the same file bytes the same batch id, and a changed file a new one", async () => {
+    const bytes = new TextEncoder().encode(CSV_TEMPLATE);
+    const [first, again] = await Promise.all([batchIdOf(bytes), batchIdOf(bytes.slice())]);
+    expect(again).toBe(first);
+    const changed = new TextEncoder().encode(`${CSV_TEMPLATE}extra line\n`);
+    expect(await batchIdOf(changed)).not.toBe(first);
+  });
+
+  it("formats a uuid (version 8, variant 10) and pins the template's known answer", async () => {
+    const id = await batchIdOf(new TextEncoder().encode(CSV_TEMPLATE));
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(id).toBe("d46b2eea-b93e-82cb-a4ff-0b7b33106b28");
+  });
+
+  it("refuses input that cannot be a digest", () => {
+    expect(() => batchUuidFromHex("abc")).toThrow(/32 hex characters/);
   });
 });

@@ -5,6 +5,7 @@ import { ListState } from "@/components/confirm-action";
 import { rupees } from "@/lib/money";
 import { db, messageOf, mySession, rows, rpc, type Session } from "@/lib/rpc";
 import {
+  batchIdOf,
   brandLabelFor,
   type CatalogueGroup,
   type CatalogueProduct,
@@ -26,7 +27,9 @@ import {
 //   app.office_upsert_product, app.office_upsert_sku, app.office_set_sku_price (H-08),
 //   app.office_receive_stock into the warehouse for the quantities.
 // One client id for the whole file and ids derived from it, so a retry of the same file changes
-// nothing twice (H-08): a receipt replays, a price replays, an upsert lands on the same row.
+// nothing twice (H-08): a receipt replays, a price replays, an upsert lands on the same row. The
+// batch id is sha-256 of the file bytes, so the replay survives a re-selection of the same file;
+// only a changed file opens a new batch.
 
 const PRICE_REASON = "sheet upload";
 const RECEIPT_REASON = "sheet upload";
@@ -50,7 +53,8 @@ export default function UploadSheet() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<ResolvedRow[]>([]);
   // One id per file: every id the apply sends is derived from it, so a retry of the same file is the
-  // same write (H-08). It changes only when another file is chosen.
+  // same write (H-08). It is sha-256 of the file bytes (batchIdOf), so re-selecting the same file
+  // replays the same batch and only a changed file opens a new one.
   const [batch, setBatch] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -96,12 +100,13 @@ export default function UploadSheet() {
       setFileError("The file is over 2 MB; split the sheet and upload the parts.");
       return;
     }
-    const parsed = parseSheet(await file.text());
+    const bytes = await file.arrayBuffer();
+    const parsed = parseSheet(new TextDecoder().decode(bytes));
     if (parsed.error) {
       setFileError(parsed.error);
       return;
     }
-    const next = crypto.randomUUID();
+    const next = await batchIdOf(bytes);
     setBatch(next);
     setResolved(resolveSheet(parsed.rows, groups, products, next));
   };
@@ -376,8 +381,8 @@ export default function UploadSheet() {
             </tbody>
           </table>
           <p className="muted">
-            Stock was received once for this file. Uploading the same file again would receive its units again, so keep this sheet
-            as the record of that delivery.
+            Stock was received once for this file. Uploading the same file again is a replay: the database adds nothing twice
+            (H-08). Keep this sheet as the record of that delivery.
           </p>
         </section>
       )}
