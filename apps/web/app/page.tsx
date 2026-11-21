@@ -6,9 +6,18 @@ export default function Home() {
     <main>
       <h1>Kiran DMS</h1>
       <p className="muted">Kiran Company · Karachi</p>
-      {!supabaseConfigured && (
-        <p className="error">Supabase is not configured. Copy apps/web/.env.example to .env.local.</p>
-      )}
+
+      <div className="card">
+        {supabaseConfigured ? (
+          <p className="ok">Connected to the Supabase backend.</p>
+        ) : (
+          <p className="muted">
+            Supabase is not configured yet. Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to connect to your database.
+          </p>
+        )}
+      </div>
+
       <Link className="btn" href="/app">
         Field app
       </Link>
