@@ -34,7 +34,7 @@ jobs:
       KIRAN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: pnpm/action-setup@v6   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: pnpm/action-setup@v6   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: pnpm/action-setup@v6   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4   # version comes from package.json "packageManager"
+      - uses: pnpm/action-setup@v6   # version comes from package.json "packageManager"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -159,7 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -187,7 +187,7 @@ jobs:
       KIRAN_STACK_MAILPIT_URL: http://127.0.0.1:54324
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 22
