@@ -118,71 +118,117 @@ async function newPage(browser: Browser) {
 
 test.describe.configure({ mode: "serial" });
 
-// Journey 1 — a salon applies itself, the office refuses one applicant and approves
-// another with an area, rep and commission, and each portal sees only its own state.
+// Journey 1 — a salon applies itself (no salon row exists until the office decides), the office
+// rejects one applicant and approves another with an area, rep and commission, and each portal
+// sees only its own state.
 test("salon self-signup, office review decisions and role isolation", async ({ browser }) => {
   test.setTimeout(JOURNEY_TIMEOUT);
-  const applicantEmail = `applicant.${randomUUID().slice(0, 8)}@example.test`;
-  const salonName = `[Test] Self-signup ${randomUUID().slice(0, 6)}`;
 
+  // First applicant: the office rejects the application with a reason.
+  const rejectEmail = `applicant.${randomUUID().slice(0, 8)}@example.test`;
+  const rejectName = `[Test] Self-signup ${randomUUID().slice(0, 6)}`;
   const applicant = await newPage(browser);
   await applicant.goto("/salon/signup");
-  await applicant.getByLabel("Email").fill(applicantEmail);
+  await applicant.getByLabel("Email").fill(rejectEmail);
   await applicant.getByRole("button", { name: "Send code" }).click();
   const since = Date.now();
-  await applicant.getByLabel("Code", { exact: true }).fill(await mailedCode(applicantEmail, since));
+  await applicant.getByLabel("Code", { exact: true }).fill(await mailedCode(rejectEmail, since));
   await applicant.getByRole("button", { name: "Sign in" }).click();
-  await applicant.getByLabel("Salon name").fill(salonName);
+  await applicant.getByLabel("Salon name").fill(rejectName);
   await applicant.getByLabel("Type of salon").selectOption({ index: 1 });
   await applicant.getByLabel("Your name").fill("[Test] Applicant");
   await applicant.getByLabel("Salon address").fill("[Test] 12 Sample Road, Karachi");
   await applicant.getByRole("button", { name: "Send application" }).click();
   await applicant.waitForURL(/\/salon$/);
-  await expect(applicant.getByText(/Waiting for the office/)).toBeVisible();
-
-  const applied = await stackQuery<{ approval_status: string }>("select approval_status from public.salon where name = $1", [
-    salonName,
+  // The application is a request, not a salon: app.salon_apply makes no salon and no membership.
+  await expect(applicant.getByRole("heading", { name: "Application received" })).toBeVisible();
+  const waiting = await stackQuery<{ status: string }>("select status from public.salon_signup_request where salon_name = $1", [
+    rejectName,
   ]);
-  expect(applied).toHaveLength(1);
-  expect(applied[0].approval_status).toBe("pending");
-  const applicantSalonId = (await stackQuery<{ id: string }>("select id from public.salon where name = $1", [salonName]))[0].id;
+  expect(waiting).toHaveLength(1);
+  expect(waiting[0].status).toBe("pending");
+  expect(await stackQuery("select id from public.salon where name = $1", [rejectName])).toHaveLength(0);
 
   // Office refuses the application, giving a reason (the DB requires >= 5 chars).
   const office = await newPage(browser);
   await officeSignIn(office, manager);
   await office.goto("/office/salons/approvals");
   await expect(office.getByRole("heading", { name: "Salon approvals" })).toBeVisible();
-  const row = office.locator("tr", { hasText: salonName });
-  await row.getByRole("button", { name: "Reject" }).click();
-  await office.getByLabel(/reason/i).fill("[Test] documents not supplied");
-  await office.getByRole("button", { name: "Reject salon" }).click();
+  const rejectCard = office.getByRole("region", { name: rejectName });
+  await rejectCard.getByRole("button", { name: "Reject" }).click();
+  await rejectCard.getByLabel("Reason").fill("[Test] documents not supplied");
+  await rejectCard.getByRole("button", { name: "Reject application" }).click();
+  await expect(office.getByText(`Rejected ${rejectName}.`)).toBeVisible();
 
   await applicant.reload();
-  await expect(applicant.getByText(/not approved|Rejected/i)).toBeVisible();
-  await expect(applicant.getByRole("button", { name: "Send request" })).toHaveCount(0);
-  const rejected = await stackQuery<{ approval_status: string }>("select approval_status from public.salon where id = $1", [
-    applicantSalonId,
+  await expect(applicant.getByText(/did not accept this application/i)).toBeVisible();
+  const rejected = await stackQuery<{ status: string }>("select status from public.salon_signup_request where salon_name = $1", [
+    rejectName,
   ]);
-  expect(rejected[0].approval_status).toBe("dismissed");
+  expect(rejected[0].status).toBe("rejected");
 
-  // A salon is approved with an area, the rep and a commission rate.
+  // Second applicant: approved with an area, the rep and a commission rate, which creates the salon
+  // and the membership in one decision.
+  const approveEmail = `approved.${randomUUID().slice(0, 8)}@example.test`;
+  const approveName = `[Test] Self-signup ${randomUUID().slice(0, 6)}`;
+  const approved = await newPage(browser);
+  await approved.goto("/salon/signup");
+  await approved.getByLabel("Email").fill(approveEmail);
+  await approved.getByRole("button", { name: "Send code" }).click();
+  const sinceApproved = Date.now();
+  await approved.getByLabel("Code", { exact: true }).fill(await mailedCode(approveEmail, sinceApproved));
+  await approved.getByRole("button", { name: "Sign in" }).click();
+  await approved.getByLabel("Salon name").fill(approveName);
+  await approved.getByLabel("Type of salon").selectOption({ index: 1 });
+  await approved.getByLabel("Your name").fill("[Test] Applicant");
+  await approved.getByLabel("Salon address").fill("[Test] 14 Sample Road, Karachi");
+  await approved.getByRole("button", { name: "Send application" }).click();
+  await approved.waitForURL(/\/salon$/);
+
   await office.goto("/office/salons/approvals");
-  const pending = office.locator("tr", { hasText: seed.pendingSalon.name });
-  await pending.getByLabel(/Rep \(optional\)/i).selectOption({ label: rep.name });
-  await pending.getByLabel(/Commission rate/i).fill("10");
-  await pending.getByRole("button", { name: "Approve" }).click();
-  const approved = await stackQuery<{ approval_status: string; assigned_rep: string | null }>(
-    "select approval_status, assigned_rep from public.salon where id = $1",
+  const approveCard = office.getByRole("region", { name: approveName });
+  await approveCard.getByLabel("Area for the new salon").selectOption({ label: seed.pendingSalon.area });
+  await approveCard.getByLabel(/Rep \(optional\)/i).selectOption({ label: rep.name });
+  await approveCard.getByLabel(/Commission rate/i).fill("10");
+  await approveCard.getByRole("button", { name: "Approve" }).click();
+  await expect(office.getByText(`Approved ${approveName}`)).toBeVisible();
+  const created = await stackQuery<{ id: string; approval_status: string }>(
+    "select id, approval_status from public.salon where name = $1",
+    [approveName],
+  );
+  expect(created).toHaveLength(1);
+  expect(created[0].approval_status).toBe("approved");
+  const assignment = await stackQuery<{ rep_id: string; rate_bp: number }>(
+    "select rep_id, rate_bp from public.salon_rep_assignment where salon_id = $1 order by seq desc limit 1",
+    [created[0].id],
+  );
+  expect(assignment[0].rep_id).toBe(rep.id);
+  expect(assignment[0].rate_bp).toBe(1000);
+  // The membership exists, so the applicant's own portal opens its salon after a reload.
+  await approved.reload();
+  await expect(approved.getByRole("heading", { name: approveName })).toBeVisible();
+
+  // A salon a rep proposed is decided on the same screen with corrected selectors: a card, not a row.
+  await office.goto("/office/salons/approvals");
+  const pendingCard = office.getByRole("region", { name: seed.pendingSalon.name });
+  await pendingCard.getByLabel(/Rep \(optional\)/i).selectOption({ label: rep.name });
+  await pendingCard.getByLabel(/Commission rate/i).fill("10");
+  await pendingCard.getByRole("button", { name: "Approve" }).click();
+  const approvedSalon = await stackQuery<{ approval_status: string }>("select approval_status from public.salon where id = $1", [
+    seed.pendingSalon.id,
+  ]);
+  expect(approvedSalon[0].approval_status).toBe("approved");
+  const pendingAssignment = await stackQuery<{ rep_id: string | null }>(
+    "select rep_id from public.salon_rep_assignment where salon_id = $1 order by seq desc limit 1",
     [seed.pendingSalon.id],
   );
-  expect(approved[0].approval_status).toBe("approved");
-  expect(approved[0].assigned_rep).toBe(rep.id);
+  expect(pendingAssignment[0].rep_id).toBe(rep.id);
 
   // Role isolation: a salon session cannot open /app or /office.
-  await applicant.goto("/app");
-  await expect(applicant.getByText(/not authorised|no access|sign in/i)).toBeVisible();
-  await applicant.goto("/office");
-  await expect(applicant.getByText(/not authorised|no access|sign in/i)).toBeVisible();
+  await approved.goto("/app");
+  await expect(approved.getByText(/not authorised|no access|sign in/i)).toBeVisible();
+  await approved.goto("/office");
+  await expect(approved.getByText(/not authorised|no access|sign in/i)).toBeVisible();
 });
 
 // Journey 2 — discounts need a second office user at the right tier; the maker

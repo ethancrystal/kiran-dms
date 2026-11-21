@@ -20,7 +20,6 @@ const GROUP = id(),
   S2 = id(), // received 25; outward 14/28d; open order 3; rule 4; suggestion must be 0
   S3 = id(); // never received; outward 14/28d; open order 3; rule 4; suggestion must be 14
 const WH = id(),
-  BAG = id(),
   TERRITORY = id(),
   AREA = id(),
   SALON = id(),
@@ -28,6 +27,7 @@ const WH = id(),
   ORDER_S2 = id(),
   ORDER_S3 = id();
 let repDayId = "";
+let BAG = "";
 const PRICE = 100_000;
 
 const one = async (who: Who, sql: string, params: unknown[] = []) => (await run(who, sql, params, C)).rows[0];
@@ -41,7 +41,20 @@ beforeAll(async () => {
     await one(MANAGER, "select app.office_upsert_sku($1, $2, $3, '[Dummy] 100 ml', 'ml', 100)", [s, PRODUCT, code()]);
   for (const s of [S1, S2, S3]) await one(OWNER, "select app.owner_set_sku_price($1, $2, 'dummy price list')", [s, PRICE]);
   await one(MANAGER, "select app.office_create_location($1, 'warehouse', '[Test] Restock store')", [WH]);
-  await one(OWNER, "select app.office_create_location($1, 'rep_bag', '[Test] Restock bag', $2, 2000000)", [BAG, fx.repA.id]);
+  // inventory.test.ts (earlier in file-name order) already made repA a rep bag, and
+  // stock_location_one_bag_per_rep allows a rep only one: reuse the existing bag and
+  // create one only when this file runs without it.
+  const bag = await one(
+    "postgres",
+    "select id from public.stock_location where kind = 'rep_bag' and owner_user_id = $1 limit 1",
+    [fx.repA.id],
+  );
+  if (bag) {
+    BAG = bag.id;
+  } else {
+    BAG = id();
+    await one(OWNER, "select app.office_create_location($1, 'rep_bag', '[Test] Restock bag', $2, 2000000)", [BAG, fx.repA.id]);
+  }
   await one(MANAGER, "select app.office_upsert_territory($1, $2)", [TERRITORY, `[Test] restock territory ${code()}`]);
   await one(MANAGER, "select app.office_upsert_area($1, $2, $3)", [AREA, TERRITORY, `[Test] restock area ${code()}`]);
   await one(OWNER, "select app.create_salon($1, $2, 'ladies_parlor', $3, 'manual')", [

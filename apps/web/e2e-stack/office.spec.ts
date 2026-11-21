@@ -283,8 +283,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await page.getByRole("link", { name: /Start your day/ }).click();
   await page.waitForURL(/\/app\/day$/);
   await expect(page.getByRole("heading", { name: /Your territory/ })).toBeVisible();
-  // The rep's bag holds seed.bagQty of the seeded SKU (slice 4), so the morning count has one line.
-  await page.getByLabel(seed.sku.code).fill(String(seed.bagQty));
+  // MJ's no-bag ruling (2026-11-18) removed the morning count from check-in: the page renders one
+  // "Check in" button, no count input, and rep_check_in is called with p_counted: [].
   await page.getByRole("button", { name: "Check in" }).click();
   await expect(page.getByText("Checked in. Have a good day.")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Today's route/ })).toBeVisible();
@@ -414,8 +414,8 @@ test("a rep signs in with an email code, waits for approval, then checks in and 
   await expect(page.getByTestId("my-cash")).toHaveText("Rs 0");
   await expect(page.getByText("No handovers yet.")).toBeVisible();
 
-  // The day stays open: the delivery tests below need it. The evening count and check-out (J1 step
-  // 15, B-35) are the last test of this file.
+  // The day stays open: the delivery tests below need it. The check-out (J1 step 15) is the last
+  // test of this file.
   repPhone = await page.context().storageState();
 });
 
@@ -1447,17 +1447,14 @@ test("delivery-approval boundary: a rep's submission writes no invoice or sale; 
   await ctx.close();
 });
 
-// J1 step 15 and B-35, moved here from the rep journey (slice 4) so the rep's day stays open for the
-// delivery tests above. The bag holds what it holds now: the seeded quantity less the approved delivery.
-test("the rep sends the evening count and checks out (J1 step 15, B-35)", async ({ browser }) => {
+// J1 step 15, moved here from the rep journey (slice 4) so the rep's day stays open for the
+// delivery tests above. MJ's no-bag ruling (2026-11-18) also removed the evening count from
+// check-out: the page closes the day with a single "Confirm check out" button, no count form.
+test("the rep checks out (J1 step 15)", async ({ browser }) => {
   const { ctx, phone: page } = await repPhoneOpen(browser);
   await page.goto("/app/day");
   await page.getByRole("button", { name: "Finish the day" }).click();
-  await page.getByLabel(seed.sku.code).fill(String(await repBagOnHand()));
-  // B-35: with a bag, check-out needs the daily close, so the page must send the evening count.
-  const closeCount = page.waitForRequest((r) => r.url().includes("/rpc/record_count") && r.method() === "POST");
-  await page.getByRole("button", { name: "Save count and check out" }).click();
-  expect((await closeCount).postDataJSON()).toMatchObject({ p_kind: "daily_close" });
+  await page.getByRole("button", { name: "Confirm check out" }).click();
   await expect(page.getByText("Day closed. Thank you.")).toBeVisible();
   await expect(page.getByText("Today's day is closed.")).toBeVisible();
   await ctx.close();

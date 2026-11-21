@@ -273,7 +273,14 @@ test("investors: a new investor with nothing decided says so; deciding fills the
 
   const invest = page.getByRole("form", { name: "Add an investment" });
   await invest.getByLabel("Amount (Rs)").fill(INVESTED_RS);
+  // MJ 2026-11-20 (recurring return): an investment carries a promised percentage; the form's period
+  // defaults to monthly, so the percentage is required before the investment is recorded.
+  await invest.getByLabel("Return percentage per month").fill("10");
   await invest.getByRole("button", { name: "Record investment" }).click();
+  await expect(page.getByText(`Investment of ${rupees(Number(INVESTED_RS) * 100)} recorded.`)).toBeVisible();
+  // The promised terms show on the investment; no whole month has passed, so nothing has accrued yet.
+  await expect(page.getByTestId("investment-row")).toContainText("10% per month");
+  await expect(page.getByTestId("investor-accrued")).toHaveText("Rs 0");
   await expect(page.getByTestId("month-one-decided")).toHaveText("Nothing decided yet for this month.");
   await page.getByRole("link", { name: "Decide profit for", exact: false }).click();
   const decide = page.getByRole("form", { name: "Decide profit" });
