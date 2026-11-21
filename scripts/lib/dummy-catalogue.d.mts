@@ -5,7 +5,7 @@ export declare const DUMMY_PRICE_PAISA: number;
 export declare const DUMMY_PRICE_REASON: string;
 
 export interface DummyGroup {
-  key: string;
+  slug: string;
   name: string;
   id: string;
   cycleDays: number;
@@ -13,7 +13,7 @@ export interface DummyGroup {
 }
 
 export interface DummyProduct {
-  key: string;
+  slug: string;
   group: string;
   name: string;
   id: string;
@@ -23,7 +23,7 @@ export interface DummyProduct {
 }
 
 export interface DummySku {
-  key: string;
+  slug: string;
   product: string;
   code: string;
   variant: string;

@@ -18,9 +18,9 @@ const DUMMY_BRAND_LABEL = `${DUMMY} Kiran`;
 const CYCLE_DAYS = 30;
 const ID_NAMESPACE = "kiran-dms/p1-34/dummy-catalogue";
 
-/** A stable UUID for one seed key, so reruns address the same row. */
-function idOf(kind, key) {
-  const b = createHash("sha256").update(`${ID_NAMESPACE}/${kind}/${key}`).digest().subarray(0, 16);
+/** A stable UUID for one seed slug, so reruns address the same row. */
+function idOf(kind, slug) {
+  const b = createHash("sha256").update(`${ID_NAMESPACE}/${kind}/${slug}`).digest().subarray(0, 16);
   b[6] = (b[6] & 0x0f) | 0x80; // version 8 (custom, name-based)
   b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
   const hex = b.toString("hex");
@@ -28,23 +28,23 @@ function idOf(kind, key) {
 }
 
 const groups = [
-  { key: "hair-colour", name: `${DUMMY} Hair Colour` },
-  { key: "bleach-lightener", name: `${DUMMY} Bleach and Lightener` },
-  { key: "keratin-treatments", name: `${DUMMY} Keratin and Treatments` },
-  { key: "after-care", name: `${DUMMY} After Care` },
-].map((g) => ({ ...g, id: idOf("group", g.key), cycleDays: CYCLE_DAYS, active: true }));
+  { slug: "hair-colour", name: `${DUMMY} Hair Colour` },
+  { slug: "bleach-lightener", name: `${DUMMY} Bleach and Lightener` },
+  { slug: "keratin-treatments", name: `${DUMMY} Keratin and Treatments` },
+  { slug: "after-care", name: `${DUMMY} After Care` },
+].map((g) => ({ ...g, id: idOf("group", g.slug), cycleDays: CYCLE_DAYS, active: true }));
 
 const products = [
-  { key: "musk-hair-colour", group: "hair-colour", name: `${DUMMY} Musk Hair Colour 100 ml` },
-  { key: "musk-blonder", group: "bleach-lightener", name: `${DUMMY} Musk Blonder 600 g` },
-  { key: "lunex-botox", group: "keratin-treatments", name: `${DUMMY} Lunex Botox / Strong Keratin 1000 ml` },
-  { key: "lunex-shampoo", group: "after-care", name: `${DUMMY} Lunex After Care Shampoo 300 ml` },
-  { key: "lunex-conditioner", group: "after-care", name: `${DUMMY} Lunex After Care Conditioner 300 ml` },
-  { key: "lunex-refill", group: "after-care", name: `${DUMMY} Lunex Keratin Refill 100 ml` },
+  { slug: "musk-hair-colour", group: "hair-colour", name: `${DUMMY} Musk Hair Colour 100 ml` },
+  { slug: "musk-blonder", group: "bleach-lightener", name: `${DUMMY} Musk Blonder 600 g` },
+  { slug: "lunex-botox", group: "keratin-treatments", name: `${DUMMY} Lunex Botox / Strong Keratin 1000 ml` },
+  { slug: "lunex-shampoo", group: "after-care", name: `${DUMMY} Lunex After Care Shampoo 300 ml` },
+  { slug: "lunex-conditioner", group: "after-care", name: `${DUMMY} Lunex After Care Conditioner 300 ml` },
+  { slug: "lunex-refill", group: "after-care", name: `${DUMMY} Lunex Keratin Refill 100 ml` },
 ].map((p) => ({
   ...p,
-  id: idOf("product", p.key),
-  groupId: groups.find((g) => g.key === p.group).id,
+  id: idOf("product", p.slug),
+  groupId: groups.find((g) => g.slug === p.group).id,
   brandLabel: DUMMY_BRAND_LABEL,
   active: true,
 }));
@@ -52,7 +52,7 @@ const products = [
 const shadeSkus = Array.from({ length: 14 }, (_, i) => {
   const n = String(i + 1).padStart(2, "0");
   return {
-    key: `musk-hair-colour-shade-${n}`,
+    slug: `musk-hair-colour-shade-${n}`,
     product: "musk-hair-colour",
     code: `DUMMY-MUSK-HC-100-${n}`,
     variant: `${DUMMY} Shade ${n}`,
@@ -63,7 +63,7 @@ const shadeSkus = Array.from({ length: 14 }, (_, i) => {
 
 const singleSkus = [
   {
-    key: "musk-blonder-600",
+    slug: "musk-blonder-600",
     product: "musk-blonder",
     code: "DUMMY-MUSK-BLONDER-600",
     variant: `${DUMMY} 600 g`,
@@ -71,7 +71,7 @@ const singleSkus = [
     size: 600,
   },
   {
-    key: "lunex-botox-1000",
+    slug: "lunex-botox-1000",
     product: "lunex-botox",
     code: "DUMMY-LUNEX-BOTOX-1000",
     variant: `${DUMMY} 1000 ml`,
@@ -79,7 +79,7 @@ const singleSkus = [
     size: 1000,
   },
   {
-    key: "lunex-shampoo-300",
+    slug: "lunex-shampoo-300",
     product: "lunex-shampoo",
     code: "DUMMY-LUNEX-SHAMPOO-300",
     variant: `${DUMMY} 300 ml`,
@@ -87,7 +87,7 @@ const singleSkus = [
     size: 300,
   },
   {
-    key: "lunex-conditioner-300",
+    slug: "lunex-conditioner-300",
     product: "lunex-conditioner",
     code: "DUMMY-LUNEX-CONDITIONER-300",
     variant: `${DUMMY} 300 ml`,
@@ -95,7 +95,7 @@ const singleSkus = [
     size: 300,
   },
   {
-    key: "lunex-refill-100",
+    slug: "lunex-refill-100",
     product: "lunex-refill",
     code: "DUMMY-LUNEX-REFILL-100",
     variant: `${DUMMY} 100 ml`,
@@ -106,9 +106,9 @@ const singleSkus = [
 
 const skus = [...shadeSkus, ...singleSkus].map((s) => ({
   ...s,
-  id: idOf("sku", s.key),
-  productId: products.find((p) => p.key === s.product).id,
-  priceClientId: idOf("price", s.key),
+  id: idOf("sku", s.slug),
+  productId: products.find((p) => p.slug === s.product).id,
+  priceClientId: idOf("price", s.slug),
   active: true,
 }));
 

@@ -54,3 +54,11 @@ Continuation 2026-11-21 09:20 PKT
 **Evidence:** merge commits 2f1a045 and eced5f0, no conflicts. pnpm lint exit 0 (252 files, 42 warnings, 38 infos, all pre-existing); pnpm typecheck exit 0; merged-tree db run pnpm exec vitest run --config supabase/tests/vitest.config.ts catalogue-availability.test.ts catalogue-seed.test.ts --testTimeout=300000 --hookTimeout=300000 -> 2 test files passed, 0 failed (5 availability cases, 7 seed cases). The children recorded their own evidence in docs/log/2026-11-21-inv12-catalogue-availability.md and docs/log/2026-11-21-p134-catalogue-seed.md. Not run here: the full db:test, the office browser suite and the e2e stack (no Docker on this host); CI runs them on the pushed head.
 
 **Next / needs:** push and read CI; two workstreams still running (office CSV sheet import, P1-05 vault foundation).
+
+Continuation 2026-11-21 09:40 PKT
+
+**What / why:** The secret-scan job of run 44863818734 failed gitleaks generic-api-key on scripts/lib/dummy-catalogue.mjs at lines 66, 82 and 90: the seed module's own field name `key` with values such as musk-blonder-600. Renamed that internal field to `slug` in the module and in scripts/lib/dummy-catalogue.d.mts. No scanner exclusion was added.
+
+**Evidence:** local gitleaks 8.30.1 detect on this tree found 3 leaks, all generic-api-key in that one file; after the rename a no-git scan of scripts/lib finds no leaks. pnpm typecheck exit 0. The migrations and RLS job of the same run passed (7m10s) on head 72a53fe, so the visits isolation fix holds in CI.
+
+**Next / needs:** push; watch the secret scan and the office browser job on this head.
