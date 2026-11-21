@@ -1,6 +1,6 @@
 # Master execution prompt, revision of 2026-11-01 (MJ)
 
-Verbatim copy of the master engineering prompt MJ supplied on 2026-11-01 (logged L-0205). The standing rules from it are summarised in `CLAUDE.md` and `AGENTS.md`; this file is the full text. `execution-map.md` in this folder was built from an earlier version whose section numbers differ (it cites §6 business modules A to K and §16 "CI passes"; in this revision §6 is staging and B-18, §16 is the execution order). Where the two disagree, this revision governs the order of work and `docs/ACTIVITY.md` governs status.
+Verbatim copy of the master engineering prompt MJ supplied on 2026-11-01 (logged L-0205). The standing rules from it are summarised in `CLAUDE.md` and `AGENTS.md`; this file is the full text. `execution-map.md` in this folder was built from an earlier version whose section numbers differ (it cites §6 business modules A to K and §16 "CI passes"; in this revision §6 is staging and B-18, §16 is the execution order). Where the two disagree, this revision governs the order of work and `docs/ACTIVITY.md` governs status. Amended 2026-11-21: section 12A added by MJ's instruction (docs/log/2026-11-21-fe-alignment-decision.md); everything else is unchanged.
 
 ---
 
@@ -1071,6 +1071,49 @@ Do not unnecessarily redesign already functional components.
 Prioritize closing business workflow gaps over cosmetic improvements.
 
 ---
+
+# 12A. COMPLETE FRONTEND, BACKEND ALIGNMENT AND DATA PRESENTATION
+
+(Added 2026-11-21 by MJ's instruction, recorded in docs/log/2026-11-21-fe-alignment-decision.md. This section extends §12 (frontend acceptance) and §3.2 (requirement-to-implementation matrix); it does not replace them, and nothing here relaxes §10 or §11.)
+
+Ensure Kiran DMS has a complete, production-ready frontend that fully complements and exposes the capabilities of the backend. Do not treat frontend completion as merely creating pages, forms or dashboards: the frontend must make every approved business workflow understandable, accessible, actionable and consistent with the underlying database, business rules, permissions and calculations. The frontend should explain the business, not just display the database.
+
+## 12A.1 Complete feature coverage
+
+- Map every approved feature, backend capability, database entity and business workflow to its corresponding frontend interface. The feature-to-interface coverage matrix in docs/coverage/ (matrix.json, the rendered COVERAGE.md, enforced by scripts/coverage/check.mjs in the agent-policy-files CI job) is that map and the completion gate for this section.
+- Identify missing pages, screens, forms, tables, dashboards, detail views, filters, actions and navigation. Every user role has the correct interface and permitted actions. No implemented backend functionality that is intended for use through the application remains inaccessible.
+- Matrix statuses reuse the ACTIVITY §7 words exactly: NOT STARTED, IN PROGRESS, DONE (self-reported), VERIFIED, BLOCKED, DEFERRED — FUTURE PHASE, plus N/A. A row is complete only when the frontend experience exists, talks to the real backend through the named function, respects role permission, shows the database's real states, has its figures reconciled by a test, and names its evidence. A backend existing alone never completes a row.
+
+## 12A.2 Data presentation and layout
+
+- Present information in the most appropriate format: tables, cards, summaries, charts, timelines, ledgers, calendars or detailed records. Organize related information logically; avoid clutter, duplication and unnecessary navigation.
+- Provide meaningful sorting, searching, filtering, pagination and drill-down where appropriate. Make important figures, statuses, relationships and exceptions immediately understandable. Doc 11 Gate 1 criterion 4 — the owner answers "how much are we owed, by whom, who's collecting" from the phone in under 10 seconds — is the standing test of this section.
+
+## 12A.3 Analytics and calculations
+
+- Use authoritative backend calculations for financial and business-critical values. Never independently recreate a calculation in the frontend in a way that could conflict with the database's answer (frontend-structure plan rule 4: no financial or stock figure is calculated in the browser).
+- Every displayed metric carries a plain-language explanation: what it represents, how it is calculated, its source data, the applicable period, and any exclusions or limitations.
+- Totals, subtotals, balances, commissions, inventory values and investor returns reconcile with their authoritative records. Charts appear only when they improve understanding or decision-making.
+
+## 12A.4 Explainability and usability
+
+- Every important field, metric, status, action and business decision has a clear label and an understandable explanation. Explain what an action does, what happens next, who is responsible, and whether approval is required.
+- Helpful empty, loading, validation, error, confirmation and success states on every data surface (the five-state rule); the database's own refusal wording is shown; capped lists say they are capped. Never leave users guessing what a number means, why an action is unavailable or what to do next. Terminology matches the approved business specifications.
+
+## 12A.5 Backend and data integrity
+
+- Every frontend action connects to the correct backend operation and respects database constraints, RLS, permissions, approval rules and audit requirements.
+- No mock data, placeholder functionality, misleading charts, hardcoded business figures or buttons that do nothing. Data refreshes correctly and users see the appropriate state after creating, updating, approving or completing an operation.
+
+## 12A.6 Responsive design and quality assurance
+
+- The application works across desktop, tablet and mobile. Check usability, accessibility, consistency and performance. Test complete end-to-end workflows for Owner, Manager, Rep and Salon roles. Verify that displayed figures and analytics reconcile with database records and authoritative calculations.
+
+## 12A.7 The coverage matrix gate
+
+Before the project is declared finished, the docs/coverage/ matrix shows, per requirement: the business requirement; the backend implementation; the database source; the frontend page or component; the user roles and permissions; the calculations or analytics involved; the test evidence; and the status. scripts/coverage/check.mjs enforces structural completeness in CI: every Phase 1 requirement row present exactly once, every DONE or VERIFIED row citing an existing test, and every route file under apps/web/app appearing in at least one row. Do not mark a feature complete merely because its backend exists: it is complete only when the required frontend experience works correctly, communicates the business logic clearly and passes its relevant tests.
+
+The objective is a cohesive business application in which the backend provides reliable functionality and data, while the frontend makes that functionality understandable, visible and easy to operate with minimal ambiguity.
 
 # 13. TESTING STRATEGY
 
