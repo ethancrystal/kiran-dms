@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ListState } from "@/components/confirm-action";
 import { rupees, toPaisa } from "@/lib/money";
@@ -118,6 +119,9 @@ export default function Products() {
       <p className="muted">
         Products and SKUs that orders are made from. List prices are set here with a reason; per-salon prices are on each
         salon&apos;s page.
+      </p>
+      <p className="muted">
+        Adding many products at once? <Link href="/office/products/upload">Upload a sheet</Link> (CSV).
       </p>
       {notice && <output className="ok">{notice}</output>}
       {!loading && !error && <ProductGroups groups={groups} isOwner={me?.role === "owner"} onDone={done} />}
