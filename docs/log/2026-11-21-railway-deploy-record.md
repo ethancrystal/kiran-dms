@@ -27,23 +27,3 @@ Security checklist (tick honestly):
 [ ] No control weakened, skipped or "temporarily" disabled (H-16) — nothing disabled; the toml removal removes duplicated commands, not a control
 [x] Docs match code; deviations logged (H-25) — the record now matches the deployed reality; the .env.example NOTE replaces a silently wrong comment instead of flipping values
 [x] Tests actually run; real results recorded (H-23, H-24) — preflight and activity:check above; the not-run list is explicit
-
-Continuation 2026-11-21 22:47 PKT
-
-**What / why:** MJ asked which hosted projects the app should use and that the Railway deployment be fully set up ("please check which ones should we work with and this app will be deployed on railway make sure that everythhing is set for that"), then to keep exactly one Railway configuration ("keep just one for railway"). The probes answered the project question; the deployment question found the build broken, and this continuation fixes it in this same pull request so Railway has one record, one config (the Dockerfile) and one PR.
-
-Findings:
-- Schema probes with each project's own key, read-only, against public.salon and public.user_profile: nwxidylbfeciungrqdkm and iurvazdyxzlspegygldo both answer 42501 (permission denied — the RLS refusal), so both carry the Kiran schema; ffccrpejbkmmjgtekaql and rcwoiwtcjyikqvtdjulq answer PGRST205 (table absent), so they do not carry it. The portal pair the app actually reads points at nwxidylbfeciungrqdkm, which is therefore the project to work with. The iurvaz secret key in the operator's local .env.local is rejected as "Invalid API key", consistent with MJ's 2026-11-20 rotation; no consumer reads it today.
-- Deployments: seven consecutive builds failed on 2026-11-21 between 21:28 and 22:26 PKT, the last being 19fbf879-ce6d-45a9-af0a-25c466867a8f, triggered by the PR 130 merge. The service still runs the 2026-11-19 deployment 02705712-6e13-4851-a8ff-b0dc01ff0b53 (commit 2e85b3d), built by Railpack with a dashboard build command. Once the Dockerfile reached main, Railway switched to it and every build failed.
-- Root cause from the failed build log: the base stage ran pnpm install --frozen-lockfile with only the root manifests copied, so the workspace packages had no node_modules; the builder then died in pnpm --filter @kiran/web run build with "cross-env: not found" (ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL, spawn ENOENT). Three further defects sat behind it: the runner copied .next from the repo root although the build output lives in apps/web/.next; the runner stage had no pnpm, so its CMD would not resolve; and NEXT_PUBLIC_* were never declared as build ARG, so the bundle would have been built unconfigured whatever the service variables said.
-- One production action was taken on MJ's instruction that everything be set: the service public domain was created (kiran-production-9c5c8fac.up.railway.app, id f96ce21a-0215-4962-8387-d70d37ae9f66). It currently routes to the stale 2026-11-19 deployment and is removable from the dashboard. No deploy, migration or variable write was made.
-
-**Evidence:**
-- railway logs --build 19fbf879-ce6d-45a9-af0a-25c466867a8f: the log quoted above, ending "Build Failed: ... exit code: 1". railway logs --build with no id showed the 11-19 Railpack build (image tag carrying deployment 02705712).
-- railway status --json and railway deployment list: the seven FAILED entries and the one RUNNING 2026-11-19 deployment.
-- curl probes against the four refs as described; docker --version is absent on this host, so the image itself is verified by the new CI job on this pull request, not locally.
-- Changes in this continuation: Dockerfile rewritten (manifests first, ARG NEXT_PUBLIC_* in the builder, runner from the same base, correct .next path); .dockerignore added (git, node_modules, .next, worktrees, and all .env files, H-20); a docker-image job added to ci.yml (build with the two public build args, run the container, require / to render and /office/login to answer 200); docs/deploy/railway-kiran-dms.md gains sections 7 and 8 with these findings and the project verdicts.
-- pnpm activity:check rerun after this continuation; its result is in the pull request check.
-- Not run: docker build locally (no Docker on this host); the new CI job is the verification that matters, and the Railway build after merge is the end-to-end proof.
-
-**Next / needs:** MJ reviews and merges this pull request; the first green Railway build is the proof, then the domain serves the current main. Still MJ's: confirm the hosted project for the split field/office surfaces (unchanged, section 4), and nothing else depends on the retiring humorous-reprieve project, which Railway deletes on 2026-11-22.
