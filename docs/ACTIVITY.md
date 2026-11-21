@@ -386,6 +386,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-39 | Completion: salon catalogue shows availability only, never unit counts (INV-12, MJ ruling 3 of 2026-11-20) | INV-12; doc 16 | DONE (self-reported, 2026-11-21-inv12-catalogue-availability: availability flag from active warehouses, the page labels In stock or Not available and disables adding; 5 db tests; the stack seed keeps 12 shelf units for the portal journeys) | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
+| P1-42 | Repair the office browser job: the discount-tiers journey creates its own pending discount | run 44930031088; ACTIVITY 2.6 | IN PROGRESS (pull request 136) | — |
 
 ### Phase 2 — The Growth Engine
 
