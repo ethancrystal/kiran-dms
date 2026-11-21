@@ -15,3 +15,8 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or "temporarily" disabled (H-16) (n/a)
 [x] Docs match code; deviations logged (H-25) (docs-only; the plan and handoff record the red CI baseline they inherit and the C0a repair)
 [x] Tests actually run; real results recorded (H-23, H-24) (preflight and activity-log-check above; nothing else applies to a markdown-only diff)
+
+Continuation 2026-11-21 23:10 PKT
+
+**What / why:** The first push silently omitted the evidence set: .gitignore line 6 was a bare `coverage/` pattern, which ignores every directory named coverage anywhere, including the new docs/coverage/. Narrowed it to the root-anchored `/coverage/` so any root coverage output stays ignored and docs/coverage/ becomes trackable — master prompt section 12A.7 makes docs/coverage/ the home of the coverage matrix, so the pattern had to change. This second commit adds .gitignore and the six evidence files; pull request 134 updated in place.
+**Evidence:** gh pr view 134 before the fix listed 8 files and no docs/coverage path; after the fix it lists 15 files including docs/coverage/evidence with the six reports; node scripts/activity-log-check.mjs exit 0 after this log change.
