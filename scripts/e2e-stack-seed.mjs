@@ -47,6 +47,9 @@ const sku = { id: randomUUID(), code: `DUMMY-${tag.toUpperCase()}`, list_price_p
 const pendingSalon = { id: randomUUID(), name: `[Test] Proposed salon ${tag}`, area: "" };
 // Slice 4 (D-32): units of the SKU loaded into Rep One's bag, and the warehouse they came from.
 const BAG_QTY = 6;
+// INV-12 (MJ ruling 3, 2026-11-20): units kept on the warehouse shelf so the salon catalogue reads
+// "In stock" for the portal journeys, which add this SKU to a basket.
+const PORTAL_STOCK = 12;
 const warehouse = { id: randomUUID(), name: `[Test] Warehouse ${tag}` };
 // Slice 2 (P1-19): an approved salon the manager gives its own price; and the product group's name.
 const catalogueSalon = { id: randomUUID(), name: `[Test] Catalogue salon ${tag}` };
@@ -162,6 +165,14 @@ try {
     `insert into public.stock_movement (client_id, sku_id, qty, from_location_id, to_location_id, kind, actor_id)
      values (gen_random_uuid(), $1, $2, $3, $4, 'issue_to_rep', $5)`,
     [sku.id, BAG_QTY, warehouse.id, bagId, people.owner.id],
+  );
+  // INV-12: the issue above leaves the warehouse at zero, and the salon page now shows availability and
+  // refuses to add an unavailable product to a basket. A second goods-in keeps PORTAL_STOCK units there
+  // for the portal journeys (no price, order or bag figure changes).
+  await c.query(
+    `insert into public.stock_movement (client_id, sku_id, qty, to_location_id, kind, actor_id)
+     values (gen_random_uuid(), $1, $2, $3, 'receipt', $4)`,
+    [sku.id, PORTAL_STOCK, warehouse.id, people.owner.id],
   );
 
   // Slice 1 (D-35, D-39): a territory and area for a salon the manager creates while inviting it,
