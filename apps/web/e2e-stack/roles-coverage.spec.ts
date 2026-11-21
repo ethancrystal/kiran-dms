@@ -258,69 +258,150 @@ test("salon self-signup, office review decisions and role isolation", async ({ b
   await expect(approved.getByText(/This is a salon's login/)).toBeVisible();
 });
 
-// Journey 2 — discounts need a second office user at the right tier; the maker
-// cannot decide their own request; withdrawal and cancellation reach the salon;
-// credit-hold release respects the manager's cap and the owner's override.
+// Journey 2 — discounts need a second office user at the right tier. Nothing earlier in the run
+// leaves a pending approval, so the journey makes its OWN: the manager takes two discounted office
+// orders for the catalogue salon through the order form, sees its request in mine mode (a Withdraw,
+// no Approve — the UI face of maker ≠ checker, which the SQL layer pins in
+// supabase/tests/office-approvals.test.ts), withdraws the first, and the owner approves the second.
+// A third order at list price on an installment plan is held by the credit check and the owner
+// releases it; the salon portal still reads only its own account.
 test("discount tiers, maker-checker, withdrawal, cancel and credit-hold release", async ({ browser }) => {
   test.setTimeout(JOURNEY_TIMEOUT);
+
+  // app.build_order (migration 20261105110000) prices a line at the form's per-line price when the
+  // form carries one and holds any discount below list for approval. "1" rupee on the seed SKU's
+  // Rs 1,500 list is a 99.9% discount, so the request is owner-tier whatever app_config's
+  // approval.discount.owner_above holds (a missing threshold means owner, CTL-07).
+  const salonNameRe = seed.catalogueSalon.name.replace(/[[\]]/g, "\\$&");
+  const createdNotice = (held: string) => new RegExp(`Order created for ${salonNameRe}: draft · .+ \\(held: ${held}\\)\\.`);
+  const newestOrder = () =>
+    stackQuery<{
+      id: string;
+      status: string;
+      created_by: string;
+      hold_credit: string | null;
+      hold_discount: string | null;
+      discount_paisa: string;
+    }>(
+      "select id, status, created_by, hold_credit, hold_discount, discount_paisa from public.sales_order where salon_id = $1 order by created_at desc limit 1",
+      [seed.catalogueSalon.id],
+    );
+  const makeDiscountedOrder = async (page: Page) => {
+    await page.goto("/office/orders");
+    await page.getByRole("button", { name: "Create New Order" }).click();
+    const form = page.getByRole("form", { name: "New order" });
+    await form.getByLabel("Salon", { exact: true }).selectOption(seed.catalogueSalon.id);
+    await form.getByLabel("Product 1").selectOption(seed.sku.id);
+    await form.getByLabel("Quantity 1").fill("1");
+    await form.getByLabel("Price per unit (Rs, optional) 1").fill("1");
+    await form.getByLabel("Plan").selectOption("CASH");
+    await form.getByRole("button", { name: "Create order" }).click();
+    await expect(page.getByText(createdNotice("pending"))).toBeVisible();
+  };
+
   const office = await newPage(browser);
   await officeSignIn(office, manager);
+  await makeDiscountedOrder(office);
+  const first = (await newestOrder())[0];
+  expect(first.created_by).toBe(manager.id);
+  expect(first.status).toBe("draft");
+  expect(first.hold_discount).toBe("pending");
+  expect(first.hold_credit).toBeNull(); // a CASH order never waits on credit (app.evaluate_order)
+  expect(BigInt(first.discount_paisa)).toBe(BigInt(seed.sku.list_price_paisa) - 100n);
+  const [request] = await stackQuery<{ id: string; status: string; maker_id: string; checker_role_required: string }>(
+    "select id, status, maker_id, checker_role_required from control.approval_request where subject_type = 'sales_order' and subject_id = $1",
+    [first.id],
+  );
+  expect(request.status).toBe("pending");
+  expect(request.maker_id).toBe(manager.id);
+  expect(request.checker_role_required).toBe("owner");
 
-  // The pending approvals queue lists discounts with their amounts (Approvals page).
+  // Mine mode: the maker reads its request with the amounts and the tier, and can only withdraw it (P1-30).
   await office.goto("/office/approvals");
   await expect(office.getByRole("heading", { name: "Approvals" })).toBeVisible();
-  const before = await stackQuery<{ id: string; kind: string }>(
-    "select id, kind from control.approval_request where status = 'pending' order by created_at",
-  );
-  expect(before.length).toBeGreaterThan(0);
+  await expect(office.getByTestId("approval").first()).toBeVisible();
+  const mine = office.getByTestId("approval").filter({ hasText: seed.catalogueSalon.name });
+  await expect(mine).toHaveCount(1);
+  await expect(mine).toContainText("Discount");
+  await expect(mine).toContainText(`asked by ${manager.name}`);
+  await expect(mine).toContainText("needs the owner");
+  await expect(mine).toContainText("You asked for this; another office user decides it.");
+  await expect(mine.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
+  await mine.getByRole("button", { name: "Withdraw", exact: true }).click();
+  await mine.getByLabel("Why it is withdrawn").fill("[Test] wrong price");
+  await mine.getByRole("button", { name: "Withdraw request" }).click();
+  await expect(office.getByText(/Withdrew the discount request\./)).toBeVisible();
+  await expect(office.getByTestId("approval").filter({ hasText: seed.catalogueSalon.name })).toHaveCount(0);
+  const cancelled = await stackQuery<{ status: string }>("select status from control.approval_request where id = $1", [
+    request.id,
+  ]);
+  expect(cancelled[0].status).toBe("cancelled");
 
-  // Maker self-approval is refused by the database even when the UI is reachable.
-  const selfApprove = await stackQuery<{ sqlstate: string }>(
-    `select sqlstate from (select app.office_decide_approval($1, true, 'because') as sqlstate) x`,
-    [],
-  ).catch(() => []);
-  // The authoritative check: a maker's own request stays pending after the UI action.
-  const maker = before[0];
-  expect(maker.kind).toBe("discount");
+  // The second request, made the same way, is decided by the owner — the maker cannot decide it (H-12).
+  await makeDiscountedOrder(office);
+  const second = (await newestOrder())[0];
+  expect(second.id).not.toBe(first.id);
+  const ownerPage = await newPage(browser);
+  await officeSignIn(ownerPage, owner);
+  await ownerPage.goto("/office/approvals");
+  const theirs = ownerPage.getByTestId("approval").filter({ hasText: seed.catalogueSalon.name });
+  await expect(theirs).toHaveCount(1);
+  await expect(theirs).toContainText(`asked by ${manager.name}`);
+  await theirs.getByRole("button", { name: "Approve", exact: true }).click();
+  await theirs.getByLabel("Checked how").fill("[Test] within policy");
+  await theirs.getByRole("button", { name: "Approve request" }).click();
+  await expect(ownerPage.getByText(/Approved the discount request\. The order is now/)).toBeVisible();
+  const decided = (
+    await stackQuery<{ status: string; checker_id: string | null }>(
+      "select status, checker_id from control.approval_request where subject_type = 'sales_order' and subject_id = $1",
+      [second.id],
+    )
+  )[0];
+  expect(decided.status).toBe("approved");
+  expect(decided.checker_id).toBe(owner.id);
+  const confirmed = (await newestOrder())[0];
+  expect(confirmed.id).toBe(second.id);
+  expect(confirmed.status).toBe("confirmed");
 
-  await office.goto(`/office/orders/${maker.id}`);
-  await expect(office.getByText(/Approvals|discount/i).first()).toBeVisible();
-  // Withdrawing a maker's own request is allowed and reruns the hold (Approvals page note).
-  await office.goto("/office/approvals");
-  const withdraw = office.locator("li", { hasText: "Discount" }).first().getByRole("button", { name: "Withdraw" });
-  if (await withdraw.count()) {
-    await withdraw.click();
-    await office
-      .getByRole("button", { name: /Withdraw/ })
-      .last()
-      .click();
-  }
+  // At list price the form's price equals the database's: no discount, no approval. The installment
+  // plan is above the salon's eligibility (no credit profile: app.credit_of defaults to CASH), so the
+  // order is a draft held for credit; releasing is the owner's (doc 09 §2 caps the manager's override).
+  await office.goto("/office/orders");
+  await office.getByRole("button", { name: "Create New Order" }).click();
+  const listForm = office.getByRole("form", { name: "New order" });
+  await listForm.getByLabel("Salon", { exact: true }).selectOption(seed.catalogueSalon.id);
+  await listForm.getByLabel("Product 1").selectOption(seed.sku.id);
+  await listForm.getByLabel("Quantity 1").fill("1");
+  await listForm.getByLabel("Price per unit (Rs, optional) 1").fill((seed.sku.list_price_paisa / 100).toFixed(2));
+  await listForm.getByLabel("Plan").selectOption("INST2");
+  await listForm.getByRole("button", { name: "Create order" }).click();
+  await expect(office.getByText(createdNotice("plan not allowed"))).toBeVisible();
+  const third = (await newestOrder())[0];
+  expect(third.status).toBe("draft");
+  expect(third.hold_credit).toBe("plan_not_allowed");
+  expect(third.hold_discount).toBeNull();
+  expect(BigInt(third.discount_paisa)).toBe(0n);
+  await ownerPage.goto(`/office/orders/${third.id}`);
+  await expect(ownerPage.getByRole("button", { name: "Release credit hold" })).toBeVisible();
+  await ownerPage.getByRole("button", { name: "Release credit hold" }).click();
+  await ownerPage.getByLabel("Why the credit hold is released").fill("[Test] within policy");
+  await ownerPage.getByRole("button", { name: "Release the credit hold" }).click();
+  await expect(ownerPage.getByTestId("order-holds")).toContainText("(credit hold released)");
+  const released = (
+    await stackQuery<{ credit_override_by: string | null; status: string }>(
+      "select credit_override_by, status from public.sales_order where id = $1",
+      [third.id],
+    )
+  )[0];
+  expect(released.credit_override_by).toBe(owner.id);
+  expect(released.status).toBe("confirmed");
 
-  // The salon sees no approved discount for a withdrawn request.
+  // The salon portal still reads only its own account; the full isolation journeys are the other
+  // tests of this file and office.spec.ts.
   const salon = await newPage(browser);
   await codeSignIn(salon, "/salon/login", seed.people.journeySalon.email);
   await salon.goto("/salon");
-  await expect(salon.getByText(/Waiting for the office|Send request/).first()).toBeVisible();
-
-  // Credit hold: the manager may release within the cap, the owner above it.
-  const ownerPage = await newPage(browser);
-  await officeSignIn(ownerPage, owner);
-  const orders = await stackQuery<{ id: string; status: string }>(
-    "select id, status from public.sales_order order by created_at desc limit 1",
-  );
-  if (orders.length) {
-    await ownerPage.goto(`/office/orders/${orders[0].id}`);
-    await expect(ownerPage.getByRole("button", { name: "Release credit hold" })).toBeVisible();
-    await ownerPage.getByRole("button", { name: "Release credit hold" }).click();
-    await ownerPage.getByLabel(/Why the credit hold is released/i).fill("[Test] within policy");
-    await ownerPage.getByRole("button", { name: "Release the credit hold" }).click();
-    const released = await stackQuery<{ credit_override_by: string | null }>(
-      "select credit_override_by from public.sales_order where id = $1",
-      [orders[0].id],
-    );
-    expect(released[0].credit_override_by).toBe(owner.id);
-    void selfApprove; // documented above: the maker-checker rule is enforced in the database
-  }
+  await expect(salon.getByText(/Waiting for the office|Send request|order/i).first()).toBeVisible();
 });
 
 // Journey 3 — the office composes invoice copy, warehouse delivery captures a
