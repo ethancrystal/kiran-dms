@@ -61,7 +61,19 @@ async function officeSignIn(page: Page, p: P) {
     .waitFor({ timeout: 10_000 })
     .then(() => true)
     .catch(() => false);
-  if (enrol) secrets.set(p.email, (await key.first().innerText()).trim());
+  if (enrol) {
+    secrets.set(p.email, (await key.first().innerText()).trim());
+  } else if (!secrets.has(p.email)) {
+    // Another spec file enrolled this account earlier in the run; this file's module state is
+    // separate, so read the verified factor's secret from the local stack to compute codes.
+    const [factor] = await stackQuery<{ secret: string }>(
+      `select f.secret from auth.mfa_factors f join auth.users u on u.id = f.user_id
+        where u.email = $1 and f.factor_type = 'totp' and f.status = 'verified'
+        order by f.created_at desc limit 1`,
+      [p.email],
+    );
+    if (factor?.secret) secrets.set(p.email, factor.secret);
+  }
   await page.getByLabel("6-digit code").fill(await freshCode(p.email));
   await page.getByRole("button", { name: "Verify" }).click();
   await page.waitForURL(/\/office$/);
@@ -1269,7 +1281,7 @@ test("a manager records an investor, an investment, a profit decision and a payo
   await officeSignIn(page, manager);
   await page.getByRole("navigation", { name: "Office" }).getByRole("link", { name: "Investors", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Investors", exact: true, level: 1 })).toBeVisible();
-  await expect(page.getByTestId("ledger-note")).toContainText("Nothing is calculated");
+  await expect(page.getByTestId("ledger-note")).toContainText("Nothing here is posted to cash");
 
   const name = `[Dummy] Investor ${Date.now()}`;
   const add = page.getByRole("form", { name: "Add an investor" });
@@ -1282,6 +1294,8 @@ test("a manager records an investor, an investment, a profit decision and a payo
 
   const invest = page.getByRole("form", { name: "Add an investment" });
   await invest.getByLabel("Amount (Rs)").fill("100000");
+  // MJ 2026-11-20 (recurring return): the form requires the promised percentage (period defaults to monthly).
+  await invest.getByLabel("Return percentage per month").fill("10");
   await invest.getByRole("button", { name: "Record investment" }).click();
   await expect(page.getByText(`Investment of ${rupees(INVESTED_PAISA)} recorded.`)).toBeVisible();
   const decide = page.getByRole("form", { name: "Decide profit" });

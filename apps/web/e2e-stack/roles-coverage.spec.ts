@@ -82,7 +82,19 @@ async function officeSignIn(page: Page, p: P) {
     .waitFor({ timeout: 10_000 })
     .then(() => true)
     .catch(() => false);
-  if (enroll) secrets.set(p.email, (await key.first().innerText()).trim());
+  if (enroll) {
+    secrets.set(p.email, (await key.first().innerText()).trim());
+  } else if (!secrets.has(p.email)) {
+    // Another spec file enrolled this account earlier in the run; this file's module state is
+    // separate, so read the verified factor's secret from the local stack to compute codes.
+    const [factor] = await stackQuery<{ secret: string }>(
+      `select f.secret from auth.mfa_factors f join auth.users u on u.id = f.user_id
+        where u.email = $1 and f.factor_type = 'totp' and f.status = 'verified'
+        order by f.created_at desc limit 1`,
+      [p.email],
+    );
+    if (factor?.secret) secrets.set(p.email, factor.secret);
+  }
   await page.getByLabel("6-digit code").fill(await freshCode(p.email));
   await page.getByRole("button", { name: "Verify" }).click();
   await page.waitForURL(/\/office$/);

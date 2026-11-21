@@ -17,6 +17,9 @@ export default defineConfig({
   test: {
     root: "supabase/tests",
     include: ["**/*.test.ts"],
+    // Tool scratch dirs can hold stale copies of these files (the agent workspace and other
+    // checkouts); a copy must never run as the suite. CI checkouts have neither directory.
+    exclude: ["**/node_modules/**", "**/dist/**", ".zwork/**", ".worktrees/**"],
     globalSetup: ["./setup/global-setup.ts"],
     // One shared throwaway database; tests isolate themselves with rolled-back transactions.
     fileParallelism: false,

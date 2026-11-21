@@ -62,21 +62,19 @@ beforeAll(async () => {
     `[Test] Restock salon ${code()}`,
     AREA,
   ]);
+  // A closed historical day, only so the order below has a rep_day_id to point at (sales_order
+  // .rep_day_id is a foreign key). It must not be today: visits.test.ts (later in file-name order,
+  // same fixtures) checks repA in today, and an open earlier day would block that check-in (PIP-09).
   await run(
     "postgres",
-    `insert into public.rep_day (id, rep_id, day)
-     values ($1, $2, (now() at time zone 'Asia/Karachi')::date)
+    `insert into public.rep_day (id, rep_id, day, status, check_out_at, closed_by)
+     values ($1, $2, date '2000-01-01', 'closed', now(), $2)
      on conflict (rep_id, day) do nothing`,
     [REP_DAY, fx.repA.id],
     C,
   );
   const repDay = (
-    await run(
-      "postgres",
-      "select id from public.rep_day where rep_id = $1 and day = (now() at time zone 'Asia/Karachi')::date",
-      [fx.repA.id],
-      C,
-    )
+    await run("postgres", "select id from public.rep_day where rep_id = $1 and day = date '2000-01-01'", [fx.repA.id], C)
   ).rows[0];
   repDayId = repDay.id;
   await one(OWNER, "select app.office_set_reorder_point($1, $2)", [S1, 10]);
