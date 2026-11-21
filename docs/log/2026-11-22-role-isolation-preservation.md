@@ -19,3 +19,11 @@ Security checklist (tick honestly):
 [x] No control weakened, skipped or "temporarily" disabled (H-16): n/a, no control changed
 [x] Docs match code; deviations logged (H-25): this is a preservation snapshot; no implementation or business-rule claim changed
 [x] Tests actually run; real results recorded (H-23, H-24): preflight and the activity check ran; application suites are not applicable to a docs-only branch and are explicitly not run
+
+Continuation 2026-11-22 02:07 PKT
+
+**What / why:** Pull request 138 opened from this branch against main at 0dad9f7, carrying the six artifacts and this entry. No merge performed.
+
+**Evidence:** https://github.com/ethancrystal/kiran-dms/pull/138. The activity-log-check job passed on the first head; the remaining jobs were queued or in progress when this line was written. The diff is 7 files and 463 insertions, all documentation and evidence.
+
+**Next / needs:** MJ's approval in chat is required before any merge (ACTIVITY section 10). Pull request 132 and pull request 134 remain the carriers of the inventories and the approved plan.
