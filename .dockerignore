@@ -1,0 +1,16 @@
+# Build context hygiene for the Railway image.
+.git
+node_modules
+**/node_modules
+.next
+**/.next
+.worktrees
+worktrees
+.zwork
+derived
+docs_extracted
+import-reports
+*.log
+# Never bake local secrets into an image (H-20).
+.env
+.env.*
