@@ -397,11 +397,16 @@ test("discount tiers, maker-checker, withdrawal, cancel and credit-hold release"
   expect(released.status).toBe("confirmed");
 
   // The salon portal still reads only its own account; the full isolation journeys are the other
-  // tests of this file and office.spec.ts.
+  // tests of this file and office.spec.ts. The code sign-in lands here by itself (the login page
+  // replaces its URL with /salon once the code verifies): waiting for that landing keeps the journey
+  // from navigating away mid-sign-in and reading the page as a visitor (CI run 44935095247 lost
+  // that race once, and /salon rendered the anonymous no-account state).
   const salon = await newPage(browser);
   await codeSignIn(salon, "/salon/login", seed.people.journeySalon.email);
-  await salon.goto("/salon");
-  await expect(salon.getByText(/Waiting for the office|Send request|order/i).first()).toBeVisible();
+  await salon.waitForURL(/\/salon$/);
+  await expect(salon.getByText(/Waiting for the office|Send request|order/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
 });
 
 // Journey 3 — the office composes invoice copy, warehouse delivery captures a
