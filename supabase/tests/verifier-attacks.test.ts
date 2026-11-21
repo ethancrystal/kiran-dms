@@ -157,13 +157,18 @@ describe("device binding (SEC-03, doc 04 invariant 7)", () => {
 });
 
 describe("§7.2 vault: no path for a rep or an un-granted manager", () => {
-  it("supplier_vault is unreachable for every app role; vault_api has no functions yet", async () => {
+  it("supplier_vault is unreachable for every app role; vault_api exposes only the three vault RPCs", async () => {
     for (const [, who] of APP_ROLES) {
       expect(await sqlstate(who, "select count(*) from supplier_vault.anything")).toBe("42501");
     }
     const { rows } = await run("postgres",
-      "select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'vault_api'");
-    expect(rows[0].n).toBe(0);
+      "select p.proname f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'vault_api' order by 1");
+    // P1-05 first slice replaced the "no functions yet" placeholder with the pinned surface, so a
+    // function added to vault_api without a review fails here.
+    expect(rows.map((r) => r.f)).toEqual(["supplier_grant_set", "supplier_list", "supplier_upsert"]);
+    for (const who of ["anon", "service_role"] as const) {
+      expect(await sqlstate(who, "select * from vault_api.supplier_list('verifier')")).toBe("42501");
+    }
   });
 
   it("has_vault_grant is false for reps, AAL1 office, suspended, and a manager right after revoke", async () => {
@@ -279,8 +284,13 @@ describe("internal functions are not callable by app roles", () => {
       "rep_reorder_route", "rep_respond_handover", "rep_submit_delivery", "request_approval", "request_device_id", "reveal_phone", "revoke_device", "salon_apply", "salon_balance",
       "salon_cancel_request", "salon_catalogue", "salon_credit_status", "salon_edit_request", "salon_installments", "salon_invoice_document", "salon_login_status",
       "salon_me", "salon_my_account", "salon_my_invoices", "salon_my_orders", "salon_my_requests", "salon_notes", "salon_order_steps", "salon_stages", "salon_submit_request", "salon_visits",
-      "self_ok", "stock_on_hand", "storefront_catalogue", "storefront_image_published", "storefront_product", "update_salon", "user_role",
+      "self_ok", "stock_on_hand", "storefront_catalogue", "storefront_image_published", "storefront_product",
+      "supplier_grant_set", "supplier_list", "supplier_upsert", "update_salon", "user_role",
       "warehouse_availability",
+      // supplier_list, supplier_upsert and supplier_grant_set: migration 20261121150000 (P1-05 first
+      // slice). The first two require the vault grant and AAL2 (app.has_vault_grant); the third is
+      // owner-only (app.assert_owner), because a vault grant is governance (H-15). Their tables live in
+      // supplier_vault, which no application role may reach (doc 07 section 5.1).
       // office_upsert_storefront_category, office_upsert_storefront_product, office_set_storefront_published and
       // office_storefront_sheet (owner or manager at AAL2, app.assert_office); storefront_catalogue and
       // storefront_product (the two public catalogue reads, D-52: fixed public columns, also the only functions

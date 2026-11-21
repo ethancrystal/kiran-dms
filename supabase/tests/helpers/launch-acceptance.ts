@@ -126,7 +126,9 @@ export const ACCEPTANCE: Entry[] = [
         "supplier_vault is unreachable for every application role (doc 07 §5.1)",
         "no public column name hints at supplier or cost data (H-01, H-27)",
       ]),
-      ...tests("verifier-attacks.test.ts", ["supplier_vault is unreachable for every app role; vault_api has no functions yet"]),
+      ...tests("verifier-attacks.test.ts", [
+        "supplier_vault is unreachable for every app role; vault_api exposes only the three vault RPCs",
+      ]),
       blocked("P1-05"),
     ],
   },
@@ -183,7 +185,9 @@ export const ACCEPTANCE: Entry[] = [
     criterion: "07.5.1",
     evidence: [
       ...tests("schema-hygiene.test.ts", ["supplier_vault is unreachable for every application role (doc 07 §5.1)"]),
-      ...tests("verifier-attacks.test.ts", ["supplier_vault is unreachable for every app role; vault_api has no functions yet"]),
+      ...tests("verifier-attacks.test.ts", [
+        "supplier_vault is unreachable for every app role; vault_api exposes only the three vault RPCs",
+      ]),
       ...tests("reverify3-attacks.test.ts", [
         "§7.2 vault: no persona reaches supplier_vault; the grant is true only for granted office at AAL2, and an owner revoke bites at once",
       ]),

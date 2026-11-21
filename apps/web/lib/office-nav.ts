@@ -7,7 +7,7 @@
 
 export type OfficeRole = "owner" | "manager";
 
-export type NavItem = { href: string; label: string; ownerOnly?: boolean; also?: readonly string[] };
+export type NavItem = { href: string; label: string; ownerOnly?: boolean; grantOnly?: boolean; also?: readonly string[] };
 export type NavGroup = { title: string; items: readonly NavItem[] };
 
 export const OFFICE_NAV: readonly NavGroup[] = [
@@ -57,13 +57,20 @@ export const OFFICE_NAV: readonly NavGroup[] = [
     ],
   },
   { title: "Administration", items: [{ href: "/office/settings", label: "Settings", ownerOnly: true }] },
+  {
+    title: "Classified",
+    // The supplier vault (P1-05). A grantOnly item shows to the owner and to a manager who holds the
+    // vault grant; the vault_api functions refuse everyone else whatever the sidebar shows.
+    items: [{ href: "/office/vault/suppliers", label: "Supplier vault", grantOnly: true }],
+  },
 ];
 
 /** The groups this role sees; a group left with no item is dropped. */
-export const navFor = (role: OfficeRole): NavGroup[] =>
-  OFFICE_NAV.map((g) => ({ ...g, items: g.items.filter((i) => role === "owner" || !i.ownerOnly) })).filter(
-    (g) => g.items.length > 0,
-  );
+export const navFor = (role: OfficeRole, vaultGrant = false): NavGroup[] =>
+  OFFICE_NAV.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => (role === "owner" || !i.ownerOnly) && (vaultGrant || !i.grantOnly)),
+  })).filter((g) => g.items.length > 0);
 
 const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`);
 
