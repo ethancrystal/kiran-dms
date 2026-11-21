@@ -9,6 +9,7 @@ import {
   karachiToday,
   LEDGER_NOTE,
   REVERSAL_REASON_MIN_LENGTH,
+  type ReturnPeriod,
   type StatementRow,
 } from "@/lib/investors";
 import { rupees, toPaisa } from "@/lib/money";
@@ -25,6 +26,7 @@ const ENTRY_TEXT: Record<string, string> = {
   principal: "Principal returned",
 };
 const entryText = (e: StatementRow) => ENTRY_TEXT[e.payout_kind ?? e.entry_kind] ?? e.entry_kind;
+const periodWord = (p: ReturnPeriod) => (p === "yearly" ? "year" : "month");
 
 // One investor (P1-20; CAP-01 to CAP-03, D-40): details, the investments with their derived figures,
 // recording money, and the statement with reversals. Every write is an app.office_* function (owner or
@@ -166,7 +168,7 @@ export default function InvestorPage({ params }: { params: Promise<{ id: string 
                   <td data-label="Promised return">
                     {m.return_pct !== null && m.return_period !== null && (
                       <>
-                        {m.return_pct}% per {m.return_period}
+                        {m.return_pct}% per {periodWord(m.return_period)}
                       </>
                     )}
                   </td>
