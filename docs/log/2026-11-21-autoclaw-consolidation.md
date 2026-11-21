@@ -46,3 +46,11 @@ Continuation 2026-11-21 09:05 PKT
 **Evidence:** pair run pnpm exec vitest run --config supabase/tests/vitest.config.ts stock-receipt-restock.test.ts visits.test.ts --testTimeout=300000 --hookTimeout=300000 -> 2 test files passed, 21 tests passed, 0 failed, 38.97 s. Earlier this session: verifier-attacks 43 and stock 7 (100 tests including local duplicate copies), verify-slices 30, all passing. pnpm lint exit 0; pnpm typecheck exit 0. The office browser suite and the full db:test remain unproven locally (no stack on this host); CI runs both on the pushed head.
 
 **Next / needs:** push; read CI on the new head; merge the finished child branches (INV-12 availability, P1-34 catalogue seed).
+
+Continuation 2026-11-21 09:20 PKT
+
+**What / why:** Merged two finished workstreams into the integration line, each reviewed before merging (diffstat, migration, grants, tests): INV-12 salon catalogue availability (feat/inv12-catalogue-availability at 429bb04; the board gains P1-39) and P1-34 dummy catalogue seed (feat/p134-catalogue-seed at 154d64b; P1-34 now DONE self-reported). The board rows changed here, as section 12 requires.
+
+**Evidence:** merge commits 2f1a045 and eced5f0, no conflicts. pnpm lint exit 0 (252 files, 42 warnings, 38 infos, all pre-existing); pnpm typecheck exit 0; merged-tree db run pnpm exec vitest run --config supabase/tests/vitest.config.ts catalogue-availability.test.ts catalogue-seed.test.ts --testTimeout=300000 --hookTimeout=300000 -> 2 test files passed, 0 failed (5 availability cases, 7 seed cases). The children recorded their own evidence in docs/log/2026-11-21-inv12-catalogue-availability.md and docs/log/2026-11-21-p134-catalogue-seed.md. Not run here: the full db:test, the office browser suite and the e2e stack (no Docker on this host); CI runs them on the pushed head.
+
+**Next / needs:** push and read CI; two workstreams still running (office CSV sheet import, P1-05 vault foundation).
