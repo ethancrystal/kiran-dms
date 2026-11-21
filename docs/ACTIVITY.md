@@ -386,6 +386,7 @@ Recommended build order is in §12.1. Deviation from the order needs a `DECISION
 | P1-39 | Completion: salon catalogue shows availability only, never unit counts (INV-12, MJ ruling 3 of 2026-11-20) | INV-12; doc 16 | DONE (self-reported, 2026-11-21-inv12-catalogue-availability: availability flag from active warehouses, the page labels In stock or Not available and disables adding; 5 db tests; the stack seed keeps 12 shelf units for the portal journeys) | — |
 | P1-13 | Pilot: existing sales appointee, one territory, 4 weeks, Excel frozen | doc 11 | NOT STARTED | — |
 | P1-14 | Gate 1 sign-off by MJ | §8 | NOT STARTED | — |
+| P1-40 | Frontend-alignment mandate adopted: master prompt section 12A, DECISION entry, plan and evidence committed | MJ 2026-11-21; master prompt 12A | IN PROGRESS (docs-only pull request from branch docs/fe-alignment-mandate; 2026-11-21-fe-alignment-mandate) | — |
 
 ### Phase 2 — The Growth Engine
 
