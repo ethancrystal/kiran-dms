@@ -182,6 +182,51 @@ side effect of that script.
    service-role material (H-18, H-20). A leaked secret is rotated first, logged
    second.
 
-No production action (deploy, migration, variable write, redeploy) was taken
-while consolidating this record (H-19); the verification in §3 was read-only
-(`railway list`, `railway vars`).
+## 7. Build reality and the 2026-11-21 fix
+
+Railway builds the root `Dockerfile` — confirmed from the build log of deployment
+`19fbf879-ce6d-45a9-af0a-25c466867a8f` (2026-11-21), whose stages read `base`,
+`builder`, `runner`. The older deployment still running today
+(`02705712-6e13-4851-a8ff-b0dc01ff0b53`, commit `2e85b3d`, 2026-11-19) was built by
+Railpack with a dashboard build command; once the Dockerfile reached `main`, seven
+consecutive builds failed between 21:28 and 22:26 PKT.
+
+Root cause from that build log: the base stage copied only the root manifests before
+`pnpm install --frozen-lockfile`, so the workspace packages never got `node_modules`,
+and `pnpm --filter @kiran/web run build` died with `cross-env: not found`
+(`ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL`, `spawn ENOENT`). Three further defects sat
+behind it: the runner copied `.next` from the repo root although the build output
+lives in `apps/web/.next`; the runner stage had no `pnpm`, so its `CMD` would not
+resolve; and `NEXT_PUBLIC_*` were never declared as build arguments, so the client
+bundle would have been built unconfigured whatever the service variables said.
+
+Fixed in this pull request: every workspace manifest is copied before the frozen
+install; the `NEXT_PUBLIC_*` pair is declared as `ARG` and promoted to `ENV` in the
+builder stage (Railway passes service variables to the build as build arguments);
+the runner stage starts from the same base, so `pnpm` and the workspace
+`node_modules` exist, and it copies `apps/web/.next` to its real path. A new CI job,
+`docker-image`, builds the image and smoke-runs it (`/` must render, `/office/login`
+must return 200), so this class of failure is caught before Railway sees it.
+
+Public domain: created 2026-11-21 on MJ's instruction that the deployment be fully
+set up — `https://kiran-production-9c5c8fac.up.railway.app` (domain id
+`f96ce21a-0215-4962-8387-d70d37ae9f66`). Until the first green build it routes to
+the stale 2026-11-19 deployment; it is removable from the Railway dashboard.
+
+## 8. Which hosted projects to work with (probed 2026-11-21)
+
+Each project was probed read-only with its own key against `public.salon` and
+`public.user_profile`. `42501` (permission denied — the RLS refusal) means the table
+exists; `PGRST205` means the table is absent from the schema cache.
+
+| Project ref | Probe result | Verdict |
+|---|---|---|
+| `nwxidylbfeciungrqdkm` | `42501` on both tables; auth health 200 with its publishable key | **The portal database the app reads — work with this one** |
+| `iurvazdyxzlspegygldo` | `42501` on both tables | Carries the schema too; its secret key in the local `.env.local` is rejected as "Invalid API key" (consistent with MJ's 2026-11-20 rotation); no consumer reads it today |
+| `ffccrpejbkmmjgtekaql` | `PGRST205` on both tables | Does not carry the Kiran schema — not usable as a surface database yet |
+| `rcwoiwtcjyikqvtdjulq` | `PGRST205` on both tables | Does not carry the Kiran schema — not usable as a surface database yet |
+
+No production action (deploy, migration, variable write) was taken while
+consolidating this record (H-19); the verification in §3, §7 and §8 was read-only
+(`railway list`, `railway vars`, `railway logs`, and public HTTP probes), except the
+one domain creation recorded in §7, made on MJ's explicit instruction.

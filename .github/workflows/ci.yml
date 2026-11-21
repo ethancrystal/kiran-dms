@@ -81,6 +81,33 @@ jobs:
       - name: service-role key must never reach client code (H-18)
         run: node scripts/service-role-scan.mjs --bundle apps/web/.next/static
 
+  docker-image:
+    name: docker image build + smoke run (Railway deploy path)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      # Build exactly what Railway builds: the root Dockerfile. Placeholder public
+      # settings only; no real project is contacted at build time.
+      - name: build the deployment image
+        run: >
+          docker build
+          --build-arg NEXT_PUBLIC_SUPABASE_URL=https://ci-placeholder.supabase.co
+          --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=ci-placeholder
+          -t kiran-web:ci .
+      # The three failure modes of 2026-11-21 (missing workspace manifests, wrong
+      # .next path, missing pnpm in the runner) all surfaced only here.
+      - name: start the container and prove the app serves
+        run: |
+          docker run -d --name kiran-web -e PORT=8080 -p 8080:8080 kiran-web:ci
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8080/ > /dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          docker logs kiran-web
+          curl -fsS http://127.0.0.1:8080/ | grep -q "Kiran DMS"
+          test "$(curl -sS -o /dev/null -w %{http_code} http://127.0.0.1:8080/office/login)" = "200"
+
   lint:
     name: lint + format (Biome)
     runs-on: ubuntu-latest
