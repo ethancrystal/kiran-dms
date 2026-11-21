@@ -15,11 +15,13 @@
 154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:82
 154d64b5dcc9c918c0af0aa2a2e1a33245446611:scripts/lib/dummy-catalogue.mjs:generic-api-key:90
 #
-# Same false positive, one commit later: the 2026-11-21 continuation of the
-# consolidation log entry quotes the old "key: musk-blonder-600" shape as
-# evidence while describing the canary test, and gitleaks' generic-api-key
-# rule reads the quoted example itself. Pinned to that one finding at
-# 77b34f8, docs/log/2026-11-21-autoclaw-consolidation.md line 72. The merged
-# log file is append-only and may not be reworded, so the fingerprint is the
-# fix. One exact finding again; the canary still proves the scanner works.
+# Two more false positives came from writing ABOUT the scanner:
+# - the 2026-11-21 continuation of the consolidation log entry quotes the old
+#   key assignment example as evidence (77b34f8, log line 72; the merged log is
+#   append-only, so the fingerprint is the fix), and
+# - this file's own first annotation of it (60ca54e) quoted the same example,
+#   and the Dependabot PR 120 entry (1e85c02) repeated it; both are pinned
+#   below, and the wording here no longer contains the pattern at all.
 77b34f86a9b028a275bf81b24a2345970f11679d:docs/log/2026-11-21-autoclaw-consolidation.md:generic-api-key:72
+60ca54ef508f084556be7a8123782798b171b40f:.gitleaksignore:generic-api-key:19
+1e85c024a58c4e56d3a4689d2f5d38737827ec07:docs/log/2026-11-21-dependabot-pr120-supabase-setup-cli.md:generic-api-key:11
